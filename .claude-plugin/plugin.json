@@ -1,0 +1,13 @@
+{
+  "name": "oh-my-joy",
+  "version": "0.1.0",
+  "description": "프론트엔드 원스톱 — Figma 명세 → FF 구현 스펙(Plan) → 승인 후 구현·시각검증·토큰 sync",
+  "author": {
+    "name": "Jooyoung Shin",
+    "email": "jooyoung.dev@gmail.com"
+  },
+  "repository": "https://github.com/S-jooyoung/oh-my-joy",
+  "homepage": "https://github.com/S-jooyoung/oh-my-joy",
+  "license": "MIT",
+  "keywords": ["frontend", "figma", "playwright", "react", "nextjs", "frontend-fundamentals", "design-to-code"]
+}

@@ -1,0 +1,10 @@
+# OMC / OMX operational state — not part of the plugin
+.omc/
+.omx/
+
+# OS / editor
+.DS_Store
+
+# Node (if ever added)
+node_modules/
+*.log
