@@ -62,4 +62,4 @@ metadata:
 
 ## 연동 커맨드
 
-`/fe-review` — 현재 브랜치 diff를 위 4기준 + a11y + Vercel 성능/합성 + Next.js(Context7) 기준으로 통합 리뷰한다.
+`/omj-review` — 현재 브랜치/스테이징 diff를 위 4기준 + a11y + Vercel 성능/합성 + Next.js(Context7) 기준으로 통합 리뷰한다(read-only). `/omj`(처방)와 같은 FF SoT를 검증 단계에서 재사용한다.

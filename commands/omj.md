@@ -33,7 +33,7 @@ allowed-tools: Read, Grep, Glob, Skill, mcp__plugin_figma_figma__get_design_cont
 **dev 프라이머**: 대상 코드를 읽는다.
 - 작업과 관련된 컴포넌트/훅/스타일/타입을 `Glob`·`Grep`·`Read`로 수집해 현재 구조와 재사용 가능한 패턴을 파악한다.
 
-**공통(선택)**: 변경이 Next.js 버전 민감 주제(App Router, Server/Client 경계, `fetch` 캐싱/`revalidate`, `metadata`, `Image`, middleware, `next/dynamic`)와 관련되면 Context7로 `/vercel/next.js` 최신 문서를 조회(`resolve-library-id` → `query-docs`). Context7 부재 시 이 단계 생략(graceful).
+**공통(선택)**: 변경이 Next.js 버전 민감 주제와 관련되면 **`frontend-fundamentals` 스킬의 라우팅 규칙**에 따라 Context7로 `/vercel/next.js` 최신 문서를 조회한다(`resolve-library-id` → `query-docs`). 버전 민감 주제 목록과 vercel/Context7 라우팅의 SoT는 FF 스킬이며, 여기서는 중복 서술하지 않고 위임한다. Context7 부재 시 이 단계 생략(graceful).
 
 ## Phase 2 — 구현 스펙 author 후 STOP
 
@@ -50,6 +50,8 @@ allowed-tools: Read, Grep, Glob, Skill, mcp__plugin_figma_figma__get_design_cont
 
 **과설계 금지**: 함께 바뀔 게 확실할 때만 추상화. 단순 로직을 불필요하게 추상화하거나 일어나지 않을 미래를 위한 깊은 계층을 만들지 않는다(`frontend-fundamentals` "과설계 경고").
 
+**라우팅 권고 (읽기 전용 조언)**: 스펙 끝에 수집한 스코프(대상 파일 수·신규 추상화 필요 여부·화면 수)를 근거로 다음 실행 경로를 *추천만* 한다 — 1~2파일이면 인라인 구현, 다중 파일이면 `/team`(병렬) 또는 `/ralph`(순차), 진짜 모호하거나 합의가 필요한 대규모면 승인 후 `/ralplan` 시드. `/omj`는 **advisor일 뿐 오케스트레이션을 소유하지 않는다**(직접 실행·위임 없음, 신규 게이트 아님). 핸드오프 메커니즘은 README "OMJ × OMC 통합 작업 플로우" 참고.
+
 작성이 끝나면 **여기서 멈춘다.** 다음을 절대 하지 않는다:
 - 코드 파일을 만들거나 수정 (Write/Edit 금지 — allowed-tools에 없음)
 - 빌드/테스트/검증 실행
@@ -59,13 +61,14 @@ allowed-tools: Read, Grep, Glob, Skill, mcp__plugin_figma_figma__get_design_cont
 
 ## 승인 후 (이 커맨드의 범위 밖, 참고)
 
-사용자가 스펙을 승인하면 메인 세션이 스펙대로 구현한다. 다중 파일/대규모 변경이고 OMC가 설치돼 있으면 `executor`(`model=opus`)에 **opt-in 위임**할 수 있다 — 이는 *이미 승인된 스펙을 구현하는 핸드오프*이지 자율 플래너가 아니다. 구현이 끝나면 `/omj-verify <route>`로 시각 검증한다. (OMC 실행 도구 `/ralph`·`/team`·`/goal`과의 통합 흐름은 README "OMJ × OMC 통합 작업 플로우" 참고.)
+사용자가 스펙을 승인하면 메인 세션이 스펙대로 구현한다. 다중 파일/대규모 변경이고 OMC가 설치돼 있으면 `executor`(`model=opus`)에 **opt-in 위임**할 수 있다 — 이는 *이미 승인된 스펙을 구현하는 핸드오프*이지 자율 플래너가 아니다. 구현이 끝나면 `/omj-review`로 코드 diff를(FF·a11y·vercel·nextjs), `/omj-verify <route>`로 시각을 검증한다. (OMC 실행 도구 `/ralph`·`/team`·`/goal`과의 통합 흐름·핸드오프 메커니즘은 README "OMJ × OMC 통합 작업 플로우" 참고.)
 
 ## 사용법 (bare `/omj`)
 
 ```
 /omj <figma-url> [route]    Figma 디자인 → 구현 스펙(Plan). 예: /omj https://figma.com/design/... /invite/edit
 /omj "<작업 설명>" [route]   코드 작업 → 구현 스펙(Plan). 예: /omj "RSVP 폼 컴포넌트" /invite/edit
+/omj-review [--base <ref>]  구현 후 코드 diff 리뷰(FF·a11y·vercel·nextjs, Plan 해제 후 실행)
 /omj-verify <route>         구현 후 시각 검증(Plan 해제 후 실행)
 /omj-sync push|check        디자인 토큰(tokens.json) ↔ Figma Variables
 /omj-setup                  의존성(playwright-cli·Figma MCP·Context7) 점검·설치 가이드
