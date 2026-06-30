@@ -4,7 +4,7 @@
 
 ## 번들링
 
-**원칙**: 사용자가 처음 받는 자바스크립트를 줄인다. 청첩장은 모바일 환경에서 빠르게 열려야 하므로 초기 번들 크기에 민감하다.
+**원칙**: 사용자가 처음 받는 자바스크립트를 줄인다. 모바일에서 빠르게 열려야 하는 서비스는 초기 번들 크기에 민감하다.
 
 ### 1. dev/prod 번들은 다르다
 
@@ -13,8 +13,8 @@
 ### 2. 무거운 컴포넌트는 코드 스플리팅
 
 ```tsx
-// 갤러리 라이트박스, 지도 등 초기 화면에 불필요한 무거운 모듈
-const KakaoMap = dynamic(() => import('@/components/map/kakao-map'), {
+// 이미지 라이트박스, 지도 등 초기 화면에 불필요한 무거운 모듈
+const MapView = dynamic(() => import('@/components/map/map-view'), {
   ssr: false,
   loading: () => <MapSkeleton />,
 });
@@ -45,11 +45,11 @@ const KakaoMap = dynamic(() => import('@/components/map/kakao-map'), {
 3. **가설-검증**: "무엇이 참이면 이 버그가 설명되는가"를 세우고 로그/관찰로 검증. 경합하는 가설을 동시에 둔다.
 4. **근본 원인**: 증상이 아니라 원인을 고친다.
 
-### 아름 특이 함정 (디버깅 시 먼저 의심)
+### 자주 겪는 함정 (디버깅 시 먼저 의심)
 
 - **브랜치 전환 후 유령 typecheck 에러**: `.next/types/validator.ts`가 stale → `rm -rf .next` 후 재실행.
 - **RLS 무음 실패**: `auth.uid()=null`(세션 만료) 시 에러 없이 0행 반환 — `catch`로도 안 잡힘. 세션 의존성을 의심.
-- **이미지 삭제 데이터 손실**: 휘발성 클라 상태로 Storage 삭제 금지(AR-33). 서버 JSONB diff 기준으로만.
+- **영속 스토리지 삭제 사고**: 휘발성 클라이언트 상태를 기준으로 영속 Storage를 삭제하지 않는다 — 서버 기준(diff)으로만 반영한다.
 
 ### 디버그 smell → remedy
 

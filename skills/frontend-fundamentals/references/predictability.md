@@ -8,12 +8,12 @@
 
 이름이 "조회"인데 내부에서 상태를 바꾸면 호출자가 예측할 수 없다.
 
-**Before** — `getInvitation`이 몰래 로깅+캐시 갱신까지 한다.
+**Before** — `getPost`가 몰래 로깅+캐시 갱신까지 한다.
 
 ```ts
-function getInvitation(id: string) {
-  const data = api.fetchInvitation(id);
-  analytics.track('invitation_viewed', { id }); // 숨은 부수효과
+function getPost(id: string) {
+  const data = api.fetchPost(id);
+  analytics.track('post_viewed', { id }); // 숨은 부수효과
   cache.set(id, data); // 숨은 부수효과
   return data;
 }
@@ -22,13 +22,13 @@ function getInvitation(id: string) {
 **After** — 조회와 부수효과를 분리한다.
 
 ```ts
-function getInvitation(id: string) {
-  return api.fetchInvitation(id);
+function getPost(id: string) {
+  return api.fetchPost(id);
 }
 
 // 부수효과는 호출하는 쪽에서 명시적으로
-const invitation = getInvitation(id);
-analytics.track('invitation_viewed', { id });
+const post = getPost(id);
+analytics.track('post_viewed', { id });
 ```
 
 ## 2. 이름과 동작 일치
@@ -49,8 +49,8 @@ function fetchLoggedInUser(): Promise<User> { ... }
 
 ```ts
 function fetchUser(id: string): User | null { ... }
-function fetchInvitation(id: string): Invitation { /* 없으면 throw */ }
-function fetchGallery(id: string): Gallery | undefined { ... }
+function fetchPost(id: string): Post { /* 없으면 throw */ }
+function fetchComment(id: string): Comment | undefined { ... }
 ```
 
 **After** — 한 계열은 같은 규약으로.
@@ -58,13 +58,13 @@ function fetchGallery(id: string): Gallery | undefined { ... }
 ```ts
 // 모두 "없으면 null" 규약으로 통일
 function fetchUser(id: string): User | null { ... }
-function fetchInvitation(id: string): Invitation | null { ... }
-function fetchGallery(id: string): Gallery | null { ... }
+function fetchPost(id: string): Post | null { ... }
+function fetchComment(id: string): Comment | null { ... }
 ```
 
-## 4. 서버 액션 반환 형태 통일 (아름 컨벤션)
+## 4. 서버 액션 반환 형태 통일
 
-아름 서버 액션은 `{ success: boolean, error?: string }` 형태를 따른다. 어떤 액션만 다른 형태를 반환하면 예측 가능성이 깨진다.
+서버 액션이 `{ success: boolean, error?: string }` 같은 형태를 쓴다면 한 프로젝트 안에서 일관되게 따른다. 어떤 액션만 다른 형태를 반환하면 예측 가능성이 깨진다.
 
 ## smell → remedy
 
@@ -77,4 +77,4 @@ function fetchGallery(id: string): Gallery | null { ... }
 
 ## 과설계 경고
 
-- 예측가능성을 위해 모든 함수를 순수 함수로 만들 필요는 없다. 부수효과가 **이름에 드러나면** 충분하다 (예: `logInvitationView`).
+- 예측가능성을 위해 모든 함수를 순수 함수로 만들 필요는 없다. 부수효과가 **이름에 드러나면** 충분하다 (예: `logPostView`).
