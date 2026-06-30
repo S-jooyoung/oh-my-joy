@@ -8,7 +8,7 @@ allowed-tools: Read, Grep, Glob, Skill, mcp__plugin_figma_figma__get_variable_de
 
 코드의 디자인 토큰을 단일 진실 소스(SoT)로 삼아 Figma Variables와 맞춘다.
 
-> **원칙: 코드가 이긴다.** 방향은 code → Figma 단방향이다. Figma에서 코드를 덮어쓰지 않는다(`check`는 드리프트를 *보고만* 하고, 토큰 변경은 `tokens.json` PR로 한다). 근거: areum `docs/FIGMA_SYNC.md`.
+> **원칙: 코드가 이긴다.** 방향은 code → Figma 단방향이다. Figma에서 코드를 덮어쓰지 않는다(`check`는 드리프트를 *보고만* 하고, 토큰 변경은 `tokens.json` PR로 한다).
 
 > ⚠️ **대상 파일 = 현재 Figma 데스크톱 앱의 활성 탭.** `use_figma`는 활성 탭 파일에서 작동하므로, 동기화할 **디자인 시스템 파일을 활성 탭으로 연 뒤** 실행한다(URL로 대상 파일을 지정할 수 없음). `push`는 Figma write라 Figma 데스크톱이 켜져 있고 편집 권한이 있어야 하며, Plan 모드 밖에서 실행하는 능동 op다.
 
@@ -16,14 +16,14 @@ allowed-tools: Read, Grep, Glob, Skill, mcp__plugin_figma_figma__get_variable_de
 
 - `push` (기본) — `tokens.json`을 활성 탭의 Figma Variables로 생성/갱신.
 - `check` — 활성 탭의 Figma Variables와 `tokens.json`의 차이를 **읽기 전용 드리프트 리포트**로 출력.
-- `--tokens <path>` — 토큰 파일 경로(기본: `shared/tokens/tokens.json`).
+- `--tokens <path>` — 토큰 파일 경로. 미지정 시 기본값은 레포 루트 `.omj/fe-context.md`의 `tokensPath`(있으면 `Read`로 읽어 사용), 없으면 `shared/tokens/tokens.json`.
 
 ## 토큰 구조 (W3C DTCG)
 
-`tokens.json`은 다음 계층을 가진다(areum 기준):
-- **Primitive** — `color/ar/{gray,ruby,red,blue}/{scale}` 등 원시 스케일.
-- **Semantic** — `color/{brand,fg,surface,line,feedback}/*` (Primitive를 alias 참조, 예: `{color.ar.ruby.700}`). 디자인 작업은 semantic만 사용.
-- **Theme** — `color/thema/{01..05}-{base,point}` (청첩장 콘텐츠 — 디자인 시스템과 격리).
+`tokens.json`은 예시로 다음과 같은 계층을 가질 수 있다(구조는 프로젝트마다 다름):
+- **Primitive** — `color/{스케일}/{단계}`(예: `color/gray/100`) 등 원시 스케일.
+- **Semantic** — `color/{brand,fg,surface,line,feedback}/*` (Primitive를 alias 참조, 예: `{color.red.700}`). 디자인 작업은 semantic만 사용.
+- **Theme** — `color/theme/*` (콘텐츠/테마 토큰 — 디자인 시스템과 격리).
 - **Typography / Radius / Shadow / FontFamily** — 슬롯 기반.
 
 ## push 절차

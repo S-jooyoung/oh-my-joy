@@ -14,7 +14,7 @@ allowed-tools: Read, Grep, Glob, Skill, mcp__plugin_figma_figma__get_design_cont
 
 `$ARGUMENTS`를 아래 순서로 처리한다(LLM 추측 금지, 결정 규칙만 따른다):
 
-1. **먼저** 인자 끝에 `/`로 시작하는 토큰(예: `/invite/edit`)이 있으면 **떼어내 검증용 route로 기록**만 한다(이 커맨드는 검증을 실행하지 않음; 스펙에 "검증: `/omj-verify <route>`"로 남긴다).
+1. **먼저** 인자 끝에 `/`로 시작하는 토큰(예: `/settings/profile`)이 있으면 **떼어내 검증용 route로 기록**만 한다(이 커맨드는 검증을 실행하지 않음; 스펙에 "검증: `/omj-verify <route>`"로 남긴다).
 2. 남은 인자에 `figma.com` URL이 포함 → **figma 프라이머**.
 3. 남은 인자가 (URL 아닌) 텍스트 → **dev 프라이머**.
 4. 남은 인자가 **비어 있으면**(route만 줬거나 bare `/omj`) → 아래 "사용법"을 출력하고 종료한다. **빈 스펙을 author하지 않는다.**
@@ -40,11 +40,13 @@ allowed-tools: Read, Grep, Glob, Skill, mcp__plugin_figma_figma__get_design_cont
 수집한 명세로 **구현 스펙**을 작성한다. 스펙은 아래 **uSpec 섹션 분류**로 구조화하고, 각 섹션을 **frontend-fundamentals 4기준(가독성·예측가능성·응집도·결합도) + 접근성**으로 평가한다. 루브릭은 `Skill`로 **frontend-fundamentals 스킬을 invoke**해 그 `references/`를 사용한다:
 
 1. **Anatomy** — 만들 UI의 요소 분해(어떤 컴포넌트/서브컴포넌트로 구성되는가).
-2. **Structure** — 레이아웃·간격·치수·반응형 분기(모바일 우선; 청첩장은 모바일 공유가 핵심).
-3. **Color / Tokens** — 색·타이포·radius·shadow를 **semantic 토큰으로 매핑**(`shared/tokens/tokens.json`의 `color/brand/*`, `color/fg/*` 등 — raw hex·Primitive 직접 사용 금지).
+2. **Structure** — 레이아웃·간격·치수·반응형 분기(모바일 우선; 모바일 공유가 중요한 서비스라면 특히 민감).
+3. **Color / Tokens** — 색·타이포·radius·shadow를 **semantic 토큰으로 매핑**(예: `color/brand/*`, `color/fg/*` — raw hex·Primitive 직접 사용 금지). 토큰 경로 기본값 `shared/tokens/tokens.json`은 프로젝트별로 `.omj/fe-context.md`의 `tokensPath`로 오버라이드한다.
 4. **Props / Variants** — 컴포넌트 API(props 인터페이스, variant 축). 예측가능성: 이름=동작. 결합도: props drilling 회피.
 5. **A11y** — alt/라벨/시맨틱 태그/키보드/터치 타깃(VoiceOver·ARIA).
 6. **Motion** — 애니메이션이 있으면 `motion`(Motion One) 기준 타임라인/이징.
+
+**구현 acceptance(프로젝트 선언 기반)**: 레포 루트에 **`.omj/fe-context.md`** 가 있으면 거기 선언된 **프로젝트별 acceptance 축**을 스펙의 acceptance 기준에 포함한다. 없으면 보편 FF 기준만 적용한다(graceful). **OMJ는 특정 축(다국어·모드 등)을 강제하지 않는다** — 무엇을 점검할지는 프로젝트가 정한다(범용·오픈소스 친화). 메커니즘 상세: `frontend-fundamentals` `references/fe-acceptance.md`. 반응형·토큰·a11y 등 보편 축은 위 Structure/Color·Tokens/A11y 섹션이 이미 다룬다.
 
 스펙에는 **대상 파일 경로**, **재사용할 기존 함수/컴포넌트**, **적용할 FF/vercel 원칙**, **검증 route**(있으면)를 명시한다.
 
@@ -66,10 +68,11 @@ allowed-tools: Read, Grep, Glob, Skill, mcp__plugin_figma_figma__get_design_cont
 ## 사용법 (bare `/omj`)
 
 ```
-/omj <figma-url> [route]    Figma 디자인 → 구현 스펙(Plan). 예: /omj https://figma.com/design/... /invite/edit
-/omj "<작업 설명>" [route]   코드 작업 → 구현 스펙(Plan). 예: /omj "RSVP 폼 컴포넌트" /invite/edit
+/omj <figma-url> [route]    Figma 디자인 → 구현 스펙(Plan). 예: /omj https://figma.com/design/... /settings/profile
+/omj "<작업 설명>" [route]   코드 작업 → 구현 스펙(Plan). 예: /omj "검색 입력 폼 컴포넌트" /settings/profile
 /omj-review [--base <ref>]  구현 후 코드 diff 리뷰(FF·a11y·vercel·nextjs, Plan 해제 후 실행)
 /omj-verify <route>         구현 후 시각 검증(Plan 해제 후 실행)
+/omj-fix <route> ["설명"]    스크린샷+route 결함 수정 루프(Plan 해제 후 실행)
 /omj-sync push|check        디자인 토큰(tokens.json) ↔ Figma Variables
 /omj-setup                  의존성(playwright-cli·Figma MCP·Context7) 점검·설치 가이드
 ```
