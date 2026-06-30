@@ -11,13 +11,13 @@
 **Before** — 한 컴포넌트가 viewer/admin 두 맥락을 동시에 안고 있다.
 
 ```tsx
-function InvitationActions({ invitation, role }: Props) {
+function PostActions({ post, role }: Props) {
   return (
     <div>
       {role === 'admin' ? (
-        <button onClick={() => deleteInvitation(invitation.id)}>삭제</button>
+        <button onClick={() => deletePost(post.id)}>삭제</button>
       ) : (
-        <button onClick={() => shareInvitation(invitation.id)}>공유</button>
+        <button onClick={() => sharePost(post.id)}>공유</button>
       )}
     </div>
   );
@@ -27,12 +27,12 @@ function InvitationActions({ invitation, role }: Props) {
 **After** — 분기별로 컴포넌트를 나눠 각자 하나의 맥락만 갖는다.
 
 ```tsx
-function AdminInvitationActions({ invitation }: { invitation: Invitation }) {
-  return <button onClick={() => deleteInvitation(invitation.id)}>삭제</button>;
+function AdminPostActions({ post }: { post: Post }) {
+  return <button onClick={() => deletePost(post.id)}>삭제</button>;
 }
 
-function GuestInvitationActions({ invitation }: { invitation: Invitation }) {
-  return <button onClick={() => shareInvitation(invitation.id)}>공유</button>;
+function ViewerPostActions({ post }: { post: Post }) {
+  return <button onClick={() => sharePost(post.id)}>공유</button>;
 }
 ```
 

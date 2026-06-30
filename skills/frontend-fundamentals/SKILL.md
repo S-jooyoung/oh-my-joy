@@ -3,14 +3,14 @@ name: frontend-fundamentals
 description: 토스 frontend-fundamentals 기반 프론트엔드 코드 품질 가이드. React 컴포넌트/훅을 작성·수정·리팩터링하거나 코드 리뷰할 때 가독성·예측가능성·응집도·결합도·접근성 원칙을 적용한다. 성능/번들은 vercel-react-best-practices, 컴포넌트 합성/확장성은 vercel-composition-patterns, Next.js 최신 API는 Context7로 라우팅한다. "컴포넌트 작성", "훅 작성", "리팩터링", "코드 리뷰", "가독성" 등에서 활성화.
 license: MIT
 metadata:
-  author: areum
+  author: Jooyoung Shin
   version: '1.0.0'
   source: https://github.com/toss/frontend-fundamentals
 ---
 
-# Frontend Fundamentals (아름 통합 품질 가이드)
+# Frontend Fundamentals (통합 품질 가이드)
 
-토스 [frontend-fundamentals](https://github.com/toss/frontend-fundamentals)의 "변경하기 쉬운 코드" 원칙을 아름(Next.js 15 / React 19 / shadcn / Zustand) 스택에 맞춰 정리한 가이드. **확장성 있고, 접근성 좋고, 예측 가능한 코드**를 목표로 한다.
+토스 [frontend-fundamentals](https://github.com/toss/frontend-fundamentals)의 "변경하기 쉬운 코드" 원칙을 Next.js / React 스택에 맞춰 정리한 가이드. **확장성 있고, 접근성 좋고, 예측 가능한 코드**를 목표로 한다.
 
 ## 핵심 원칙: 좋은 코드의 4가지 기준
 
@@ -25,8 +25,9 @@ metadata:
 
 추가 영역:
 
-- **접근성(a11y)** → [references/a11y.md](references/a11y.md) — 청첩장은 모바일 공유가 핵심이라 a11y·터치 타깃에 민감
+- **접근성(a11y)** → [references/a11y.md](references/a11y.md) — 모바일 공유가 중요한 서비스라면 a11y·터치 타깃에 특히 민감
 - **번들/디버그** → [references/bundling-debug.md](references/bundling-debug.md)
+- **프로젝트 acceptance 축(메커니즘)** → [references/fe-acceptance.md](references/fe-acceptance.md) — 프로젝트가 `.omj/fe-context.md`에 선언한 '자주 빠뜨리는 축'을 스펙에 반영(플러그인은 특정 축을 강제하지 않음 — 범용)
 
 ## 빠른 점검표 (smell → remedy)
 

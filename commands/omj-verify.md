@@ -12,7 +12,7 @@ allowed-tools: Bash(playwright-cli:*), Bash(curl:*), Bash(command:*)
 
 ## 인자
 
-- `<route>` — 검증할 경로(예: `/invite/edit`). **route가 없으면** 아래 사용법을 출력하고 종료한다(컴포넌트가 어떤 라우트에 마운트됐는지 모르면 검증 불가).
+- `<route>` — 검증할 경로(예: `/settings/profile`). **route가 없으면** 아래 사용법을 출력하고 종료한다(컴포넌트가 어떤 라우트에 마운트됐는지 모르면 검증 불가).
 - `--base <url>` — base URL 오버라이드(생략 시 기본 `http://localhost:3000`). 예: `--base http://localhost:5173`(Vite).
 
 > ℹ️ 슬래시 커맨드는 셸이 아니므로 `JOY_BASE_URL=... /omj-verify`처럼 **인라인 env prefix는 적용되지 않는다.** 포트가 다르면 `--base` 인자를 쓰고, 로그인 자격증명 같은 env는 실행 *전에* 셸에서 미리 `export`한다.
@@ -20,7 +20,7 @@ allowed-tools: Bash(playwright-cli:*), Bash(curl:*), Bash(command:*)
 ## 변수 결정 (스니펫 실행 전 셸 변수로 고정)
 
 ```bash
-ROUTE="…"   # ← route 인자로 반드시 치환 (예: /invite/edit). 리터럴 <route> 금지
+ROUTE="…"   # ← route 인자로 반드시 치환 (예: /settings/profile). 리터럴 <route> 금지
 BASE="${JOY_BASE_URL:-http://localhost:3000}"   # --base 인자가 있으면 그 값으로 덮어씀
 ```
 > `ROUTE`는 사용자가 준 route 인자로 **실제 치환**한다. `BASE` 우선순위: `--base` > export된 `JOY_BASE_URL` > `http://localhost:3000`.
@@ -49,7 +49,7 @@ playwright-cli -s=omj screenshot    # 시각 점검
 ## 사용법 (route 누락 시)
 
 ```
-/omj-verify <route>                 예: /omj-verify /invite/edit
+/omj-verify <route>                 예: /omj-verify /settings/profile
 /omj-verify <route> --base <url>    예: /omj-verify / --base http://localhost:5173
 # 인증 라우트면 실행 전 셸에서:  export JOY_TEST_EMAIL=... JOY_TEST_PASSWORD=...
 ```
