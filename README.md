@@ -1,355 +1,105 @@
 # oh-my-joy (OMJ)
 
-> 코드 ↔ Figma 프론트엔드 루프 전체를 하나로 잇는 개인 프론트엔드 플러그인.
+English | [한국어](README.ko.md)
 
-OMJ는 프론트엔드 작업의 세 단계를 한 워크플로우로 묶습니다 — **① design → code(명세 수집 + 구현 스펙)**, **② 시각 검증**, **③ code → Figma 토큰 sync**. 토스 frontend-fundamentals(FF) 4기준과 Vercel 베스트 프랙티스를 구현 스펙 단계에서 먼저 적용하고, "거의 항상 Plan 모드"인 사용 습관과 충돌하지 않도록 **Plan 네이티브 프라이머**로 동작합니다.
+> One frontend plugin that stitches the whole code ↔ Figma loop together.
 
-`Plan-first` · `Figma 2-트랙` · `code-wins 토큰 sync` · `graceful degradation` · `OMC와 무충돌 공존`
+**Every frontend task starts with `/omj` — draft the spec, verify it, sync the tokens.**
+_A Plan-native primer that doesn't fight your "almost always in Plan mode" habit._
+
+`Plan-first` · `Figma 2-track` · `interactive token sync` · `graceful degradation` · `conflict-free alongside OMC`
+
+[Quick Start](#quick-start) • [Commands](#commands) • [OMJ × OMC](#omj--omc) • [Principles](#principles--figma-2-track) • [Troubleshooting](#troubleshooting)
 
 ---
 
-## 설치
+## Quick Start
 
 ```
+# 1. Install (enter one line at a time)
 /plugin marketplace add ~/projects/oh-my-joy
 /plugin install oh-my-joy@omj
+
+# 2. Check dependencies (recommended before first use)
+/omj-setup
+
+# 3. Start — turn intent into an implementation spec (Plan), then stop → review & approve (ExitPlanMode) → implement
+/omj "Search input form — React Hook Form + Zod, mobile-first" /search
 ```
 
-- 마켓플레이스명: `omj` / 플러그인명: `oh-my-joy`
-- 설치 후 사용 가능한 커맨드: `/omj`, `/omj-review`, `/omj-verify`, `/omj-fix`, `/omj-sync`, `/omj-setup`
-- 번들 스킬: `frontend-fundamentals`(OMJ 정본 — 구현 스펙의 평가 루브릭)
-- **첫 사용 전 권장**: `/omj-setup`으로 의존성(playwright-cli·Figma MCP·Context7) 점검·설치 가이드를 한 번 실행
+> `/omj` is a read-only primer — it never writes code directly; it drafts a spec and stops. Not sure where to start? Run `/omj-setup` first.
 
-### 의존성 (모두 선택 · graceful degradation)
+---
 
-부재해도 에러로 죽지 않고 **스킵 + 안내**합니다.
+## Commands
 
-| 의존성 | 쓰이는 곳 | 없을 때 |
+| Command | What it does | When to use | Example |
+| --- | --- | --- | --- |
+| **`/omj`** | Gather specs + author an implementation spec (Plan), then stop (read-only primer) | The starting point for every FE task | `/omj https://figma.com/design/abc?node-id=1-2 /settings/profile` |
+| **`/omj-review`** | Review the changed FE diff against FF 4-criteria + a11y · vercel · Next.js (report only) | Right after implementing, before a PR | `/omj-review --base main` |
+| **`/omj-verify`** | Open a route in a real browser (playwright-cli) and check visuals/structure | Visual-regression check before a PR | `/omj-verify /settings/profile` |
+| **`/omj-fix`** | Fix defects from a pasted screenshot + route, then re-capture to confirm (active loop) | Quick fixes for pixel/visual defects | `/omj-fix /pricing "banner z-index too low"` |
+| **`/omj-sync`** | Reconcile token drift (`tokens.json` ↔ Figma) by **asking you the direction** (interactive) | Aligning code/Figma tokens | `/omj-sync` · `/omj-sync check` · `/omj-sync push` |
+| **`/omj-setup`** | Dependency doctor + install guide | Before first use | `/omj-setup` |
+
+> **read-only vs active op.** `/omj` and `/omj-review` are read-only (report only) — `/omj-review` only runs `git diff`, so it generally works even in Plan mode. `/omj-verify`, `/omj-fix`, and `/omj-sync` (sync/push) are active ops using Figma write / `Edit` / Bash; if your environment blocks those in Plan mode, exit Plan mode first. Each command's syntax, arguments, and steps live in its `commands/<name>.md` (the source of truth).
+
+### `/omj-sync` — you choose the direction
+
+`/omj-sync` does not force "code always wins." **Code is the default source of truth**, but when drift exists it groups conflicts by class (value-mismatch / code-only / Figma-only) and asks the direction via `AskUserQuestion`. The first option of each question follows code authority — `code→Figma` for value-mismatch and code-only, and a conservative `skip` for Figma-only — so pressing enter stays safe.
+
+- `/omj-sync` (default `sync`) — interactive reconcile, asks the direction.
+- `/omj-sync check` — read-only drift report.
+- `/omj-sync push` — apply code→Figma in bulk with no prompts (explicit code-wins).
+
+---
+
+## Dependencies (all optional · graceful degradation)
+
+Missing ones never crash — OMJ **skips + guides** instead.
+
+| Dependency | Used by | When absent |
 | --- | --- | --- |
-| 공식 Figma Dev Mode MCP (`mcp__plugin_figma_figma__*`) | `/omj` figma 프라이머(디자인 읽기), `/omj-sync`(Variables 읽기/쓰기) | "Figma 미연결 — 수동 명세로 진행" 안내 후 계속 |
-| `playwright-cli` | `/omj-verify` 시각 검증 · `/omj-fix` 수정 루프 | "미설치 — 검증/수정 건너뜀" 안내 후 종료 |
-| Context7 (`mcp__plugin_context7-plugin_context7__*`) | `/omj`·`/omj-review`·`/omj-fix` 공통 단계(Next.js 최신 문서 조회) | 해당 단계만 생략 |
+| Official Figma Dev Mode MCP | `/omj` (read design), `/omj-sync` (read/write Variables) | "Figma not connected — proceed with a manual spec", then continue |
+| `playwright-cli` | `/omj-verify` · `/omj-fix` | "not installed — skipping verify/fix", then exit |
+| Context7 | `/omj` · `/omj-review` · `/omj-fix` (fetch latest Next.js docs) | that step is skipped |
 
-> Figma write(`/omj-sync push`, design 읽기)는 **Figma 데스크톱 앱이 켜져 있고 대상 파일이 활성 탭**이어야 합니다.
-
----
-
-## 커맨드 레퍼런스
-
-### `/omj` — 프론트엔드 Plan 프라이머
-
-**목적.** 프론트엔드 작업의 명세를 수집하고 **구현 스펙(= 네이티브 Plan)** 을 작성한 뒤 **멈춥니다.** 실제 코드 구현은 사용자가 그 Plan을 승인(ExitPlanMode)한 뒤의 정상 실행이 담당합니다.
-
-> ⚠️ **이 커맨드는 코드를 직접 쓰지 않습니다(read-only).** allowed-tools는 `Read`/`Grep`/`Glob` + **figma 읽기 전용 도구만**(`get_design_context`/`get_screenshot`/`get_variable_defs`/`get_metadata` — `use_figma` 등 write 도구 제외) + Context7 + `Skill`(frontend-fundamentals 루브릭 로드용)입니다. Write/Edit/Bash 없음 → 부작용 없음. 결과물은 "무엇을 어떻게 구현할지"의 스펙이고, 그 스펙이 곧 사용자가 승인할 Plan이 됩니다.
-
-**구문**
-
-```
-/omj <figma-url> [route]      Figma 디자인 → 구현 스펙(Plan)
-/omj "<작업 설명>" [route]     코드 작업 → 구현 스펙(Plan)
-/omj                          (인자 없음) 사용법 출력
-```
-
-**인자 / 디스패치 (결정적 — LLM 추측 없음)**
-
-- **먼저** 끝의 `/`로 시작하는 토큰(예: `/settings/profile`)이 있으면 떼어내 **검증용 route로 기록만**(검증은 실행 안 함; 스펙에 "검증: `/omj-verify <route>`"로 남김)
-- 남은 인자에 `figma.com` URL 포함 → **figma 프라이머**
-- 남은 인자가 (URL 아닌) 텍스트 → **dev 프라이머**
-- 남은 인자가 비어 있음(route만 줬거나 bare `/omj`) → 사용법 출력 후 종료(**빈 스펙 author 안 함**)
-
-**입력 → 무슨 일이 일어나는지 → 출력**
-
-1. *(figma)* `get_design_context`(구조/레이아웃), `get_screenshot`(이후 검증 baseline, 같은 세션 컨텍스트 내 유효), `get_variable_defs`(토큰)로 디자인을 읽음 — *(dev)* 관련 컴포넌트/훅/스타일/타입을 Glob·Grep·Read로 수집해 재사용 패턴 파악.
-2. 변경이 Next.js 버전 민감 주제(App Router, Server/Client 경계, fetch 캐싱/revalidate, metadata, Image, middleware, next/dynamic)면 Context7로 `/vercel/next.js` 최신 문서 조회(선택).
-3. **출력 = 구현 스펙**: uSpec 섹션(Anatomy / Structure / Color·Tokens / Props·Variants / A11y / Motion)으로 구조화하고 각 섹션을 FF 4기준 + 접근성으로 평가. 대상 파일 경로, 재사용할 기존 함수/컴포넌트, 적용할 FF/vercel 원칙, 검증 route를 명시. **구현 acceptance**는 레포 루트 `.omj/fe-context.md`가 선언한 프로젝트별 축이 있으면 포함하고(없으면 보편 FF 기준만; 토큰 경로도 `tokensPath`로 오버라이드), OMJ는 특정 축을 강제하지 않는다(범용). 그리고 **멈춤**(코드 생성·빌드·서브에이전트 위임 안 함).
-
-**예시**
-
-```
-# 1) Figma 디자인을 구현 스펙으로 (route는 나중에 검증용으로 기록)
-/omj https://figma.com/design/abc?node-id=12-34 /settings/profile
-
-# 2) 코드 작업 설명을 구현 스펙으로
-/omj "검색 입력 폼 컴포넌트 — React Hook Form + Zod, 모바일 우선" /settings/profile
-
-# 3) 사용법만 보기
-/omj
-```
-
-**언제 쓰나.** 모든 프론트엔드 작업의 시작점. 컴포넌트/훅 작성·수정, Figma 디자인 퍼블리싱, 리팩터링 계획 등.
-
-**주의.** 풀 파이프라인이 Plan 모드를 자동 종료하지 않습니다. 사용자가 스펙을 검토하고 직접 승인(ExitPlanMode)해야 구현이 시작됩니다. 승인 후 다중 파일/대규모 변경이고 OMC가 설치돼 있으면 `executor`(`model=opus`)에 **opt-in 위임** 가능(자율 플래너가 아니라 *승인된 스펙의 구현 핸드오프*).
+> Figma writes (`/omj-sync` push/pull, reading a design) require the **Figma desktop app running with the target file as the active tab**. MCP tool names vary by environment — check `/mcp`.
 
 ---
 
-### `/omj-verify` — 시각 검증 (능동 op)
+## OMJ × OMC
 
-**목적.** 구현된 화면을 실제 브라우저(`playwright-cli`)로 열어 디자인/명세 대비 어긋난 점을 점검합니다.
+OMJ is a **standalone plugin independent of** oh-my-claudecode (OMC). Installing both never conflicts (`/omj*` vs `/omc-*`).
 
-> ⚠️ **Bash 의존.** Plan 모드에서는 Bash가 차단되어 검증이 실행되지 않습니다 — **Plan 모드를 해제한 뒤** 실행하세요.
+- **Mental model (one sentence)**: "Start every FE task with `/omj` — escalate to OMC `executor` after approval when it grows. Go straight to OMC only for backend / general / research."
 
-**구문**
+| Stage | OMJ | OMC |
+| --- | --- | --- |
+| Plan | `/omj` (FE spec, native Plan) | `/omc-plan` · `/ralplan` |
+| Execute | — | `/ralph` · `/team` · `/goal` |
+| Verify | `/omj-review` · `/omj-verify` | `/verify` (BE/general) |
 
-```
-/omj-verify <route>
-/omj-verify <route> --base http://localhost:5173     # 포트가 다를 때(Vite 등)
-```
-
-**인자 / 환경**
-
-- `<route>` — 검증할 경로(예: `/settings/profile`). 없으면 사용법 출력 후 종료(어떤 라우트에 마운트됐는지 모르면 검증 불가).
-- `--base <url>` — base URL 오버라이드(기본 `http://localhost:3000`). Vite(5173) 등 다른 포트면 지정.
-- (env) `JOY_TEST_EMAIL` / `JOY_TEST_PASSWORD` — 로그인 리다이렉트 시 재로그인용. **실행 전 셸에서 `export`** 해야 함(슬래시 커맨드는 인라인 env prefix를 못 받음). `JOY_BASE_URL`도 export하면 base로 쓰이나, 포트 지정은 `--base`가 명확.
-
-**입력 → 무슨 일이 일어나는지 → 출력**
-
-1. **변수 고정**: `ROUTE`=route 인자로 **실제 치환**(리터럴 `<route>` 금지), `BASE="${JOY_BASE_URL:-http://localhost:3000}"`(`--base` 있으면 그 값). **프리플라이트(실패 시 graceful 종료)**: `command -v playwright-cli`(미설치면 안내 후 종료) → `curl -sf "$BASE"`로 서버 기동 확인(비200이면 "먼저 `yarn dev`" 안내, 자동 기동 안 함).
-2. **검증 절차**(세션 `-s=omj`):
-
-   ```bash
-   playwright-cli -s=omj open "$BASE$ROUTE" --persistent
-   playwright-cli -s=omj goto "$BASE$ROUTE"
-   # 로그인 리다이렉트면(open/goto 후 관찰) export된 $JOY_TEST_EMAIL/$JOY_TEST_PASSWORD로 fill+click 재로그인 후 다시 goto
-   playwright-cli -s=omj snapshot      # 구조(접근성 트리) 점검
-   playwright-cli -s=omj screenshot    # 시각 점검
-   playwright-cli -s=omj close          # 세션 정리(필수)
-   ```
-3. **출력**: 직전 `/omj` 세션의 Figma `get_screenshot` baseline이 같은 세션 컨텍스트에 있으면 그것과 대비해 차이 보고(없으면 구조/접근성/레이아웃 점검만 — baseline 없이 무리한 비교 추정 안 함). 차이를 심각도(🔴/🟡/🟢)로 그룹화해 `요소·위치 + 관찰된 차이 + 권장 수정`으로 정리. FF 접근성(alt·라벨·터치 타깃)과 토큰 일탈(raw hex)을 우선 점검.
-
-**예시**
-
-```
-# 1) 기본 (localhost:3000)
-/omj-verify /settings/profile
-
-# 2) 다른 포트(Vite)
-/omj-verify / --base http://localhost:5173
-
-# 3) 인증 라우트 — 자격증명은 실행 전 export (인라인 prefix는 안 먹힘)
-export JOY_TEST_EMAIL=me@ex.com JOY_TEST_PASSWORD=***
-/omj-verify /history
-```
-
-**언제 쓰나.** `/omj` 스펙대로 구현을 마친 뒤, PR 전 시각 회귀 확인. (Figma baseline 비교가 목적이면 같은 세션에서 `/omj` 직후 이어서 실행.)
-
-**주의.** dev 서버를 자동으로 띄우지 않습니다. 끝나면 항상 `close`로 세션을 정리합니다.
+The implementation spec `/omj` produces is exactly the input OMC's execution tools consume. See **[docs/OMC-INTEGRATION.md](docs/OMC-INTEGRATION.md)** (Korean) for the A/B/C flows, gate rules, and handoff constraints.
 
 ---
 
-### `/omj-fix` — 시각/동작 결함 수정 루프 (능동 op)
+## Principles · Figma 2-track
 
-**목적.** 붙여넣은 **스크린샷 + route**의 결함을 진단해 **고치고 재캡처로 확인**합니다. `/omj-verify`(읽기 점검)의 능동(write) 짝 — "본다 → 고친다 → 다시 본다"의 클로즈드 루프입니다. 스크린샷으로만 보이는 **지각적 결함**(색·간격·z-index·정렬)까지 커버합니다.
+- **Plan-native primer**: `/omj` is read-only — it drafts a spec and stops; implementation starts only after you approve (ExitPlanMode).
+- **Spec format**: uSpec sections (Anatomy / Structure / Color·Tokens / Props·Variants / A11y / Motion) + FF 4-criteria + a11y per item.
+- **Token sync**: code is the default SoT, and you choose the direction on conflict (interactive).
+- **Figma 2-track**: (A) app-screen design→code = official Dev Mode MCP; (B) design-system spec/tokens = figma-console-mcp + uSpec (v1.1+).
+- **Minimal bundle**: only the in-house `frontend-fundamentals` skill is bundled; vercel skills are referenced (`npx skills add/update`).
 
-> ⚠️ **능동 op.** Edit·Bash(playwright·typecheck·opt 커밋)를 쓰므로 **Plan 모드를 해제한 뒤** 실행합니다. 관찰·재확인의 캡처 절차는 `/omj-verify`와 **동일한 `-s=omj` 프로토콜을 재사용**(중복 정의 없음)하고, 이 커맨드의 순수 신규는 그 사이의 수정·커밋뿐입니다.
-
-**구문**
-
-```
-/omj-fix <route> ["불만/설명"] [--base <url>] [--commit]
-```
-
-**입력 → 무슨 일이 일어나는지 → 출력**
-
-1. `/omj-verify` 프로토콜로 현재 화면 캡처(snapshot+screenshot). 프리플라이트(playwright-cli·dev 서버) 실패 시 graceful 종료.
-2. `frontend-fundamentals` invoke → 붙인 스크린샷/불만 ↔ 현재 캡처 비교. 보편 FF 기준 + 레포의 `.omj/fe-context.md`에 선언된 프로젝트 acceptance 축(있으면)으로 **선제 점검**(사용자가 지적하기 전에).
-3. **최소 변경**으로 결함만 `Edit` → 타입체크 → 재캡처로 해소 확인(`close`). `--commit`이면 커밋(AI 서명 금지).
-
-**예시**
-
-```
-/omj-fix /pricing "[스크린샷] 배너 z-index 낮아 텍스트가 위로 감"
-/omj-fix /products/42 "카드 정렬 어긋남" --commit
-```
-
-**언제 쓰나.** 스크린샷으로 보이는 픽셀/시각 결함을 빠르게 고칠 때. 점검만 원하면 `/omj-verify`, 코드 품질 리포트만 원하면 `/omj-review`. 큰/모호한 변경은 먼저 `/omj` 프라이머로 스펙부터.
+The "why" behind each decision lives in **[docs/PRINCIPLES.md](docs/PRINCIPLES.md)** (Korean).
 
 ---
 
-### `/omj-review` — FF 통합 코드 리뷰 (검증, read-only)
-
-**목적.** 변경된 FE diff를 **frontend-fundamentals 4기준 + 접근성**, **vercel 성능/합성**, **Next.js(Context7)** 기준으로 한 번에 검토하고 **심각도별 리포트만** 냅니다. 코드를 고치지 않습니다(read-only).
-
-> ⚠️ **Bash 의존.** `git`을 쓰므로 Plan 모드에서는 실행되지 않습니다 — Plan 모드 해제 후 실행하세요. allowed-tools에 `Write`/`Edit` 없음 → diff를 읽고 리포트만, 수정은 사용자가 별도로 합니다.
->
-> **처방 vs 검증.** `/omj`(author)가 "무엇을 만들지"를 FF로 **처방**한다면, `/omj-review`는 구현 diff가 그 기준을 지켰는지 **검증**합니다 — 같은 FF SoT를 단계만 달리 씁니다. 시각 회귀는 `/omj-verify`.
-
-**구문**
-
-```
-/omj-review                  작업 트리 미커밋+staged 변경 리뷰
-/omj-review --base main      main 대비 브랜치 전체 diff 리뷰
-```
-
-**입력 → 무슨 일이 일어나는지 → 출력**
-
-1. **diff 수집**: 인자 없으면 `git diff HEAD`(+staged), `--base <ref>`면 `git diff <ref>...HEAD`. git 저장소 아님/변경 없음/FE 변경 없음이면 graceful 종료.
-2. **루브릭**: `Skill`로 `frontend-fundamentals` invoke(미로드면 4기준 축약 적용). 성능/번들→`vercel-react-best-practices`, props 비대화→`vercel-composition-patterns`, Next.js 버전민감→Context7 `/vercel/next.js`(부재 시 생략).
-3. **출력**: 발견을 심각도(🔴 blocker / 🟡 major / 🟢 minor·nit)로 그룹화, `파일:라인 + 위반 원칙 + 권장 수정`. 수정 없음.
-
-**언제 쓰나.** 구현 직후 PR 전 코드 품질 점검. 시각 회귀는 `/omj-verify`가 담당하며, 둘은 보완 관계입니다.
-
----
-
-### `/omj-sync` — 디자인 토큰 sync (code → Figma)
-
-**목적.** 코드의 디자인 토큰(`tokens.json`, W3C DTCG)을 단일 진실 소스(SoT)로 삼아 Figma Variables와 맞춥니다.
-
-> **원칙: 코드가 이긴다.** 방향은 code → Figma 단방향. Figma에서 코드를 덮어쓰지 않습니다 — `check`는 드리프트를 *보고만* 하고, 토큰 변경은 `tokens.json` PR로 합니다.
-
-> ⚠️ `push`는 **Figma write**입니다 — Figma 데스크톱 앱이 켜져 있고 대상 파일에 편집 권한이 있어야 합니다. Plan 모드 밖에서 실행하는 능동 op.
-
-**구문 / 인자·플래그**
-
-```
-/omj-sync                      # = push (기본 토큰 경로, 활성 탭 대상)
-/omj-sync check                # 읽기 전용 드리프트 리포트만
-/omj-sync push --tokens <path>
-```
-
-- `push`(기본) — `tokens.json`을 **활성 탭**의 Figma Variables로 생성/갱신.
-- `check` — 활성 탭의 Figma Variables ↔ `tokens.json` 차이를 read-only 리포트로 출력.
-- `--tokens <path>` — 토큰 파일 경로(기본 `shared/tokens/tokens.json`).
-- **대상 파일 = 현재 Figma 데스크톱 앱의 활성 탭.** `use_figma`가 활성 탭에 작동하므로 동기화할 디자인 시스템 파일을 **활성 탭으로 연 뒤** 실행(URL로 파일 지정 불가 — `--file` 인자 없음).
-
-**토큰 구조 (W3C DTCG)** — 아래는 예시이며 실제 구조는 프로젝트마다 다릅니다(`tokensPath`가 가리키는 파일 기준).
-
-- **Primitive** — `color/{스케일}/{단계}`(예: `color/gray/100`) 등 원시 스케일.
-- **Semantic** — `color/{brand,fg,surface,line,feedback}/*`(Primitive를 alias 참조). 디자인 작업은 semantic만 사용.
-- **Theme** — `color/theme/*`(콘텐츠 — 디자인 시스템과 격리).
-- **Typography / Radius / Shadow / FontFamily** — 슬롯 기반.
-
-**모드별 단계**
-
-- **push**: `tokens.json` Read·파싱 → **`figma-use` 스킬 먼저 invoke(MANDATORY)** → `use_figma`로 Variables Collection 일괄 생성/갱신(Semantic은 Primitive를 alias로 *참조* — 값 복제 아님) → 데스크톱 미연결/권한 없음이면 graceful 안내 → 생성/갱신/스킵 건수 요약.
-- **check**: `tokens.json` 읽고 `get_variable_defs`로 Figma Variables 읽어 비교 → 드리프트 리포트(코드에만 있음 / Figma에만 있음 / 값 불일치, 자동 수정 안 함) → "차이는 `tokens.json` 수정 PR 후 `/omj-sync push`로 해소" 안내.
-
-**예시**
-
-```
-# 1) 기본 push
-/omj-sync
-
-# 2) 드리프트만 점검 (read-only)
-/omj-sync check
-
-# 3) 토큰 경로 지정 push (대상 디자인시스템 파일을 활성 탭으로 연 뒤)
-/omj-sync push --tokens shared/tokens/tokens.json
-```
-
-**언제 쓰나.** 코드에서 토큰을 바꾼 뒤 Figma Variables를 맞출 때(`push`), 또는 양쪽이 어긋났는지 확인할 때(`check`).
-
-**주의.** code-wins 단방향이므로 Figma 쪽 수정은 sync 대상이 아닙니다. `push`는 Figma write라 Plan 모드 밖 + 데스크톱 연결이 필요합니다.
-
----
-
-### `/omj-setup` — 의존성 닥터 + 설치 가이드
-
-**목적.** OMJ가 기대는 선택적 의존성(playwright-cli·공식 Figma MCP·Context7·OMC·tokens.json)을 점검하고, 없으면 설치를 안내합니다. **이미 설치된 항목은 ✓만 보고하고 건드리지 않습니다.** 첫 사용 전에 한 번 실행하면 좋습니다.
-
-**구문**
-
-```
-/omj-setup            점검 + 누락 시 설치 가이드(설치 여부를 물어봄)
-/omj-setup --check    점검 표만(read-only)
-/omj-setup --help     도움말
-```
-
-**무슨 일이 일어나는지.** ① 각 의존성을 탐지(`command -v playwright-cli`, `claude plugin list`로 figma/context7/OMC, `test -f`로 tokens.json)해 ✓/✗ 표로 보고 → ② (`--check`가 아니면) 누락 항목마다 "지금 설치할까요?"를 물어 동의 시 `claude plugin install …`/`npm i -g …` 실행, 거부 시 수동 명령 안내 → ③ "이제 `/omj`로 시작" 안내. Figma는 플러그인 설치와 별개로 **데스크톱 앱의 Dev Mode MCP 활성화**가 필요함도 안내합니다.
-
-**주의.** 플러그인 설치는 **다음 세션부터** 로드됩니다. 설치 행위는 Bash 능동 op라 Plan 모드 밖에서 실행하세요. `claude` CLI를 못 쓰면 수동 확인(`/mcp`·`/plugin`)으로 폴백합니다.
-
----
-
-## OMC와 함께 쓰기
-
-OMJ는 oh-my-claudecode(OMC)와 **별개의 독립 플러그인**입니다. 같이 설치해도 충돌하지 않습니다.
-
-- **멘탈 모델 (1문장)**: "FE는 무조건 `/omj`로 시작 — 커지면 승인 후 OMC `executor`로 escalate. 백엔드/범용/리서치만 OMC 직접."
-- **네임스페이스 분리**: OMJ는 `/omj*`, OMC는 `/oh-my-claudecode:*`(또는 `/omc-*`) — 이름이 겹치지 않습니다.
-- **독립 업데이트**: 각자 자기 마켓플레이스에서 갱신. 한쪽 업데이트가 다른 쪽에 영향 없음.
-- ⚠️ **비-Plan 모드 주의**: `/omj`는 read-only Plan 프라이머지만, `/omj-verify`·`/omj-fix`·`/omj-sync push`는 Bash/Figma write를 쓰는 능동 op입니다. Plan 모드를 해제하고 실행하세요.
-
----
-
-## 권장 작업 플로우 (plan-first)
-
-OMJ 단독 기본 흐름:
-
-1. **프라임** — `/omj <figma-url 또는 작업설명> [route]`로 명세 수집 + 구현 스펙 author. 여기서 멈춤.
-2. **승인** — 제시된 스펙(네이티브 Plan)을 검토하고 ExitPlanMode로 승인.
-3. **검증** — Plan 해제 상태에서 `/omj-review`로 구현 diff를 FF·a11y·vercel·nextjs 기준으로 점검하고, `/omj-verify <route>`로 시각 회귀 점검(가능하면 같은 세션에서 Figma baseline 대비). 어긋난 점을 찾으면 `/omj-fix <route> "설명"`으로 고치고 재캡처로 확인한다.
-4. **sync** — 토큰을 바꿨다면 `/omj-sync push`(또는 먼저 `/omj-sync check`로 드리프트 확인)로 Figma Variables 정렬.
-
----
-
-## OMJ × OMC 통합 작업 플로우
-
-평소 `/omc-plan`·`/ralplan`로 계획하고 `/ralph`·`/team`·`/goal`로 실행한다면, OMJ는 그 흐름의 **프론트엔드 전용 on-ramp(스펙 생성) + 검증** 단계입니다. `/omj`로 계획해도 OMC 계획·실행 도구를 **그대로 같이 씁니다** — `/omj`가 만든 구현 스펙이 곧 OMC 도구가 소비하는 입력이 되기 때문입니다(스펙이 둘을 잇는 매개).
-
-**한 줄 역할 분담**
-
-- **계획**: `/omj`(FE 맥락 스펙, 네이티브 Plan) — 합의가 필요한 대규모만 승인 후 `/ralplan`에 시드로 넘김
-- **실행**: `/ralph`(순차 루프) · `/team`(병렬 N에이전트) · `/goal`(장기 다목표) — OMC
-- **검증**: `/omj-review`(FE 코드 diff) · `/omj-verify`(FE 시각) · OMC `/verify`(BE/일반)
-
-**게이트 규칙 (왜 안 겹치나)**
-
-`/omj`만 Claude Code 네이티브 Plan 모드(`ExitPlanMode`)를 쓰는 **읽기 게이트**이고, OMC 계획/실행 도구(`/omc-plan`·`/ralplan`·`/ralph`·`/team`·`/autopilot`)는 전부 자체 `pending-approval` **실행 게이트**를 씁니다 — OMC는 `ExitPlanMode`를 호출하지 않습니다. 두 게이트는 **직교**하며 핸드오프 순간에만 시간순으로 만나므로 "이중 계획 충돌"은 없습니다. 또한 `ralph`/`team`/`autopilot`의 사전 게이트에서 **auto-pass = ralplan을 건너뛰고 실행 직행**(ralplan 실행이 아님)이고, 합의는 **명시적 `/ralplan` 호출만** 거칩니다(2차 승인).
-
-**A. 일반 FE 작업 (단순~중간)**
-
-1. `/omj <figma-url|작업> [route]` → 구현 스펙(Plan)
-2. 검토 후 승인(ExitPlanMode)
-3. 실행: 작으면 인라인, 다중 파일이면 승인된 스펙/경로를 `/ralph`·`/team` free-text에 임베드해 직행(사람 승인 1회)
-4. `/omj-review`로 diff 점검 → `/omj-verify <route>` 시각 점검(어긋나면 `/omj-fix`로 수정·재확인) → 토큰 바뀌면 `/omj-sync push`
-
-**B. 대규모/복잡 FE (여러 화면·리팩터링)**
-
-1. `/omj`로 핵심 화면 스펙 author (figma + FF/vercel) — 대상 파일·번호 단계·acceptance를 스펙에 박음(구체 신호)
-2. 승인(ExitPlanMode) 후 **메인 세션**이 스펙을 실행 커맨드 free-text에 임베드(또는 `.omc/plans/omj-<slug>.md`로 저장 후 경로 참조) → `/team`(병렬)·`/ralph`(순차) **직행**. 구체 신호가 있어 사전 게이트가 ralplan으로 리다이렉트하지 않습니다(= ralplan 스킵, 승인 1회). 장기면 `/goal`에 등록.
-3. **진짜 모호하거나 합의가 필요할 때만** 승인 후 명시적 `/ralplan`에 스펙을 시드로 투입 → 합의 정제(`.omc/plans/ralplan-*.md`) → OMC 게이트 승인(2차) → `/team`·`/ralph` 실행.
-4. 화면별 `/omj-review`·`/omj-verify`, 잔여 diff 재실행.
-
-**C. 풀스택 (FE+BE)**
-
-1. `/omc-plan` 또는 `/ralplan`로 전체 큰 그림
-2. FE 잎 = `/omj` 프라이밍 → 승인 → 실행, BE = OMC `executor`
-3. 검증: FE `/omj-review`·`/omj-verify`, BE OMC `/verify`
-
-**핸드오프 제약 (메커니즘 주의)**
-
-- `/omj`는 read-only라 스펙 아티팩트를 **스스로 못 씁니다** → 파일 materialize는 `ExitPlanMode` 승인 **'후'** 메인 세션이 합니다.
-- `autopilot`은 `omj-*.md`를 자동탐지하지 않습니다(`ralplan-*`/`consensus-*`/`deep-interview-*`만) → autopilot 재사용은 `/ralplan` 경유 또는 명시 경로 지정이 필요합니다.
-- `ralph`의 `.omc/plans` 소비는 미문서화이므로, 실행 커맨드 free-text에 **경로를 명시 임베드**하는 게 결정적입니다. `team`은 free-text만 받으므로 경로 + acceptance 요약을 함께 임베드합니다.
-- 네이티브 Plan 파일(`~/.claude/plans/`)과 `.omc/plans/`는 **다른 위치**입니다 — 혼동하지 마세요.
-
-> **요지**: "무엇을 만들지"는 FE면 `/omj`가 figma·FF 맥락으로 정확히 뽑아주고(처방), "어떻게 굴릴지"는 OMC 실행 도구(`/ralph`·`/team`·`/goal`)가 그대로 가져갑니다 — 스펙이 매개입니다. 기본은 승인 후 실행 직행(승인 1회)이고, `/ralplan` 합의는 모호·대규모일 때만 명시적으로 씁니다.
-
----
-
-## Figma 2-트랙 + uSpec 전략 (요약)
-
-- **트랙 A — 앱 화면 design → code**: 공식 Figma Dev Mode MCP(`mcp__plugin_figma_figma__*`)로 화면을 읽어 구현.
-- **트랙 B — 디자인 시스템 스펙·토큰**: figma-console-mcp(Southleft) + uSpec(Uber) 기반 컴포넌트 스펙(v1.1+).
-- **스펙 포맷 = uSpec 섹션 차용**: Anatomy / Structure / Color·Tokens / Props·Variants / A11y / Motion — 각각 FF 4기준 + a11y로 평가.
-- **code → Figma "코드가 이김"** 단방향 토큰 sync(드리프트만 보고).
-
-상세 설계 원리는 [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md) 참고.
-
-**vercel 스킬은 참조(번들 아님).** 번들 최소화를 위해 자작 `frontend-fundamentals` 1개만 포함합니다. Vercel 스킬(성능/합성)은 필요 시 직접 설치하세요:
-
-```
-npx skills add vercel-labs/agent-skills/vercel-react-best-practices
-npx skills add vercel-labs/agent-skills/vercel-composition-patterns
-npx skills update
-```
-
----
-
-## 트러블슈팅
-
-- **MCP 도구명이 다름**: Figma MCP 도구명은 환경마다 다를 수 있습니다. `/mcp`로 실제 등록된 서버·도구명을 확인하세요(이 문서의 `mcp__plugin_figma_figma__*`는 예시).
-- **Figma 미연결 / 권한 없음**: `This figma file could not be accessed` 류 에러는 graceful 처리 대상 — Figma 데스크톱 앱을 켜고 대상 파일을 활성 탭으로 둔 뒤 다시 실행.
-- **`/omj-verify`가 아무것도 안 함**: Plan 모드라 Bash가 막혔거나(해제 필요), `playwright-cli` 미설치, dev 서버 미기동(`yarn dev`), 또는 인증 라우트(자격증명 env 필요)일 수 있습니다.
-- **`/omj`가 코드를 안 고침**: 정상입니다. `/omj`는 read-only 프라이머 — 스펙만 만들고 멈춥니다. 승인(ExitPlanMode) 후 구현이 시작됩니다.
-- **프로젝트에 커밋된 스킬 사본과 중복**: 어떤 프로젝트가 `frontend-fundamentals`를 자기 `.claude/skills/`에 커밋해 두었다면 OMJ 번들과 동시 로드될 수 있습니다(무해하나 약간의 토큰 중복). 그 **커밋된 사본을 삭제하지 마세요** — 그 프로젝트는 "스킬을 `.claude/`에 커밋해 클론 즉시 무설정 동작"을 보장하려는 것이므로, 삭제하면 OMJ 미설치 상태로 클론한 동료의 환경이 깨집니다. OMJ 번들은 그런 사본이 없는 레포의 포터빌리티용이고, 내용 편집(SoT)은 한쪽에서만 하세요.
+## Troubleshooting
+
+- **`/omj` didn't change any code** — that's correct. It's a read-only primer: it only drafts a spec and stops. Implementation starts after you approve (ExitPlanMode).
+- **`/omj-verify` / `/omj-fix` does nothing** — `playwright-cli` not installed, dev server not running (`yarn dev`), an auth-gated route (needs credential env), or your environment's Plan mode blocked Bash. For auth routes, `export JOY_TEST_EMAIL=… JOY_TEST_PASSWORD=…` before running.
+- **Figma not connected / no permission** — `This figma file could not be accessed` is handled gracefully. Open the Figma desktop app, put the target file in the active tab, and retry.
+- **MCP tool names differ** — Figma/Context7 tool names vary by environment. Check the actual names with `/mcp`.
+- **Duplicate committed skill copy** — if a project committed `frontend-fundamentals` into its own `.claude/skills/`, it may load alongside the OMJ bundle (harmless). Don't delete that copy (deleting it breaks teammates who cloned without OMJ installed) — just edit the source of truth in one place.

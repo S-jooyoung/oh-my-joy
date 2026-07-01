@@ -8,7 +8,7 @@ allowed-tools: Bash(playwright-cli:*), Bash(curl:*), Bash(command:*)
 
 구현된 화면을 실제 브라우저로 열어 디자인/명세 대비 어긋난 점을 점검한다.
 
-> ⚠️ 이 커맨드는 `playwright-cli`(Bash)에 의존한다. **Plan 모드에서는 Bash가 차단되므로 검증이 실행되지 않는다** — Plan 모드를 해제한 뒤 실행한다.
+> ⚠️ 이 커맨드는 `playwright-cli`로 브라우저를 띄우는 **부작용 있는(mutating) 능동 op**다 — Plan 모드는 이런 부작용 Bash를 차단하므로(읽기 전용 Bash는 허용) 검증이 실행되지 않는다. Plan 모드를 해제한 뒤 실행한다.
 
 ## 인자
 

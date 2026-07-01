@@ -1,7 +1,7 @@
 ---
 description: OMJ 의존성 점검 — playwright-cli·공식 Figma MCP·Context7 설치 여부 확인하고 없으면 설치 가이드 (첫 사용 전 권장)
 argument-hint: "[--check] (점검만) | [--help]"
-allowed-tools: Read, AskUserQuestion, Bash(command:*), Bash(claude:*), Bash(npm:*), Bash(jq:*), Bash(test:*), Bash(ls:*), Bash(grep:*)
+allowed-tools: Read, Write, AskUserQuestion, Bash(command:*), Bash(claude:*), Bash(npm:*), Bash(jq:*), Bash(test:*), Bash(ls:*), Bash(grep:*)
 ---
 
 # /omj-setup — 의존성 닥터 + 설치 가이드

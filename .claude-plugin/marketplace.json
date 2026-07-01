@@ -10,7 +10,7 @@
     {
       "name": "oh-my-joy",
       "description": "Figma 디자인 명세를 수집해 FF·vercel 적용 구현 스펙을 Plan으로 제시하고, 승인 후 구현·시각검증·토큰 sync를 잇는 개인 프론트엔드 플러그인",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "author": {
         "name": "Jooyoung Shin",
         "email": "jooyoung.dev@gmail.com"
@@ -21,5 +21,5 @@
       "tags": ["frontend", "figma", "playwright", "react", "nextjs"]
     }
   ],
-  "version": "0.1.0"
+  "version": "0.2.0"
 }

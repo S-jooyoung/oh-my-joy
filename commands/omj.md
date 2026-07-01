@@ -52,7 +52,7 @@ allowed-tools: Read, Grep, Glob, Skill, mcp__plugin_figma_figma__get_design_cont
 
 **과설계 금지**: 함께 바뀔 게 확실할 때만 추상화. 단순 로직을 불필요하게 추상화하거나 일어나지 않을 미래를 위한 깊은 계층을 만들지 않는다(`frontend-fundamentals` "과설계 경고").
 
-**라우팅 권고 (읽기 전용 조언)**: 스펙 끝에 수집한 스코프(대상 파일 수·신규 추상화 필요 여부·화면 수)를 근거로 다음 실행 경로를 *추천만* 한다 — 1~2파일이면 인라인 구현, 다중 파일이면 `/team`(병렬) 또는 `/ralph`(순차), 진짜 모호하거나 합의가 필요한 대규모면 승인 후 `/ralplan` 시드. `/omj`는 **advisor일 뿐 오케스트레이션을 소유하지 않는다**(직접 실행·위임 없음, 신규 게이트 아님). 핸드오프 메커니즘은 README "OMJ × OMC 통합 작업 플로우" 참고.
+**라우팅 권고 (읽기 전용 조언)**: 스펙 끝에 수집한 스코프(대상 파일 수·신규 추상화 필요 여부·화면 수)를 근거로 다음 실행 경로를 *추천만* 한다 — 1~2파일이면 인라인 구현, 다중 파일이면 `/team`(병렬) 또는 `/ralph`(순차), 진짜 모호하거나 합의가 필요한 대규모면 승인 후 `/ralplan` 시드. `/omj`는 **advisor일 뿐 오케스트레이션을 소유하지 않는다**(직접 실행·위임 없음, 신규 게이트 아님). 핸드오프 메커니즘은 [`docs/OMC-INTEGRATION.md`](../docs/OMC-INTEGRATION.md) 참고.
 
 작성이 끝나면 **여기서 멈춘다.** 다음을 절대 하지 않는다:
 - 코드 파일을 만들거나 수정 (Write/Edit 금지 — allowed-tools에 없음)
@@ -63,7 +63,7 @@ allowed-tools: Read, Grep, Glob, Skill, mcp__plugin_figma_figma__get_design_cont
 
 ## 승인 후 (이 커맨드의 범위 밖, 참고)
 
-사용자가 스펙을 승인하면 메인 세션이 스펙대로 구현한다. 다중 파일/대규모 변경이고 OMC가 설치돼 있으면 `executor`(`model=opus`)에 **opt-in 위임**할 수 있다 — 이는 *이미 승인된 스펙을 구현하는 핸드오프*이지 자율 플래너가 아니다. 구현이 끝나면 `/omj-review`로 코드 diff를(FF·a11y·vercel·nextjs), `/omj-verify <route>`로 시각을 검증한다. (OMC 실행 도구 `/ralph`·`/team`·`/goal`과의 통합 흐름·핸드오프 메커니즘은 README "OMJ × OMC 통합 작업 플로우" 참고.)
+사용자가 스펙을 승인하면 메인 세션이 스펙대로 구현한다. 다중 파일/대규모 변경이고 OMC가 설치돼 있으면 `executor`(`model=opus`)에 **opt-in 위임**할 수 있다 — 이는 *이미 승인된 스펙을 구현하는 핸드오프*이지 자율 플래너가 아니다. 구현이 끝나면 `/omj-review`로 코드 diff를(FF·a11y·vercel·nextjs), `/omj-verify <route>`로 시각을 검증한다. (OMC 실행 도구 `/ralph`·`/team`·`/goal`과의 통합 흐름·핸드오프 메커니즘은 [`docs/OMC-INTEGRATION.md`](../docs/OMC-INTEGRATION.md) 참고.)
 
 ## 사용법 (bare `/omj`)
 

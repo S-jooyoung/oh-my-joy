@@ -8,6 +8,23 @@
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.2.0] - 2026-07-01
+
+### Added
+
+- **README i18n 프론트도어** — OMC(oh-my-claudecode) 관례를 따라 `README.md`(영어 정본) + `README.ko.md`(한국어)로 이중언어화. 최상단 언어 스위처(`English | 한국어`), 3-step Quick Start, 커맨드 통합 테이블(Command·What·When·Example), `---` 챕터 구분으로 스캔성 개선.
+- `docs/OMC-INTEGRATION.md` 신설 — "OMJ × OMC 통합 작업 플로우" 심화(멘탈 모델·역할 분담·게이트 규칙·A/B/C 플로우·핸드오프 제약)를 README 프론트도어에서 분리해 이관.
+- docs/PRINCIPLES.md ⑪ 신설 — "물어보나 vs 그냥 한다": AskUserQuestion은 (모호+추론불가+비가역+실행중 발견) 4조건 모두일 때만. 새 프롬프트는 `/omj-sync`에만, `/omj-fix`·`/omj`·`/omj-verify`는 규칙상 배제(프롬프트 피로 방지).
 - `/omj-review` — FF 통합 코드 리뷰 커맨드(read-only): 브랜치/스테이징 diff를 FF 4기준+a11y · vercel(성능/합성) · Next.js(Context7) 기준으로 검토하고 심각도(🔴/🟡/🟢) 리포트만 낸다(수정 없음). `/omj`(처방) ↔ `/omj-review`(검증) 분리.
 - `/omj-setup` — 의존성 닥터: playwright-cli·공식 Figma MCP·Context7·OMC·tokens.json을 점검하고 누락 시 설치 가이드(이미 설치된 항목은 스킵). 첫 사용 전 권장.
 - `/omj-fix` — 시각/동작 결함 수정 루프(능동 op): 붙여넣은 스크린샷+route의 결함을 진단·수정하고 재캡처로 확인한다. 관찰·재확인은 `/omj-verify`의 `-s=omj` 캡처 프로토콜을 **재사용**(중복 정의 없음)하고, 순수 신규는 그 사이의 Edit(+`--commit`)뿐. `/omj-verify`(읽기 점검)의 능동(write) 짝으로 지각적 결함(색·z-index·정렬)까지 커버.
@@ -16,11 +33,16 @@
 ### Changed
 
 - `/omj` Phase 2: 구현 acceptance를 "레포의 `.omj/fe-context.md`가 선언한 프로젝트별 축 반영(없으면 보편 FF 기준만)"으로 명시 — OMJ는 특정 축을 강제하지 않음(범용성). Color·Tokens의 하드코딩 토큰 경로(`shared/tokens/tokens.json`)를 "기본값 — `.omj/fe-context.md`의 `tokensPath`로 오버라이드"로 정정.
-- **OMJ × OMC 게이트 의미 정합화**: README "통합 작업 플로우" B 경로를 두 경로로 재서술 — (a) 구체 스펙은 `/ralph`·`/team` 직행(ralplan 스킵·승인 1회), (b) 합의는 명시적 `/ralplan`만(승인 2회). "구체 스펙이라 ralplan 게이트 즉시 통과"라는 자기모순 문구 삭제(auto-pass = ralplan 스킵이므로 시드 투입과 상호배타). 게이트 규칙(네이티브 plan = 읽기 게이트 vs OMC 자체 = 실행 게이트, 직교, OMC는 `ExitPlanMode` 미호출)과 핸드오프 제약(read-only materialize는 승인 후, `autopilot`은 `omj-*.md` 미탐지, `ralph`/`team`은 경로 명시 임베드, `~/.claude/plans` ≠ `.omc/plans`) 명문화.
+- **OMJ × OMC 게이트 의미 정합화**: OMJ × OMC 통합 플로우(현 `docs/OMC-INTEGRATION.md`)의 B 경로를 두 경로로 재서술 — (a) 구체 스펙은 `/ralph`·`/team` 직행(ralplan 스킵·승인 1회), (b) 합의는 명시적 `/ralplan`만(승인 2회). "구체 스펙이라 ralplan 게이트 즉시 통과"라는 자기모순 문구 삭제(auto-pass = ralplan 스킵이므로 시드 투입과 상호배타). 게이트 규칙(네이티브 plan = 읽기 게이트 vs OMC 자체 = 실행 게이트, 직교, OMC는 `ExitPlanMode` 미호출)과 핸드오프 제약(read-only materialize는 승인 후, `autopilot`은 `omj-*.md` 미탐지, `ralph`/`team`은 경로 명시 임베드, `~/.claude/plans` ≠ `.omc/plans`) 명문화.
 - `/omj`: Next.js/Context7 라우팅 중복 서술 제거 → `frontend-fundamentals` 스킬을 SoT로 위임(드리프트 방지). Phase 2 끝에 읽기전용 라우팅 권고(inline/`/ralph`/`/team`, `/ralplan`은 모호·대규모만) 추가 — `/omj`는 advisor일 뿐 오케스트레이션 미소유.
 - docs/PRINCIPLES.md: ⑤에 처방(`/omj` author) vs 검증(`/omj-review`·`/omj-verify`) 경계, ⑦에 게이트 공존 규칙 보강.
-- README·docs: **OMJ × OMC 통합 작업 플로우** 추가 — 계획(`/omc-plan`·`/ralplan`) → 실행(`/ralph`·`/team`·`/goal`)에서 `/omj` 스펙이 입력 매개가 되는 A/B/C 플로우 문서화.
+- **OMJ × OMC 통합 작업 플로우 문서화** — 계획(`/omc-plan`·`/ralplan`) → 실행(`/ralph`·`/team`·`/goal`)에서 `/omj` 스펙이 입력 매개가 되는 A/B/C 플로우. (0.2.0에서 `docs/OMC-INTEGRATION.md`로 이관 — README 프론트도어는 요약 표 + 링크만 유지.)
 - `/omj-verify`·`/omj-sync` 사용법 정정: 인라인 env prefix(`JOY_BASE_URL=… /omj-verify`)는 슬래시 커맨드에 적용 안 됨 → `--base` 인자/사전 `export`로 교체. `--file <url>`은 비기능(use_figma는 활성 탭에 작동) → "대상=활성 탭"으로 명확화.
+- **`/omj-sync` 대화형 재설계**: 인자 없는 `/omj-sync`가 드리프트를 클래스별(값 불일치/코드에만/Figma에만)로 묶어 방향(코드→Figma / Figma→코드 / 건너뛰기)을 `AskUserQuestion`으로 묻는 `sync` 모드로 변경(각 문항 1번=코드 권위 기본 — 값 불일치·코드에만은 코드→Figma, Figma에만은 보수적 건너뛰기 → 엔터만 치면 기존 code-wins와 동일한 안전 결과). `push`=명시적 code-wins 빠른 경로 유지, `check`=read-only 유지. allowed-tools에 `Edit`·`AskUserQuestion` 추가, Figma→코드 pull의 DTCG 참조-보존 가드레일(semantic→raw flatten 방지, 위험 시 기본 건너뛰기) 명시. 원칙을 "code→Figma 코드가 이김 단방향" → "코드가 기본 SoT, 충돌은 사용자가 방향 선택"으로 전환.
+- **`/omj-review` 문구 재구성 + Plan-mode 사실 정정**: read-only(리포트만·수정 안 함)를 제약이 아니라 기능으로 앞세우고, `git diff`/`git rev-parse`는 read-only라 현재 Claude Code Plan 모드에서도 대체로 동작함을 반영("코드 리뷰가 Plan 모드에서 실행 안 됨"이라는 오해 문구 제거, 환경이 Bash를 전면 차단할 때의 폴백만 안내).
+- docs/PRINCIPLES.md: ① 전제 정밀화("Plan 모드는 `Write`/`Edit`와 부작용 있는 Bash만 차단, 읽기 전용 Bash 허용"), ⑥ 전면 재작성(대화형 토큰 sync — 코드 기본 SoT + 사용자 방향 선택, "버린 대안"을 *사람 선택 없는 자동 양방향 머지*만 거부로 좁힘).
+- CLAUDE.md: 문서화 규율을 양 언어 README(EN/KO) 동기화로, sync 원칙을 대화형으로, OMC 통합 상세 포인터를 `docs/OMC-INTEGRATION.md`로 갱신.
+- 버전 `0.1.0` → `0.2.0`(plugin.json·marketplace.json). 이전 `[Unreleased]`의 `/omj-fix`·`/omj-review`·`/omj-setup`·fe-acceptance 항목을 `[0.2.0]`으로 확정.
 
 ### Deprecated
 
@@ -50,5 +72,6 @@
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/S-jooyoung/oh-my-joy/releases/tag/v0.1.0
