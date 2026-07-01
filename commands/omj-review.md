@@ -8,7 +8,9 @@ allowed-tools: Read, Grep, Glob, Skill, Bash(git diff:*), Bash(git rev-parse:*),
 
 변경된 프론트엔드 코드(diff)를 **frontend-fundamentals 4기준 + 접근성**, **vercel 성능/합성**, **Next.js(Context7) 최신 권장**으로 한 번에 검토하고 **심각도별 리포트만** 낸다. **수정하지 않는다.**
 
-> ⚠️ 이 커맨드는 `git`(Bash)에 의존한다 — **Plan 모드에서는 Bash가 차단되므로 실행되지 않는다.** Plan 모드를 해제한 뒤 실행한다. allowed-tools에 `Write`/`Edit`이 없어 코드를 고치지 않는다(read-only 검증). 발견은 리포트로만 남기고, 수정은 사용자가 별도로 한다.
+> ✅ **read-only 검증 — 수정하지 않는다(기능).** allowed-tools에 `Write`/`Edit`이 없어 코드를 건드리지 않고 린터처럼 **리포트만** 낸다. 발견을 고치려면 `/omj-fix`(능동 루프)나 수동 수정으로 넘긴다.
+>
+> ⚠️ **Bash(git)로 diff를 읽는다.** `git diff`/`git rev-parse`는 **read-only**라 현재 Claude Code Plan 모드에서도 대체로 그대로 동작한다(Plan 모드는 `Write`/`Edit`와 부작용 있는 Bash만 차단, 읽기 전용 Bash는 허용). 다만 사용하는 환경의 Plan 모드가 Bash를 전면 차단한다면 Plan 모드를 해제한 뒤 실행한다.
 >
 > **처방 vs 검증**: `/omj`(author)가 "무엇을 만들지"를 FF 기준으로 **처방(prescriptive)** 한다면, `/omj-review`는 구현된 diff가 그 기준을 지켰는지 **검증(descriptive)** 한다. 같은 FF SoT(`frontend-fundamentals` 스킬)를 단계만 달리 쓴다. 시각 회귀는 `/omj-verify`가 담당.
 
