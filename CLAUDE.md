@@ -4,13 +4,13 @@
 
 ## OMJ란
 
-oh-my-joy(마켓플레이스 `omj`)는 **코드↔Figma 프론트엔드 루프 전체**를 다루는 독립 Claude Code 플러그인이다 — ① design→code(퍼블리싱) ② 시각검증 ③ code↔Figma 토큰 sync(대화형). OMC(oh-my-claudecode)와 별개이며 같이 써도 무충돌(네임스페이스 `/omj*` vs `/omc-*`). 멘탈 모델: **"FE는 무조건 /omj로 시작 — 커지면 승인 후 OMC executor로 escalate. 백엔드/범용/리서치만 OMC 직접."** `/omj` 스펙은 사용자의 OMC 실행 도구(`/ralph` 순차·`/team` 병렬·`/goal` 장기, 계획은 `/omc-plan`·`/ralplan`)가 소비하는 입력이 된다 — 상세는 `docs/OMC-INTEGRATION.md`.
+oh-my-joy(마켓플레이스 `omj`)는 **코드↔Figma 프론트엔드 루프 전체**를 다루는 독립 Claude Code 플러그인이다 — ① design→code(퍼블리싱) ② 시각검증 ③ code↔Figma 토큰 sync(대화형). OMC(oh-my-claudecode)/OMX(oh-my-codex)와 별개이며 같이 써도 `/omj*` 네임스페이스는 OMJ가 소유해 무충돌이다. 멘탈 모델: **"FE는 무조건 /omj로 시작 — 스펙을 승인한 뒤 특별한 이유가 없으면 1번 `(추천)` 실행 레인으로 간다."** `/omj` 스펙은 OMC/OMX 실행 도구(`/goal`/`$ultragoal` durable, `/team`/`$team` 병렬, `/ralph`/`$ralph` 순차, `$ultraqa` QA)가 소비하는 입력이 된다 — 라우팅 정본은 `docs/EXECUTION-HANDOFF.md`, 플로우 상세는 `docs/OMC-INTEGRATION.md`.
 
 ## 문서화 규율 (최우선)
 
 기능 추가/변경 시 아래 셋을 **반드시 함께 갱신**한다(코드만 바꾸고 문서를 안 고치면 미완료):
 
-1. **README**(사용법, **EN `README.md` + KO `README.ko.md` 동기화**) — 커맨드/플래그/동작 변경 반영. 심화는 `docs/OMC-INTEGRATION.md`.
+1. **README**(사용법, **EN `README.md` + KO `README.ko.md` 동기화**) — 커맨드/플래그/동작 변경 반영. 실행 라우팅 정본은 `docs/EXECUTION-HANDOFF.md`, 심화 플로우는 `docs/OMC-INTEGRATION.md`.
 2. **CHANGELOG**(항목) — 변경 1건 = 1항목.
 3. **docs/PRINCIPLES.md**(동작 원리) — 원리·설계 결정·멘탈 모델이 바뀌면 갱신.
 
@@ -19,7 +19,7 @@ oh-my-joy(마켓플레이스 `omj`)는 **코드↔Figma 프론트엔드 루프 �
 ## 커맨드 규칙
 
 - 네이밍: 모든 커맨드는 `/omj-*` 접두(루트 `/omj` 제외).
-- v1 커맨드: `/omj`(Plan 프라이머)·`/omj-review`(FF 코드 diff 리뷰)·`/omj-verify`·`/omj-fix`(시각 결함 수정 루프, 능동)·`/omj-sync`(토큰 code↔Figma sync, 대화형·능동)·`/omj-setup`(의존성 닥터). (v1.1: `/omj-push`·`/omj-spec`.)
+- v1 커맨드: `/omj`(Plan 프라이머 + 실행 레인 selector)·`/omj-start`(승인 후 OMC/OMX handoff fallback)·`/omj-review`(FF 코드 diff 리뷰)·`/omj-verify`·`/omj-fix`(시각 결함 수정 루프, 능동)·`/omj-sync`(토큰 code↔Figma sync, 대화형·능동)·`/omj-setup`(의존성 닥터). (v1.1: `/omj-push`·`/omj-spec`.)
 - 새 커맨드 = `commands/<name>.md` + frontmatter: `description`, `argument-hint`, `allowed-tools`(**최소 권한** — read-only면 Write/Edit/Bash 넣지 않음).
 - 동작의 SoT는 각 `commands/*.md` 본문. 코드/문서 작성 전 해당 파일을 Read해 확인.
 
@@ -29,8 +29,8 @@ oh-my-joy(마켓플레이스 `omj`)는 **코드↔Figma 프론트엔드 루프 �
 - **스펙 포맷**: uSpec 섹션 분류(Anatomy/Structure/Color-토큰/Props·Variants/A11y/Motion) + 각 항목 **토스 FF 4기준(가독성·예측가능성·응집도·결합도) + 접근성** 적용.
 - **code↔Figma 토큰 sync**: 코드가 기본 SoT, 충돌 시 사용자가 방향 선택(대화형 `sync`). `check`는 드리프트만 보고, `push`는 명시적 code-wins.
 - **번들 최소화**: 자작 `frontend-fundamentals` 1개만 번들. vercel 스킬은 참조(`npx skills add/update`).
-- **graceful degradation**: figma/context7/playwright-cli/OMC 부재는 에러가 아니라 스킵 + 안내.
-- **처방 vs 검증 / 게이트 공존**: FF 지식은 `/omj`가 처방(prescriptive), `/omj-review`·`/omj-verify`가 검증(descriptive) — 같은 FF SoT를 단계만 달리. `/omj`(네이티브 plan 읽기 게이트)와 OMC 자체 게이트(실행)는 직교 — 기본은 승인 후 실행 직행(1회), `/ralplan` 합의는 모호·대규모만(2회). 정본은 README/PRINCIPLES.
+- **graceful degradation**: figma/context7/playwright-cli/OMC/OMX 부재는 에러가 아니라 스킵 + 안내.
+- **처방 vs 검증 / 게이트 공존**: FF 지식은 `/omj`가 처방(prescriptive), `/omj-review`·`/omj-verify`가 검증(descriptive) — 같은 FF SoT를 단계만 달리. `/omj`(네이티브 plan 읽기 게이트)와 OMC/OMX 실행/goal 게이트는 직교 — 기본은 승인 후 선택된 레인 직행, `/ralplan`/`$ralplan` 합의는 모호·고위험만. 정본은 README/PRINCIPLES/EXECUTION-HANDOFF.
 
 ## Git / 커밋
 

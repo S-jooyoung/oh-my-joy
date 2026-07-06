@@ -1,14 +1,14 @@
 ---
 description: 프론트엔드 프라이머 — Figma/코드 명세를 수집해 FF·vercel 적용 구현 스펙(Plan)을 만들고 멈춘다(승인 후 구현)
 argument-hint: "[figma-url 또는 작업설명] [route]"
-allowed-tools: Read, Grep, Glob, Skill, mcp__plugin_figma_figma__get_design_context, mcp__plugin_figma_figma__get_screenshot, mcp__plugin_figma_figma__get_variable_defs, mcp__plugin_figma_figma__get_metadata, mcp__plugin_context7-plugin_context7__*
+allowed-tools: Read, Grep, Glob, Skill, AskUserQuestion, mcp__plugin_figma_figma__get_design_context, mcp__plugin_figma_figma__get_screenshot, mcp__plugin_figma_figma__get_variable_defs, mcp__plugin_figma_figma__get_metadata, mcp__plugin_context7-plugin_context7__*
 ---
 
 # /omj — 프론트엔드 Plan 프라이머
 
 프론트엔드 작업의 **명세를 수집**하고 **구현 스펙(=네이티브 Plan)** 을 작성한 뒤 **멈춘다**. 실제 코드 구현은 사용자가 그 Plan을 승인(ExitPlanMode)한 뒤의 정상 실행이 담당한다.
 
-> ⚠️ **이 커맨드는 코드를 직접 쓰지 않는다(read-only).** 파일을 Write/Edit하거나 빌드/검증을 실행하지 않는다. allowed-tools는 읽기 도구(`Read`/`Grep`/`Glob`) + **figma 읽기 전용 도구만**(`get_design_context`/`get_screenshot`/`get_variable_defs`/`get_metadata` — `use_figma` 등 write 도구 제외) + Context7 + `Skill`(frontend-fundamentals 루브릭 로드용)로 한정된다. 따라서 `/omj` 호출은 부작용이 없고, 결과물인 스펙이 곧 사용자가 승인할 Plan이 된다 — "거의 항상 Plan 모드" 습관과 충돌하지 않는다.
+> ⚠️ **이 커맨드는 코드를 직접 쓰지 않는다(read-only).** 파일을 Write/Edit하거나 빌드/검증을 실행하지 않는다. allowed-tools는 읽기 도구(`Read`/`Grep`/`Glob`) + **figma 읽기 전용 도구만**(`get_design_context`/`get_screenshot`/`get_variable_defs`/`get_metadata` — `use_figma` 등 write 도구 제외) + Context7 + `Skill`(frontend-fundamentals 루브릭 로드용) + 승인 직전 실행 레인 선택용 `AskUserQuestion` 1회로 한정된다. 따라서 `/omj` 호출은 소스 코드 부작용이 없고, 결과물인 스펙이 곧 사용자가 승인할 Plan이 된다 — "거의 항상 Plan 모드" 습관과 충돌하지 않는다.
 
 ## Phase 0 — 모드 디스패치 (결정적, 순서대로)
 
@@ -52,24 +52,42 @@ allowed-tools: Read, Grep, Glob, Skill, mcp__plugin_figma_figma__get_design_cont
 
 **과설계 금지**: 함께 바뀔 게 확실할 때만 추상화. 단순 로직을 불필요하게 추상화하거나 일어나지 않을 미래를 위한 깊은 계층을 만들지 않는다(`frontend-fundamentals` "과설계 경고").
 
-**라우팅 권고 (읽기 전용 조언)**: 스펙 끝에 수집한 스코프(대상 파일 수·신규 추상화 필요 여부·화면 수)를 근거로 다음 실행 경로를 *추천만* 한다 — 1~2파일이면 인라인 구현, 다중 파일이면 `/team`(병렬) 또는 `/ralph`(순차), 진짜 모호하거나 합의가 필요한 대규모면 승인 후 `/ralplan` 시드. `/omj`는 **advisor일 뿐 오케스트레이션을 소유하지 않는다**(직접 실행·위임 없음, 신규 게이트 아님). 핸드오프 메커니즘은 [`docs/OMC-INTEGRATION.md`](../docs/OMC-INTEGRATION.md) 참고.
+**실행 레인 선택 (읽기 전용 핸드오프)**: 스펙 끝에 `## 실행 레인 선택` 섹션을 반드시 추가한다. 라우팅 규칙의 SoT는 [`docs/EXECUTION-HANDOFF.md`](../docs/EXECUTION-HANDOFF.md)이며, 이 파일을 읽을 수 없을 때만 최소 fallback(작으면 inline/manual, 지속 목표면 `$ultragoal` 또는 `/goal`, 병렬 lane이 있으면 `$team`, 순차 완료 압박이면 `$ralph`, 구현 후 hostile QA면 `$ultraqa`, 합의가 더 필요하면 `$ralplan`)을 사용한다. 커맨드 본문에는 점수표·임계값을 중복 정의하지 않는다.
+
+레인 선택은 **스펙이 완성된 뒤 정확히 한 번만** `AskUserQuestion`으로 묻는다. 1번 옵션은 항상 결정적 추천값이며 라벨에 `(추천)`을 붙인다. 추천은 `Wrapper`(durable/checkpoint owner: `none`·`/goal`·`$ultragoal`)와 `Sublane`(실행 방식: `inline/manual`·`$ralph`·`$team`)을 분리해 적는다. 구현이 끝난 뒤 QA만 필요한 경우에만 `$ultraqa`를 1번으로 추천하고, 아직 요구·경계·아키텍처 합의가 부족하면 `$ralplan`을 먼저 추천한다.
+
+최종 스펙에는 선택 결과를 아래 형식으로 남긴다:
+
+```md
+## 실행 레인 선택
+1. Wrapper: $ultragoal; Sublane: $team (추천) — 여러 문서/커맨드/검증 lane이 분리 가능하고 checkpoint가 필요함.
+2. Wrapper: none; Sublane: $ralph — 한 owner가 순차 구현/검증.
+3. QA follow-up: $ultraqa — 구현 후 hostile QA/fix 루프.
+
+선택된 레인: Wrapper=<...>; Sublane=<...>
+승인 후 자동 시작이 불가하면: /omj-start <approved-spec-or-plan-path>
+```
+
+승인 후에는 두 동작 중 하나만 한다: (a) 현재 런타임이 명시적이고 안전한 handoff surface를 제공하면 선택된 레인을 시작한다, 또는 (b) 자동 시작이 불가하면 정확히 한 줄의 `/omj-start <approved-spec-or-plan-path>`만 출력하고 멈춘다. `/omj`는 구현·빌드·테스트·서브에이전트 위임·숨은 `/goal clear`를 하지 않는다.
 
 작성이 끝나면 **여기서 멈춘다.** 다음을 절대 하지 않는다:
 - 코드 파일을 만들거나 수정 (Write/Edit 금지 — allowed-tools에 없음)
 - 빌드/테스트/검증 실행
-- OMC `executor` 등 서브에이전트에 구현 위임
+- OMC/OMX worker·executor·team 등에 구현 위임
+- active `/goal` 또는 OMC/OMX workflow state를 몰래 clear
 
 > **풀 파이프라인은 Plan 모드를 자동 종료시키지 않는다.** 사용자가 이 스펙을 검토하고 직접 승인(ExitPlanMode)하면, 그 다음부터 구현이 시작된다.
 
 ## 승인 후 (이 커맨드의 범위 밖, 참고)
 
-사용자가 스펙을 승인하면 메인 세션이 스펙대로 구현한다. 다중 파일/대규모 변경이고 OMC가 설치돼 있으면 `executor`(`model=opus`)에 **opt-in 위임**할 수 있다 — 이는 *이미 승인된 스펙을 구현하는 핸드오프*이지 자율 플래너가 아니다. 구현이 끝나면 `/omj-review`로 코드 diff를(FF·a11y·vercel·nextjs), `/omj-verify <route>`로 시각을 검증한다. (OMC 실행 도구 `/ralph`·`/team`·`/goal`과의 통합 흐름·핸드오프 메커니즘은 [`docs/OMC-INTEGRATION.md`](../docs/OMC-INTEGRATION.md) 참고.)
+사용자가 스펙을 승인하면 메인 세션이 선택된 실행 레인으로 스펙을 넘긴다. 선택 레인이 이미 스펙에 기록되어 있으면 다시 묻지 말고 그대로 사용한다. 자동 시작이 불가하거나 런타임이 불명확하면 `/omj-start <approved-spec-or-plan-path>` 한 줄만 출력한다. 구현이 끝나면 `/omj-review`로 코드 diff를(FF·a11y·vercel·nextjs), `/omj-verify <route>`로 시각을 검증한다. (OMC/OMX 실행 도구와 `/goal`/`$ultragoal` 핸드오프 메커니즘은 [`docs/EXECUTION-HANDOFF.md`](../docs/EXECUTION-HANDOFF.md), 통합 플로우는 [`docs/OMC-INTEGRATION.md`](../docs/OMC-INTEGRATION.md) 참고.)
 
 ## 사용법 (bare `/omj`)
 
 ```
 /omj <figma-url> [route]    Figma 디자인 → 구현 스펙(Plan). 예: /omj https://figma.com/design/... /settings/profile
 /omj "<작업 설명>" [route]   코드 작업 → 구현 스펙(Plan). 예: /omj "검색 입력 폼 컴포넌트" /settings/profile
+/omj-start <approved-spec>  승인된 OMJ 스펙을 선택된 OMC/OMX 실행 레인으로 handoff
 /omj-review [--base <ref>]  구현 후 코드 diff 리뷰(FF·a11y·vercel·nextjs, Plan 해제 후 실행)
 /omj-verify <route>         구현 후 시각 검증(Plan 해제 후 실행)
 /omj-fix <route> ["설명"]    스크린샷+route 결함 수정 루프(Plan 해제 후 실행)

@@ -8,7 +8,13 @@
 
 ### Added
 
+- `/omj-start` — 승인된 OMJ 스펙을 OMC/OMX 실행 레인으로 넘기는 canonical fallback handoff command. `/omj`가 이미 선택한 lane이 있으면 다시 묻지 않고, 직접 시작이 불확실하면 copyable action 한 줄만 출력한다.
+- `docs/EXECUTION-HANDOFF.md` — `/omj` 실행 레인 selector의 단일 SoT. Wrapper(`/goal`/`$ultragoal`)와 Sublane(`/team`/`$team`, `/ralph`/`$ralph`)을 분리하고, option 1에 `(추천)`을 붙이는 출력 계약과 `/goal clear` 안전 규칙을 문서화.
+
 ### Changed
+
+- `/omj` — read-only 프라이머는 유지하되 스펙 완료 후 실행 레인을 정확히 한 번 선택하도록 개선. 추천값은 항상 1번 `(추천)`으로 표시하고, 승인 후 자동 시작이 불가하면 `/omj-start <approved-spec>` 한 줄로 이어진다.
+- README EN/KO, `docs/OMC-INTEGRATION.md`, `docs/PRINCIPLES.md`, `CLAUDE.md` — OMJ × OMC 문맥을 OMJ × OMC/OMX로 확장하고 goal-mode/Ultragoal/Team/Ralph/UltraQA handoff 모델을 반영.
 
 ### Deprecated
 

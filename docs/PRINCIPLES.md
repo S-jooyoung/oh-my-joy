@@ -1,6 +1,6 @@
 # oh-my-joy 설계 원리 (PRINCIPLES)
 
-이 문서는 oh-my-joy(OMJ)의 각 설계 결정이 **왜** 그렇게 내려졌는지를 설명한다. 정본 사실(README/SoT)이 "무엇을"을 정의한다면, 이 문서는 "왜"를 정의한다. 각 원리는 `문제 → 결정 → 근거 → 결과` 구조로 서술하며, 가능한 경우 버린 대안과 그 이유도 함께 남긴다. 커맨드의 실제 동작은 `commands/omj.md`, `commands/omj-review.md`, `commands/omj-verify.md`, `commands/omj-fix.md`, `commands/omj-sync.md`, `commands/omj-setup.md`가 정본이며, 이 문서는 그 동작과 정합한다.
+이 문서는 oh-my-joy(OMJ)의 각 설계 결정이 **왜** 그렇게 내려졌는지를 설명한다. 정본 사실(README/SoT)이 "무엇을"을 정의한다면, 이 문서는 "왜"를 정의한다. 각 원리는 `문제 → 결정 → 근거 → 결과` 구조로 서술하며, 가능한 경우 버린 대안과 그 이유도 함께 남긴다. 커맨드의 실제 동작은 `commands/omj.md`, `commands/omj-start.md`, `commands/omj-review.md`, `commands/omj-verify.md`, `commands/omj-fix.md`, `commands/omj-sync.md`, `commands/omj-setup.md`가 정본이며, 이 문서는 그 동작과 정합한다.
 
 ---
 
@@ -8,7 +8,7 @@
 
 **문제.** Claude Code의 Plan 모드는 의도적으로 `Write`/`Edit`와 부작용 있는(mutating) `Bash`를 차단한다(읽기 전용 Bash — 예: `git diff` — 는 대체로 허용). 그래서 Plan 모드에 있는 동안에는 어떤 커맨드도 코드를 직접 쓸 수 없다. 그런데 이 프로젝트의 사용자는 "거의 항상 Plan 모드"로 작업하는 습관이 있다. 만약 `/omj`를 "Figma를 읽고 곧바로 코드를 구현하는 단일 커맨드"로 설계했다면, 사용자가 실제로 호출하는 대부분의 상황(Plan 모드)에서 커맨드는 절반만 동작하거나, Plan 게이트를 우회하려고 모드를 강제 해제하는 부자연스러운 흐름을 만들었을 것이다.
 
-**결정.** `/omj`를 "구현 커맨드"가 아니라 **Plan 네이티브 프라이머**로 설계했다. `/omj`는 명세를 수집(Figma/코드 읽기)하고 FF·vercel을 적용한 **구현 스펙**을 author한 뒤 **멈춘다**. 이 스펙이 곧 사용자가 검토할 네이티브 Plan이 된다. 사용자가 `ExitPlanMode`로 승인하면 그때부터 정상 실행이 구현을 담당한다. `commands/omj.md`의 `allowed-tools`가 `Read, Grep, Glob, Skill, figma MCP, context7 MCP`로 한정되어 있고 Write/Edit/Bash가 빠져 있는 것이 이 결정의 직접적 표현이다.
+**결정.** `/omj`를 "구현 커맨드"가 아니라 **Plan 네이티브 프라이머**로 설계했다. `/omj`는 명세를 수집(Figma/코드 읽기)하고 FF·vercel을 적용한 **구현 스펙**을 author한 뒤 **멈춘다**. 이 스펙이 곧 사용자가 검토할 네이티브 Plan이 된다. 사용자가 `ExitPlanMode`로 승인하면 그때부터 정상 실행이 구현을 담당한다. `commands/omj.md`의 `allowed-tools`가 `Read, Grep, Glob, Skill, AskUserQuestion, figma MCP, context7 MCP`로 한정되어 있고 Write/Edit/Bash가 빠져 있는 것이 이 결정의 직접적 표현이다. `AskUserQuestion`은 소스 쓰기가 아니라 스펙 완료 후 실행 레인 handoff를 한 번 정하는 bounded 예외다(⑪).
 
 **근거.** "약점을 설계 축으로." Plan 모드의 쓰기 차단은 극복해야 할 장애물이 아니라, 사람이 코드를 만들기 전에 한 번 멈춰 스펙을 검토하게 하는 자연스러운 게이트다. 커맨드가 그 게이트를 거스르는 대신 게이트의 입력(=좋은 Plan)을 만들어 주면, 도구의 제약과 커맨드의 역할이 정확히 같은 방향을 향한다.
 
@@ -26,7 +26,7 @@
 
 **근거.** 프론트엔드 구현은 한 번 코드를 쏟아내면 되돌리는 비용이 크고(잘못된 추상화, 토큰 미사용, a11y 누락), 검토 한 번이 그 비용을 크게 줄인다. 반대로 "검토 없는 즉시 구현"이 절약하는 시간은 작다. 비대칭적 손익이므로 안전을 기본값으로 두는 것이 합리적이다.
 
-**결과.** 사용자는 항상 "무엇을 어떻게 구현할지"를 먼저 보고 승인한다. 승인 후 메인 세션이 스펙대로 구현하고, 대규모면 OMC `executor`로 opt-in 위임할 수 있다(이는 자율 플래너가 아니라 *승인된 스펙의 핸드오프*, ⑦ 참고). 편의는 사라지지 않고 "승인 게이트 뒤의 연속성"으로 살아남는다.
+**결과.** 사용자는 항상 "무엇을 어떻게 구현할지"를 먼저 보고 승인한다. 승인 후 메인 세션이 스펙대로 구현하고, 대규모면 OMC/OMX 실행 레인(`/goal`/`$ultragoal`, `/team`/`$team`, `/ralph`/`$ralph`)으로 opt-in handoff할 수 있다(이는 자율 플래너가 아니라 *승인된 스펙의 핸드오프*, ⑦ 참고). 편의는 사라지지 않고 "승인 게이트 뒤의 연속성"으로 살아남는다.
 
 ---
 
@@ -34,11 +34,11 @@
 
 **문제.** 커맨드가 강력할수록(Write/Edit/Bash 보유) 편하지만, 동시에 두 가지 위험이 커진다. (a) 최소권한 원칙 위반 — 명세 수집 단계가 굳이 파일을 쓰거나 셸을 실행할 권한을 가질 이유가 없다. (b) plan-gate 우회 — 커맨드가 쓰기 권한을 가지면 Plan 모드의 검토 게이트를 사실상 건너뛰는 경로가 생긴다.
 
-**결정.** `/omj`를 **순수 read-only**로 못 박는다. `allowed-tools`에서 Write/Edit/Bash를 제거하고 `Read, Grep, Glob, Skill`과 읽기성 MCP(figma, context7)만 허용한다. `commands/omj.md`는 명시적으로 "코드 파일을 만들거나 수정하지 않고, 빌드/테스트/검증을 실행하지 않으며, 서브에이전트에 구현을 위임하지 않는다"고 선언한다.
+**결정.** `/omj`를 **소스 코드 read-only**로 못 박는다. `allowed-tools`에서 Write/Edit/Bash를 제거하고 `Read, Grep, Glob, Skill`, 읽기성 MCP(figma, context7), 실행 레인 handoff용 `AskUserQuestion` 1회만 허용한다. `commands/omj.md`는 명시적으로 "코드 파일을 만들거나 수정하지 않고, 빌드/테스트/검증을 실행하지 않으며, 서브에이전트에 구현을 위임하지 않는다"고 선언한다.
 
 **근거.** read-only로 만들면 두 목표가 한 번에 달성된다. 권한 표면이 최소화되어(최소권한) 커맨드가 의도치 않게 파일을 건드릴 수 없고, 쓰기 경로 자체가 없으니 plan-gate를 우회할 방법도 원천적으로 사라진다. 즉 "권한을 빼는 것"이 곧 "안전 게이트를 강제하는 것"과 같아진다.
 
-**결과.** `/omj`는 어떤 상황에서도 부작용 없는(side-effect-free) 호출이 보장된다. 구현은 반드시 사용자 승인 뒤 별도 실행 경로(메인 세션/executor)에서만 일어난다. 검증(`/omj-verify`)이 Bash에 의존하므로 별도 커맨드로 분리된 것도 같은 철학의 연장이다 — read-only 프라이머와 부작용 있는 검증을 한 커맨드에 섞지 않는다.
+**결과.** `/omj`는 어떤 상황에서도 소스 코드 부작용 없는 호출이 보장된다. 구현은 반드시 사용자 승인 뒤 별도 실행 경로(메인 세션/executor)에서만 일어난다. 검증(`/omj-verify`)이 Bash에 의존하므로 별도 커맨드로 분리된 것도 같은 철학의 연장이다 — read-only 프라이머와 부작용 있는 검증을 한 커맨드에 섞지 않는다.
 
 ---
 
@@ -84,17 +84,17 @@
 
 ---
 
-## ⑦ OMC와 독립·graceful 공존 + escalation — 경계를 분명히 한다
+## ⑦ OMC/OMX와 독립·graceful 공존 + 실행 레인 핸드오프 — 경계를 분명히 한다
 
-**문제.** 사용자는 이미 oh-my-claudecode(OMC)라는 범용 멀티에이전트 오케스트레이션을 쓴다. OMJ가 OMC에 의존하거나 기능이 겹치면 (a) OMC 미설치 시 OMJ가 깨지고, (b) 두 플러그인의 책임 경계가 흐려져 사용자가 "언제 무엇을 쓸지" 혼란스러워진다.
+**문제.** 사용자는 이미 oh-my-claudecode(OMC), oh-my-codex(OMX) 같은 범용 오케스트레이션을 쓴다. OMJ가 여기에 의존하거나 기능을 복제하면 (a) OMC/OMX 미설치 시 OMJ가 깨지고, (b) 프론트엔드 스펙 생성과 실행 오케스트레이션의 책임 경계가 흐려져 사용자가 "언제 무엇을 쓸지" 혼란스러워진다.
 
-**결정.** OMJ를 **OMC와 완전히 독립**된 플러그인으로 만들고, 네임스페이스를 분리한다(`/omj*` vs `/omc-*`). 같이 설치해도 무충돌이다. 둘의 관계는 한 문장 멘탈 모델로 고정한다 — **"FE는 무조건 /omj로 시작 — 커지면 승인 후 OMC executor로 escalate. 백엔드/범용/리서치만 OMC 직접."**
+**결정.** OMJ를 **OMC/OMX와 완전히 독립**된 플러그인으로 만들고, 네임스페이스를 분리한다(`/omj*`는 OMJ 소유). 둘의 관계는 한 문장 멘탈 모델로 고정한다 — **"FE는 무조건 /omj로 시작 — 스펙을 승인한 뒤 특별한 이유가 없으면 1번 `(추천)` 실행 레인으로 간다."** `/omj`는 스펙 끝에 실행 레인 selector를 남기되, 라우팅 규칙은 [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md)를 SoT로 위임한다.
 
-**근거.** OMJ의 미션은 좁고 깊다(코드↔Figma 프론트엔드 루프). 이 좁은 미션은 OMC 없이도 완결되어야 설치 장벽이 낮고 독립적으로 가치를 준다. 동시에 "대규모 다중 파일 구현"처럼 OMC가 잘하는 영역은 중복 구현하지 않고 **escalation**으로 넘긴다. 단, 이 escalation은 ②·③의 원칙대로 *사용자 승인 뒤* 일어나는 핸드오프이지, OMJ가 자율적으로 에이전트를 띄우는 것이 아니다.
+**근거.** OMJ의 미션은 좁고 깊다(코드↔Figma 프론트엔드 루프). 이 좁은 미션은 OMC/OMX 없이도 완결되어야 설치 장벽이 낮고 독립적으로 가치를 준다. 동시에 durable goal, 병렬 worker, persistent owner, adversarial QA처럼 OMC/OMX가 잘하는 영역은 복제하지 않고 **승인된 스펙의 handoff**로 넘긴다. 장기·다단계 작업은 `/goal`/`$ultragoal` 같은 goal-mode wrapper를 기본 후보로 두고, 병렬 가능하면 `/team`/`$team`을 sublane으로, 순차 완료 압박이면 `/ralph`/`$ralph`를 sublane으로 둔다.
 
-**결과.** OMC가 없어도 OMJ의 프라이머·검증·토큰 sync는 그대로 동작한다(graceful). OMC가 있으면 승인된 스펙을 OMC 실행 도구가 소비한다 — `/ralph`(순차 루프)·`/team`(병렬 N에이전트)·`/goal`(장기 다목표)로 실행하고, 대규모 FE는 `/omj` 스펙을 `/ralplan` 시드로 넣어 합의 정제할 수도 있다. 즉 **"무엇을 만들지"(FE 스펙)는 `/omj`가, "어떻게 굴릴지"(실행)는 OMC 도구가** 맡고 스펙이 그 둘을 잇는다. 사용자는 "FE는 /omj, 그 외는 /omc"라는 단순 규칙만 기억하면 된다(상세 플로우는 [`docs/OMC-INTEGRATION.md`](OMC-INTEGRATION.md)).
+**결과.** OMC/OMX가 없어도 OMJ의 프라이머·검증·토큰 sync는 그대로 동작한다(graceful). OMC/OMX가 있으면 승인된 스펙을 실행 도구가 소비한다 — `/goal`/`$ultragoal`(durable), `/team`/`$team`(병렬), `/ralph`/`$ralph`(순차), `$ultraqa`(adversarial QA), `/ralplan`/`$ralplan`(합의 fallback). 즉 **"무엇을 만들지"(FE 스펙)는 `/omj`가, "어떻게 굴릴지"(실행)는 OMC/OMX 도구가** 맡고 스펙이 그 둘을 잇는다.
 
-**게이트 공존 규칙 — 두 계획 시스템은 막지 않고 직교한다.** `/omj`만 Claude Code 네이티브 Plan 모드(`ExitPlanMode`)를 쓰는 *읽기 게이트*이고, OMC 계획/실행 도구(`/omc-plan`·`/ralplan`·`/ralph`·`/team`·`/autopilot`)는 전부 자체 `pending-approval` *실행 게이트*를 쓴다(OMC는 `ExitPlanMode`를 호출하지 않는다). 두 게이트는 직교하므로 하드 충돌이 없고 핸드오프 순간에만 시간순으로 만난다. 따라서 기본 흐름은 **승인 후 구체 스펙을 `/ralph`·`/team` free-text에 임베드해 실행 직행**(사전 게이트가 concrete signal을 보고 ralplan으로 리다이렉트하지 않음 = ralplan 스킵, 사람 승인 1회)이고, `/ralplan` 합의는 *진짜 모호하거나 합의가 필요할 때만* 명시적으로 거친다(합의 루프 + 2차 승인). `/omj`는 read-only라 스펙 아티팩트를 스스로 못 쓰므로 파일 materialize는 승인 *후* 메인 세션이 한다. (도구별 ingest·`autopilot` 자동탐지 한계 등 정확한 메커니즘은 [`docs/OMC-INTEGRATION.md`](OMC-INTEGRATION.md) "핸드오프 제약" 참고.)
+**게이트 공존 규칙 — 두 계획/목표 시스템은 막지 않고 직교한다.** `/omj`만 Claude Code 네이티브 Plan 모드(`ExitPlanMode`)를 쓰는 *읽기 게이트*이고, OMC/OMX 계획·실행 도구는 각자의 workflow/goal ledger를 쓰는 *실행 게이트*다. 두 게이트는 직교하므로 하드 충돌이 없고 핸드오프 순간에만 시간순으로 만난다. 기본 흐름은 **승인 후 선택된 레인으로 실행 직행**이고, `/ralplan`/`$ralplan` 합의는 *진짜 모호하거나 합의가 필요할 때만* 명시적으로 거친다. `/omj`는 read-only라 소스 아티팩트를 스스로 못 쓰므로 파일 materialize는 승인 *후* 실행 레인이 한다. (wrapper/sublane 분리, `/goal clear` 안전, `/omj-start` fallback은 [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md) 참고.)
 
 ---
 
@@ -112,9 +112,9 @@
 
 ## ⑨ graceful degradation — 의존성 부재는 에러가 아니라 스킵+안내
 
-**문제.** OMJ는 여러 선택적 의존성에 기댄다 — 공식 Figma Dev Mode MCP, playwright-cli, Context7, OMC. 이들 중 하나라도 없을 때 커맨드가 예외를 던지고 죽으면, 사용자는 "전부 갖추기 전엔 아무것도 못 쓰는" 플러그인을 만나게 된다. 이는 채택 장벽을 크게 높인다.
+**문제.** OMJ는 여러 선택적 의존성에 기댄다 — 공식 Figma Dev Mode MCP, playwright-cli, Context7, OMC/OMX. 이들 중 하나라도 없을 때 커맨드가 예외를 던지고 죽으면, 사용자는 "전부 갖추기 전엔 아무것도 못 쓰는" 플러그인을 만나게 된다. 이는 채택 장벽을 크게 높인다.
 
-**결정.** 모든 의존성을 **선택적(optional)** 으로 두고, 부재 시 **에러 대신 스킵 + 안내**로 처리한다(graceful degradation). 예: Figma MCP 미연결이면 "URL 내용 없이 진행하거나 수동 명세를 받겠다"고 안내하고 계속한다. Context7 부재면 Next.js 최신 문서 조회 단계만 생략한다. playwright-cli/OMC 부재도 마찬가지로 해당 기능만 비활성화하고 나머지는 동작한다.
+**결정.** 모든 의존성을 **선택적(optional)** 으로 두고, 부재 시 **에러 대신 스킵 + 안내**로 처리한다(graceful degradation). 예: Figma MCP 미연결이면 "URL 내용 없이 진행하거나 수동 명세를 받겠다"고 안내하고 계속한다. Context7 부재면 Next.js 최신 문서 조회 단계만 생략한다. playwright-cli/OMC/OMX 부재도 마찬가지로 해당 기능만 비활성화하고 나머지는 동작한다.
 
 **근거.** 핵심 가치(스펙 author, 토큰 sync 구조)는 선택적 도구 없이도 성립한다. "있으면 더 좋지만 없어도 동작"하게 만들면, 사용자는 자기 환경에서 가능한 만큼 즉시 가치를 얻고 점진적으로 도구를 추가하면 된다. 의존성을 hard requirement로 두는 것은 개발자 편의일 뿐 사용자 가치를 깎는다.
 
@@ -144,7 +144,7 @@
 
 **근거.** 사전에 말할 수 있는 의도(커밋 여부)는 플래그가 맞고, 실행 중에야 드러나는 상태(어떤 드리프트가 어느 방향인지)는 프롬프트가 맞다. 이 구분이 "선택권"과 "피로"를 가른다.
 
-**결과.** 새 프롬프트를 얻는 커맨드는 `/omj-sync`(sync)뿐이다 — 방향 충돌이 위 네 조건을 모두 만족한다(⑥). `/omj-fix`(결함은 이미 스크린샷+불만이 스코프, 커밋은 `--commit` 플래그)·`/omj`(read-only 프라이머는 오케스트레이션을 소유하지 않음 — 라우팅은 인쇄 권고, ③⑦)·`/omj-verify`(순수 read-only, 방향 내재)는 규칙상 배제된다. `/omj-setup`의 기존 "지금 설치할까요?"는 이 규칙에 부합한다. "선택권을 준다"는 프롬프트를 흩뿌리는 게 아니라 **규칙을 성문화**해 얻는다.
+**결과.** 기본 원칙상 새 프롬프트는 `/omj-sync`(sync)가 대표 사례다 — 방향 충돌이 위 네 조건을 모두 만족한다(⑥). 여기에 **단 하나의 bounded 예외**가 있다: `/omj`는 스펙 author가 끝난 뒤 실행 레인 선택을 위해 `AskUserQuestion`을 정확히 한 번 쓸 수 있다. 이 선택은 구현 전 handoff 결정이며, goal-mode wrapper·team 병렬성·ralph 순차성·ultraqa 검증 같은 비용/조율 tradeoff가 사용자 의도에 영향을 받기 때문이다. 단, 1번은 결정적 추천값이고 `(추천)`을 붙이며, 선택값은 스펙에 기록되어 `/omj-start`가 다시 묻지 않는다. `/omj-fix`(결함은 이미 스크린샷+불만이 스코프, 커밋은 `--commit` 플래그)·`/omj-verify`(순수 read-only, 방향 내재)는 계속 규칙상 배제된다. `/omj-setup`의 기존 "지금 설치할까요?"는 이 규칙에 부합한다. "선택권을 준다"는 프롬프트를 흩뿌리는 게 아니라 **규칙을 성문화**해 얻는다.
 
 ---
 
