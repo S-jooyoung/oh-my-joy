@@ -7,9 +7,9 @@
 **FE는 무조건 `/omj`로 시작 — 스펙을 뽑고, 검증하고, 토큰을 맞춘다.**
 _"거의 항상 Plan 모드"인 습관과 충돌하지 않는 Plan 네이티브 프라이머._
 
-`Plan-first` · `Figma 2-트랙` · `대화형 토큰 sync` · `graceful degradation` · `OMC와 무충돌 공존`
+`Plan-first` · `Figma 2-트랙` · `대화형 토큰 sync` · `graceful degradation` · `OMC/OMX와 무충돌 공존`
 
-[Quick Start](#quick-start) • [커맨드](#커맨드) • [OMJ × OMC](#omj--omc) • [설계 원리](#설계-원리--figma-2-트랙) • [트러블슈팅](#트러블슈팅)
+[Quick Start](#quick-start) • [커맨드](#커맨드) • [OMJ × OMC/OMX](#omj--omcomx) • [설계 원리](#설계-원리--figma-2-트랙) • [트러블슈팅](#트러블슈팅)
 
 ---
 
@@ -23,11 +23,11 @@ _"거의 항상 Plan 모드"인 습관과 충돌하지 않는 Plan 네이티브 
 # 2. 의존성 점검 (첫 사용 전 권장)
 /omj-setup
 
-# 3. 시작 — 명세를 구현 스펙(Plan)으로 뽑고 멈춤 → 검토·승인(ExitPlanMode) → 구현
+# 3. 시작 — 명세를 구현 스펙(Plan)으로 뽑고 실행 레인을 고른 뒤 멈춤 → 승인 → 구현
 /omj "검색 입력 폼 — React Hook Form + Zod, 모바일 우선" /search
 ```
 
-> `/omj`는 read-only 프라이머라 코드를 직접 쓰지 않습니다 — 스펙을 만들고 멈춥니다. 어디서 시작할지 모르겠으면 `/omj-setup`부터 실행하세요.
+> `/omj`는 read-only 프라이머라 코드를 직접 쓰지 않습니다 — 스펙을 만들고, 1번에 `(추천)`이 붙은 실행 레인을 제안한 뒤 멈춥니다. 어디서 시작할지 모르겠으면 `/omj-setup`부터 실행하세요.
 
 ---
 
@@ -35,14 +35,15 @@ _"거의 항상 Plan 모드"인 습관과 충돌하지 않는 Plan 네이티브 
 
 | 커맨드 | 하는 일 | 언제 | 예시 |
 | --- | --- | --- | --- |
-| **`/omj`** | 명세 수집 + 구현 스펙(Plan) author 후 멈춤 (read-only 프라이머) | 모든 FE 작업의 시작점 | `/omj https://figma.com/design/abc?node-id=1-2 /settings/profile` |
+| **`/omj`** | 명세 수집 + 구현 스펙(Plan) author + 실행 레인 추천 후 멈춤 (read-only 프라이머) | 모든 FE 작업의 시작점 | `/omj https://figma.com/design/abc?node-id=1-2 /settings/profile` |
+| **`/omj-start`** | 승인된 OMJ 스펙을 선택된 OMC/OMX 실행 레인으로 handoff | 승인 후 자동 시작이 불가할 때 | `/omj-start ./omj-search-spec.md` |
 | **`/omj-review`** | 변경 FE diff를 FF 4기준+a11y·vercel·Next.js로 통합 리뷰 (리포트만) | 구현 직후 PR 전 코드 품질 점검 | `/omj-review --base main` |
 | **`/omj-verify`** | 라우트를 실제 브라우저(playwright-cli)로 열어 시각/구조 점검 | PR 전 시각 회귀 확인 | `/omj-verify /settings/profile` |
 | **`/omj-fix`** | 붙인 스크린샷+route 결함을 고치고 재캡처로 확인 (능동 루프) | 픽셀/시각 결함 빠른 수정 | `/omj-fix /pricing "배너 z-index 낮음"` |
 | **`/omj-sync`** | 토큰(`tokens.json` ↔ Figma) 드리프트를 **방향 물어** 해소 (대화형) | 코드/Figma 토큰 정렬 | `/omj-sync` · `/omj-sync check` · `/omj-sync push` |
 | **`/omj-setup`** | 의존성 점검 + 설치 가이드 | 첫 사용 전 | `/omj-setup` |
 
-> **read-only vs 능동 op.** `/omj`·`/omj-review`는 read-only(리포트만) — `/omj-review`는 `git diff`만 쓰므로 Plan 모드에서도 대체로 동작합니다. `/omj-verify`·`/omj-fix`·`/omj-sync`(sync/push)는 Figma write·`Edit`·Bash를 쓰는 능동 op라, 환경이 Plan 모드에서 이를 막으면 Plan을 해제한 뒤 실행하세요. 각 커맨드의 구문·인자·단계는 `commands/<name>.md`가 정본입니다.
+> **read-only vs 능동 op.** `/omj`·`/omj-review`는 read-only(리포트만) — `/omj`는 스펙 뒤 실행 레인 질문을 1회 할 수 있지만 여전히 Write/Edit/build/test는 못 합니다. `/omj-start`는 handoff 커맨드입니다: 런타임 surface가 명시적이고 안전할 때만 시작하고, 아니면 copyable action 한 줄만 출력합니다. `/omj-verify`·`/omj-fix`·`/omj-sync`(sync/push)는 Figma write·`Edit`·Bash를 쓰는 능동 op라, 환경이 Plan 모드에서 이를 막으면 Plan을 해제한 뒤 실행하세요. 각 커맨드의 구문·인자·단계는 `commands/<name>.md`가 정본입니다.
 
 ### `/omj-sync` — 방향을 사용자가 고른다
 
@@ -68,25 +69,25 @@ _"거의 항상 Plan 모드"인 습관과 충돌하지 않는 Plan 네이티브 
 
 ---
 
-## OMJ × OMC
+## OMJ × OMC/OMX
 
-OMJ는 oh-my-claudecode(OMC)와 **별개의 독립 플러그인**입니다. 같이 설치해도 무충돌(`/omj*` vs `/omc-*`).
+OMJ는 oh-my-claudecode(OMC), oh-my-codex(OMX)와 **별개의 독립 플러그인**입니다. 같이 설치해도 `/omj*` 네임스페이스는 OMJ가 소유하므로 충돌하지 않습니다.
 
-- **멘탈 모델 (1문장)**: "FE는 무조건 `/omj`로 시작 — 커지면 승인 후 OMC `executor`로 escalate. 백엔드/범용/리서치만 OMC 직접."
+- **멘탈 모델 (1문장)**: "FE는 무조건 `/omj`로 시작 — 스펙을 승인한 뒤 특별한 이유가 없으면 1번 `(추천)` 실행 레인으로 간다."
 
-| 단계 | OMJ | OMC |
+| 단계 | OMJ | OMC/OMX |
 | --- | --- | --- |
-| 계획 | `/omj`(FE 스펙, 네이티브 Plan) | `/omc-plan`·`/ralplan` |
-| 실행 | — | `/ralph`·`/team`·`/goal` |
-| 검증 | `/omj-review`·`/omj-verify` | `/verify`(BE/일반) |
+| 계획 | `/omj`(FE 스펙, 네이티브 Plan + 실행 selector) | `/omc-plan`·`/ralplan`·`$ralplan` |
+| 실행 | `/omj-start` fallback handoff | `/goal`·`$ultragoal`·`/team`/`$team`·`/ralph`/`$ralph` |
+| 검증 | `/omj-review`·`/omj-verify` | `/verify`·`$ultraqa` |
 
-`/omj`가 만든 구현 스펙이 곧 OMC 실행 도구가 소비하는 입력입니다. A/B/C 플로우·게이트 규칙·핸드오프 제약 등 상세는 **[docs/OMC-INTEGRATION.md](docs/OMC-INTEGRATION.md)** 참고.
+`/omj`가 만든 구현 스펙이 곧 OMC/OMX 실행 도구가 소비하는 입력입니다. 실행 레인 라우팅 정본은 **[docs/EXECUTION-HANDOFF.md](docs/EXECUTION-HANDOFF.md)**, A/B/C 플로우·게이트 규칙·핸드오프 제약은 **[docs/OMC-INTEGRATION.md](docs/OMC-INTEGRATION.md)** 참고.
 
 ---
 
 ## 설계 원리 · Figma 2-트랙
 
-- **Plan 네이티브 프라이머**: `/omj`는 read-only — 스펙을 만들고 멈춘 뒤, 승인(ExitPlanMode)해야 구현이 시작됩니다.
+- **Plan 네이티브 프라이머**: `/omj`는 read-only — 스펙을 만들고 실행 레인 selector를 최대 1회 물은 뒤 멈추며, 승인(ExitPlanMode)해야 구현이 시작됩니다.
 - **스펙 포맷**: uSpec 섹션(Anatomy/Structure/Color·Tokens/Props·Variants/A11y/Motion) + 각 항목 FF 4기준 + a11y.
 - **토큰 sync**: 코드가 기본 SoT, 충돌은 사용자가 방향 선택(대화형).
 - **Figma 2-트랙**: (A) 앱 화면 design→code = 공식 Dev Mode MCP, (B) 디자인 시스템 스펙·토큰 = figma-console-mcp + uSpec(v1.1+).
@@ -98,7 +99,7 @@ OMJ는 oh-my-claudecode(OMC)와 **별개의 독립 플러그인**입니다. 같�
 
 ## 트러블슈팅
 
-- **`/omj`가 코드를 안 고침** — 정상입니다. read-only 프라이머라 스펙만 만들고 멈춥니다. 승인(ExitPlanMode) 후 구현이 시작됩니다.
+- **`/omj`가 코드를 안 고침** — 정상입니다. read-only 프라이머라 스펙과 선택된 실행 레인만 남기고 멈춥니다. 승인(ExitPlanMode) 후 구현이 시작됩니다. 자동 시작이 불가하면 출력된 `/omj-start <approved-spec>` 한 줄을 실행하세요.
 - **`/omj-verify`/`/omj-fix`가 아무것도 안 함** — `playwright-cli` 미설치, dev 서버 미기동(`yarn dev`), 인증 라우트(자격증명 env 필요), 또는 환경 Plan 모드가 Bash를 막았을 수 있습니다. 인증 라우트는 실행 전 `export JOY_TEST_EMAIL=… JOY_TEST_PASSWORD=…`.
 - **Figma 미연결 / 권한 없음** — `This figma file could not be accessed` 류는 graceful 처리 대상. Figma 데스크톱을 켜고 대상 파일을 활성 탭으로 둔 뒤 다시 실행하세요.
 - **MCP 도구명이 다름** — Figma/Context7 도구명은 환경마다 다를 수 있습니다. `/mcp`로 실제 등록된 도구명을 확인하세요.
