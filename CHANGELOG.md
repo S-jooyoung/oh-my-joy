@@ -8,13 +8,7 @@
 
 ### Added
 
-- `/omj-start` — 승인된 OMJ 스펙을 OMC/OMX 실행 레인으로 넘기는 canonical fallback handoff command. `/omj`가 이미 선택한 lane이 있으면 다시 묻지 않고, 직접 시작이 불확실하면 copyable action 한 줄만 출력한다.
-- `docs/EXECUTION-HANDOFF.md` — `/omj` 실행 레인 selector의 단일 SoT. Wrapper(`/goal`/`$ultragoal`)와 Sublane(`/team`/`$team`, `/ralph`/`$ralph`)을 분리하고, option 1에 `(추천)`을 붙이는 출력 계약과 `/goal clear` 안전 규칙을 문서화.
-
 ### Changed
-
-- `/omj` — read-only 프라이머는 유지하되 스펙 완료 후 실행 레인을 정확히 한 번 선택하도록 개선. 추천값은 항상 1번 `(추천)`으로 표시하고, 승인 후 자동 시작이 불가하면 `/omj-start <approved-spec>` 한 줄로 이어진다.
-- README EN/KO, `docs/OMC-INTEGRATION.md`, `docs/PRINCIPLES.md`, `CLAUDE.md` — OMJ × OMC 문맥을 OMJ × OMC/OMX로 확장하고 goal-mode/Ultragoal/Team/Ralph/UltraQA handoff 모델을 반영.
 
 ### Deprecated
 
@@ -23,6 +17,39 @@
 ### Fixed
 
 ### Security
+
+## [0.3.0] - 2026-07-14
+
+> 실사용 dogfood(ahmotravelReact `/omj` 풀 사이클) 피드백 + 디자인 시스템 하네스 스펙 흡수 + 플러그인 구조·사용 감사 결과를 ralplan 합의(Planner→Architect→Critic 3라운드)로 확정해 반영한 릴리스.
+
+### Added
+
+- `/omj-start` — 승인된 OMJ 스펙을 OMC/OMX 실행 레인으로 넘기는 canonical fallback handoff command. `/omj`가 이미 선택한 lane이 있으면(수동이든 `(auto)`든) 다시 묻지 않고, 직접 시작이 불확실하면 copyable action 한 줄만 출력한다.
+- `docs/EXECUTION-HANDOFF.md` — `/omj` 실행 레인 selector의 단일 SoT. Wrapper(`/goal`/`$ultragoal`)와 Sublane(`/team`/`$team`, `/ralph`/`$ralph`) 분리, option 1 `(추천)` 출력 계약, `/goal clear` 안전 규칙 + **auto-select 규칙**(추천이 `Wrapper=none; Sublane=inline/manual`일 때만 질문 생략·`(auto)` 기록, Plan 승인=레인 동의 — 무거운 레인은 항상 1회 질문. 실사용에서 관측된 "레인 질문+Plan 승인 이중 인터럽트" 해소, PRINCIPLES ⑪ 정합).
+- `skills/frontend-fundamentals/references/figma-fidelity.md` — design→code 보편 규칙 신설(원본 텍스트 유지·Figma에 없는 variant 임의 생성 금지·고정 px 너비 금지(w-full+부모 padding)·토큰 하드코딩 금지). `/omj` Phase 2가 처방, `/omj-review`·`design-qa`가 검증(같은 SoT).
+- `agents/figma-implementer.md` — 승인된 OMJ 스펙 전담 구현 에이전트(Clarify→Context→Plan→Generate→Evaluate 5단계, Figma 읽기 4도구, 실패 2회 재시도 후 보고). **호출 계약**: 스펙 없는 bare Figma URL은 구현 거부 + `/omj` 안내(plan-gate 우회 차단). 레인이 아니라 inline 레인이 쓰는 실행자 — EXECUTION-HANDOFF(라우팅 SoT)·selector에는 미등장, OMC/OMX 레인 우선.
+- `agents/design-qa.md` — 기계 점검 게이트(타입체크·린트(--fix 금지)·토큰 하드코딩 grep·Figma 충실도·a11y 기본 + fe-context 선언 시에만 Story·i18n 체크). 계약: "소스·설정 비수정 능동 op"(검사만, 수정 없음).
+- `templates/hooks/check-design-tokens.mjs`·`check-story-exists.mjs` — 토큰 하드코딩/Story 누락 경고 훅 스크립트(Node, 크로스플랫폼). **플러그인은 hooks.json을 두지 않아 스스로 발화하지 않는다**(zero-hook 유지) — `/omj-setup`이 소비 프로젝트 `.claude/hooks/`로 **복사-설치**할 때만 동작(참조-등록은 소비 settings.json의 `${CLAUDE_PLUGIN_ROOT}` 미해석·플러그인 캐시 버전 경로 파손 때문에 불가). fe-context 선언 없으면 no-op 이중 안전.
+- `/omj-sync extract <figma-url>` — Figma 변수 → CSS custom properties 부트스트랩 모드(`/`→`-` 변환, primitive→semantic `var()` 참조 유지, 컬렉션별 파일 분리, `docs/design-tokens.md` 매핑 테이블). 기존 파일 덮어쓰기는 AskUserQuestion 가드.
+- `.omj/baselines/` 규약 — `/omj-verify`·`/omj-fix`가 Figma 에셋을 `<route-slug>@<viewport>.png`로 영속화(`curl -f --remove-on-error`, 0-byte 잔존 방지)해 크로스세션 시각 비교를 가능하게 함. slug 변환 규칙 명문화. provenance(노드ID·에셋URL·captured-at)는 스펙 문서가 SoT(sidecar JSON은 verify 권한상 저장 불가로 기각).
+
+### Changed
+
+- `/omj` — 실행 레인 질문을 "정확히 1회" → "**최대 1회**"(auto-select 시 생략)로 조건화. Phase 0 디스패치를 figma/dev 이분법 → **신호 존재 기반 합성**(figma URL+텍스트 작업 혼합 시 양 트랙 병행, 노드 5개 초과 분할 제안, 첨부 이미지 해석 기록, Figma 'Copy as prompt' 보일러플레이트 무시)으로 확장. route 인자 부재 시 코드 탐색으로 **추론 기록**(`검증 route(추론):` 라벨). Color/Tokens의 토큰 탐지를 fe-acceptance.md SoT로 위임("tokens.json 부재 ≠ raw hex 면죄부"). figma 프라이머 시 baseline provenance 기록.
+- `/omj-verify` — **allowed-tools에 `Read` 추가**(스펙 URL 판독·baseline PNG 비전 로드에 필수 — 없으면 baseline 비교 자체가 불가). 비교 기준 3단계화(①세션 컨텍스트 → ②`.omj/baselines/` 온디스크 PNG → ③구조 점검만). **playwright MCP 폴백** 신설(playwright-cli 부재 시 — 사용 감사에서 30일간 verify 호출 0회의 구조적 원인이 도구 불일치로 확인됨). fe-context `verifySetup` 선언 소비(인증 우회·API 목 절차의 프로젝트 선언화).
+- `/omj-sync` — 토큰 스토어를 DTCG json 전용 → **CSS custom properties(`*.css`) 동시 지원**으로 확장(파싱: `var(--x)`=alias). **allowed-tools에 `Write` 추가**(extract 전용 — check/sync/push는 Write 금지 본문 강제). check 출력에 "추가할 토큰 코드 제안" 블록. **Figma 변수 접근은 편집 권한 필요**(뷰어 파일은 Duplicate) 실측 명문화.
+- `/omj-setup` — `.omj/fe-context.md` 스캐폴딩(감지 후보는 **주석으로만**, acceptance 축 자동 선언 금지 — 원칙 ⑩ 보존), `docs/DESIGN.md` 빈 틀 초안(선택), 토큰 가드 훅 복사-설치(opt-in), 캡처 백엔드 점검을 playwright-cli 또는 MCP로 확장.
+- `.omj/fe-context.md` 스키마 확장(fe-acceptance.md SoT) — `conventions:`·`designDocPath:`·`storybook:`·`verifySetup:` 추가(전부 선택). **토큰 시스템 탐지 순서**(fe-context → tokens.json → Tailwind @utility → CSS 변수)를 fe-acceptance.md에 1회 정의하고 omj.md·omj-setup·omj-sync가 참조(탐지 로직 이중 정의 제거).
+- `/omj-fix` — baseline·verifySetup 참조 추가(캡처 SoT 재사용 규율 유지).
+- `/omj-review` — Figma 충실도 검증 축 추가(figma-fidelity.md 참조).
+- 커맨드 본문 SoT 상대링크(`../docs/...`) → `${CLAUDE_PLUGIN_ROOT}/docs/...` 절대화(omj.md 2곳·omj-start.md 1곳 — 런타임에서 상대링크는 소비 프로젝트 cwd 기준으로 해석돼 도달 불가였음. 스킬 본문 치환 실측 근거, 실패 시 기존 fallback 문구가 그대로 안전망).
+- `docs/PRINCIPLES.md` — ①⑪(레인 질문 "최대 1회"+auto-select 정합), ⑧(번들 최소화의 경계: 외부 지식 참조 원칙은 유지하되 자작물(agents·훅 템플릿·references)은 위반 아님), ⑩(opt-in 훅과의 양립 — 상시 훅 기각은 유지, zero-hook 표어의 문자적 완화는 소유자 승인 기록). `docs/OMC-INTEGRATION.md` — "한 번만 묻고" 문구 드리프트 정정 + figma-implementer 위치 1줄.
+- README EN/KO — 커맨드 표(verify 폴백·sync extract·setup 스캐폴딩), 번들 에이전트·opt-in 훅 절 신설, 의존성 표(캡처 백엔드), 트러블슈팅(편집 권한·baseline 만료) 동기화 갱신.
+- 버전 `0.2.0` → `0.3.0`(plugin.json·marketplace.json 2곳).
+
+### Removed
+
+- (계획 단계 기각 — 코드 미반영) 디자인 시스템 하네스 원안의 `install.sh`(플러그인 설치와 이중 배포 경로), 독립 `token-checker`·`design-reviewer` 에이전트(`/omj-sync`·`/omj-review`와 중복), `protect-files`·`notify` 훅(FE 디자인 루프 밖), 상시(always-on) 플러그인 hooks.json(PRINCIPLES ⑩ 명시 기각 대안), baseline sidecar JSON(verify 권한상 저장 불가).
 
 ## [0.2.0] - 2026-07-01
 

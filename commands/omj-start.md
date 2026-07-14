@@ -21,7 +21,7 @@ allowed-tools: Read, Grep, AskUserQuestion, Bash(omx ultragoal create-goals:*), 
 
 1. 입력이 경로면 `Read`로 읽고, 본문이면 그대로 분석한다.
 2. `selectedLane`, `선택된 레인`, 또는 `## 실행 레인 선택` 아래의 선택값이 있으면 **다시 묻지 않는다**.
-3. 선택값이 없을 때만 [`docs/EXECUTION-HANDOFF.md`](../docs/EXECUTION-HANDOFF.md)를 기준으로 `AskUserQuestion`을 정확히 한 번 사용한다. 1번 옵션은 항상 추천값이며 라벨에 `(추천)`을 붙인다.
+3. 선택값이 없을 때만 [`${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md`](${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md)를 기준으로 `AskUserQuestion`을 정확히 한 번 사용한다. 1번 옵션은 항상 추천값이며 라벨에 `(추천)`을 붙인다. (스펙의 `선택된 레인`이 `(auto)`면 실행할 별도 레인이 없다는 뜻 — "인라인 구현 대상, /omj-start 불필요"를 안내하고 종료한다.)
 4. 선택 결과를 `Wrapper`와 `Sublane`으로 분리한다.
    - Wrapper: `none` · `/goal` · `$ultragoal`
    - Sublane: `inline/manual` · `$ralph` · `$team`

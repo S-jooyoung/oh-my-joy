@@ -27,7 +27,8 @@ metadata:
 
 - **접근성(a11y)** → [references/a11y.md](references/a11y.md) — 모바일 공유가 중요한 서비스라면 a11y·터치 타깃에 특히 민감
 - **번들/디버그** → [references/bundling-debug.md](references/bundling-debug.md)
-- **프로젝트 acceptance 축(메커니즘)** → [references/fe-acceptance.md](references/fe-acceptance.md) — 프로젝트가 `.omj/fe-context.md`에 선언한 '자주 빠뜨리는 축'을 스펙에 반영(플러그인은 특정 축을 강제하지 않음 — 범용)
+- **프로젝트 acceptance 축(메커니즘)** → [references/fe-acceptance.md](references/fe-acceptance.md) — 프로젝트가 `.omj/fe-context.md`에 선언한 '자주 빠뜨리는 축'을 스펙에 반영(플러그인은 특정 축을 강제하지 않음 — 범용). 토큰 시스템 탐지 순서의 SoT도 이 파일.
+- **Figma 충실도(design→code 보편 규칙)** → [references/figma-fidelity.md](references/figma-fidelity.md) — 원본 텍스트 유지·임의 variant 금지·고정 px 금지(w-full+부모 padding)·토큰 하드코딩 금지. `/omj`가 처방, `/omj-review`·`design-qa`가 검증.
 
 ## 빠른 점검표 (smell → remedy)
 
