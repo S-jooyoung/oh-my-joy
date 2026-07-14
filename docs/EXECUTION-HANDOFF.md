@@ -37,9 +37,18 @@
 6. **모호/고위험**: 요구·경계·아키텍처가 불명확 → `$ralplan`/`/ralplan`을 먼저 추천.
 7. **런타임 없음**: OMC/OMX 없음 → copyable manual command/action만 출력하고 실패하지 않는다.
 
+## Auto-select 규칙 (inline/manual 한정 질문 생략)
+
+추천 레인이 **`Wrapper=none; Sublane=inline/manual`일 때만** selector의 `AskUserQuestion`을 생략하고, 스펙에 `선택된 레인: Wrapper=none; Sublane=inline/manual (auto)`로 기록만 한다.
+
+- **근거**: 이 경우 질문의 답이 자명해 프롬프트 피로만 남는다(PRINCIPLES ⑪ — 추론 가능+저비용이면 묻지 않는다). 오판의 blast radius도 작다 — 잘못돼도 "가장 값싼 레인으로 진행" 또는 사용자가 승인 화면에서 정정.
+- **경계**: `$team`/`$ultragoal`/`/goal`/`$ralph`/`$ralplan`/`$ultraqa`가 추천이면 **항상 정확히 1회 질문**한다(무거운 레인의 침묵 진행 금지).
+- **동의 지점**: Plan 승인(ExitPlanMode)이 곧 레인 동의다. 이견이면 승인 화면에서 plan 파일을 수정하거나 `/omj-start`에서 재선택한다.
+- **`(auto)` 스펙의 승인 후**: 실행할 레인이 따로 없으므로 `/omj-start`가 불필요하다 — 현재 세션이 바로 인라인 구현을 진행한다.
+
 ## Selector output contract
 
-항상 option 1이 추천이어야 하며 `(추천)`을 붙인다. Wrapper와 Sublane이 모두 적용되면 한 줄 안에 분리해 쓴다.
+항상 option 1이 추천이어야 하며 `(추천)`을 붙인다(auto-select 조건에 해당하면 질문 없이 아래 형식의 `선택된 레인` 줄에 `(auto)`를 붙여 기록만 한다). Wrapper와 Sublane이 모두 적용되면 한 줄 안에 분리해 쓴다.
 
 ```md
 ## 실행 레인 선택
@@ -55,7 +64,7 @@
 
 ## `/omj-start` fallback contract
 
-- `/omj`가 선택한 lane이 spec에 있으면 다시 묻지 않는다.
+- `/omj`가 선택한 lane이 spec에 있으면(수동 선택이든 `(auto)` 기록이든) 다시 묻지 않는다.
 - 선택 lane이 없을 때만 동일한 단일 selector를 한 번 묻는다.
 - 직접 launch가 가능하고 안전하면 launch한다.
 - 직접 launch가 불가하거나 slash/dollar command semantics가 불명확하면 정확히 하나의 copyable command/action만 출력한다.

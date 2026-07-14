@@ -33,6 +33,7 @@ allowed-tools: Read, Grep, Glob, Skill, Bash(git diff:*), Bash(git rev-parse:*),
 1. **루브릭 로드**: `Skill`로 **`frontend-fundamentals` 스킬을 invoke**해 `references/`(가독성·예측가능성·응집도·결합도·a11y) + 라우팅 규칙을 기준으로 삼는다. 스킬을 로드할 수 없으면 → 4기준을 이름만으로 수동 적용하고 "FF 스킬 미로드 — 루브릭 축약 적용" 안내(graceful, 에러 아님).
 2. **변경별 평가**: 각 변경 파일/헝크를 다음으로 본다.
    - **FF 4기준 + a11y** — 가독성(맥락 과다·중첩 삼항), 예측가능성(이름≠동작·숨은 사이드이펙트), 응집도(흩어진 변경), 결합도(props drilling 3단계↑), 접근성(alt·시맨틱·키보드·터치 타깃), 토큰 일탈(raw hex/Primitive 직접 사용).
+   - **Figma 충실도** — FF 스킬 `references/figma-fidelity.md` 기준: 원본 텍스트 무단 변경, Figma에 없는 variant 임의 생성, 고정 px 너비, 토큰 하드코딩을 위반으로 본다(처방은 `/omj` Phase 2 — 같은 SoT의 검증 단계).
    - **성능·번들·리렌더·데이터 페칭** → `vercel-react-best-practices` 스킬 기준 참조(미설치 시 해당 레이어 생략, graceful).
    - **props 비대화·확장 컴포넌트 API** → `vercel-composition-patterns` 스킬 기준 참조(미설치 시 생략, graceful).
    - **Next.js 버전민감 주제**(App Router·Server/Client 경계·`fetch` 캐싱·`metadata`·`Image`·middleware·`next/dynamic`) → Context7로 `/vercel/next.js` 최신 문서 조회 후 권장안 대비. Context7 부재 시 이 레이어 생략(graceful).

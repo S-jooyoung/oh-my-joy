@@ -30,7 +30,7 @@ allowed-tools: Read, Grep, Glob, Edit, Skill, Bash(command:*), Bash(playwright-c
 
 2. **관찰** — `/omj-verify` 캡처 프로토콜(프리플라이트 → `open --persistent`/`goto`/`snapshot`/`screenshot`)로 현재 화면을 본다. 프리플라이트(playwright-cli 미설치·서버 미기동) 실패 시 graceful 종료(자동 기동 안 함). **이 단계에선 `close`하지 않는다** — 세션은 step 5에서만 정리한다.
 
-3. **진단** — `Skill`로 `frontend-fundamentals`를 invoke한다. 붙인 스크린샷/불만 ↔ 현재 캡처를 비교하되, **보편 FF 기준 + 레포의 `.omj/fe-context.md`에 선언된 프로젝트 acceptance 축(있으면)으로 선제 점검**한다(사용자가 지적하기 전에). 관련 컴포넌트/훅/스타일을 `Glob`·`Grep`·`Read`로 특정. Next.js 버전민감 주제면 Context7 조회(부재 시 생략, graceful).
+3. **진단** — `Skill`로 `frontend-fundamentals`를 invoke한다. 붙인 스크린샷/불만 ↔ 현재 캡처를 비교하되, **보편 FF 기준 + 레포의 `.omj/fe-context.md`에 선언된 프로젝트 acceptance 축(있으면)으로 선제 점검**한다(사용자가 지적하기 전에). `.omj/baselines/<route-slug>@<viewport>.png`가 있으면(키 규칙·비교 절차 정본은 `omj-verify.md`) `Read`로 함께 대비하고, fe-context `verifySetup` 선언이 있으면 관찰 전에 그 절차를 적용한다. 관련 컴포넌트/훅/스타일을 `Glob`·`Grep`·`Read`로 특정. Next.js 버전민감 주제면 Context7 조회(부재 시 생략, graceful).
 
 4. **수정** — **최소 변경**으로 결함만 `Edit`한다(토큰 일탈→semantic 토큰, 임의 px→비율/토큰). 타입체크를 백그라운드 실행(`run_in_background: true`, 레포에 맞춰 `npx tsc --noEmit` 또는 `apps/*/tsconfig.json`). exit 0 확인, 실패 시 즉시 반복.
 
