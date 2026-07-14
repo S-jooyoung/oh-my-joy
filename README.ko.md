@@ -111,6 +111,6 @@ OMJ는 oh-my-claudecode(OMC), oh-my-codex(OMX)와 **별개의 독립 플러그�
 - **`/omj`가 코드를 안 고침** — 정상입니다. read-only 프라이머라 스펙과 선택된 실행 레인만 남기고 멈춥니다. 승인(ExitPlanMode) 후 구현이 시작됩니다. 자동 시작이 불가하면 출력된 `/omj-start <approved-spec>` 한 줄을 실행하세요.
 - **`/omj-verify`/`/omj-fix`가 아무것도 안 함** — 캡처 백엔드 없음(playwright-cli도 playwright MCP도 부재), dev 서버 미기동(`yarn dev`), 인증 라우트, 또는 환경 Plan 모드가 Bash를 막았을 수 있습니다. 인증 라우트는 `.omj/fe-context.md`의 `verifySetup` 선언(권장) 또는 실행 전 `export JOY_TEST_EMAIL=… JOY_TEST_PASSWORD=…`.
 - **Figma 미연결 / 권한 없음** — `This figma file could not be accessed` 류는 graceful 처리 대상. Figma 데스크톱을 켜고 대상 파일을 활성 탭으로 둔 뒤 다시 실행하세요. **변수/노드 접근은 편집 권한이 필요** — 뷰어로 공유받은 파일(튜토리얼 등)은 사본(Duplicate)을 떠서 사본 URL로 사용하세요.
-- **baseline 비교가 안 됨** — Figma 에셋 URL은 약 7일 후 만료됩니다. `/omj`를 재실행해 스펙의 baseline provenance를 갱신하세요. 크로스세션 비교는 `.omj/baselines/`의 PNG가 담당합니다(gitignore 권장).
+- **baseline 비교가 안 됨** — Figma 에셋 URL은 약 7일 후 만료됩니다. `/omj`를 재실행해 스펙의 baseline provenance를 갱신하세요. 크로스세션 비교는 `.omj/baselines/`의 PNG가 담당합니다(gitignore 권장). 단 PNG의 **최초 생성**은 `/omj`와 같은 세션에서 `/omj-verify`를 한 번 실행해야 일어납니다(세션이 완전히 분리되면 URL 출처가 없어 생성 불가 — 스펙 기반 재조회는 v1.1 예정).
 - **MCP 도구명이 다름** — Figma/Context7 도구명은 환경마다 다를 수 있습니다. `/mcp`로 실제 등록된 도구명을 확인하세요.
 - **커밋된 스킬 사본과 중복** — 어떤 프로젝트가 `frontend-fundamentals`를 자기 `.claude/skills/`에 커밋해 뒀다면 OMJ 번들과 동시 로드될 수 있습니다(무해). 그 사본은 삭제하지 마세요(삭제하면 OMJ 미설치로 클론한 동료의 환경이 깨집니다) — 편집(SoT)은 한쪽에서만 하면 됩니다.

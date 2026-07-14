@@ -47,11 +47,15 @@ const fc = readFileSync(fcPath, 'utf8');
 const tokensPathMatch = fc.match(/^tokensPath:\s*(\S+)/m);
 if (!tokensPathMatch) process.exit(0); // 토큰 시스템 미선언 → no-op
 
-// 토큰 정의 파일 자체는 raw 값이 정상이므로 제외
-const tokensPath = tokensPathMatch[1];
-const tokensDir = path.dirname(path.resolve(path.dirname(path.dirname(fcPath)), tokensPath));
+// 토큰 정의 파일 자체는 raw 값이 정상이므로 제외.
+// 디렉터리 통제외는 토큰 "전용" 디렉터리(이름에 token 포함)일 때만 — 공유 디렉터리(예: src/styles/)에
+// 토큰이 선언된 경우 그 디렉터리의 비-토큰 파일까지 검사에서 빠지는 것을 막는다.
+const projectRoot = path.dirname(path.dirname(fcPath));
+const tokensFile = path.resolve(projectRoot, tokensPathMatch[1]);
+const tokensDir = path.dirname(tokensFile);
 const resolved = path.resolve(filePath);
-if (resolved === path.resolve(path.dirname(path.dirname(fcPath)), tokensPath) || resolved.startsWith(tokensDir + path.sep)) {
+const dirIsTokenOnly = /token/i.test(path.basename(tokensDir));
+if (resolved === tokensFile || (dirIsTokenOnly && resolved.startsWith(tokensDir + path.sep))) {
   process.exit(0);
 }
 
@@ -72,7 +76,7 @@ source.split('\n').forEach((line, i) => {
 if (hits.length === 0) process.exit(0);
 
 const context = [
-  `[omj:check-design-tokens] ${path.basename(resolved)}에 하드코딩 색상 ${hits.length}건 감지 — 프로젝트 토큰(${tokensPath})의 시맨틱 값 사용을 권장:`,
+  `[omj:check-design-tokens] ${path.basename(resolved)}에 하드코딩 색상 ${hits.length}건 감지 — 프로젝트 토큰(${tokensPathMatch[1]})의 시맨틱 값 사용을 권장:`,
   ...hits.slice(0, 5),
   hits.length > 5 ? `… 외 ${hits.length - 5}건` : '',
 ].filter(Boolean).join('\n');
