@@ -8,22 +8,32 @@
 
 ### Added
 
-- **검증 하네스** — `node --test` 기반 무의존성 테스트 스위트(`tests/`). 훅 스크립트를 실제 자식 프로세스로 띄워 PostToolUse 계약(stdin JSON → stdout JSON → exit code)을 경계에서 검증한다. `package.json`은 `private: true`인 dev 전용이며 플러그인 런타임 의존성은 여전히 0개다.
-- `docs/PRINCIPLES.en.md` — 11개 설계 원리를 `문제 / 결정 / 버린 대안` 3열 표로 요약한 영문 페이지. 설계 문서 3종이 전부 한국어라 이 레포의 유일한 심층 콘텐츠가 영어 사용자에게 통째로 불투명했다. **정본은 여전히 `PRINCIPLES.md`**이며, 드리프트를 막기 위해 CLAUDE.md 문서화 규율에 "원리 변경 시 요약표의 해당 행도 같은 커밋에서 갱신"을 편입했다.
-- `CONTRIBUTING.md`·`.github/PULL_REQUEST_TEMPLATE.md` — 레포의 실제 규율(zero-hook 불변식·최소권한·EN/KO README 동시 갱신·AI 서명 금지)을 외부에서 재현 가능한 형태로 성문화.
-- `references/boundaries.md` 신설 — React 19/App Router 코드 품질의 최대 축인 **Server/Client 경계·에러 경계·테스트 가능성**이 번들된 지식에 전혀 없었고, 유일한 처리 방식이 "선택적으로 스킵 가능한" Context7 위임이라 실질적으로 무루브릭이었다. 직렬화·Suspense 스트리밍처럼 `vercel-react-best-practices`가 소유한 지식은 복제하지 않고 링크만 둔다(⑧ SoT 단일화) — 이 문서는 "어디에 선을 긋는가"만 다룬다.
-- `references/a11y.md`에 WCAG 2.2 핵심 축 4개 추가 — **색 대비**(SC 1.4.3/1.4.11), **포커스 가시성**(2.4.7/2.4.11, `outline:none` 시 `:focus-visible` 필수), **모션 축소**(2.3.3, `prefers-reduced-motion`), **폼 에러 안내**(3.3.1/3.3.3, `aria-invalid`+`aria-describedby`+`role="alert"`). 실무 a11y 리뷰의 최빈 결함군이 통째로 루브릭에서 빠져 있었다.
-- **CI**(`.github/workflows/ci.yml`) — push·PR마다 Node 20·22 두 메이저에서 검증 스위트를 실행한다. 훅 스크립트는 소비 프로젝트의 Node에서 돌아가므로 하한을 실제로 검증한다. 의존성 설치 단계가 없다.
-- **매니페스트·문서 정합성 자동 검증** — CLAUDE.md의 "문서화 규율"을 사람의 성실성이 아니라 기계가 강제한다: plugin/marketplace 스키마와 버전 일치, 커맨드·에이전트·스킬 frontmatter 유효성, **`hooks.json` 부재(zero-hook 불변식)**, README EN/KO 패리티와 설치 문자열 동일성, 영문 README의 한국어 잔재, CHANGELOG 릴리스 링크 정의, 전 마크다운의 상대 링크 무결성, README↔`commands/` 목록 일치, CLAUDE.md 120줄 상한.
-- 훅 인라인 억제 주석 `omj-allow-color` — 외부 SDK 고정색처럼 정당한 raw 값이 있는 줄의 경고를 끈다(eslint-disable-line과 같은 역할). 구문만으로는 색상과 식별자를 구분할 수 없는 잔여 오탐의 탈출구.
-- 훅이 `tool_name`을 확인해 변경 도구(`Edit`/`Write`/`MultiEdit`/`NotebookEdit`)에서만 발화한다 — 소비 프로젝트의 matcher가 넓어져도 읽기 도구에서 침묵하는 방어층.
-- `.omj/fe-context.md`에 `storiesDir:` 선언 추가(선택) — Story를 형제 파일이 아니라 별도 디렉터리에 모으는 프로젝트를 `check-story-exists.mjs`가 지원한다. 축은 여전히 프로젝트가 선언한다(PRINCIPLES ⑩). 포맷 정본은 `references/fe-acceptance.md`.
-
 ### Changed
 
 ### Deprecated
 
 ### Removed
+
+### Fixed
+
+### Security
+
+## [0.4.0] - 2026-07-27
+
+> 레포를 6개 축(훅 코드 정확성 · 문서 SoT 정합 · 플러그인 스펙 준수 · 최소권한/주입 표면 · 외부 관점 · 번들 지식 정확성)으로 감사하고, 각 발견을 파일 근거로 적대적 검증한 뒤 확인된 것만 반영한 릴리스. **핵심은 "선언한 것을 실제로 강제하는 층을 만든 것"** — 문서가 주장하던 안전 속성(최소권한·read-only·zero-hook·EN/KO 패리티) 중 상당수가 산문일 뿐이었고, 이제는 매니페스트와 테스트가 강제한다. 강제할 수 없는 부분은 과장을 걷어내 실제 동작대로 다시 적었다.
+
+### Added
+
+- **검증 하네스** — `node --test` 기반 무의존성 테스트 스위트(`tests/`). 훅 스크립트를 실제 자식 프로세스로 띄워 PostToolUse 계약(stdin JSON → stdout JSON → exit code)을 경계에서 검증한다. `package.json`은 `private: true`인 dev 전용이며 플러그인 런타임 의존성은 여전히 0개다.
+- `docs/PRINCIPLES.en.md` — 11개 설계 원리를 `문제 / 결정 / 버린 대안` 3열 표로 요약한 영문 페이지. 설계 문서 3종이 전부 한국어라 이 레포의 유일한 심층 콘텐츠가 영어 사용자에게 통째로 불투명했다. **정본은 여전히 `PRINCIPLES.md`**이며, 드리프트를 막기 위해 CLAUDE.md 문서화 규율에 "원리 변경 시 요약표의 해당 행도 같은 커밋에서 갱신"을 편입했다.
+- `CONTRIBUTING.md`·`.github/PULL_REQUEST_TEMPLATE.md` — 레포의 실제 규율(zero-hook 불변식·최소권한·EN/KO README 동시 갱신·AI 서명 금지)을 외부에서 재현 가능한 형태로 성문화.
+- `references/boundaries.md` 신설 — React 19/App Router 코드 품질의 최대 축인 **Server/Client 경계·에러 경계·테스트 가능성**이 번들된 지식에 전혀 없었고, 유일한 처리 방식이 "선택적으로 스킵 가능한" Context7 위임이라 실질적으로 무루브릭이었다. 직렬화·Suspense 스트리밍처럼 `vercel-react-best-practices`가 소유한 지식은 복제하지 않고 링크만 둔다(⑧ SoT 단일화) — 이 문서는 "어디에 선을 긋는가"만 다룬다.
+- `references/a11y.md`에 WCAG 2.2 핵심 축 4개 추가 — **색 대비**(SC 1.4.3/1.4.11), **포커스 가시성**(2.4.7/2.4.11, `outline:none` 시 `:focus-visible` 필수), **모션 축소**(2.3.3, `prefers-reduced-motion`), **폼 에러 안내**(3.3.1/3.3.3, `aria-invalid`+`aria-describedby`+`role="alert"`). 실무 a11y 리뷰의 최빈 결함군이 통째로 루브릭에서 빠져 있었다.
+- **CI**(`.github/workflows/ci.yml`) — push·PR마다 Node 20·22·24에서 검증 스위트를 실행한다. 훅 스크립트는 플러그인 레포가 아니라 소비 프로젝트의 Node에서 돌아가므로, `engines` 하한(20)을 버리지 않고 현재 유지되는 LTS 라인(22 maintenance·24 active)을 함께 검증한다. 의존성 설치 단계가 없다.
+- **매니페스트·문서 정합성 자동 검증** — CLAUDE.md의 "문서화 규율"을 사람의 성실성이 아니라 기계가 강제한다: plugin/marketplace 스키마와 버전 일치, 커맨드·에이전트·스킬 frontmatter 유효성, **`hooks.json` 부재(zero-hook 불변식)**, README EN/KO 패리티와 설치 문자열 동일성, 영문 README의 한국어 잔재, CHANGELOG 릴리스 링크 정의, 전 마크다운의 상대 링크 무결성, README↔`commands/` 목록 일치, CLAUDE.md 120줄 상한.
+- 훅 인라인 억제 주석 `omj-allow-color` — 외부 SDK 고정색처럼 정당한 raw 값이 있는 줄의 경고를 끈다(eslint-disable-line과 같은 역할). 구문만으로는 색상과 식별자를 구분할 수 없는 잔여 오탐의 탈출구.
+- 훅이 `tool_name`을 확인해 변경 도구(`Edit`/`Write`/`MultiEdit`/`NotebookEdit`)에서만 발화한다 — 소비 프로젝트의 matcher가 넓어져도 읽기 도구에서 침묵하는 방어층.
+- `.omj/fe-context.md`에 `storiesDir:` 선언 추가(선택) — Story를 형제 파일이 아니라 별도 디렉터리에 모으는 프로젝트를 `check-story-exists.mjs`가 지원한다. 축은 여전히 프로젝트가 선언한다(PRINCIPLES ⑩). 포맷 정본은 `references/fe-acceptance.md`.
 
 ### Fixed
 
@@ -142,7 +152,8 @@
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/S-jooyoung/oh-my-joy/releases/tag/v0.1.0
