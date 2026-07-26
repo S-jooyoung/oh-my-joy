@@ -29,6 +29,8 @@
 
 - `check-design-tokens.mjs` — **탐지 신호/노이즈 역전 해소**. 실측에서 이 훅은 오탐 4건을 보고하면서 같은 파일의 진짜 하드코딩 2건을 놓쳤다. (a) `url(#gradient)`·`href="#section"`·private field `this.#abc`·5·7자리 hex를 색상으로 오인하던 것을 제거하고, (b) 블록·JSX(`{/* */}`)·인라인 `//` 주석을 라인 수 보존 방식으로 마스킹하며, (c) Tailwind v4/shadcn 생태계의 주 문법인 `hsl()`·`oklch()`·`hwb()`·`lab()`·`lch()`와 CSS 선언 위치의 네임드 컬러를 새로 탐지한다. `hsl(var(--h) …)`처럼 `var()`로 감싼 호출은 토큰 사용이므로 위반이 아니다.
 - `check-design-tokens.mjs` — 검사 대상에 `.ts`/`.scss`/`.sass`/`.less` 추가(CSS-in-JS 테마 객체와 SCSS가 빠져 있었다). 경고 개수를 라인 수가 아닌 **실제 색상 개수**로 집계. 경로 해석 기준점을 훅 계약이 준 `cwd`로 통일(`path.resolve(filePath)`는 훅 프로세스 cwd를 써서 상대경로 입력 시 검사가 조용히 스킵됐다). 프로젝트 루트 밖 파일은 읽지 않는다.
+- **`allowed-tools`의 강제 수준을 과장하던 서술 정정** — `docs/PRINCIPLES.md` ③이 "쓰기 경로 자체가 없으니 plan-gate를 우회할 방법도 원천적으로 사라진다"고 단언했지만, `allowed-tools`는 하드 차단이 아니라 **사전승인 목록**이다(목록에 없는 도구는 권한 프롬프트로 드러난다 — 같은 레포의 `/omj-start` 항목이 바로 그 성질에 기대고 있다). 하드 차단은 Plan 모드가 담당한다. 정본·README(EN/KO)·영문 요약표를 "조용한 쓰기가 불가능하다"는 정확한 서술로 통일.
+- `docs/EXECUTION-HANDOFF.md`가 "레인 선택 규칙을 중복 정의하지 않는다"고 선언하면서 `commands/omj.md`는 SoT 도달 불가 시의 fallback 매핑을 갖고 있어 문서가 스스로를 위반했다 — **임계값은 SoT에만, fallback은 방향만**이라는 경계를 명시해 해소(graceful degradation과 SoT 단일화의 교차점).
 - **playwright MCP 폴백이 권한 선언에 없어 실제로 호출 불가였다** — v0.3.0이 대표 기능으로 광고한 폴백인데 `/omj-verify`·`/omj-fix`의 `allowed-tools`에 어떤 playwright MCP 도구도 없었다. 두 커맨드에 `mcp__playwright__*`와 플러그인 프리픽스 변형을 함께 선언한다(설치 출처에 따라 이름이 달라진다).
 - `/omj-sync check`를 "read-only라 어느 모드에서든 안전"하다고 단언하던 문구 정정 — `allowed-tools`는 커맨드 단위라 check 실행 세션도 `Edit`/`Write`/`use_figma` 권한을 그대로 들고 있다. read-only 보장의 강제층이 권한이 아니라 본문 규율임을 명시한다.
 - `/omj-sync`의 토큰 탐지 SoT 인용이 4단계 중 2단계만 옮겨 적어 CSS/Tailwind 기반 스토어가 누락됐다 — 나열을 지우고 SoT로 위임하되, sync/push/extract가 **파일 기반 스토어만** 대상으로 한다는 경계를 명시(`fe-acceptance.md`와 정합).
