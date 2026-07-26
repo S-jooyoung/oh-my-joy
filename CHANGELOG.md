@@ -9,6 +9,8 @@
 ### Added
 
 - **검증 하네스** — `node --test` 기반 무의존성 테스트 스위트(`tests/`). 훅 스크립트를 실제 자식 프로세스로 띄워 PostToolUse 계약(stdin JSON → stdout JSON → exit code)을 경계에서 검증한다. `package.json`은 `private: true`인 dev 전용이며 플러그인 런타임 의존성은 여전히 0개다.
+- 훅 인라인 억제 주석 `omj-allow-color` — 외부 SDK 고정색처럼 정당한 raw 값이 있는 줄의 경고를 끈다(eslint-disable-line과 같은 역할). 구문만으로는 색상과 식별자를 구분할 수 없는 잔여 오탐의 탈출구.
+- 훅이 `tool_name`을 확인해 변경 도구(`Edit`/`Write`/`MultiEdit`/`NotebookEdit`)에서만 발화한다 — 소비 프로젝트의 matcher가 넓어져도 읽기 도구에서 침묵하는 방어층.
 
 ### Changed
 
@@ -17,6 +19,9 @@
 ### Removed
 
 ### Fixed
+
+- `check-design-tokens.mjs` — **탐지 신호/노이즈 역전 해소**. 실측에서 이 훅은 오탐 4건을 보고하면서 같은 파일의 진짜 하드코딩 2건을 놓쳤다. (a) `url(#gradient)`·`href="#section"`·private field `this.#abc`·5·7자리 hex를 색상으로 오인하던 것을 제거하고, (b) 블록·JSX(`{/* */}`)·인라인 `//` 주석을 라인 수 보존 방식으로 마스킹하며, (c) Tailwind v4/shadcn 생태계의 주 문법인 `hsl()`·`oklch()`·`hwb()`·`lab()`·`lch()`와 CSS 선언 위치의 네임드 컬러를 새로 탐지한다. `hsl(var(--h) …)`처럼 `var()`로 감싼 호출은 토큰 사용이므로 위반이 아니다.
+- `check-design-tokens.mjs` — 검사 대상에 `.ts`/`.scss`/`.sass`/`.less` 추가(CSS-in-JS 테마 객체와 SCSS가 빠져 있었다). 경고 개수를 라인 수가 아닌 **실제 색상 개수**로 집계. 경로 해석 기준점을 훅 계약이 준 `cwd`로 통일(`path.resolve(filePath)`는 훅 프로세스 cwd를 써서 상대경로 입력 시 검사가 조용히 스킵됐다). 프로젝트 루트 밖 파일은 읽지 않는다.
 
 ### Security
 
