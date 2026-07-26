@@ -22,6 +22,13 @@ import {
 const plugin = readJson('.claude-plugin', 'plugin.json');
 const marketplace = readJson('.claude-plugin', 'marketplace.json');
 
+/**
+ * 소스 코드에 부작용을 낼 수 없다고 문서가 선언한 커맨드들.
+ * `/omj`는 plan-gate를 우회할 쓰기 경로가 없어야 하고(PRINCIPLES ①③),
+ * `/omj-review`·`/omj-verify`는 리포트만 내는 검증 커맨드다.
+ */
+const READ_ONLY_COMMANDS = new Set(['omj.md', 'omj-review.md', 'omj-verify.md']);
+
 describe('plugin.json', () => {
   it('필수 필드를 갖는다', () => {
     for (const field of ['name', 'version', 'description', 'author', 'license']) {
@@ -58,10 +65,19 @@ describe('marketplace.json', () => {
     }
   });
 
-  it('버전이 plugin.json과 일치한다 — 드리프트가 조용히 남지 않게', () => {
+  it('버전 표면 전체가 plugin.json과 일치한다 — 드리프트가 조용히 남지 않게', () => {
     const entry = marketplace.plugins.find((p) => p.name === plugin.name);
     assert.ok(entry, `marketplace.json에 ${plugin.name} 항목이 없습니다`);
-    assert.equal(entry.version, plugin.version);
+
+    // 버전은 네 곳에 산다. 하나만 검사하면 나머지 셋이 조용히 어긋난다.
+    const surfaces = [
+      ['marketplace.plugins[].version', entry.version],
+      ['marketplace 최상위 version', marketplace.version],
+      ['package.json version', readJson('package.json').version],
+    ];
+    for (const [label, actual] of surfaces) {
+      assert.equal(actual, plugin.version, `${label}이 plugin.json(${plugin.version})과 다릅니다`);
+    }
   });
 });
 
@@ -100,9 +116,29 @@ describe('commands/*.md frontmatter', () => {
         assert.ok(fm.description?.length > 0);
       });
 
-      it('allowed-tools를 명시한다 — 최소권한은 선언으로 강제된다', () => {
+      it('allowed-tools를 명시한다', () => {
         assert.ok(fm['allowed-tools']?.length > 0, `${file}에 allowed-tools 선언이 없습니다`);
       });
+
+      // "권한을 빼는 것이 곧 안전 게이트를 강제하는 것"(PRINCIPLES ③)이 이 레포의 핵심 주장이다.
+      // 주장만 문서에 적어 두면 다음 편집자가 조용히 깰 수 있으므로 여기서 못 박는다.
+      it('스코프 없는 bare Bash를 선언하지 않는다', () => {
+        assert.doesNotMatch(
+          fm['allowed-tools'],
+          /(^|,\s*)Bash\s*(,|$)/,
+          `${file}: bare Bash는 임의 셸 실행 사전승인이다 — Bash(cmd:*)로 좁혀야 한다`,
+        );
+      });
+
+      if (READ_ONLY_COMMANDS.has(file)) {
+        it('read-only 커맨드는 쓰기 도구를 갖지 않는다', () => {
+          assert.doesNotMatch(
+            fm['allowed-tools'],
+            /(^|,\s*)(Write|Edit|MultiEdit|NotebookEdit)\b/,
+            `${file}은 read-only 계약인데 쓰기 도구가 선언됐습니다`,
+          );
+        });
+      }
 
       it('네임스페이스 규칙을 지킨다 (/omj 또는 /omj-*)', () => {
         assert.match(file, /^omj(-[a-z-]+)?\.md$/);
@@ -136,6 +172,12 @@ describe('skills/frontend-fundamentals', () => {
     assert.equal(fm.name, 'frontend-fundamentals');
     assert.ok(fm.description?.length > 0);
     assert.equal(fm.license, 'MIT');
+  });
+
+  it('중첩 metadata가 온전히 파싱된다', () => {
+    assert.equal(typeof fm.metadata, 'object');
+    assert.match(fm.metadata.version, /^\d+\.\d+\.\d+$/);
+    assert.ok(fm.metadata.author?.length > 0);
   });
 
   it('SKILL.md가 참조하는 references/ 파일이 모두 실재한다', () => {

@@ -26,6 +26,8 @@ const changelog = readRepoFile('CHANGELOG.md');
 const headings = (source) => source.split('\n').filter((line) => line.startsWith('## '));
 
 describe('README EN/KO 패리티', () => {
+  // 제목 텍스트는 번역이라 문자열로 대조할 수 없다. 개수 일치는 "한쪽에만 절이
+  // 추가되는" 가장 흔한 드리프트를 잡는다. 실질 패리티는 아래 '커맨드 목록 정합'이 본다.
   it('두 언어 README의 섹션 개수가 같다', () => {
     assert.equal(headings(readmeEn).length, headings(readmeKo).length);
   });
@@ -50,22 +52,27 @@ describe('README EN/KO 패리티', () => {
   });
 });
 
-describe('영문 README의 언어 순수성', () => {
+describe('영문 산출물의 언어 순수성', () => {
   // 예외는 둘뿐이다: 언어 스위처와, 런타임 출력 계약(docs/EXECUTION-HANDOFF.md)이
   // 리터럴로 고정한 `(추천)` 라벨. 그 외 한국어가 남으면 영어 사용자에겐 해독 불가다.
   const ALLOWED = ['한국어', '(추천)'];
+  // 완성형 한글만 보면 자모(ㅋㅋ)와 한자가 새어나간다.
+  const CJK = /[가-힣ㄱ-ㅎㅏ-ㅣ㐀-鿿]/;
+  const ENGLISH_DOCS = ['README.md', 'docs/PRINCIPLES.en.md'];
 
-  it('허용된 리터럴 외의 한국어가 없다', () => {
-    const offenders = readmeEn
-      .split('\n')
-      .map((line, index) => {
-        const stripped = ALLOWED.reduce((acc, literal) => acc.split(literal).join(''), line);
-        return /[가-힣]/.test(stripped) ? `L${index + 1}: ${line.trim()}` : null;
-      })
-      .filter(Boolean);
+  for (const file of ENGLISH_DOCS) {
+    it(`${file}에 허용된 리터럴 외의 한국어·한자가 없다`, () => {
+      const offenders = readRepoFile(file)
+        .split('\n')
+        .map((line, index) => {
+          const stripped = ALLOWED.reduce((acc, literal) => acc.split(literal).join(''), line);
+          return CJK.test(stripped) ? `L${index + 1}: ${line.trim()}` : null;
+        })
+        .filter(Boolean);
 
-    assert.deepEqual(offenders, [], `영문 README에 한국어가 남아 있습니다:\n${offenders.join('\n')}`);
-  });
+      assert.deepEqual(offenders, [], `${file}에 번역되지 않은 텍스트가 있습니다:\n${offenders.join('\n')}`);
+    });
+  }
 
   it('리터럴 (추천)에는 영어 설명이 붙어 있다', () => {
     for (const line of readmeEn.split('\n').filter((l) => l.includes('(추천)'))) {
@@ -84,11 +91,24 @@ describe('CHANGELOG 링크 무결성', () => {
     assert.ok(versionHeadings.length > 0);
   });
 
-  for (const version of versionHeadings) {
-    it(`[${version}] 링크 정의가 있다 — 없으면 GitHub에서 리터럴로 렌더된다`, () => {
-      assert.ok(linkDefinitions.has(version), `[${version}]: 링크 정의가 없습니다`);
+  const escape = (v) => v.replace(/\./g, '\\.');
+
+  versionHeadings.forEach((version, index) => {
+    it(`[${version}] 링크가 올바른 범위를 가리킨다`, () => {
+      assert.ok(linkDefinitions.has(version), `[${version}]: 링크 정의가 없습니다 — GitHub에서 리터럴로 렌더된다`);
+
+      const url = changelog.match(new RegExp(`^\\[${escape(version)}\\]:\\s*(\\S+)$`, 'm'))?.[1];
+      assert.ok(url, `[${version}] 링크 URL을 읽지 못했습니다`);
+
+      // 라벨만 있고 URL이 엉뚱한 범위를 가리키는 것이 릴리스에서 가장 흔한 드리프트다
+      // (이전 버전 줄을 복붙하면서 한쪽만 고치는 경우).
+      const previous = versionHeadings[index + 1];
+      const expected = previous
+        ? new RegExp(`compare/v${escape(previous)}\\.\\.\\.v${escape(version)}$`)
+        : new RegExp(`releases/tag/v${escape(version)}$`);
+      assert.match(url, expected);
     });
-  }
+  });
 
   it('[Unreleased]가 최신 릴리스를 기준으로 비교한다', () => {
     const unreleased = changelog.match(/^\[Unreleased\]:\s*(\S+)$/m)?.[1];
