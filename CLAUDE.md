@@ -12,7 +12,7 @@ oh-my-joy(마켓플레이스 `omj`)는 **코드↔Figma 프론트엔드 루프 �
 
 1. **README**(사용법, **EN `README.md` + KO `README.ko.md` 동기화**) — 커맨드/플래그/동작 변경 반영. 실행 라우팅 정본은 `docs/EXECUTION-HANDOFF.md`, 심화 플로우는 `docs/OMC-INTEGRATION.md`.
 2. **CHANGELOG**(항목) — 변경 1건 = 1항목.
-3. **docs/PRINCIPLES.md**(동작 원리) — 원리·설계 결정·멘탈 모델이 바뀌면 갱신.
+3. **docs/PRINCIPLES.md**(동작 원리, 정본) **+ docs/PRINCIPLES.en.md 해당 행** — 원리·설계 결정·멘탈 모델이 바뀌면 둘 다 같은 커밋에서 갱신(영문은 요약표라 행 단위).
 
 정본 사실(커맨드명·설치 문자열 `/plugin install oh-my-joy@omj`)은 **모든 문서·양 언어 README에서 일치**시킨다. 멘탈 모델 등 **서술형은 README(EN/KO 동기화)를 정본**으로 두고 다른 문서는 요약/링크만 한다(verbatim 복제를 강제하지 않음 — 드리프트 방지). README.md(EN)와 README.ko.md(KO)는 항상 같은 구조·같은 정본 사실을 유지한다.
 
