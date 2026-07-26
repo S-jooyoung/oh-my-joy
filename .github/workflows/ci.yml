@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: verify (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20.11은 package.json engines의 하한, 22는 현재 LTS.
+        # 훅 스크립트는 소비 프로젝트의 Node에서 돌아가므로 하한을 실제로 검증한다.
+        node: ['20.11', '22']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # 의존성 설치 단계가 없다. 플러그인도 검증 하네스도 Node 내장 모듈만 쓴다.
+      - name: 검증 스위트
+        run: node --test
