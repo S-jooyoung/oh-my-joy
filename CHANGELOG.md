@@ -9,6 +9,8 @@
 ### Added
 
 - **검증 하네스** — `node --test` 기반 무의존성 테스트 스위트(`tests/`). 훅 스크립트를 실제 자식 프로세스로 띄워 PostToolUse 계약(stdin JSON → stdout JSON → exit code)을 경계에서 검증한다. `package.json`은 `private: true`인 dev 전용이며 플러그인 런타임 의존성은 여전히 0개다.
+- `docs/PRINCIPLES.en.md` — 11개 설계 원리를 `문제 / 결정 / 버린 대안` 3열 표로 요약한 영문 페이지. 설계 문서 3종이 전부 한국어라 이 레포의 유일한 심층 콘텐츠가 영어 사용자에게 통째로 불투명했다. **정본은 여전히 `PRINCIPLES.md`**이며, 드리프트를 막기 위해 CLAUDE.md 문서화 규율에 "원리 변경 시 요약표의 해당 행도 같은 커밋에서 갱신"을 편입했다.
+- `CONTRIBUTING.md`·`.github/PULL_REQUEST_TEMPLATE.md` — 레포의 실제 규율(zero-hook 불변식·최소권한·EN/KO README 동시 갱신·AI 서명 금지)을 외부에서 재현 가능한 형태로 성문화.
 - `references/boundaries.md` 신설 — React 19/App Router 코드 품질의 최대 축인 **Server/Client 경계·에러 경계·테스트 가능성**이 번들된 지식에 전혀 없었고, 유일한 처리 방식이 "선택적으로 스킵 가능한" Context7 위임이라 실질적으로 무루브릭이었다. 직렬화·Suspense 스트리밍처럼 `vercel-react-best-practices`가 소유한 지식은 복제하지 않고 링크만 둔다(⑧ SoT 단일화) — 이 문서는 "어디에 선을 긋는가"만 다룬다.
 - `references/a11y.md`에 WCAG 2.2 핵심 축 4개 추가 — **색 대비**(SC 1.4.3/1.4.11), **포커스 가시성**(2.4.7/2.4.11, `outline:none` 시 `:focus-visible` 필수), **모션 축소**(2.3.3, `prefers-reduced-motion`), **폼 에러 안내**(3.3.1/3.3.3, `aria-invalid`+`aria-describedby`+`role="alert"`). 실무 a11y 리뷰의 최빈 결함군이 통째로 루브릭에서 빠져 있었다.
 - **CI**(`.github/workflows/ci.yml`) — push·PR마다 Node 20.11(`engines` 하한)과 22(LTS)에서 검증 스위트를 실행한다. 훅 스크립트는 소비 프로젝트의 Node에서 돌아가므로 하한을 실제로 검증한다. 의존성 설치 단계가 없다.

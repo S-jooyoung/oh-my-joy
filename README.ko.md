@@ -53,7 +53,7 @@ _점선 = read-only, 소스 부작용 없음. 승인 게이트를 사용자 없�
 - **플러그인은 스스로 훅을 발화시키지 않는다.** `hooks/hooks.json`을 두면 플러그인을 켠 **모든 레포**에서 검사가 돈다. 대신 스크립트는 템플릿이고 `/omj-setup`이 동의한 프로젝트에만 복사하며, 선언이 없으면 no-op이다. 이 불변식은 주석이 아니라 테스트가 못 박는다([`tests/plugin-manifest.test.mjs`](tests/plugin-manifest.test.mjs)).
 - **마크다운으로 쓰인 동작도 테스트한다.** 훅 스크립트 2개를 실제 자식 프로세스로 띄워 PostToolUse 계약대로 검증한다 — 이전 버전이 신호 대신 노이즈를 보고하게 만들었던 오탐 케이스를 포함해서([`tests/hooks/`](tests/hooks)).
 
-각 결정의 "왜"는 문제 → 결정 → 근거 → 결과 + 버린 대안 구조로 [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md)에 있다.
+각 결정의 "왜"는 문제 → 결정 → 근거 → 결과 + 버린 대안 구조로 [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md)에 있다(영문 요약표: [`docs/PRINCIPLES.en.md`](docs/PRINCIPLES.en.md)).
 
 ---
 
