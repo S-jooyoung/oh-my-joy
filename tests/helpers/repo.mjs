@@ -41,37 +41,60 @@ export const listAgentFiles = () =>
 export const stripCode = (source) =>
   source.replace(/```[\s\S]*?```/g, '').replace(/`[^`\n]*`/g, '');
 
+const unquote = (value) => value.trim().replace(/^"(.*)"$|^'(.*)'$/, (_m, d, s) => d ?? s);
+
 /**
- * 마크다운 frontmatter를 파싱한다. YAML 파서를 들이지 않고 이 레포가 실제로
- * 쓰는 부분집합(`key: value` 한 줄 + `- item` 리스트)만 다룬다 — 지원 범위를
- * 넘는 문법이 들어오면 조용히 무시하지 않고 테스트가 깨지도록 값 그대로 둔다.
+ * 마크다운 frontmatter를 파싱한다. YAML 파서를 들이지 않고 이 레포가 실제로 쓰는
+ * 부분집합만 다룬다: `key: value` 한 줄, `- item` 리스트, 한 단계 중첩 매핑.
+ *
+ * **지원 범위를 넘는 문법은 던진다.** 조용히 드롭하면 테스트가 "값이 없다"와
+ * "파서가 못 읽었다"를 구분하지 못해 거짓 안심을 만든다 — 실제로 `metadata:`
+ * 중첩 매핑이 통째로 소실되던 것이 그 사례였다. 블록 스칼라(`>`/`|`)처럼
+ * 여기서 다루지 않는 문법이 들어오면 파서를 확장하라는 신호로 실패시킨다.
  */
 export function parseFrontmatter(source) {
-  const match = /^---\n([\s\S]*?)\n---\n/.exec(source);
+  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(source);
   if (!match) return null;
 
   const fields = {};
-  let currentListKey = null;
+  let pendingKey = null; // 값이 비어 있던 직전 키 — 다음 들여쓴 줄이 리스트인지 매핑인지로 확정된다
 
   for (const line of match[1].split('\n')) {
     if (!line.trim()) continue;
 
-    const listItem = /^\s+-\s+(.*)$/.exec(line);
-    if (listItem && currentListKey) {
-      fields[currentListKey].push(listItem[1].trim());
+    const indented = /^\s+(.*)$/.exec(line);
+    if (indented) {
+      if (!pendingKey) throw new Error(`지원하지 않는 frontmatter 들여쓰기: ${line}`);
+
+      const listItem = /^-\s+(.*)$/.exec(indented[1]);
+      if (listItem) {
+        if (!Array.isArray(fields[pendingKey])) fields[pendingKey] = [];
+        fields[pendingKey].push(unquote(listItem[1]));
+        continue;
+      }
+
+      const nested = /^([A-Za-z0-9_-]+):\s*(.+)$/.exec(indented[1]);
+      if (!nested) throw new Error(`지원하지 않는 frontmatter 문법: ${line}`);
+      if (Array.isArray(fields[pendingKey]) && fields[pendingKey].length > 0) {
+        throw new Error(`리스트와 매핑을 섞을 수 없습니다: ${line}`);
+      }
+      if (!fields[pendingKey] || Array.isArray(fields[pendingKey])) fields[pendingKey] = {};
+      fields[pendingKey][nested[1]] = unquote(nested[2]);
       continue;
     }
 
     const pair = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(line);
-    if (!pair) continue;
+    if (!pair) throw new Error(`지원하지 않는 frontmatter 문법: ${line}`);
 
     const [, key, rawValue] = pair;
-    if (rawValue === '') {
-      currentListKey = key;
+    if (rawValue.trim() === '') {
+      pendingKey = key;
       fields[key] = [];
+    } else if (/^[>|]/.test(rawValue.trim())) {
+      throw new Error(`블록 스칼라는 지원하지 않습니다(파서를 확장하세요): ${line}`);
     } else {
-      currentListKey = null;
-      fields[key] = rawValue.trim().replace(/^["'](.*)["']$/, '$1');
+      pendingKey = null;
+      fields[key] = unquote(rawValue);
     }
   }
 
@@ -82,10 +105,15 @@ export function parseFrontmatter(source) {
  * 훅 스크립트를 실제 자식 프로세스로 띄워 PostToolUse 계약대로 stdin JSON을 먹인다.
  * 함수를 import해서 부르지 않고 프로세스로 실행하는 이유: 훅의 계약 표면은
  * stdin/stdout/exit code이며, 그 경계가 곧 회귀가 나는 지점이기 때문이다.
+ * (`execFileSync`는 비정상 종료에서 throw하므로 크래시는 테스트 실패로 드러난다.)
+ *
+ * `raw: true`면 payload를 문자열 그대로 보낸다 — 파싱 불가 stdin을 재현하려면
+ * 필수다. `JSON.stringify('not-json')`은 `"not-json"`이라는 **유효한 JSON**이라
+ * 그것만으로는 훅의 파싱 방어 코드를 한 번도 밟지 못한다.
  */
-export function runHook(scriptName, payload) {
+export function runHook(scriptName, payload, { raw = false } = {}) {
   const result = execFileSync('node', [repoPath('templates', 'hooks', scriptName)], {
-    input: JSON.stringify(payload),
+    input: raw ? payload : JSON.stringify(payload),
     encoding: 'utf8',
   });
   return {
