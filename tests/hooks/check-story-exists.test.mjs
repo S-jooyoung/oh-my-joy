@@ -39,8 +39,33 @@ describe('check-story-exists — 게이트', () => {
     assert.equal(checkFile('src/Button.tsx', {}, { feContext: 'storybook: false\n' }).stdout, '');
   });
 
-  it('stdin이 JSON이 아니어도 죽지 않는다', () => {
-    assert.equal(runHook('check-story-exists.mjs', 'not-json').stdout, '');
+  it('파싱 불가 stdin에서도 죽지 않는다', () => {
+    assert.equal(runHook('check-story-exists.mjs', 'not-json{', { raw: true }).stdout, '');
+  });
+
+  it('빈 stdin에서도 죽지 않는다', () => {
+    assert.equal(runHook('check-story-exists.mjs', '', { raw: true }).stdout, '');
+  });
+
+  it('변경 도구가 아니면 침묵한다 — matcher가 넓어져도 안전하게', () => {
+    const project = makeProject({ '.omj/fe-context.md': 'storybook: true\n', 'src/Button.tsx': COMPONENT });
+    projects.push(project);
+    const payload = postToolUsePayload({
+      cwd: project.root,
+      filePath: project.file('src/Button.tsx'),
+      toolName: 'Read',
+    });
+    assert.equal(runHook('check-story-exists.mjs', payload).stdout, '');
+  });
+
+  it('프로젝트 밖 절대경로 파일은 읽지 않는다 — 자매 훅과 같은 봉쇄 규칙', () => {
+    const project = makeProject({ '.omj/fe-context.md': 'storybook: true\n' });
+    projects.push(project);
+    const outsider = makeProject({ 'Secret.tsx': COMPONENT });
+    projects.push(outsider);
+
+    const payload = postToolUsePayload({ cwd: project.root, filePath: outsider.file('Secret.tsx') });
+    assert.equal(runHook('check-story-exists.mjs', payload).stdout, '');
   });
 });
 
@@ -81,7 +106,19 @@ describe('check-story-exists — 제외 대상', () => {
 
 describe('check-story-exists — Next.js App Router 예약 파일', () => {
   // 라우팅 진입점은 Story 대상이 아니다. 이걸 거르지 않으면 App Router 프로젝트에서 상시 발화한다.
-  const reserved = ['page.tsx', 'layout.tsx', 'template.tsx', 'loading.tsx', 'error.tsx', 'not-found.tsx', 'route.tsx'];
+  const reserved = [
+    'page.tsx',
+    'layout.tsx',
+    'template.tsx',
+    'loading.tsx',
+    'error.tsx',
+    'global-error.tsx',
+    'not-found.tsx',
+    'route.tsx',
+    'default.tsx',
+    'middleware.tsx',
+    'instrumentation.tsx',
+  ];
 
   for (const file of reserved) {
     it(`app/dashboard/${file}은 검사하지 않는다`, () => {
@@ -126,5 +163,27 @@ describe('check-story-exists — storiesDir 선언', () => {
       { feContext: 'storybook: true\nstoriesDir: stories\n' },
     );
     assert.match(result.context, /Button\.stories\.\* 가 없습니다/);
+  });
+
+  // 오타 한 글자가 훅을 프로젝트 전체에서 무음으로 만들면 안 된다 —
+  // 읽을 수 없는 디렉터리는 "Story 있음"의 근거가 될 수 없다.
+  it('storiesDir 선언이 잘못돼도 형제 디렉터리 판정을 삼키지 않는다', () => {
+    const result = checkFile(
+      'src/Button.tsx',
+      {},
+      { feContext: 'storybook: true\nstoriesDir: stroies\n' },
+    );
+    assert.match(result.context, /Button\.stories\.\* 가 없습니다/);
+  });
+
+  it('탐색할 디렉터리를 하나도 읽을 수 없으면 침묵한다', () => {
+    const project = makeProject({ '.omj/fe-context.md': 'storybook: true\n' });
+    projects.push(project);
+    // 파일이 실재하지 않으므로 형제 디렉터리도 읽을 수 없다 → 판정 근거 없음 → 침묵
+    const payload = postToolUsePayload({
+      cwd: project.root,
+      filePath: project.file('missing/deeply/Button.tsx'),
+    });
+    assert.equal(runHook('check-story-exists.mjs', payload).stdout, '');
   });
 });

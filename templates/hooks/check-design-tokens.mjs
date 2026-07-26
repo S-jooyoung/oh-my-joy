@@ -38,11 +38,17 @@ const COLOR_FUNCTIONS = ['oklch', 'oklab', 'rgba', 'hsla', 'rgb', 'hsl', 'hwb', 
 /**
  * CSS 선언 위치의 네임드 컬러만 본다. 자유 위치의 `red`/`black`은 변수명·Tailwind
  * 클래스 조각과 구분할 수 없어 검사 대상에서 뺀다(미탐 > 오탐).
+ *
+ * 경계 규칙이 이 정규식의 핵심이다 — `-`와 `.`는 단어 문자가 아니라서 `\b`만으로는
+ * `--color-red-500`(토큰 참조)이나 `red.500`(토큰 표기) 안의 색상 이름이 그대로 잡힌다.
+ * 훅이 권장하는 사용법을 위반으로 보고하면 경고 전체가 무시당하므로 양쪽 경계를 좁힌다.
+ * 값 스캔이 `,`를 넘지 않는 것도 같은 이유다 — `{ color: string, tone: "red" }`처럼
+ * 한 줄에 여러 프로퍼티가 있는 TS 객체에서 앞 속성이 뒤 속성 값을 삼키면 안 된다.
  */
 const NAMED_COLOR_DECLARATION = new RegExp(
   // 속성 위치: CSS 커스텀 프로퍼티, `*color` 계열, 색상을 값으로 받는 단축 속성
-  String.raw`(?:^|[;{])\s*(?:--[\w-]+|[\w-]*colou?r|background|border(?:-(?:top|right|bottom|left))?|outline|fill|stroke|box-shadow|text-shadow)\s*:\s*[^;{}]*?` +
-    String.raw`\b(?:black|white|red|blue|green|yellow|orange|purple|pink|gray|grey|silver|gold|brown|cyan|magenta|navy|teal|olive|maroon|lime|aqua|fuchsia)\b`,
+  String.raw`(?:^|[;{])\s*(?:--[\w-]+|[\w-]*colou?r|background(?:-(?:color|image))?|border(?:-(?:top|right|bottom|left))?|outline|fill|stroke|box-shadow|text-shadow)\s*:\s*[^;{},]*?` +
+    String.raw`(?<![\w-.])(?:black|white|red|blue|green|yellow|orange|purple|pink|gray|grey|silver|gold|brown|cyan|magenta|navy|teal|olive|maroon|lime|aqua|fuchsia)(?![\w-.])`,
   'g',
 );
 
@@ -93,7 +99,9 @@ function maskNonColorRegions(source) {
  * 정규식만으로는 인자 경계를 못 잡아 괄호 깊이를 직접 센다.
  */
 function countColorFunctions(line) {
-  const pattern = new RegExp(String.raw`(?<![\w-])(?:${COLOR_FUNCTIONS.join('|')})\(`, 'gi');
+  // lookbehind가 `.`를 배제해야 `chroma.lab(`·`d3.rgb(` 같은 메서드 호출이 색상으로 잡히지
+  // 않는다(`lab`/`lch`는 색상 라이브러리에서 흔한 3글자 메서드명이다). HEX_COLOR와 같은 기준.
+  const pattern = new RegExp(String.raw`(?<![\w-.$])(?:${COLOR_FUNCTIONS.join('|')})\(`, 'gi');
   let count = 0;
   let match;
 
@@ -105,6 +113,9 @@ function countColorFunctions(line) {
       if (line[cursor] === '(') depth++;
       else if (line[cursor] === ')' && --depth === 0) break;
     }
+    // 줄 안에서 닫히지 않으면 인자를 못 읽는다 = var() 면제를 판정할 수 없다.
+    // 판정 불가를 위반으로 세면 멀티라인 `hsl(\n var(--h) …)`가 오탐이 된다 — 세지 않는다.
+    if (cursor >= line.length) continue;
     if (!/var\(/.test(line.slice(openIndex + 1, cursor))) count++;
   }
   return count;
