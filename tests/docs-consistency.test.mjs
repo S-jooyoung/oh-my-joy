@@ -1,0 +1,177 @@
+/**
+ * 문서 간 사실 정합성 검증.
+ *
+ * 이 레포는 마크다운이 곧 동작 정의라, 문서 드리프트가 곧 기능 결함이다.
+ * CLAUDE.md의 "문서화 규율"(README EN/KO·CHANGELOG·PRINCIPLES 동시 갱신)을
+ * 사람의 성실성에 맡기지 않고 기계가 강제하는 층.
+ */
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+
+import {
+  readRepoFile,
+  repoPath,
+  listMarkdownFiles,
+  listCommandFiles,
+  stripCode,
+  REPO_ROOT,
+} from './helpers/repo.mjs';
+
+const readmeEn = readRepoFile('README.md');
+const readmeKo = readRepoFile('README.ko.md');
+const changelog = readRepoFile('CHANGELOG.md');
+
+const headings = (source) => source.split('\n').filter((line) => line.startsWith('## '));
+
+describe('README EN/KO 패리티', () => {
+  it('두 언어 README의 섹션 개수가 같다', () => {
+    assert.equal(headings(readmeEn).length, headings(readmeKo).length);
+  });
+
+  it('설치 문자열이 두 README에서 동일하다', () => {
+    const installLine = (source) => source.match(/^\/plugin marketplace add .*$/m)?.[0];
+    assert.ok(installLine(readmeEn), 'EN README에 marketplace add 줄이 없습니다');
+    assert.equal(installLine(readmeEn), installLine(readmeKo));
+  });
+
+  it('설치 문자열이 공개 원격을 가리킨다 — 로컬 경로면 아무도 설치할 수 없다', () => {
+    const line = readmeEn.match(/^\/plugin marketplace add (.*)$/m)?.[1];
+    assert.ok(line, 'marketplace add 줄을 찾지 못했습니다');
+    assert.doesNotMatch(line, /^[~./]/, `로컬 경로를 가리킵니다: ${line}`);
+    assert.match(line, /^[\w.-]+\/[\w.-]+$/, `owner/repo 형식이어야 합니다: ${line}`);
+  });
+
+  it('정본 설치 커맨드가 두 README에 모두 있다', () => {
+    for (const [label, source] of [['EN', readmeEn], ['KO', readmeKo]]) {
+      assert.match(source, /\/plugin install oh-my-joy@omj/, `${label} README에 install 문자열이 없습니다`);
+    }
+  });
+});
+
+describe('영문 README의 언어 순수성', () => {
+  // 예외는 둘뿐이다: 언어 스위처와, 런타임 출력 계약(docs/EXECUTION-HANDOFF.md)이
+  // 리터럴로 고정한 `(추천)` 라벨. 그 외 한국어가 남으면 영어 사용자에겐 해독 불가다.
+  const ALLOWED = ['한국어', '(추천)'];
+
+  it('허용된 리터럴 외의 한국어가 없다', () => {
+    const offenders = readmeEn
+      .split('\n')
+      .map((line, index) => {
+        const stripped = ALLOWED.reduce((acc, literal) => acc.split(literal).join(''), line);
+        return /[가-힣]/.test(stripped) ? `L${index + 1}: ${line.trim()}` : null;
+      })
+      .filter(Boolean);
+
+    assert.deepEqual(offenders, [], `영문 README에 한국어가 남아 있습니다:\n${offenders.join('\n')}`);
+  });
+
+  it('리터럴 (추천)에는 영어 설명이 붙어 있다', () => {
+    for (const line of readmeEn.split('\n').filter((l) => l.includes('(추천)'))) {
+      assert.match(line, /recommend/i, `영어 설명 없이 (추천)만 노출됩니다: ${line.trim()}`);
+    }
+  });
+});
+
+describe('CHANGELOG 링크 무결성', () => {
+  const versionHeadings = [...changelog.matchAll(/^## \[(\d+\.\d+\.\d+)\]/gm)].map((m) => m[1]);
+  const linkDefinitions = new Set(
+    [...changelog.matchAll(/^\[([^\]]+)\]:\s*\S+$/gm)].map((m) => m[1]),
+  );
+
+  it('릴리스 항목이 존재한다', () => {
+    assert.ok(versionHeadings.length > 0);
+  });
+
+  for (const version of versionHeadings) {
+    it(`[${version}] 링크 정의가 있다 — 없으면 GitHub에서 리터럴로 렌더된다`, () => {
+      assert.ok(linkDefinitions.has(version), `[${version}]: 링크 정의가 없습니다`);
+    });
+  }
+
+  it('[Unreleased]가 최신 릴리스를 기준으로 비교한다', () => {
+    const unreleased = changelog.match(/^\[Unreleased\]:\s*(\S+)$/m)?.[1];
+    assert.ok(unreleased, '[Unreleased] 링크 정의가 없습니다');
+    assert.match(
+      unreleased,
+      new RegExp(`compare/v${versionHeadings[0].replace(/\./g, '\\.')}\\.\\.\\.HEAD$`),
+      `[Unreleased]가 최신 릴리스 v${versionHeadings[0]}이 아닌 옛 버전을 가리킵니다: ${unreleased}`,
+    );
+  });
+
+  it('최신 릴리스 버전이 plugin.json과 일치한다', () => {
+    const plugin = JSON.parse(readRepoFile('.claude-plugin', 'plugin.json'));
+    assert.equal(versionHeadings[0], plugin.version);
+  });
+});
+
+describe('내부 링크 무결성', () => {
+  it('마크다운의 상대 링크가 모두 실재하는 파일을 가리킨다', () => {
+    const broken = [];
+
+    for (const file of listMarkdownFiles()) {
+      const source = stripCode(readRepoFile(file));
+      for (const match of source.matchAll(/\[[^\]]*\]\(([^)\s]+)\)/g)) {
+        const target = match[1];
+        // 외부 URL, 문서 내 앵커, 런타임 치환 변수는 정적으로 검증할 수 없다.
+        if (/^(https?:|mailto:|#)/.test(target) || target.includes('${')) continue;
+
+        const resolved = path.resolve(path.dirname(repoPath(file)), target.split('#')[0]);
+        if (!existsSync(resolved)) broken.push(`${file} → ${target}`);
+      }
+    }
+
+    assert.deepEqual(broken, [], `깨진 상대 링크:\n${broken.join('\n')}`);
+  });
+
+  it('마크다운 링크에 런타임 치환 변수를 넣지 않는다 — GitHub에서 404가 된다', () => {
+    const offenders = [];
+
+    for (const file of listMarkdownFiles()) {
+      for (const match of stripCode(readRepoFile(file)).matchAll(/\[[^\]]*\]\(([^)\s]*\$\{[^)\s]*)\)/g)) {
+        offenders.push(`${file} → ${match[1]}`);
+      }
+    }
+
+    assert.deepEqual(offenders, [], `치환 변수를 URL에 넣은 링크:\n${offenders.join('\n')}`);
+  });
+});
+
+describe('커맨드 목록 정합', () => {
+  const declared = listCommandFiles().map((f) => `/${f.replace(/\.md$/, '')}`);
+
+  it('README(EN/KO)가 실재하는 커맨드만 문서화한다', () => {
+    for (const [label, source] of [['EN', readmeEn], ['KO', readmeKo]]) {
+      const documented = new Set(
+        [...source.matchAll(/`(\/omj(?:-[a-z-]+)?)`/g)].map((m) => m[1]),
+      );
+      for (const command of documented) {
+        assert.ok(declared.includes(command), `${label} README가 없는 커맨드를 문서화합니다: ${command}`);
+      }
+    }
+  });
+
+  it('모든 커맨드가 README(EN/KO)에 문서화돼 있다', () => {
+    for (const [label, source] of [['EN', readmeEn], ['KO', readmeKo]]) {
+      for (const command of declared) {
+        assert.ok(source.includes(`\`${command}\``), `${label} README에 ${command} 문서가 없습니다`);
+      }
+    }
+  });
+});
+
+describe('CLAUDE.md 유지보수 규율', () => {
+  it('선언한 상한(120줄)을 지킨다', () => {
+    const lines = readRepoFile('CLAUDE.md').split('\n').length;
+    assert.ok(lines < 120, `CLAUDE.md가 ${lines}줄입니다 — 스스로 선언한 상한을 넘었습니다`);
+  });
+
+  it('레포 루트 기준 경로가 실재한다', () => {
+    const missing = [...readRepoFile('CLAUDE.md').matchAll(/`(docs\/[\w.-]+\.md)`/g)]
+      .map((m) => m[1])
+      .filter((target) => !existsSync(path.join(REPO_ROOT, target)));
+
+    assert.deepEqual(missing, [], `CLAUDE.md가 없는 문서를 가리킵니다: ${missing.join(', ')}`);
+  });
+});
