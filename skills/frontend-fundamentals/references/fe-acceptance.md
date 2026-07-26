@@ -25,6 +25,7 @@ FF 4기준 + 접근성 + 반응형·토큰은 **모든** 프로젝트에 보편�
 tokensPath: <semantic 토큰 파일 경로>   # 선택 (.json=DTCG, .css=custom properties)
 designDocPath: <브랜드/조합 규칙 문서>   # 선택 — 선언 시 /omj Phase 1이 Read
 storybook: true|false                  # 선택 — true면 design-qa Story 체크·check-story-exists 훅 활성
+storiesDir: <Story 모음 디렉터리>        # 선택 — Story를 형제 파일이 아닌 별도 디렉터리에 두는 프로젝트만
 verifySetup: <시각검증 절차 문서/절>     # 선택 — /omj-verify·/omj-fix가 관찰 전 Read (인증 우회·API 목)
 conventions:                           # 선택 — 프로젝트 코드 구조 선언 (예: 1컴포넌트=4파일)
   - <규칙 1>
