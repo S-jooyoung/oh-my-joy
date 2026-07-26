@@ -13,7 +13,7 @@
 - `CONTRIBUTING.md`·`.github/PULL_REQUEST_TEMPLATE.md` — 레포의 실제 규율(zero-hook 불변식·최소권한·EN/KO README 동시 갱신·AI 서명 금지)을 외부에서 재현 가능한 형태로 성문화.
 - `references/boundaries.md` 신설 — React 19/App Router 코드 품질의 최대 축인 **Server/Client 경계·에러 경계·테스트 가능성**이 번들된 지식에 전혀 없었고, 유일한 처리 방식이 "선택적으로 스킵 가능한" Context7 위임이라 실질적으로 무루브릭이었다. 직렬화·Suspense 스트리밍처럼 `vercel-react-best-practices`가 소유한 지식은 복제하지 않고 링크만 둔다(⑧ SoT 단일화) — 이 문서는 "어디에 선을 긋는가"만 다룬다.
 - `references/a11y.md`에 WCAG 2.2 핵심 축 4개 추가 — **색 대비**(SC 1.4.3/1.4.11), **포커스 가시성**(2.4.7/2.4.11, `outline:none` 시 `:focus-visible` 필수), **모션 축소**(2.3.3, `prefers-reduced-motion`), **폼 에러 안내**(3.3.1/3.3.3, `aria-invalid`+`aria-describedby`+`role="alert"`). 실무 a11y 리뷰의 최빈 결함군이 통째로 루브릭에서 빠져 있었다.
-- **CI**(`.github/workflows/ci.yml`) — push·PR마다 Node 20.11(`engines` 하한)과 22(LTS)에서 검증 스위트를 실행한다. 훅 스크립트는 소비 프로젝트의 Node에서 돌아가므로 하한을 실제로 검증한다. 의존성 설치 단계가 없다.
+- **CI**(`.github/workflows/ci.yml`) — push·PR마다 Node 20·22 두 메이저에서 검증 스위트를 실행한다. 훅 스크립트는 소비 프로젝트의 Node에서 돌아가므로 하한을 실제로 검증한다. 의존성 설치 단계가 없다.
 - **매니페스트·문서 정합성 자동 검증** — CLAUDE.md의 "문서화 규율"을 사람의 성실성이 아니라 기계가 강제한다: plugin/marketplace 스키마와 버전 일치, 커맨드·에이전트·스킬 frontmatter 유효성, **`hooks.json` 부재(zero-hook 불변식)**, README EN/KO 패리티와 설치 문자열 동일성, 영문 README의 한국어 잔재, CHANGELOG 릴리스 링크 정의, 전 마크다운의 상대 링크 무결성, README↔`commands/` 목록 일치, CLAUDE.md 120줄 상한.
 - 훅 인라인 억제 주석 `omj-allow-color` — 외부 SDK 고정색처럼 정당한 raw 값이 있는 줄의 경고를 끈다(eslint-disable-line과 같은 역할). 구문만으로는 색상과 식별자를 구분할 수 없는 잔여 오탐의 탈출구.
 - 훅이 `tool_name`을 확인해 변경 도구(`Edit`/`Write`/`MultiEdit`/`NotebookEdit`)에서만 발화한다 — 소비 프로젝트의 matcher가 넓어져도 읽기 도구에서 침묵하는 방어층.
