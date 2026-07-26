@@ -1,4 +1,5 @@
 {
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "oh-my-joy",
   "version": "0.3.0",
   "description": "프론트엔드 원스톱 — Figma 명세 → FF 구현 스펙(Plan) → 승인 후 구현·시각검증·토큰 sync",

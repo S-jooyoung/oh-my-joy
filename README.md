@@ -17,7 +17,7 @@ _A Plan-native primer that doesn't fight your "almost always in Plan mode" habit
 
 ```
 # 1. Install (enter one line at a time)
-/plugin marketplace add ~/projects/oh-my-joy
+/plugin marketplace add S-jooyoung/oh-my-joy
 /plugin install oh-my-joy@omj
 
 # 2. Check dependencies (recommended before first use)
@@ -27,7 +27,7 @@ _A Plan-native primer that doesn't fight your "almost always in Plan mode" habit
 /omj "Search input form — React Hook Form + Zod, mobile-first" /search
 ```
 
-> `/omj` is a read-only primer — it never writes code directly; it drafts a spec, recommends an execution lane with option 1 marked `(추천)`, and stops. Not sure where to start? Run `/omj-setup` first.
+> `/omj` is a read-only primer — it never writes code directly; it drafts a spec, recommends an execution lane by marking option 1 with the literal label `(추천)` ("recommended"), and stops. Not sure where to start? Run `/omj-setup` first.
 
 ---
 
@@ -82,7 +82,7 @@ Missing ones never crash — OMJ **skips + guides** instead.
 
 OMJ is a **standalone plugin independent of** oh-my-claudecode (OMC) and oh-my-codex (OMX). Installing them together never conflicts (`/omj*` stays OMJ-owned).
 
-- **Mental model (one sentence)**: "Start every FE task with `/omj` — approve the spec, then take option 1 `(추천)` unless you intentionally choose another OMC/OMX execution lane."
+- **Mental model (one sentence)**: "Start every FE task with `/omj` — approve the spec, then take option 1 (labeled `(추천)`, i.e. the recommended lane) unless you intentionally choose another OMC/OMX execution lane."
 
 | Stage | OMJ | OMC/OMX |
 | --- | --- | --- |

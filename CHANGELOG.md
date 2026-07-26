@@ -23,6 +23,11 @@
 
 - `check-design-tokens.mjs` — **탐지 신호/노이즈 역전 해소**. 실측에서 이 훅은 오탐 4건을 보고하면서 같은 파일의 진짜 하드코딩 2건을 놓쳤다. (a) `url(#gradient)`·`href="#section"`·private field `this.#abc`·5·7자리 hex를 색상으로 오인하던 것을 제거하고, (b) 블록·JSX(`{/* */}`)·인라인 `//` 주석을 라인 수 보존 방식으로 마스킹하며, (c) Tailwind v4/shadcn 생태계의 주 문법인 `hsl()`·`oklch()`·`hwb()`·`lab()`·`lch()`와 CSS 선언 위치의 네임드 컬러를 새로 탐지한다. `hsl(var(--h) …)`처럼 `var()`로 감싼 호출은 토큰 사용이므로 위반이 아니다.
 - `check-design-tokens.mjs` — 검사 대상에 `.ts`/`.scss`/`.sass`/`.less` 추가(CSS-in-JS 테마 객체와 SCSS가 빠져 있었다). 경고 개수를 라인 수가 아닌 **실제 색상 개수**로 집계. 경로 해석 기준점을 훅 계약이 준 `cwd`로 통일(`path.resolve(filePath)`는 훅 프로세스 cwd를 써서 상대경로 입력 시 검사가 조용히 스킵됐다). 프로젝트 루트 밖 파일은 읽지 않는다.
+- **설치 문자열이 작성자 로컬 경로를 가리키던 문제** — README(EN/KO)의 Quick Start 1행이 `~/projects/oh-my-joy`라 공개 레포를 클론한 누구도 설치할 수 없었다(작성자 머신에서조차 실제 경로와 불일치). `/plugin marketplace add S-jooyoung/oh-my-joy`로 정정.
+- CHANGELOG 릴리스 링크 — `[0.3.0]` 링크 정의가 없어 GitHub에서 리터럴로 렌더됐고, `[Unreleased]`가 한 단계 옛 버전(v0.2.0)을 기준으로 비교해 0.3.0 변경분이 Unreleased로 잡혔다. 두 항목 모두 정정.
+- 커맨드 본문의 SoT 포인터가 `[텍스트](${CLAUDE_PLUGIN_ROOT}/docs/…)` 형태의 마크다운 링크라 GitHub에서 404가 됐다 — 런타임 경로 문자열은 유지하고 링크 마크업만 벗겨 레포 기준 경로를 병기한다.
+- 영문 README에 한국어 `(추천)`이 설명 없이 노출됐다. 라벨 리터럴은 출력 계약(`docs/EXECUTION-HANDOFF.md`)이 고정한 값이라 유지하고, 영어 설명을 병기한다.
+- `plugin.json`에 `$schema` 선언 추가 — `marketplace.json`만 스키마가 걸려 있어 에디터 검증이 한쪽에만 적용됐다.
 - `check-story-exists.mjs` — **Story 대상이 아닌 파일에서 상시 발화하던 문제 해소**. (a) 제외 판정을 전체 경로가 아닌 **파일명 기준**으로 바꾸고 Next.js App Router 예약 파일(`page`·`layout`·`template`·`loading`·`error`·`not-found`·`route`·`default`·`middleware` 등)을 제외한다. (b) `Button/index.tsx` 배럴 패턴에서 형제 `Button.stories.tsx`를 인정하도록 디렉터리명을 후보에 추가(가장 흔한 배치인데 100% 오탐이었다). (c) 소문자로 시작하는 파일은 훅·유틸 관례로 보고 검사하지 않는다. (d) 도달 불가능하던 `\.d\.ts$` 죽은 분기 제거(선행 `.tsx|.jsx` 게이트가 먼저 탈락시킨다). (e) 경로 기준점을 `cwd`로 통일하고, 읽을 수 없는 디렉터리는 "Story 없음"으로 단정하지 않는다.
 
 ### Security
@@ -114,6 +119,7 @@
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/S-jooyoung/oh-my-joy/releases/tag/v0.1.0
