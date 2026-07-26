@@ -19,9 +19,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 20.11은 package.json engines의 하한, 22는 현재 LTS.
-        # 훅 스크립트는 소비 프로젝트의 Node에서 돌아가므로 하한을 실제로 검증한다.
-        node: ['20.11', '22']
+        # 훅 스크립트는 플러그인 레포가 아니라 **소비 프로젝트의 Node**에서 돌아간다.
+        # 그래서 지원 선언(package.json engines)에 해당하는 두 메이저를 모두 돌린다.
+        node: ['20', '22']
 
     steps:
       - uses: actions/checkout@v4
