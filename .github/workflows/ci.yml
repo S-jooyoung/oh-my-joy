@@ -20,8 +20,9 @@ jobs:
       fail-fast: false
       matrix:
         # 훅 스크립트는 플러그인 레포가 아니라 **소비 프로젝트의 Node**에서 돌아간다.
-        # 그래서 지원 선언(package.json engines)에 해당하는 두 메이저를 모두 돌린다.
-        node: ['20', '22']
+        # 소비자가 아직 옛 런타임에 남아 있을 수 있으므로 engines 하한(20)을 버리지 않고,
+        # 현재 유지되는 LTS 라인(22 maintenance · 24 active)을 함께 검증한다.
+        node: ['20', '22', '24']
 
     steps:
       - uses: actions/checkout@v4

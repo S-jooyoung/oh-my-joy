@@ -21,7 +21,7 @@ _"거의 항상 Plan 모드"인 습관과 충돌하지 않는 Plan 네이티브 
 
 Figma 프레임을 AI 에이전트에 던지고 "이대로 만들어줘"라고 하면 특정한 방식으로 반복해서 실패한다. 결과물은 비슷해 보이는데 토큰이 raw hex로 인라인되고, 없던 반응형 분기가 창작되고, 접근성은 그날 모델 기분대로다. **매번 다른 곳이 빠지기 때문에** 예방이 아니라 리뷰에서 뒤늦게 잡게 된다.
 
-당연한 해법 — Figma를 읽고 코드까지 쓰는 단일 커맨드 — 은 Claude Code의 실제 동작과 충돌한다. **Plan 모드는 의도적으로 `Write`/`Edit`를 차단**하는데, 많은 사람이 바로 그 모드에서 산다. 한 방에 구현하는 커맨드는 가장 많이 호출되는 자리에서 정확히 절반만 동작한다.
+당연한 해법 — Figma를 읽고 코드까지 쓰는 단일 커맨드 — 은 Claude Code의 실제 동작과 충돌한다. **Plan 모드는 설계상 `Write`/`Edit`를 차단**하는데, 많은 사람이 바로 그 모드에서 산다(`git diff` 같은 읽기 전용 Bash는 동작하고, 부작용 있는 Bash·MCP 쓰기 도구의 차단 여부는 환경에 따라 다르다). 한 방에 구현하는 커맨드는 가장 많이 호출되는 자리에서 정확히 절반만 동작한다.
 
 그래서 OMJ는 방향을 뒤집는다. `/omj`는 구현 커맨드가 **아니다** — 도구의 제약을 설계 축으로 삼은 read-only 프라이머다. 디자인을 읽고, 고정된 품질 기준으로 평가한 구현 스펙을 쓰고, **멈춘다**. 그 스펙이 곧 사용자가 승인할 네이티브 Plan이다. Plan 모드의 쓰기 차단은 극복할 장애물이 아니라 검토 게이트가 된다.
 
@@ -47,8 +47,8 @@ _점선 = read-only, 소스 부작용 없음. 승인 게이트를 사용자 없�
 
 아래 주장은 전부 이 레포에서 확인할 수 있다 — 근거 아티팩트와 **버린 대안**을 함께 적는다.
 
-- **최소권한을 관례가 아니라 매니페스트가 강제한다.** `/omj`의 `allowed-tools`는 `Read, Grep, Glob, Skill, AskUserQuestion` + 읽기 전용 Figma/Context7 MCP뿐이다 — 쓰기 경로가 아예 없으니 모델이 오작동해도 plan 게이트를 우회할 수 없다([`commands/omj.md`](commands/omj.md)). 버린 대안: "Write를 주고 쓰지 말라고 지시" — 산문은 강제층이 아니며, 그게 [`commands/omj-start.md`](commands/omj-start.md)에서 실제로 고친 결함이다.
-- **한 사실에 하나의 SoT, 그리고 그것을 CI가 검사한다.** 실행 레인 라우팅은 [`docs/EXECUTION-HANDOFF.md`](docs/EXECUTION-HANDOFF.md)에만 있고 커맨드는 링크만 한다. 무의존성 테스트가 양 언어 README 패리티·전 상대 링크 도달성·CHANGELOG 릴리스 링크를 검사한다([`tests/docs-consistency.test.mjs`](tests/docs-consistency.test.mjs)). 버린 대안: 라우팅 표를 커맨드마다 복제 — 한 릴리스 만에 드리프트했다.
+- **최소권한을 관례가 아니라 매니페스트에 선언한다.** `/omj`의 `allowed-tools`는 `Read, Grep, Glob, Skill, AskUserQuestion` + 읽기 전용 Figma/Context7 MCP뿐이다([`commands/omj.md`](commands/omj.md)). 쓰기 도구가 하나도 사전승인돼 있지 않으니 쓰기가 **조용히** 일어날 수 없다 — 시도하면 권한 프롬프트로 드러나고, Plan 모드에서는 `Write`/`Edit`가 아예 차단된다. 버린 대안: "도구는 주고 쓰지 말라고 지시" — 산문은 강제층이 아니며, 그게 [`commands/omj-start.md`](commands/omj-start.md)에서 실제로 고친 결함이다(본문이 금지한 인자를 `Bash(...)` 와일드카드가 전부 사전승인하고 있었다).
+- **한 사실에 하나의 SoT, 그리고 문서 사실은 CI가 검사한다.** 실행 레인 **임계값**은 [`docs/EXECUTION-HANDOFF.md`](docs/EXECUTION-HANDOFF.md)에만 있고, 커맨드는 링크만 하거나 그 파일에 도달할 수 없을 때의 임계값 없는 fallback만 갖는다. 무의존성 테스트가 양 언어 README의 커맨드 목록·설치 문자열 일치, 영문 페이지의 한국어 잔재, 전 상대 링크 도달성, CHANGELOG 릴리스 링크의 compare 범위를 검사한다([`tests/docs-consistency.test.mjs`](tests/docs-consistency.test.mjs)). 버린 대안: 레인 규칙을 필요한 곳마다 재기술 — 0.3.0 이전 `commands/omj.md`·`docs/OMC-INTEGRATION.md` 사본이 한 릴리스 만에 드리프트했다.
 - **모든 의존성이 선택적이다.** Figma MCP·playwright·Context7·OMC/OMX 중 무엇이 없어도 에러가 아니라 "스킵 + 안내"로 내려앉는다. 어떤 환경에서도 첫날부터 쓸 수 있다. 버린 대안: hard requirement — 플러그인을 설치 프로젝트로 만든다.
 - **플러그인은 스스로 훅을 발화시키지 않는다.** `hooks/hooks.json`을 두면 플러그인을 켠 **모든 레포**에서 검사가 돈다. 대신 스크립트는 템플릿이고 `/omj-setup`이 동의한 프로젝트에만 복사하며, 선언이 없으면 no-op이다. 이 불변식은 주석이 아니라 테스트가 못 박는다([`tests/plugin-manifest.test.mjs`](tests/plugin-manifest.test.mjs)).
 - **마크다운으로 쓰인 동작도 테스트한다.** 훅 스크립트 2개를 실제 자식 프로세스로 띄워 PostToolUse 계약대로 검증한다 — 이전 버전이 신호 대신 노이즈를 보고하게 만들었던 오탐 케이스를 포함해서([`tests/hooks/`](tests/hooks)).

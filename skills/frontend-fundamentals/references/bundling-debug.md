@@ -13,15 +13,19 @@
 ### 2. 무거운 컴포넌트는 코드 스플리팅
 
 ```tsx
+'use client';
+
 import dynamic from 'next/dynamic';
 
 // 이미지 라이트박스, 지도 등 초기 화면에 불필요한 무거운 모듈
-// 주의: ssr: false는 Server Component에서 쓸 수 없다 — 'use client' 파일 안에서만 선언한다.
+// ssr: false는 Server Component에서 쓸 수 없다 — 그래서 이 파일이 'use client'다.
 const MapView = dynamic(() => import('@/components/map/map-view'), {
   ssr: false,
   loading: () => <MapSkeleton />,
 });
 ```
+
+> Server Component는 이미 자동으로 code split되므로 `next/dynamic`으로 실제 지연 로드되는 대상은 Client Component다. Server Component 안에서 `dynamic()`을 부르는 것 자체는 가능하지만 `ssr: false`는 못 쓴다.
 
 ### 3. barrel import 주의
 

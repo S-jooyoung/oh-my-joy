@@ -1,6 +1,8 @@
 # OMJ 실행 핸드오프 라우팅
 
-이 문서가 OMJ 실행 레인 선택의 **유일한 라우팅 SoT**다. README, `docs/OMC-INTEGRATION.md`, `docs/PRINCIPLES.md`, `commands/omj.md`, `commands/omj-start.md`는 이 문서를 요약하거나 링크만 하고, 점수표·임계값·레인 선택 규칙을 중복 정의하지 않는다.
+이 문서가 OMJ 실행 레인 선택의 **유일한 라우팅 SoT**다. README, `docs/OMC-INTEGRATION.md`, `docs/PRINCIPLES.md`, `commands/omj.md`, `commands/omj-start.md`는 이 문서를 요약하거나 링크만 하고, **점수표·임계값을 중복 정의하지 않는다**.
+
+> **한 가지 예외**: 런타임에서 이 파일에 도달할 수 없을 때를 대비해 `commands/omj.md`가 **임계값 없는** 최소 fallback 매핑(작으면 inline/manual, 지속 목표면 wrapper, 병렬 lane이면 team …)을 갖는다. 수치·조건은 여기에만 있고 fallback은 방향만 준다 — graceful degradation(PRINCIPLES ⑨)과 SoT 단일화(⑧)를 동시에 만족시키는 경계다.
 
 ## 모델: Wrapper + Sublane
 
