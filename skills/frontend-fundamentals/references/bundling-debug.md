@@ -8,12 +8,15 @@
 
 ### 1. dev/prod 번들은 다르다
 
-개발 모드는 HMR·소스맵·검증 코드를 포함해 느리고 크다. **성능 판단은 항상 `yarn build` 후 프로덕션 번들 기준**으로 한다.
+개발 모드는 HMR·소스맵·검증 코드를 포함해 느리고 크다. **성능 판단은 항상 프로젝트의 프로덕션 빌드(`npm run build` 등 레포 스크립트) 후 번들 기준**으로 한다.
 
 ### 2. 무거운 컴포넌트는 코드 스플리팅
 
 ```tsx
+import dynamic from 'next/dynamic';
+
 // 이미지 라이트박스, 지도 등 초기 화면에 불필요한 무거운 모듈
+// 주의: ssr: false는 Server Component에서 쓸 수 없다 — 'use client' 파일 안에서만 선언한다.
 const MapView = dynamic(() => import('@/components/map/map-view'), {
   ssr: false,
   loading: () => <MapSkeleton />,
@@ -24,7 +27,7 @@ const MapView = dynamic(() => import('@/components/map/map-view'), {
 
 `import { X } from '@/components'` 같은 barrel은 트리셰이킹을 방해해 번들을 키울 수 있다. 구체 경로로 import한다.
 
-> **상세 위임**: waterfall 제거, 동적 import 세부 전략, 서드파티 deferring, preloading 등 성능 58규칙은 **`vercel-react-best-practices` 스킬**을 참조한다. 이 문서는 진입점 요약만 둔다.
+> **상세 위임**: waterfall 제거, 동적 import 세부 전략, 서드파티 deferring, preloading, Suspense/스트리밍 경계는 **`vercel-react-best-practices` 스킬**의 규칙 세트를 참조한다. 이 문서는 진입점 요약만 둔다(규칙 수는 상류에서 바뀌므로 여기 적지 않는다 — SoT 단일화).
 
 ### 번들 smell → remedy
 
@@ -32,7 +35,7 @@ const MapView = dynamic(() => import('@/components/map/map-view'), {
 | ----------------------------------- | ------------------------------- |
 | 초기 화면에 무거운 모듈 정적 import | `next/dynamic`로 분할           |
 | barrel 파일로 대량 import           | 구체 경로 import                |
-| dev 기준 성능 판단                  | `yarn build` 프로덕션 기준 측정 |
+| dev 기준 성능 판단                  | 프로덕션 빌드 기준 측정         |
 
 ## 디버그
 
@@ -47,9 +50,9 @@ const MapView = dynamic(() => import('@/components/map/map-view'), {
 
 ### 자주 겪는 함정 (디버깅 시 먼저 의심)
 
-- **브랜치 전환 후 유령 typecheck 에러**: `.next/types/validator.ts`가 stale → `rm -rf .next` 후 재실행.
-- **RLS 무음 실패**: `auth.uid()=null`(세션 만료) 시 에러 없이 0행 반환 — `catch`로도 안 잡힘. 세션 의존성을 의심.
-- **영속 스토리지 삭제 사고**: 휘발성 클라이언트 상태를 기준으로 영속 Storage를 삭제하지 않는다 — 서버 기준(diff)으로만 반영한다.
+- **브랜치 전환 후 유령 typecheck 에러**: 빌드 캐시(Next.js면 `.next/types/`)가 stale → 캐시 디렉터리를 지우고 재실행.
+- **에러 없는 빈 결과**: 인가·필터 계층이 권한 부족을 *에러가 아니라 0행*으로 돌려주면 `catch`에 걸리지 않는다. "실패했는데 조용한" 증상은 예외가 아니라 **인증 세션 만료**를 먼저 의심한다.
+- **낙관적 UI가 서버 상태를 덮어씀**: 휘발성 클라이언트 상태를 기준으로 영속 데이터를 삭제·갱신하지 않는다 — 서버 응답 기준(diff)으로만 반영한다.
 
 ### 디버그 smell → remedy
 
