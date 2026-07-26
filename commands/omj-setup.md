@@ -1,7 +1,7 @@
 ---
 description: OMJ 의존성 점검 + 스캐폴딩 — playwright-cli/MCP·Figma MCP·Context7 점검, .omj/fe-context.md·토큰 가드 훅(opt-in) 설치 제안
 argument-hint: "[--check] (점검만) | [--help]"
-allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(command:*), Bash(claude:*), Bash(npm:*), Bash(jq:*), Bash(test:*), Bash(ls:*), Bash(grep:*), Bash(node:*), Bash(cp:*), Bash(mkdir:*)
+allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(command:*), Bash(claude plugin list:*), Bash(claude plugin install:*), Bash(npm i -g playwright-cli:*), Bash(test:*), Bash(grep:*), Bash(cp:*), Bash(mkdir:*)
 ---
 
 # /omj-setup — 의존성 닥터 + 설치·스캐폴딩 가이드
