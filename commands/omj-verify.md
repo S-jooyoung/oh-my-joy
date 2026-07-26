@@ -1,7 +1,7 @@
 ---
 description: 라우트를 시각 검증 — 디자인/명세 대비 점검. playwright-cli 우선, 부재 시 playwright MCP 폴백 (Plan 해제 후 실행)
 argument-hint: "<route> [--base <url>]"
-allowed-tools: Read, Bash(playwright-cli:*), Bash(curl:*), Bash(command:*)
+allowed-tools: Read, Bash(playwright-cli:*), Bash(curl:*), Bash(command:*), mcp__playwright__*, mcp__plugin_playwright_playwright__*
 ---
 
 # /omj-verify — 시각 검증 (능동 op)
@@ -25,6 +25,11 @@ BASE="${JOY_BASE_URL:-http://localhost:3000}"   # --base 인자가 있으면 그
 ```
 > `ROUTE`는 사용자가 준 route 인자로 **실제 치환**한다. `BASE` 우선순위: `--base` > export된 `JOY_BASE_URL` > `http://localhost:3000`.
 
+> ⚠️ **인자 검증(치환 전 필수).** `ROUTE`·`BASE`는 사용자 입력이 셸 명령에 들어가는 유일한 지점이다. 치환 *전에* 아래를 확인하고, 하나라도 어긋나면 치환하지 말고 "인자 형식이 올바르지 않음"으로 종료한다.
+> - `ROUTE`는 `/`로 시작하고, 공백·newline·quote·backtick·`$`·`;`·`&`·`|`·`<`·`>`·`(`·`)`를 포함하지 않는다(쿼리스트링 `?`·`=`·`&`가 필요하면 값 전체를 큰따옴표로 감싼 채 두고, `&`는 셸 분리자가 되므로 route에서 제거한 뒤 baseline 슬러그 규칙대로 처리한다).
+> - `BASE`는 `http://` 또는 `https://`로 시작하는 URL이고 같은 metacharacter를 포함하지 않는다.
+> - 두 값 모두 스니펫에서 항상 `"$ROUTE"`/`"$BASE"`처럼 **큰따옴표로 감싼 변수 참조**로만 쓴다(값을 명령줄에 펼쳐 쓰지 않는다).
+
 ### `<route-slug>` 변환 규칙 (baseline 파일 키)
 
 route → 파일명 슬러그: leading `/` 제거, 내부 `/`→`-`, 쿼리스트링 제거, 루트 `/`는 `root`, 후행·중복 `-`는 collapse. 예: `/settings/profile/` → `settings-profile`, `/` → `root`. viewport 라벨은 이번 verify가 실행하는 뷰포트(`desktop`|`mobile`)다.
@@ -47,6 +52,8 @@ playwright-cli -s=omj screenshot    # 시각 점검
 ```
 
 - **인증 리다이렉트 처리 (open/goto *이후*)**: 위 navigate에서 로그인 페이지로 리다이렉트되면, `verifySetup` 절차(있으면) 또는 미리 export한 자격증명 env(`$JOY_TEST_EMAIL`/`$JOY_TEST_PASSWORD`)로 `fill`+`click` 재로그인 후 다시 `goto`. 둘 다 없으면 → "인증이 필요한 라우트 — 브라우저에서 수동 로그인 후 다시 실행" 안내. (리다이렉트는 페이지를 연 뒤에야 관찰되므로 프리플라이트가 아니라 이 단계에서 처리한다.)
+  - **자격증명 취급 규칙**: `fill`에는 반드시 `"$JOY_TEST_PASSWORD"` 같은 **변수 참조만** 넘긴다 — 값을 해석해 명령줄·리포트·에러 메시지에 적지 않는다(트랜스크립트에 평문으로 남는다). **테스트 전용 계정만** 사용한다.
+  - **인증 후 화면의 영속화 주의**: 로그인 뒤 캡처한 스크린샷에는 세션·개인정보가 담길 수 있다. baseline으로 디스크에 남기기 전에 그 사실을 사용자에게 알린다.
 - **baseline 영속화 (관찰 단계)**: 세션 컨텍스트에 `/omj` 스펙의 Figma 에셋 URL이 있으면 PNG를 영속화한다:
   ```bash
   curl -f --remove-on-error --create-dirs -o ".omj/baselines/<route-slug>@<viewport>.png" "<asset-url>"
@@ -65,4 +72,4 @@ playwright-cli -s=omj screenshot    # 시각 점검
 #   export JOY_TEST_EMAIL=... JOY_TEST_PASSWORD=...
 ```
 
-> `.omj/baselines/`는 소비 프로젝트의 `.gitignore`에 추가할 것을 권장한다(생성 산출물).
+> `.omj/baselines/`는 소비 프로젝트의 `.gitignore`에 **반드시** 추가한다 — 생성 산출물일 뿐 아니라 인증 화면·개인정보가 담긴 스크린샷이 커밋될 수 있다.
