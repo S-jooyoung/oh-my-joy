@@ -17,7 +17,7 @@ _"거의 항상 Plan 모드"인 습관과 충돌하지 않는 Plan 네이티브 
 
 ```
 # 1. 설치 (한 줄씩 입력)
-/plugin marketplace add ~/projects/oh-my-joy
+/plugin marketplace add S-jooyoung/oh-my-joy
 /plugin install oh-my-joy@omj
 
 # 2. 의존성 점검 (첫 사용 전 권장)
