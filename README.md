@@ -2,6 +2,10 @@
 
 English | [한국어](README.ko.md)
 
+[![CI](https://github.com/S-jooyoung/oh-my-joy/actions/workflows/ci.yml/badge.svg)](https://github.com/S-jooyoung/oh-my-joy/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Runtime dependencies: 0](https://img.shields.io/badge/runtime%20deps-0-brightgreen.svg)](package.json)
+
 > One frontend plugin that stitches the whole code ↔ Figma loop together.
 
 **Every frontend task starts with `/omj` — draft the spec, verify it, sync the tokens.**
@@ -9,7 +13,47 @@ _A Plan-native primer that doesn't fight your "almost always in Plan mode" habit
 
 `Plan-first` · `Figma 2-track` · `interactive token sync` · `graceful degradation` · `conflict-free alongside OMC/OMX`
 
-[Quick Start](#quick-start) • [Commands](#commands) • [OMJ × OMC/OMX](#omj--omcomx) • [Principles](#principles--figma-2-track) • [Troubleshooting](#troubleshooting)
+[Why](#why) • [Quick Start](#quick-start) • [Commands](#commands) • [Design notes](#what-this-repo-demonstrates) • [OMJ × OMC/OMX](#omj--omcomx) • [Troubleshooting](#troubleshooting)
+
+---
+
+## Why
+
+Handing a Figma frame to an AI agent and asking it to "build this" fails in a specific, repeatable way: the output looks close, but tokens get inlined as raw hex, responsive branches get invented, and a11y is whatever the model felt like that day. The defect is never the same twice, so you catch it in review instead of preventing it.
+
+The obvious fix — one command that reads Figma and writes the code — collides with how Claude Code actually works. **Plan mode deliberately blocks `Write`/`Edit`**, and that is the mode many of us live in. A one-shot implement command would half-work exactly where it is invoked most.
+
+So OMJ inverts it. `/omj` is **not** an implement command — it is a read-only primer that turns the tool's constraint into the design axis: it reads the design, drafts an implementation spec scored against fixed quality criteria, and **stops**. That spec *is* the native Plan you approve. Plan mode's write block stops being an obstacle and becomes the review gate.
+
+```mermaid
+flowchart TD
+    A["/omj<br/>Figma + code → spec"]:::readonly --> B["implementation spec<br/>uSpec sections × FF criteria × a11y"]:::readonly
+    B --> C{{"ExitPlanMode<br/>you review and approve"}}
+    C --> D["execution lane<br/>inline · /goal · /team · /ralph"]
+    D --> E["/omj-review<br/>code diff vs criteria"]:::readonly
+    D --> F["/omj-verify<br/>rendered route vs baseline"]
+    F -->|defects found| G["/omj-fix<br/>edit → re-capture"]
+    G --> F
+    D --> H["/omj-sync<br/>tokens ↔ Figma, you pick the direction"]
+
+    classDef readonly stroke:#888,stroke-width:2px,stroke-dasharray: 5 5;
+```
+
+_Dashed = read-only, no source side effects. Nothing crosses the approval gate without you._
+
+---
+
+## What this repo demonstrates
+
+Each claim below is checkable in this repo — the artifact is named, and so is the alternative that was rejected.
+
+- **Least privilege is enforced by the manifest, not by convention.** `/omj` ships with `allowed-tools: Read, Grep, Glob, Skill, AskUserQuestion` plus read-only Figma/Context7 MCP — there is no write path, so the plan gate cannot be bypassed even by a misbehaving model ([`commands/omj.md`](commands/omj.md)). Rejected: "give it Write and tell it not to use it" — prose is not an enforcement layer, which is exactly the bug fixed in [`commands/omj-start.md`](commands/omj-start.md).
+- **One source of truth per fact, enforced in CI.** Execution-lane routing lives only in [`docs/EXECUTION-HANDOFF.md`](docs/EXECUTION-HANDOFF.md); commands link to it and never restate thresholds. A dependency-free test suite checks that the two READMEs stay in parity, that every relative link resolves, and that CHANGELOG release links exist ([`tests/docs-consistency.test.mjs`](tests/docs-consistency.test.mjs)). Rejected: copying the routing table into each command — it drifted within one release.
+- **Every dependency is optional, by design.** Figma MCP, playwright, Context7, OMC/OMX — each absence degrades to "skip + explain", never an error, so the plugin is useful on day one in any environment. Rejected: hard requirements, which turn a plugin into a setup project.
+- **The plugin never fires hooks on its own.** Shipping `hooks/hooks.json` would make every repo with the plugin enabled run these checks; instead the scripts are templates that `/omj-setup` copies into a project that opts in, and they no-op without an explicit declaration. This invariant is pinned by a test, not a comment ([`tests/plugin-manifest.test.mjs`](tests/plugin-manifest.test.mjs)).
+- **Behaviour is tested even though it is written in Markdown.** The two hook scripts are exercised as real subprocesses against the PostToolUse contract, including the false-positive cases that made an earlier version report noise instead of signal ([`tests/hooks/`](tests/hooks)).
+
+The reasoning behind each decision — problem → decision → rationale → outcome, plus the alternatives that were rejected and why — is in [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md) (Korean).
 
 ---
 
