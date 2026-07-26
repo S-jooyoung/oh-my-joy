@@ -34,6 +34,12 @@
 
 ### Security
 
+- **`/omj-start`의 safe-path 가드가 산문일 뿐이었다** — 본문이 4개 조건을 규정하는 동안 `allowed-tools`의 `Bash(omx ultragoal create-goals:*)` 와일드카드가 그 prefix 뒤 **모든 인자**를 사전승인해, 가드가 한 겹도 강제되지 않았다. 해당 권한 선언을 제거해 직접 launch 시 권한 프롬프트가 실제 확인 게이트가 되게 한다(PRINCIPLES ③의 일관 적용 — 직접 launch 자체는 `docs/EXECUTION-HANDOFF.md`가 정의한 의도된 설계라 유지).
+- `/omj-start` safe-path 규칙에 **경로 봉쇄** 추가 — 기존 패턴은 shell metacharacter만 막고 *어떤 파일을 가리키는지*는 통제하지 않아 절대경로·`..` traversal이 그대로 통과했다. 새 셸 권한 없이 문자열만으로 검사 가능한 조건(절대경로 금지·`..` 금지·`.md` 확장자)을 추가.
+- `/omj-setup` 최소권한 정합화 — 본문에 호출 지점이 없는 `Bash(node:*)`·`Bash(jq:*)`·`Bash(ls:*)` 제거. 특히 `Bash(node:*)`는 `node -e "<임의 코드>"`를 사전승인하는 사실상의 임의 코드 실행 권한이었다(훅 등록은 문자열 `Write`이지 실행이 아니라 제거해도 영향 없음). `Bash(npm:*)`→`Bash(npm i -g playwright-cli:*)`, `Bash(claude:*)`→`Bash(claude plugin list:*)`+`Bash(claude plugin install:*)`로 축소.
+- `/omj-fix` 커밋 스테이징 범위 하드 규칙 — step 4에서 `Edit`한 경로만 명시 스테이징하고 `git add -A`·`git add .`를 금지한다. `--commit` 없이 호출되면 git 계열을 아예 실행하지 않는다.
+- `agents/design-qa.md`에 **강제 수준 고지** 추가 — `Edit`/`Write` 미부여는 도구 층 강제지만 스코프 없는 `Bash`가 있어 "`--fix` 금지"는 프롬프트 수준 규율일 뿐임을 명시하고, 기계적 강제가 필요할 때의 대안(`/omj-review` 또는 `permissions.deny`)을 안내한다.
+
 ## [0.3.0] - 2026-07-14
 
 > 실사용 dogfood(ahmotravelReact `/omj` 풀 사이클) 피드백 + 디자인 시스템 하네스 스펙 흡수 + 플러그인 구조·사용 감사 결과를 ralplan 합의(Planner→Architect→Critic 3라운드)로 확정해 반영한 릴리스.

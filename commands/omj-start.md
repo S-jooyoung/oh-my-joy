@@ -1,7 +1,7 @@
 ---
 description: 승인된 OMJ 스펙을 OMC/OMX 실행 레인으로 넘기는 canonical fallback handoff command
 argument-hint: "<approved-spec-path 또는 pasted approved spec>"
-allowed-tools: Read, Grep, AskUserQuestion, Bash(omx ultragoal create-goals:*), Bash(git status:*)
+allowed-tools: Read, Grep, AskUserQuestion, Bash(git status:*)
 ---
 
 # /omj-start — 승인 후 실행 레인 fallback
@@ -36,13 +36,27 @@ allowed-tools: Read, Grep, AskUserQuestion, Bash(omx ultragoal create-goals:*), 
 
 ## 직접 Bash 실행 안전 조건
 
+> **강제층은 권한이지 산문이 아니다.** 아래 조건은 모델이 지켜야 할 규율이고, 실제 게이트는
+> `allowed-tools`가 `omx ultragoal create-goals`를 **사전승인하지 않는다**는 사실이다 —
+> 직접 launch를 시도하면 사용자에게 권한 프롬프트가 뜨고, 거기서 실행될 명령 전문을 보고
+> 승인/거부한다. 즉 "권한을 빼는 것이 곧 안전 게이트를 강제하는 것"(PRINCIPLES ③)을
+> 이 커맨드에도 동일하게 적용한다.
+
 직접 Bash 실행은 path 입력을 raw로 interpolation하지 않는다. 아래 조건을 모두 만족할 때만 실행한다.
+
+**주입 차단 (문자 수준)**
 
 - 입력이 `Read`로 확인 가능한 기존 파일 경로다.
 - 경로가 `-`로 시작하지 않는다.
 - 경로가 보수적 safe-path 패턴 `^[A-Za-z0-9._/+=:@-]+$`에 맞는다.
 - 공백, newline, quote, backtick, `$`, `;`, `&`, `|`, `<`, `>`, `(`, `)` 같은 shell metacharacter가 없다.
 - 실행 예시는 항상 single-quoted literal 형태로만 만든다: `omx ultragoal create-goals --brief-file '<safe-approved-spec-path>'`.
+
+**봉쇄 (경로 수준)** — 위 패턴은 metacharacter만 막고 *어떤 파일을 가리키는지*는 통제하지 않는다. 다음도 함께 만족해야 한다.
+
+- 경로가 `/`로 시작하지 않는다(절대경로로 레포 밖을 가리키지 않는다).
+- 경로 세그먼트에 `..`가 없다(traversal 금지).
+- 확장자가 `.md`다(승인된 spec/plan 문서만 넘긴다).
 
 하나라도 실패하면 Bash를 실행하지 말고 copyable action 하나만 출력한다.
 

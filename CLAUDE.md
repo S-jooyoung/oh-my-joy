@@ -21,6 +21,7 @@ oh-my-joy(마켓플레이스 `omj`)는 **코드↔Figma 프론트엔드 루프 �
 - 네이밍: 모든 커맨드는 `/omj-*` 접두(루트 `/omj` 제외).
 - v1 커맨드: `/omj`(Plan 프라이머 + 실행 레인 selector, auto-select 시 질문 생략)·`/omj-start`(승인 후 OMC/OMX handoff fallback)·`/omj-review`(FF 코드 diff 리뷰)·`/omj-verify`(playwright-cli 우선·MCP 폴백, baseline 3단계 비교)·`/omj-fix`(시각 결함 수정 루프, 능동)·`/omj-sync`(토큰 code↔Figma sync + extract, 대화형·능동)·`/omj-setup`(의존성 닥터 + fe-context/훅 스캐폴딩). (v1.1: `/omj-push`·`/omj-spec`.)
 - 새 커맨드 = `commands/<name>.md` + frontmatter: `description`, `argument-hint`, `allowed-tools`(**최소 권한** — read-only면 Write/Edit/Bash 넣지 않음. 모드별 권한 차등은 본문이 강제 — 예: omj-sync의 "Write는 extract 전용").
+- **본문 절차에 호출 지점이 없는 도구는 선언하지 않는다.** Bash는 실행 가능한 최소 prefix까지 좁힌다(`Bash(npm:*)`가 아니라 `Bash(npm i -g playwright-cli:*)`). 위험한 실행을 굳이 사전승인하지 않는 것 자체가 안전 게이트다 — 권한 프롬프트가 사용자 확인 지점이 된다(PRINCIPLES ③).
 - **에이전트**(`agents/*.md`): 번들 2종 — `figma-implementer`(승인된 스펙 필수 입력 — bare Figma URL 구현 거부, plan-gate 우회 금지)·`design-qa`(검사만, 소스 비수정). 새 에이전트의 description은 자동위임 오발동을 막게 좁게 쓴다. EXECUTION-HANDOFF(레인 SoT)·selector에 에이전트를 올리지 않는다(레인이 아니라 실행자).
 - **훅**: 플러그인에 `hooks/hooks.json`을 **절대 두지 않는다**(존재=플러그인 enable 시 전 레포 자동 발화 = PRINCIPLES ⑩ 기각 대안). 훅 스크립트 정본은 `templates/hooks/*.mjs`이며 `/omj-setup`이 소비 프로젝트에 **복사-설치**한다(opt-in). 스크립트는 fe-context 선언 없으면 no-op.
 - 동작의 SoT는 각 `commands/*.md` 본문. 코드/문서 작성 전 해당 파일을 Read해 확인.
