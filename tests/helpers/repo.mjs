@@ -35,6 +35,13 @@ export const listAgentFiles = () =>
     .sort();
 
 /**
+ * 코드 블록과 인라인 코드를 제거한다. 코드 span 안의 `[텍스트](경로)`는 링크가 아니라
+ * 링크를 *설명하는* 예시이므로, 링크 검사가 그것까지 잡으면 문서를 못 쓰게 된다.
+ */
+export const stripCode = (source) =>
+  source.replace(/```[\s\S]*?```/g, '').replace(/`[^`\n]*`/g, '');
+
+/**
  * 마크다운 frontmatter를 파싱한다. YAML 파서를 들이지 않고 이 레포가 실제로
  * 쓰는 부분집합(`key: value` 한 줄 + `- item` 리스트)만 다룬다 — 지원 범위를
  * 넘는 문법이 들어오면 조용히 무시하지 않고 테스트가 깨지도록 값 그대로 둔다.
