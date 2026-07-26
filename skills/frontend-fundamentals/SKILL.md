@@ -25,7 +25,8 @@ metadata:
 
 추가 영역:
 
-- **접근성(a11y)** → [references/a11y.md](references/a11y.md) — 모바일 공유가 중요한 서비스라면 a11y·터치 타깃에 특히 민감
+- **접근성(a11y)** → [references/a11y.md](references/a11y.md) — WCAG 2.2 성공 기준 병기(시맨틱·alt·대비·포커스·모션·터치 타깃·폼 에러)
+- **경계(Server/Client·에러·테스트 가능성)** → [references/boundaries.md](references/boundaries.md) — `'use client'`를 어디에 두는가가 번들과 렌더 모델을 함께 결정한다
 - **번들/디버그** → [references/bundling-debug.md](references/bundling-debug.md)
 - **프로젝트 acceptance 축(메커니즘)** → [references/fe-acceptance.md](references/fe-acceptance.md) — 프로젝트가 `.omj/fe-context.md`에 선언한 '자주 빠뜨리는 축'을 스펙에 반영(플러그인은 특정 축을 강제하지 않음 — 범용). 토큰 시스템 탐지 순서의 SoT도 이 파일.
 - **Figma 충실도(design→code 보편 규칙)** → [references/figma-fidelity.md](references/figma-fidelity.md) — 원본 텍스트 유지·임의 variant 금지·고정 px 금지(w-full+부모 padding)·토큰 하드코딩 금지. `/omj`가 처방, `/omj-review`·`design-qa`가 검증.
@@ -43,13 +44,16 @@ metadata:
 | props 3단계 이상 drilling                      | 결합도        | composition/context (아래 라우팅 참조) |
 | 책임 과다 훅(한 훅이 여러 관심사)              | 결합도        | 관심사별 훅 분리                       |
 | `<img>` alt 누락 / 클릭만 가능한 `div`         | 접근성        | alt·시맨틱 태그·키보드 핸들러          |
+| 페이지 최상단 `'use client'`                   | 경계          | 상태를 쓰는 잎으로 내리고 `children` 합성 |
+| 에러 경계가 루트에 하나뿐                      | 경계          | 독립 실패 영역마다 `error.tsx`         |
 
 ## 통합 라우팅 규칙 (중복 금지, 조합 우선)
 
 이 스킬은 **품질 4기준 + 접근성**만 소유한다. 아래 영역은 기존 스킬/도구로 위임한다:
 
-- **성능·번들·리렌더·데이터 페칭** → `vercel-react-best-practices` 스킬을 참조한다. (waterfall 제거, `next/dynamic`, 메모이제이션 등 58규칙)
+- **성능·번들·리렌더·데이터 페칭·직렬화·Suspense 경계** → `vercel-react-best-practices` 스킬을 참조한다. (waterfall 제거, `next/dynamic`, 메모이제이션 등. **규칙 수는 적지 않는다** — 상류에서 바뀌면 곧바로 드리프트가 된다.)
 - **props 비대화·확장 가능한 컴포넌트 API·compound component** → `vercel-composition-patterns` 스킬을 참조한다.
+- **버전 게이팅** — 위임한 스킬에는 React 19 전용 절이 있다. 프로젝트 `package.json`의 `react`/`next` 버전을 읽어 **어느 절을 적용하고 어느 절을 생략할지**만 결정한다(규칙 내용을 이 스킬에 복제하지 않는다). `package.json`을 못 읽으면 게이팅을 생략한다(graceful).
 - **Next.js App Router·Server Component·`fetch` 캐싱·metadata 등 버전 민감 주제** → **Context7 MCP로 `/vercel/next.js` 최신 공식 문서를 조회**한 뒤 권장안을 적용한다. (training data가 아닌 런타임 문서 기준)
   - Context7 MCP를 쓸 수 없는 환경(`context7` 플러그인 미설치·CI)이면 이 레이어는 생략하고 training-data 기반 일반 권장으로 대체한다(에러 아님).
 - **심화 a11y/UX 감사** → `web-design-guidelines` 스킬의 동적 fetch 리뷰를 활용한다.

@@ -9,6 +9,8 @@
 ### Added
 
 - **검증 하네스** — `node --test` 기반 무의존성 테스트 스위트(`tests/`). 훅 스크립트를 실제 자식 프로세스로 띄워 PostToolUse 계약(stdin JSON → stdout JSON → exit code)을 경계에서 검증한다. `package.json`은 `private: true`인 dev 전용이며 플러그인 런타임 의존성은 여전히 0개다.
+- `references/boundaries.md` 신설 — React 19/App Router 코드 품질의 최대 축인 **Server/Client 경계·에러 경계·테스트 가능성**이 번들된 지식에 전혀 없었고, 유일한 처리 방식이 "선택적으로 스킵 가능한" Context7 위임이라 실질적으로 무루브릭이었다. 직렬화·Suspense 스트리밍처럼 `vercel-react-best-practices`가 소유한 지식은 복제하지 않고 링크만 둔다(⑧ SoT 단일화) — 이 문서는 "어디에 선을 긋는가"만 다룬다.
+- `references/a11y.md`에 WCAG 2.2 핵심 축 4개 추가 — **색 대비**(SC 1.4.3/1.4.11), **포커스 가시성**(2.4.7/2.4.11, `outline:none` 시 `:focus-visible` 필수), **모션 축소**(2.3.3, `prefers-reduced-motion`), **폼 에러 안내**(3.3.1/3.3.3, `aria-invalid`+`aria-describedby`+`role="alert"`). 실무 a11y 리뷰의 최빈 결함군이 통째로 루브릭에서 빠져 있었다.
 - **CI**(`.github/workflows/ci.yml`) — push·PR마다 Node 20.11(`engines` 하한)과 22(LTS)에서 검증 스위트를 실행한다. 훅 스크립트는 소비 프로젝트의 Node에서 돌아가므로 하한을 실제로 검증한다. 의존성 설치 단계가 없다.
 - **매니페스트·문서 정합성 자동 검증** — CLAUDE.md의 "문서화 규율"을 사람의 성실성이 아니라 기계가 강제한다: plugin/marketplace 스키마와 버전 일치, 커맨드·에이전트·스킬 frontmatter 유효성, **`hooks.json` 부재(zero-hook 불변식)**, README EN/KO 패리티와 설치 문자열 동일성, 영문 README의 한국어 잔재, CHANGELOG 릴리스 링크 정의, 전 마크다운의 상대 링크 무결성, README↔`commands/` 목록 일치, CLAUDE.md 120줄 상한.
 - 훅 인라인 억제 주석 `omj-allow-color` — 외부 SDK 고정색처럼 정당한 raw 값이 있는 줄의 경고를 끈다(eslint-disable-line과 같은 역할). 구문만으로는 색상과 식별자를 구분할 수 없는 잔여 오탐의 탈출구.
@@ -33,6 +35,10 @@
 - 커맨드 본문의 SoT 포인터가 `[텍스트](${CLAUDE_PLUGIN_ROOT}/docs/…)` 형태의 마크다운 링크라 GitHub에서 404가 됐다 — 런타임 경로 문자열은 유지하고 링크 마크업만 벗겨 레포 기준 경로를 병기한다.
 - 영문 README에 한국어 `(추천)`이 설명 없이 노출됐다. 라벨 리터럴은 출력 계약(`docs/EXECUTION-HANDOFF.md`)이 고정한 값이라 유지하고, 영어 설명을 병기한다.
 - `plugin.json`에 `$schema` 선언 추가 — `marketplace.json`만 스키마가 걸려 있어 에디터 검증이 한쪽에만 적용됐다.
+- **FF 스킬의 도메인 중립성 위반 제거** — 범용 FE 품질 가이드를 표방하면서 특정 개인 프로젝트 스택의 잔재가 남아 있었다(같은 레포가 선언한 도메인 중립 원칙과 정면 충돌). `yarn build`→프로젝트 빌드 스크립트, shadcn 고유 컴포넌트·props(`DialogContent`/`showCloseButton`/`FormField`)→접근성 프리미티브 라이브러리 일반 서술, Supabase RLS(`auth.uid()`)→"인가 계층이 권한 부족을 0행으로 돌려주는" 일반 증상으로 치환.
+- `references/a11y.md` alt 예제가 컴파일되지 않는 코드였다 — `next/image`는 `alt`를 필수 prop으로 강제하므로 "alt 누락" Before는 타입 에러다. 컴파일되면서 실제로 잘못된 케이스(무의미한 `alt="image"`, 정보성 이미지를 `alt=""`로 오분류)로 교체하고, 판정 기준을 alt **존재**에서 alt **적절성**으로 옮겼다.
+- `references/bundling-debug.md`의 코드 스플리팅 예제에 `import dynamic from 'next/dynamic'` 누락 — 그대로 붙여넣으면 동작하지 않는 스니펫이었다. `ssr: false`가 Server Component에서 불가하다는 주석도 병기.
+- 위임 대상 스킬을 "58규칙"으로 인용하던 것을 수치 없는 표현으로 교체(SKILL.md·bundling-debug.md) — 상류 규칙 수는 바뀌므로 인용 자체가 드리프트 원천이다. 대신 `package.json`의 `react`/`next` 버전으로 **어느 절을 적용할지만** 정하는 버전 게이팅 규칙을 추가(규칙 내용은 복제하지 않음).
 - `check-story-exists.mjs` — **Story 대상이 아닌 파일에서 상시 발화하던 문제 해소**. (a) 제외 판정을 전체 경로가 아닌 **파일명 기준**으로 바꾸고 Next.js App Router 예약 파일(`page`·`layout`·`template`·`loading`·`error`·`not-found`·`route`·`default`·`middleware` 등)을 제외한다. (b) `Button/index.tsx` 배럴 패턴에서 형제 `Button.stories.tsx`를 인정하도록 디렉터리명을 후보에 추가(가장 흔한 배치인데 100% 오탐이었다). (c) 소문자로 시작하는 파일은 훅·유틸 관례로 보고 검사하지 않는다. (d) 도달 불가능하던 `\.d\.ts$` 죽은 분기 제거(선행 `.tsx|.jsx` 게이트가 먼저 탈락시킨다). (e) 경로 기준점을 `cwd`로 통일하고, 읽을 수 없는 디렉터리는 "Story 없음"으로 단정하지 않는다.
 
 ### Security
