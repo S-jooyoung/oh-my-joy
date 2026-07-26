@@ -10,7 +10,7 @@ allowed-tools: Read, Edit, Write, Grep, Glob, Skill, AskUserQuestion, mcp__plugi
 
 > **원칙: 코드가 기본 SoT, 충돌은 사용자가 방향을 고른다.** 방향을 플러그인이 한쪽으로 못박지 않는다 — 드리프트가 있으면 클래스별로 묶어 `AskUserQuestion`으로 방향(코드→Figma / Figma→코드 / 건너뛰기)을 묻는다. 각 질문의 **1번(기본) 선택지는 코드 권위**다 — 값 불일치·코드에만은 "코드→Figma", Figma에만은 보수적 "건너뛰기"(코드를 SoT로 그대로 둠). 무심코 엔터만 쳐도 기존 code-wins와 같은 안전한 결과가 나온다. `push`는 그 질문 없이 "코드가 이김"을 명시적으로 택하는 빠른 경로, `check`는 읽기 전용 진단이다.
 
-> ⚠️ **대상 파일 = 현재 Figma 데스크톱 앱의 활성 탭.** `use_figma`/`get_variable_defs`는 활성 탭 파일에서 작동하므로, 동기화할 **디자인 시스템 파일을 활성 탭으로 연 뒤** 실행한다(URL로 대상 파일을 지정할 수 없음 — `extract <figma-url>`의 URL도 "이 파일을 활성 탭으로 열라"는 대상 표식이다). `sync`·`push`·`extract`는 **능동 op** — Figma 데스크톱이 켜져 있어야 하고 Plan 모드 밖에서 실행한다. `check`는 read-only라 어느 모드에서든 안전하다.
+> ⚠️ **대상 파일 = 현재 Figma 데스크톱 앱의 활성 탭.** `use_figma`/`get_variable_defs`는 활성 탭 파일에서 작동하므로, 동기화할 **디자인 시스템 파일을 활성 탭으로 연 뒤** 실행한다(URL로 대상 파일을 지정할 수 없음 — `extract <figma-url>`의 URL도 "이 파일을 활성 탭으로 열라"는 대상 표식이다). `sync`·`push`·`extract`는 **능동 op** — Figma 데스크톱이 켜져 있어야 하고 Plan 모드 밖에서 실행한다. `check`는 **의도상 read-only**다 — 다만 `allowed-tools`가 커맨드 단위라 권한 자체는 네 모드가 공유하며, read-only 보장은 권한층이 아니라 아래 "모드별 권한 규율"이 강제한다.
 >
 > **편집 권한 전제(실측)**: Figma 변수/노드 MCP 접근은 **편집 권한이 필요**하다 — 뷰어 권한 파일(공유받은 튜토리얼·핸드오프 파일 등)은 `get_variable_defs`가 거부된다. 그 경우 Figma에서 **사본 만들기(Duplicate)** 후 사본을 활성 탭으로 열어 실행한다.
 
@@ -20,7 +20,7 @@ allowed-tools: Read, Edit, Write, Grep, Glob, Skill, AskUserQuestion, mcp__plugi
 - `check` — Figma Variables ↔ 토큰 스토어 차이를 **읽기 전용 드리프트 리포트**로만 출력(수정·질문 없음).
 - `push` — 질문 없이 토큰 스토어를 활성 탭의 Figma Variables로 일괄 생성/갱신(**명시적 code-wins 빠른 경로**).
 - `extract <figma-url>` — **Figma → 코드 부트스트랩**: 활성 탭의 변수 전체를 CSS custom properties로 추출해 신규 토큰 파일을 생성한다(아래 절차).
-- `--tokens <path>` — 토큰 스토어 경로. 미지정 시 `references/fe-acceptance.md`의 **토큰 시스템 탐지 순서**를 따른다(① fe-context `tokensPath` → ② `shared/tokens/tokens.json`). `.json`이면 DTCG, `.css`면 CSS custom properties 스토어로 다룬다.
+- `--tokens <path>` — 토큰 스토어 경로. 미지정 시 `references/fe-acceptance.md`의 **토큰 시스템 탐지 순서**(SoT — 여기서 재기술하지 않는다)를 따르되, `sync`/`push`/`extract`는 **파일 기반 스토어**(`.json` DTCG 또는 `.css` custom properties)만 대상으로 한다. Tailwind config의 theme 확장처럼 파일 스토어가 아닌 시스템은 탐지되어도 sync 대상이 아니며, 그 경우 `extract`로 부트스트랩한다. `.json`이면 DTCG, `.css`면 CSS custom properties 스토어로 다룬다.
 
 > **모드별 권한 규율(본문이 강제).** `allowed-tools`는 커맨드 단위라 네 모드가 같은 권한을 공유하지만: `check`는 **절대 `Edit`/`Write`/`use_figma`를 호출하지 않는다**(read-only). `sync`/`push`는 `Edit`+`use_figma`만 쓴다. **`Write`는 `extract` 전용**이다 — `sync`/`check`/`push`에서 `Write` 호출 금지(기존 스토어는 항상 외과적 `Edit`). Plan 모드에선 쓰기 도구가 막혀 graceful하게 실패한다.
 

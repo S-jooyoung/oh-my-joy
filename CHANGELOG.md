@@ -25,6 +25,9 @@
 
 - `check-design-tokens.mjs` — **탐지 신호/노이즈 역전 해소**. 실측에서 이 훅은 오탐 4건을 보고하면서 같은 파일의 진짜 하드코딩 2건을 놓쳤다. (a) `url(#gradient)`·`href="#section"`·private field `this.#abc`·5·7자리 hex를 색상으로 오인하던 것을 제거하고, (b) 블록·JSX(`{/* */}`)·인라인 `//` 주석을 라인 수 보존 방식으로 마스킹하며, (c) Tailwind v4/shadcn 생태계의 주 문법인 `hsl()`·`oklch()`·`hwb()`·`lab()`·`lch()`와 CSS 선언 위치의 네임드 컬러를 새로 탐지한다. `hsl(var(--h) …)`처럼 `var()`로 감싼 호출은 토큰 사용이므로 위반이 아니다.
 - `check-design-tokens.mjs` — 검사 대상에 `.ts`/`.scss`/`.sass`/`.less` 추가(CSS-in-JS 테마 객체와 SCSS가 빠져 있었다). 경고 개수를 라인 수가 아닌 **실제 색상 개수**로 집계. 경로 해석 기준점을 훅 계약이 준 `cwd`로 통일(`path.resolve(filePath)`는 훅 프로세스 cwd를 써서 상대경로 입력 시 검사가 조용히 스킵됐다). 프로젝트 루트 밖 파일은 읽지 않는다.
+- **playwright MCP 폴백이 권한 선언에 없어 실제로 호출 불가였다** — v0.3.0이 대표 기능으로 광고한 폴백인데 `/omj-verify`·`/omj-fix`의 `allowed-tools`에 어떤 playwright MCP 도구도 없었다. 두 커맨드에 `mcp__playwright__*`와 플러그인 프리픽스 변형을 함께 선언한다(설치 출처에 따라 이름이 달라진다).
+- `/omj-sync check`를 "read-only라 어느 모드에서든 안전"하다고 단언하던 문구 정정 — `allowed-tools`는 커맨드 단위라 check 실행 세션도 `Edit`/`Write`/`use_figma` 권한을 그대로 들고 있다. read-only 보장의 강제층이 권한이 아니라 본문 규율임을 명시한다.
+- `/omj-sync`의 토큰 탐지 SoT 인용이 4단계 중 2단계만 옮겨 적어 CSS/Tailwind 기반 스토어가 누락됐다 — 나열을 지우고 SoT로 위임하되, sync/push/extract가 **파일 기반 스토어만** 대상으로 한다는 경계를 명시(`fe-acceptance.md`와 정합).
 - **설치 문자열이 작성자 로컬 경로를 가리키던 문제** — README(EN/KO)의 Quick Start 1행이 `~/projects/oh-my-joy`라 공개 레포를 클론한 누구도 설치할 수 없었다(작성자 머신에서조차 실제 경로와 불일치). `/plugin marketplace add S-jooyoung/oh-my-joy`로 정정.
 - CHANGELOG 릴리스 링크 — `[0.3.0]` 링크 정의가 없어 GitHub에서 리터럴로 렌더됐고, `[Unreleased]`가 한 단계 옛 버전(v0.2.0)을 기준으로 비교해 0.3.0 변경분이 Unreleased로 잡혔다. 두 항목 모두 정정.
 - 커맨드 본문의 SoT 포인터가 `[텍스트](${CLAUDE_PLUGIN_ROOT}/docs/…)` 형태의 마크다운 링크라 GitHub에서 404가 됐다 — 런타임 경로 문자열은 유지하고 링크 마크업만 벗겨 레포 기준 경로를 병기한다.
@@ -38,6 +41,8 @@
 - `/omj-start` safe-path 규칙에 **경로 봉쇄** 추가 — 기존 패턴은 shell metacharacter만 막고 *어떤 파일을 가리키는지*는 통제하지 않아 절대경로·`..` traversal이 그대로 통과했다. 새 셸 권한 없이 문자열만으로 검사 가능한 조건(절대경로 금지·`..` 금지·`.md` 확장자)을 추가.
 - `/omj-setup` 최소권한 정합화 — 본문에 호출 지점이 없는 `Bash(node:*)`·`Bash(jq:*)`·`Bash(ls:*)` 제거. 특히 `Bash(node:*)`는 `node -e "<임의 코드>"`를 사전승인하는 사실상의 임의 코드 실행 권한이었다(훅 등록은 문자열 `Write`이지 실행이 아니라 제거해도 영향 없음). `Bash(npm:*)`→`Bash(npm i -g playwright-cli:*)`, `Bash(claude:*)`→`Bash(claude plugin list:*)`+`Bash(claude plugin install:*)`로 축소.
 - `/omj-fix` 커밋 스테이징 범위 하드 규칙 — step 4에서 `Edit`한 경로만 명시 스테이징하고 `git add -A`·`git add .`를 금지한다. `--commit` 없이 호출되면 git 계열을 아예 실행하지 않는다.
+- `/omj-verify` 인자 검증 규칙 추가 — `ROUTE`·`BASE`는 사용자 입력이 셸에 들어가는 유일한 지점인데 아무 검증 없이 치환하도록 지시하고 있었다(`/omj-start`만 safe-input 계약을 갖고 있어 커맨드 간 태세가 불일치했다). 치환 전 형식 확인 + 항상 큰따옴표 변수 참조로 사용.
+- **자격증명·인증 화면 유출 가드** — `JOY_TEST_EMAIL`/`JOY_TEST_PASSWORD`로 실제 로그인을 수행하면서 경고가 레포 전체에 한 줄도 없었다. `fill`에는 변수 참조만 넘기고 값을 리포트에 적지 않기, 테스트 전용 계정 사용, 인증 후 스크린샷의 baseline 영속화 고지, `.omj/baselines/` gitignore 필수화를 명문화(README EN/KO 동기화).
 - `agents/design-qa.md`에 **강제 수준 고지** 추가 — `Edit`/`Write` 미부여는 도구 층 강제지만 스코프 없는 `Bash`가 있어 "`--fix` 금지"는 프롬프트 수준 규율일 뿐임을 명시하고, 기계적 강제가 필요할 때의 대안(`/omj-review` 또는 `permissions.deny`)을 안내한다.
 
 ## [0.3.0] - 2026-07-14
