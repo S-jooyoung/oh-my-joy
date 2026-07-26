@@ -72,7 +72,14 @@ const feContext = readFileSync(fcPath, 'utf8');
 if (!/^storybook:\s*true\s*$/m.test(feContext)) process.exit(0);
 
 // 경로 기준점은 훅 계약이 준 cwd 하나로 통일한다.
+const projectRoot = path.dirname(path.dirname(fcPath));
 const resolved = path.resolve(cwd, filePath);
+
+// 프로젝트 밖 파일은 이름조차 컨텍스트로 내보내지 않고 디렉터리도 열지 않는다.
+// (자매 훅 check-design-tokens.mjs와 같은 봉쇄 규칙 — 두 훅의 기준을 갈라 두지 않는다.
+//  `resolved !== projectRoot`는 파일 경로라 항상 참이지만 대칭 유지를 위해 남긴다.)
+if (resolved !== projectRoot && !resolved.startsWith(projectRoot + path.sep)) process.exit(0);
+
 const dir = path.dirname(resolved);
 const stem = path.basename(resolved).replace(COMPONENT_EXT, '');
 
@@ -88,16 +95,18 @@ if (!/^[A-Z]/.test(candidates[0])) process.exit(0);
  * fe-context에 `storiesDir:`를 선언해 알린다(축은 프로젝트가 선언 — PRINCIPLES ⑩).
  */
 const storiesDirMatch = feContext.match(/^storiesDir:\s*(\S+)/m);
-const projectRoot = path.dirname(path.dirname(fcPath));
 const searchDirs = [dir];
 if (storiesDirMatch) searchDirs.push(path.resolve(projectRoot, storiesDirMatch[1]));
 
-const hasStory = searchDirs.some((searchDir) => {
-  const entries = listFiles(searchDir);
-  return entries === null
-    ? true // 읽을 수 없는 디렉터리는 "없다"고 단정하지 않는다 — 오탐보다 침묵을 택한다
-    : entries.some((f) => candidates.some((name) => f.startsWith(`${name}.stories.`)));
-});
+// 읽을 수 없는 디렉터리는 "Story 없음"의 근거로도, "Story 있음"의 근거로도 쓰지 않는다.
+// 이걸 `true`로 승격하면 storiesDir 오타 하나가 `.some()`을 단락시켜 훅이 프로젝트
+// 전체에서 영구 침묵한다 — 읽히는 디렉터리가 하나라도 있으면 그것으로 판정한다.
+const readable = searchDirs.map(listFiles).filter(Boolean);
+if (readable.length === 0) process.exit(0);
+
+const hasStory = readable.some((entries) =>
+  entries.some((f) => candidates.some((name) => f.startsWith(`${name}.stories.`))),
+);
 if (hasStory) process.exit(0);
 
 console.log(

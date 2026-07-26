@@ -43,9 +43,16 @@ describe('check-design-tokens — 게이트(범용성 보장)', () => {
     assert.equal(result.stdout, '');
   });
 
-  it('stdin이 JSON이 아니어도 죽지 않는다', () => {
-    const result = runHook('check-design-tokens.mjs', 'not-json');
-    assert.equal(result.stdout, '');
+  it('파싱 불가 stdin에서도 죽지 않는다', () => {
+    assert.equal(runHook('check-design-tokens.mjs', 'not-json{', { raw: true }).stdout, '');
+  });
+
+  it('빈 stdin에서도 죽지 않는다', () => {
+    assert.equal(runHook('check-design-tokens.mjs', '', { raw: true }).stdout, '');
+  });
+
+  it('JSON이지만 객체가 아닌 stdin도 죽지 않는다', () => {
+    assert.equal(runHook('check-design-tokens.mjs', 'not-json').stdout, '');
   });
 });
 
@@ -180,8 +187,37 @@ describe('check-design-tokens — 최신 CSS 색상 문법', () => {
     assert.equal(result.stdout, '');
   });
 
+  it('멀티라인 색상 함수의 var() 인자도 위반이 아니다', () => {
+    const source = '.a {\n  color: hsl(\n    var(--h) var(--s) var(--l)\n  );\n}\n';
+    assert.equal(checkFile('src/theme.css', source).stdout, '');
+  });
+
+  it('색상 라이브러리 메서드 호출은 색상 리터럴이 아니다', () => {
+    const source = 'export const c = chroma.lab(50, 0, 0);\nexport const d = (x) => d3.rgb(x).darker();\n';
+    assert.equal(checkFile('src/color.ts', source).stdout, '');
+  });
+
   it('CSS 선언 위치의 네임드 컬러를 탐지한다', () => {
     assert.match(checkFile('src/a.css', '.a { border: 1px solid black; }\n').context, /하드코딩 색상 1건/);
+  });
+
+  it('background-image의 네임드 컬러도 탐지한다', () => {
+    const result = checkFile('src/a.css', '.a { background-image: linear-gradient(red, blue); }\n');
+    assert.match(result.context, /하드코딩 색상/);
+  });
+
+  it('색상 이름을 담은 토큰 참조는 위반이 아니다 — 훅이 권장하는 사용법이다', () => {
+    const source = ':root { --brand: var(--color-red-500); }\n.a { background: var(--gray-100); }\n';
+    assert.equal(checkFile('src/theme.css', source).stdout, '');
+  });
+
+  it('색상 이름이 든 토큰 표기(red.500)를 위반으로 보지 않는다', () => {
+    assert.equal(checkFile('src/theme.ts', 'export const s = { color: "red.500" };\n').stdout, '');
+  });
+
+  it('한 줄에 여러 프로퍼티가 있어도 앞 속성이 뒤 속성 값을 삼키지 않는다', () => {
+    const source = 'export type P = { color: string, tone: "red" | "blue" };\n';
+    assert.equal(checkFile('src/types.ts', source).stdout, '');
   });
 
   it('자유 위치의 색상 이름은 식별자와 구분할 수 없으므로 검사하지 않는다', () => {
