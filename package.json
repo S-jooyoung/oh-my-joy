@@ -1,6 +1,6 @@
 {
   "name": "oh-my-joy",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "Dev-only tooling for the oh-my-joy Claude Code plugin. The plugin itself ships no runtime dependencies — this manifest exists solely to run the validation suite.",
