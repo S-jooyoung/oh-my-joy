@@ -1,7 +1,7 @@
 ---
 description: 브랜치/스테이징 diff를 FF 4기준+a11y · vercel(성능/합성) · Next.js(Context7) 기준으로 통합 리뷰 (read-only)
 argument-hint: "[--base <ref>]"
-allowed-tools: Read, Grep, Glob, Skill, Bash(git diff:*), Bash(git rev-parse:*), mcp__plugin_context7-plugin_context7__*
+allowed-tools: Read, Grep, Glob, Skill, Bash(git diff:*), Bash(git rev-parse:*), mcp__plugin_context7-plugin_context7__*, mcp__context7__*
 ---
 
 # /omj-review — FF 통합 코드 리뷰 (검증, read-only)

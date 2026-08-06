@@ -1,7 +1,7 @@
 ---
 description: 스크린샷을 붙여넣고 "정렬이 안 맞아/잘려 보여/간격·색·hover가 이상해/줄바꿈이 어색해" 같은 시각·동작 결함을 서술하면 이 커맨드 — route의 결함을 고치고 재캡처로 확인하는 능동 루프 (관찰/재확인은 /omj-verify 캡처 프로토콜 재사용)
 argument-hint: "<route> [\"불만/설명\"] [--base <url>] [--commit]"
-allowed-tools: Read, Grep, Glob, Edit, Skill, Bash(command:*), Bash(playwright-cli:*), Bash(curl:*), Bash(git status:*), Bash(git diff:*), Bash(git add:*), Bash(git commit:*), Bash(npx tsc:*), mcp__playwright__*, mcp__plugin_playwright_playwright__*, mcp__plugin_context7-plugin_context7__*
+allowed-tools: Read, Grep, Glob, Edit, Skill, Bash(command:*), Bash(playwright-cli:*), Bash(curl:*), Bash(git status:*), Bash(git diff:*), Bash(git add:*), Bash(git commit:*), Bash(npx tsc:*), mcp__playwright__*, mcp__plugin_playwright_playwright__*, mcp__plugin_context7-plugin_context7__*, mcp__context7__*
 ---
 
 # /omj-fix — 시각/동작 결함 수정 루프
