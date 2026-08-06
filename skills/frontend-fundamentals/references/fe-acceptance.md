@@ -26,7 +26,7 @@ tokensPath: <semantic 토큰 파일 경로>   # 선택 (.json=DTCG, .css=custom 
 designDocPath: <브랜드/조합 규칙 문서>   # 선택 — 선언 시 /omj Phase 1이 Read
 storybook: true|false                  # 선택 — true면 design-qa Story 체크·check-story-exists 훅 활성
 storiesDir: <Story 모음 디렉터리>        # 선택 — Story를 형제 파일이 아닌 별도 디렉터리에 두는 프로젝트만
-verifySetup: <시각검증 절차 문서/절>     # 선택 — /omj-verify·/omj-fix가 관찰 전 Read (인증 우회·API 목)
+verifySetup: <시각검증 절차 문서/절>     # 선택 — /omj-verify·/omj-fix가 관찰 전 Read (쿠키 주입·가드 목킹 등 인증 우회/API 목. 어떤 절차든 verify는 캡처 전 도달 라우트를 항상 검증한다)
 conventions:                           # 선택 — 프로젝트 코드 구조 선언 (예: 1컴포넌트=4파일)
   - <규칙 1>
 acceptance:                            # 선택 — 이 프로젝트에서 구현 시 자주 빠뜨리는 축을 한 줄씩
