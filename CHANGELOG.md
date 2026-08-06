@@ -22,12 +22,17 @@
 
 ### Fixed
 
+- **figma/context7 MCP 사전승인이 플러그인 설치 경로 이름에만 의존하던 문제** — 소비자가 Figma MCP를 raw로 등록하면(`claude mcp add figma`) 도구명이 `mcp__figma__*`가 되어 커맨드 사전승인이 풀리고 `figma-implementer`는 도구를 아예 잃었다. v0.4.0이 playwright 폴백에 적용한 이중 선언("설치 출처에 따라 이름이 달라진다")을 figma·context7에도 적용 — `commands/omj.md`·`commands/omj-sync.md`·`agents/figma-implementer.md`에 bare 변형 병기. 플러그인 구성 점검(plugin-validator)에서 발견.
+- `marketplace.json`의 "개인 프론트엔드 플러그인" 문구를 범용 서술로 정정 — 도메인 중립 원칙과 어긋나는 잔재였다.
 - **OMX `$ralplan` 드리프트 정정** — OMX가 합의 레인에 호스트 영수증 게이트를 도입해(ADR 3212 계열) `$ralplan`이 **계획 산출 후 정지**(fail-closed)하게 됐는데, OMJ 문서 전반이 `/ralplan`/`$ralplan`을 한 쌍의 "합의 후 실행 연결 레인"으로 서술하고 있었다 — selector가 이를 추천하면 사용자는 blocker만 받는다. 라우팅 SoT(`docs/EXECUTION-HANDOFF.md`)에 런타임 비대칭을 명시하고, OMC-INTEGRATION·PRINCIPLES·README(EN/KO)·CLAUDE.md·`commands/omj.md`·`commands/omj-start.md`는 요약/링크로 정리. 근거: dogfood 마이닝 Phase A(`.omc/research/omj-dogfood-mining-2026-08.md`).
 - README(EN/KO) 계획 행의 `/omc-plan` 표기 정정 — OMC에 그 커맨드는 존재하지 않는다(계획 진입점은 skill `/oh-my-claudecode:plan`).
 - Syntax map의 `$team`/`omx team`에 런타임 표면 단서 추가 — Codex App·tmux 밖 세션에서는 직접 제시하지 않는다(shell에서 OMX CLI 선기동).
 - `/omj-start`의 OMX direct launch를 2단계 CLI로 정정 — `create-goals`는 goal **생성만** 하므로(시작은 `complete-goals`), 생성 후 최종 copyable action을 `omx ultragoal complete-goals`로 출력한다. 기존 계약은 goal만 만들고 아무것도 실행되지 않은 상태로 사용자를 남겼다.
 
 ### Security
+
+- `/omj-start`의 `Bash(git status:*)` 선언 제거 — 본문 절차에 호출 지점이 없었다("호출 지점 없는 도구는 선언하지 않는다" 규칙 정합). `/omj-fix`의 `git status`/`git diff`는 반대로 본문 step 6에 호출 지점을 성문화.
+- `/omj-setup`의 gh star 권한을 `:*` prefix에서 **정확 매칭 2개**로 분리(`gh api user/starred/S-jooyoung/oh-my-joy` + 동일 경로 `-X PUT`) — 기존 와일드카드는 호출 지점이 없는 `-X DELETE`(unstar)까지 사전승인했다.
 
 ## [0.4.0] - 2026-07-27
 
