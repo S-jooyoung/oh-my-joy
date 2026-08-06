@@ -10,6 +10,8 @@
 
 ### Changed
 
+- **`/omj`·`/omj-fix` 트리거 재작성 — 도달률 개선** — dogfood 마이닝 결과 31일간 OMJ 침투율 6.8%, Figma Dev Mode 붙여넣기 22건 중 OMJ 도달 7건(전부 수동 타이핑), 스크린샷+시각 결함 서술 37턴에 `/omj-fix` 사용 0회. 원인은 기능이 아니라 진입 경로 — 공식 figma 스킬은 붙여넣기 문구에 auto-trigger로 붙는데 OMJ description은 그 패턴을 담지 않았다. 두 커맨드의 description을 실관측 트리거(figma.com 링크·"이 디자인 구현해줘"·스크린샷+정렬/잘림/간격/색 불만)에 맞춰 재작성하고 README(EN/KO)에 자동 발동 안내를 추가.
+
 ### Deprecated
 
 ### Removed
