@@ -1,5 +1,5 @@
 ---
-description: 프론트엔드 프라이머 — Figma/코드 명세를 수집해 FF·vercel 적용 구현 스펙(Plan)을 만들고 멈춘다(승인 후 구현)
+description: FE 작업·Figma 디자인 구현(design to code)의 진입점 — figma.com 링크를 붙여넣거나 "이 디자인/화면/컴포넌트 구현해줘"(implement this Figma design) 요청이면 이 커맨드가 먼저다. 명세를 수집해 FF·vercel 적용 구현 스펙(Plan)을 만들고 멈춘다(승인 후 구현)
 argument-hint: "[figma-url … 또는 작업설명] [route]"
 allowed-tools: Read, Grep, Glob, Skill, AskUserQuestion, mcp__plugin_figma_figma__get_design_context, mcp__plugin_figma_figma__get_screenshot, mcp__plugin_figma_figma__get_variable_defs, mcp__plugin_figma_figma__get_metadata, mcp__plugin_context7-plugin_context7__*
 ---

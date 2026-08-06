@@ -88,6 +88,8 @@ The reasoning behind each decision — problem → decision → rationale → ou
 | **`/omj-setup`** | Dependency doctor + install guide + scaffolding for `.omj/fe-context.md` and opt-in token-guard hooks | Before first use | `/omj-setup` |
 
 > **read-only vs active op.** `/omj` and `/omj-review` are read-only (report only) — `/omj` may ask **at most one** post-spec execution-lane question (skipped with an `(auto)` record when inline/manual is recommended — Plan approval doubles as lane consent), and still cannot Write/Edit/build/test. `/omj-start` is a handoff command: it launches only when the runtime surface is explicit and safe, otherwise it prints one copyable action. `/omj-verify`, `/omj-fix`, and `/omj-sync` (sync/push/extract) are active ops using Figma write / `Edit`/`Write` / Bash; if your environment blocks those in Plan mode, exit Plan mode first. Each command's syntax, arguments, and steps live in its `commands/<name>.md` (the source of truth).
+>
+> **Auto-trigger.** The command descriptions are written to match the two most frequent real-world patterns, so the agent can route to them without you typing the slash command: pasting a Figma Dev Mode link ("implement this design…") routes to `/omj`, and pasting a screenshot with a visual complaint ("misaligned", "clipped", "wrong spacing/color") routes to `/omj-fix`.
 
 ### Bundled agents & opt-in hooks (v0.3.0)
 
