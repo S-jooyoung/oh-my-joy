@@ -12,6 +12,8 @@
 
 ### Changed
 
+- **`/omj-setup` 온보딩 개편 — 도달률 개선** — dogfood 마이닝에서 setup 실행 0회가 fe-context·훅 미설치의 연쇄 원인으로 확인됐다(Phase D). 네 가지를 바꾼다: ① `/omj`가 셋업 흔적 없음을 감지하면 스펙 말미에 1회 제안(자동 실행 아님), ② 누락 항목별 개별 질문을 **한 번의 multiSelect 일괄 선택**으로 교체(PRINCIPLES ⑪), ③ fe-context 스캐폴딩 전에 기존 규칙 문서(`AGENTS.md`·`.claude/rules/`·copilot-instructions)를 탐지해 **`contextDocs:` 참조-채택을 우선**(내용 복제 금지 — 실측에서 fe-context가 겨냥한 정보는 이미 이런 파일들로 존재했고, 리뷰 정확도를 올린 건 과거 결정 목록이라 `decisions:` 필드도 신설), ④ 마무리에 **GitHub star opt-in**(이미 starred면 무프롬프트 스킵, silent fail, gh 부재 시 URL 안내 — OMC omc-setup 패턴, 사용자 지시). `gh` Bash 권한은 star 호출 지점에 맞춘 최소 prefix(`gh auth status`·`gh api user/starred/S-jooyoung/oh-my-joy`)로만 선언.
+- **`check-story-exists` 훅 제안 조건화** — Storybook 신호(`.storybook/`·`@storybook/*` 의존성·`*.stories.*`)가 감지될 때만 설치 선택지에 넣는다. 훅 자체는 fe-context 미선언 시 no-op이라 안전했지만, 대상 관행이 없는 프로젝트에 제안하는 것 자체가 노이즈였다(31일 실측에서 Storybook 실질 언급 0회). 범용 플러그인이므로 기능 제거가 아니라 제안 조건화로 처리.
 - **`/omj`·`/omj-fix` 트리거 재작성 — 도달률 개선** — dogfood 마이닝 결과 31일간 OMJ 침투율 6.8%, Figma Dev Mode 붙여넣기 22건 중 OMJ 도달 7건(전부 수동 타이핑), 스크린샷+시각 결함 서술 37턴에 `/omj-fix` 사용 0회. 원인은 기능이 아니라 진입 경로 — 공식 figma 스킬은 붙여넣기 문구에 auto-trigger로 붙는데 OMJ description은 그 패턴을 담지 않았다. 두 커맨드의 description을 실관측 트리거(figma.com 링크·"이 디자인 구현해줘"·스크린샷+정렬/잘림/간격/색 불만)에 맞춰 재작성하고 README(EN/KO)에 자동 발동 안내를 추가.
 
 ### Deprecated
