@@ -130,7 +130,7 @@ OMJ는 oh-my-claudecode(OMC), oh-my-codex(OMX)와 **별개의 독립 플러그�
 
 | 단계 | OMJ | OMC/OMX |
 | --- | --- | --- |
-| 계획 | `/omj`(FE 스펙, 네이티브 Plan + 실행 selector) | `/omc-plan`·`/ralplan`·`$ralplan` |
+| 계획 | `/omj`(FE 스펙, 네이티브 Plan + 실행 selector) | `/oh-my-claudecode:plan`·`/ralplan`·`$ralplan`(OMX: plan-only) |
 | 실행 | `/omj-start` fallback handoff | `/goal`·`$ultragoal`·`/team`/`$team`·`/ralph`/`$ralph` |
 | 검증 | `/omj-review`·`/omj-verify` | `/verify`·`$ultraqa` |
 
