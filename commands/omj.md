@@ -32,6 +32,7 @@ allowed-tools: Read, Grep, Glob, Skill, AskUserQuestion, mcp__plugin_figma_figma
 - `mcp__plugin_figma_figma__get_variable_defs` — 디자인 토큰/변수
 - `mcp__plugin_figma_figma__get_metadata` — 노드 메타(선택)
 - Figma MCP를 쓸 수 없으면(미설치·데스크톱 미연결) **에러로 취급하지 말고** "Figma 미연결 — URL 내용 없이 진행하거나 수동 명세를 받겠다"고 안내(graceful). 뷰어 권한 파일은 변수/노드 접근이 거부된다 — "사본 만들기(Duplicate) 후 사본 URL로 재시도" 안내.
+- **figma 공식 스킬과의 역할 경계**: 공식 figma 플러그인의 `figma-design-to-code` 스킬은 `get_design_context` 호출 전 자기 로드를 MANDATORY로 규정하지만, `/omj` 프라이밍은 이를 **알고도 따르지 않는 의도적 결정**이다 — 그 스킬은 구현을 전제하는데 프라이밍은 스펙 작성용 읽기이며, 구현 유도 지침을 로드하면 read-only plan-gate 정체성(PRINCIPLES ①③)이 침식된다. 상류 지침은 **승인 후 구현 단계**(figma-implementer·inline 실행자)가 따른다. 두 스킬이 동시 로드된 세션에서도 역할 분담은 같다: 프라이밍=OMJ, 구현=상류 지침 준수(내용 복제 없음). 이 절은 스킬 **발동 경쟁을 중재하지 않는다** — 그 층은 description 트리거가 담당한다.
 
 **dev 프라이머**: 대상 코드를 읽는다.
 - 작업과 관련된 컴포넌트/훅/스타일/타입을 `Glob`·`Grep`·`Read`로 수집해 현재 구조와 재사용 가능한 패턴을 파악한다.
