@@ -130,7 +130,7 @@ OMJ is a **standalone plugin independent of** oh-my-claudecode (OMC) and oh-my-c
 
 | Stage | OMJ | OMC/OMX |
 | --- | --- | --- |
-| Plan | `/omj` (FE spec, native Plan + execution selector) | `/omc-plan` · `/ralplan` · `$ralplan` |
+| Plan | `/omj` (FE spec, native Plan + execution selector) | `/oh-my-claudecode:plan` · `/ralplan` · `$ralplan` (OMX: plan-only) |
 | Execute | `/omj-start` fallback handoff | `/goal` · `$ultragoal` · `/team`/`$team` · `/ralph`/`$ralph` |
 | Verify | `/omj-review` · `/omj-verify` | `/verify` · `$ultraqa` |
 
