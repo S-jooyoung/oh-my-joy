@@ -8,6 +8,22 @@
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.5.0] - 2026-08-06
+
+> **도달률 릴리스.** 31일 dogfood 마이닝(세션 로그 118개·소비 레포 git 66커밋·OMX 336커밋·.omc 아티팩트 21편)이 "품질이 아니라 도달률 문제"를 실증했다 — 호출된 커맨드는 마찰 없이 동작했지만 침투율 6.8%, 커맨드 7개 중 5개 사용 0회, 플래그십 루프(스크린샷 62장/24세션)가 전부 플러그인 밖에서 수동으로 돌았다. 이 릴리스는 기능 추가가 아니라 **도달 경로**를 고친다: 트리거 재작성·온보딩 자동 제안·라우팅 drift 정정·조용한 오검증 차단. 전 변경이 근거 로그와 ralplan 합의(Planner→Architect→Critic, 게이트 선행)를 거쳤고, 배포 전 불변식 테스트 2종과 격리 클론 스모크를 통과했다.
+
+### Added
+
 - **figma 공식 스킬과의 역할 경계 명문화** — `/omj` Phase 1에 경계 1절: 상류 `figma-design-to-code` 스킬이 `get_design_context` 호출 전 로드를 MANDATORY로 규정하지만, 프라이밍은 이를 **알고도 따르지 않는 의도적 결정**이다(그 스킬은 구현 전제 — read-only plan-gate 정체성 침식). 상류 지침은 승인 후 구현 단계가 따른다. 트리거 재작성으로 라우팅 경쟁에 들어간 뒤 동시 로드(마이닝 관측 6회) 시 역할 경계가 미정의였던 갭을 해소 — 단, 이 절은 발동 경쟁 자체를 중재하지 않는다(그 층은 description 담당). PRINCIPLES ③(+en)에 "버그가 아니라 결정" 명문화.
 - **도구 선언 불변식 테스트 2종** — 같은 결함 클래스 3회 재발 후 ralplan 합의로 도입. (a) 플러그인 경유 MCP 선언(`mcp__plugin_<plugin>_<server>__*`)에 bare 서버 변형 병기 강제, (b) `Bash(…)` 선언의 명령 문자열이 frontmatter 제외 본문에 존재하는지 검증(언급 기반 게이트임을 주석 명시). 도입 시점에 실제로 잔존 결함 3건을 검출했다 — `omj-review`·`omj-fix`의 bare `mcp__context7__*` 누락(직전 이중 프리픽스 수정이 3/5 지점만 커버), `omj-setup`의 `Bash(mkdir:*)` 호출 지점 부재(→ 훅 설치 절차에 `mkdir -p .claude/hooks` 성문화). 셋 다 수정 후 149 테스트 통과.
 - **`/omj-verify` 도달 라우트 검증 필수화** — 캡처를 증거로 쓰기 전에 현재 페이지가 요청한 `$ROUTE`에 실제 도달했는지 확인하고, 인증 리다이렉트 화면이면 비교하지 않고 "예상 라우트 미도달"을 실패로 보고한다. dogfood 마이닝 Phase C에서 인증 게이트 라우트 캡처가 3개 레포에서 실패했고(스킵/오검증/우회 제각각) 리다이렉트된 화면을 찍고 통과시킬 뻔한 실사례가 있었다 — 잘못된 결과를 자신 있게 보고하는 유일한 실패 모드를 차단한다. fe-context `verifySetup` 주석에 쿠키 주입·가드 목킹 옵션을 명시.
@@ -170,7 +186,8 @@
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.1.0...v0.2.0
