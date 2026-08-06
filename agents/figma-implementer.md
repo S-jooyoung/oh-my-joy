@@ -1,7 +1,7 @@
 ---
 name: figma-implementer
 description: 사용자가 승인한 OMJ 구현 스펙(uSpec)을 코드로 구현하는 실행 전담 에이전트. 승인된 스펙 문서(또는 그 경로)가 입력으로 주어졌을 때만 사용한다 — 스펙 없는 요청은 /omj 프라이머가 먼저다. OMC/OMX 실행 레인이 선택된 작업에는 그 레인을 우선하고, 이 에이전트는 inline 레인의 표준 실행자다.
-tools: Read, Grep, Glob, Edit, Write, Bash, Skill, mcp__plugin_figma_figma__get_design_context, mcp__plugin_figma_figma__get_screenshot, mcp__plugin_figma_figma__get_variable_defs, mcp__plugin_figma_figma__get_metadata, mcp__plugin_context7-plugin_context7__query-docs, mcp__plugin_context7-plugin_context7__resolve-library-id
+tools: Read, Grep, Glob, Edit, Write, Bash, Skill, mcp__plugin_figma_figma__get_design_context, mcp__plugin_figma_figma__get_screenshot, mcp__plugin_figma_figma__get_variable_defs, mcp__plugin_figma_figma__get_metadata, mcp__figma__get_design_context, mcp__figma__get_screenshot, mcp__figma__get_variable_defs, mcp__figma__get_metadata, mcp__plugin_context7-plugin_context7__query-docs, mcp__plugin_context7-plugin_context7__resolve-library-id, mcp__context7__query-docs, mcp__context7__resolve-library-id
 ---
 
 # figma-implementer — 승인된 OMJ 스펙 구현 실행자
