@@ -36,7 +36,7 @@ allowed-tools: Read, Grep, Glob, Skill, AskUserQuestion, mcp__plugin_figma_figma
 **dev 프라이머**: 대상 코드를 읽는다.
 - 작업과 관련된 컴포넌트/훅/스타일/타입을 `Glob`·`Grep`·`Read`로 수집해 현재 구조와 재사용 가능한 패턴을 파악한다.
 
-**공통(선택)**: 변경이 Next.js 버전 민감 주제와 관련되면 **`frontend-fundamentals` 스킬의 라우팅 규칙**에 따라 Context7로 `/vercel/next.js` 최신 문서를 조회한다(`resolve-library-id` → `query-docs`). 버전 민감 주제 목록과 vercel/Context7 라우팅의 SoT는 FF 스킬이며, 여기서는 중복 서술하지 않고 위임한다. Context7 부재 시 이 단계 생략(graceful). 레포 루트에 `.omj/fe-context.md`가 있고 `designDocPath`가 선언돼 있으면 그 문서도 `Read`해 브랜드·조합 규칙을 스펙에 반영한다.
+**공통(선택)**: 변경이 Next.js 버전 민감 주제와 관련되면 **`frontend-fundamentals` 스킬의 라우팅 규칙**에 따라 Context7로 `/vercel/next.js` 최신 문서를 조회한다(`resolve-library-id` → `query-docs`). 버전 민감 주제 목록과 vercel/Context7 라우팅의 SoT는 FF 스킬이며, 여기서는 중복 서술하지 않고 위임한다. Context7 부재 시 이 단계 생략(graceful). 레포 루트에 `.omj/fe-context.md`가 있고 `designDocPath`·`contextDocs`가 선언돼 있으면 그 문서들도 `Read`해 브랜드·조합·프로젝트 규칙을 스펙에 반영한다(`decisions:` 목록은 재발 방지 체크로). 반대로 **셋업 흔적이 전혀 없으면**(레포에 `.omj/` 없음 + `~/.claude/.omj-setup.json` 마커 없음) 스펙 말미에 "처음이면 `/omj-setup` 1회 실행 권장(fe-context·훅·의존성 점검)" 한 줄을 포함한다 — 제안만 하고 실행하지 않는다.
 
 ## Phase 2 — 구현 스펙 author 후 STOP
 
