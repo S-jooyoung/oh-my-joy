@@ -18,6 +18,40 @@
 
 ### Security
 
+## [0.5.0] - 2026-08-06
+
+> **도달률 릴리스.** 31일 dogfood 마이닝(세션 로그 118개·소비 레포 git 66커밋·OMX 336커밋·.omc 아티팩트 21편)이 "품질이 아니라 도달률 문제"를 실증했다 — 호출된 커맨드는 마찰 없이 동작했지만 침투율 6.8%, 커맨드 7개 중 5개 사용 0회, 플래그십 루프(스크린샷 62장/24세션)가 전부 플러그인 밖에서 수동으로 돌았다. 이 릴리스는 기능 추가가 아니라 **도달 경로**를 고친다: 트리거 재작성·온보딩 자동 제안·라우팅 drift 정정·조용한 오검증 차단. 전 변경이 근거 로그와 ralplan 합의(Planner→Architect→Critic, 게이트 선행)를 거쳤고, 배포 전 불변식 테스트 2종과 격리 클론 스모크를 통과했다.
+
+### Added
+
+- **figma 공식 스킬과의 역할 경계 명문화** — `/omj` Phase 1에 경계 1절: 상류 `figma-design-to-code` 스킬이 `get_design_context` 호출 전 로드를 MANDATORY로 규정하지만, 프라이밍은 이를 **알고도 따르지 않는 의도적 결정**이다(그 스킬은 구현 전제 — read-only plan-gate 정체성 침식). 상류 지침은 승인 후 구현 단계가 따른다. 트리거 재작성으로 라우팅 경쟁에 들어간 뒤 동시 로드(마이닝 관측 6회) 시 역할 경계가 미정의였던 갭을 해소 — 단, 이 절은 발동 경쟁 자체를 중재하지 않는다(그 층은 description 담당). PRINCIPLES ③(+en)에 "버그가 아니라 결정" 명문화.
+- **도구 선언 불변식 테스트 2종** — 같은 결함 클래스 3회 재발 후 ralplan 합의로 도입. (a) 플러그인 경유 MCP 선언(`mcp__plugin_<plugin>_<server>__*`)에 bare 서버 변형 병기 강제, (b) `Bash(…)` 선언의 명령 문자열이 frontmatter 제외 본문에 존재하는지 검증(언급 기반 게이트임을 주석 명시). 도입 시점에 실제로 잔존 결함 3건을 검출했다 — `omj-review`·`omj-fix`의 bare `mcp__context7__*` 누락(직전 이중 프리픽스 수정이 3/5 지점만 커버), `omj-setup`의 `Bash(mkdir:*)` 호출 지점 부재(→ 훅 설치 절차에 `mkdir -p .claude/hooks` 성문화). 셋 다 수정 후 149 테스트 통과.
+- **`/omj-verify` 도달 라우트 검증 필수화** — 캡처를 증거로 쓰기 전에 현재 페이지가 요청한 `$ROUTE`에 실제 도달했는지 확인하고, 인증 리다이렉트 화면이면 비교하지 않고 "예상 라우트 미도달"을 실패로 보고한다. dogfood 마이닝 Phase C에서 인증 게이트 라우트 캡처가 3개 레포에서 실패했고(스킵/오검증/우회 제각각) 리다이렉트된 화면을 찍고 통과시킬 뻔한 실사례가 있었다 — 잘못된 결과를 자신 있게 보고하는 유일한 실패 모드를 차단한다. fe-context `verifySetup` 주석에 쿠키 주입·가드 목킹 옵션을 명시.
+
+### Changed
+
+- **`/omj-setup` 온보딩 개편 — 도달률 개선** — dogfood 마이닝에서 setup 실행 0회가 fe-context·훅 미설치의 연쇄 원인으로 확인됐다(Phase D). 네 가지를 바꾼다: ① `/omj`가 셋업 흔적 없음을 감지하면 스펙 말미에 1회 제안(자동 실행 아님), ② 누락 항목별 개별 질문을 **한 번의 multiSelect 일괄 선택**으로 교체(PRINCIPLES ⑪), ③ fe-context 스캐폴딩 전에 기존 규칙 문서(`AGENTS.md`·`.claude/rules/`·copilot-instructions)를 탐지해 **`contextDocs:` 참조-채택을 우선**(내용 복제 금지 — 실측에서 fe-context가 겨냥한 정보는 이미 이런 파일들로 존재했고, 리뷰 정확도를 올린 건 과거 결정 목록이라 `decisions:` 필드도 신설), ④ 마무리에 **GitHub star opt-in**(이미 starred면 무프롬프트 스킵, silent fail, gh 부재 시 URL 안내 — OMC omc-setup 패턴, 사용자 지시). `gh` Bash 권한은 star 호출 지점에 맞춘 최소 prefix(`gh auth status`·`gh api user/starred/S-jooyoung/oh-my-joy`)로만 선언.
+- **`check-story-exists` 훅 제안 조건화** — Storybook 신호(`.storybook/`·`@storybook/*` 의존성·`*.stories.*`)가 감지될 때만 설치 선택지에 넣는다. 훅 자체는 fe-context 미선언 시 no-op이라 안전했지만, 대상 관행이 없는 프로젝트에 제안하는 것 자체가 노이즈였다(31일 실측에서 Storybook 실질 언급 0회). 범용 플러그인이므로 기능 제거가 아니라 제안 조건화로 처리.
+- **`/omj`·`/omj-fix` 트리거 재작성 — 도달률 개선** — dogfood 마이닝 결과 31일간 OMJ 침투율 6.8%, Figma Dev Mode 붙여넣기 22건 중 OMJ 도달 7건(전부 수동 타이핑), 스크린샷+시각 결함 서술 37턴에 `/omj-fix` 사용 0회. 원인은 기능이 아니라 진입 경로 — 공식 figma 스킬은 붙여넣기 문구에 auto-trigger로 붙는데 OMJ description은 그 패턴을 담지 않았다. 두 커맨드의 description을 실관측 트리거(figma.com 링크·"이 디자인 구현해줘"·스크린샷+정렬/잘림/간격/색 불만)에 맞춰 재작성하고 README(EN/KO)에 자동 발동 안내를 추가.
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+- **figma/context7 MCP 사전승인이 플러그인 설치 경로 이름에만 의존하던 문제** — 소비자가 Figma MCP를 raw로 등록하면(`claude mcp add figma`) 도구명이 `mcp__figma__*`가 되어 커맨드 사전승인이 풀리고 `figma-implementer`는 도구를 아예 잃었다. v0.4.0이 playwright 폴백에 적용한 이중 선언("설치 출처에 따라 이름이 달라진다")을 figma·context7에도 적용 — `commands/omj.md`·`commands/omj-sync.md`·`agents/figma-implementer.md`에 bare 변형 병기. 플러그인 구성 점검(plugin-validator)에서 발견.
+- `marketplace.json`의 "개인 프론트엔드 플러그인" 문구를 범용 서술로 정정 — 도메인 중립 원칙과 어긋나는 잔재였다.
+- **OMX `$ralplan` 드리프트 정정** — OMX가 합의 레인에 호스트 영수증 게이트를 도입해(ADR 3212 계열) `$ralplan`이 **계획 산출 후 정지**(fail-closed)하게 됐는데, OMJ 문서 전반이 `/ralplan`/`$ralplan`을 한 쌍의 "합의 후 실행 연결 레인"으로 서술하고 있었다 — selector가 이를 추천하면 사용자는 blocker만 받는다. 라우팅 SoT(`docs/EXECUTION-HANDOFF.md`)에 런타임 비대칭을 명시하고, OMC-INTEGRATION·PRINCIPLES·README(EN/KO)·CLAUDE.md·`commands/omj.md`·`commands/omj-start.md`는 요약/링크로 정리. 근거: dogfood 마이닝 Phase A(`.omc/research/omj-dogfood-mining-2026-08.md`).
+- README(EN/KO) 계획 행의 `/omc-plan` 표기 정정 — OMC에 그 커맨드는 존재하지 않는다(계획 진입점은 skill `/oh-my-claudecode:plan`).
+- Syntax map의 `$team`/`omx team`에 런타임 표면 단서 추가 — Codex App·tmux 밖 세션에서는 직접 제시하지 않는다(shell에서 OMX CLI 선기동).
+- `/omj-start`의 OMX direct launch를 2단계 CLI로 정정 — `create-goals`는 goal **생성만** 하므로(시작은 `complete-goals`), 생성 후 최종 copyable action을 `omx ultragoal complete-goals`로 출력한다. 기존 계약은 goal만 만들고 아무것도 실행되지 않은 상태로 사용자를 남겼다.
+
+### Security
+
+- `/omj-start`의 `Bash(git status:*)` 선언 제거 — 본문 절차에 호출 지점이 없었다("호출 지점 없는 도구는 선언하지 않는다" 규칙 정합). `/omj-fix`의 `git status`/`git diff`는 반대로 본문 step 6에 호출 지점을 성문화.
+- `/omj-setup`의 gh star 권한을 `:*` prefix에서 **정확 매칭 2개**로 분리(`gh api user/starred/S-jooyoung/oh-my-joy` + 동일 경로 `-X PUT`) — 기존 와일드카드는 호출 지점이 없는 `-X DELETE`(unstar)까지 사전승인했다.
+
 ## [0.4.0] - 2026-07-27
 
 > 레포를 6개 축(훅 코드 정확성 · 문서 SoT 정합 · 플러그인 스펙 준수 · 최소권한/주입 표면 · 외부 관점 · 번들 지식 정확성)으로 감사하고, 각 발견을 파일 근거로 적대적 검증한 뒤 확인된 것만 반영한 릴리스. **핵심은 "선언한 것을 실제로 강제하는 층을 만든 것"** — 문서가 주장하던 안전 속성(최소권한·read-only·zero-hook·EN/KO 패리티) 중 상당수가 산문일 뿐이었고, 이제는 매니페스트와 테스트가 강제한다. 강제할 수 없는 부분은 과장을 걷어내 실제 동작대로 다시 적었다.
@@ -152,7 +186,8 @@
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.1.0...v0.2.0

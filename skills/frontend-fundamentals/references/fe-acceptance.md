@@ -6,7 +6,7 @@ FF 4기준 + 접근성 + 반응형·토큰은 **모든** 프로젝트에 보편�
 
 ## 동작
 
-1. 레포 루트에 **`.omj/fe-context.md`** 가 있으면 → 거기 선언된 acceptance 축을 읽어 `/omj` 스펙의 acceptance 기준 + `/omj-fix` 진단 체크 + `design-qa` 조건부 항목(Story·i18n)에 포함한다.
+1. 레포 루트에 **`.omj/fe-context.md`** 가 있으면 → 거기 선언된 acceptance 축을 읽어 `/omj` 스펙의 acceptance 기준 + `/omj-fix` 진단 체크 + `design-qa` 조건부 항목(Story·i18n)에 포함한다. `contextDocs:`가 선언돼 있으면 그 문서들도 함께 Read해 같은 자리에 반영하고(기존 규칙 문서 채택 — fe-context에 내용을 복제하지 않는다), `decisions:` 목록은 재발 방지 체크로 쓴다.
 2. 없으면 → 보편 FF 기준(가독성·예측가능성·응집도·결합도·접근성 + 반응형·토큰)만 적용한다(graceful — 에러 아님).
 3. **스캐폴딩 진입점은 `/omj-setup`** — 파일이 없으면 setup이 생성을 제안하고, 감지된 후보(i18n 디렉터리·토큰 시스템·테마 클래스)는 **주석으로만** 적는다(축 자동 선언 금지).
 
@@ -26,12 +26,17 @@ tokensPath: <semantic 토큰 파일 경로>   # 선택 (.json=DTCG, .css=custom 
 designDocPath: <브랜드/조합 규칙 문서>   # 선택 — 선언 시 /omj Phase 1이 Read
 storybook: true|false                  # 선택 — true면 design-qa Story 체크·check-story-exists 훅 활성
 storiesDir: <Story 모음 디렉터리>        # 선택 — Story를 형제 파일이 아닌 별도 디렉터리에 두는 프로젝트만
-verifySetup: <시각검증 절차 문서/절>     # 선택 — /omj-verify·/omj-fix가 관찰 전 Read (인증 우회·API 목)
+verifySetup: <시각검증 절차 문서/절>     # 선택 — /omj-verify·/omj-fix가 관찰 전 Read (쿠키 주입·가드 목킹 등 인증 우회/API 목. 어떤 절차든 verify는 캡처 전 도달 라우트를 항상 검증한다)
 conventions:                           # 선택 — 프로젝트 코드 구조 선언 (예: 1컴포넌트=4파일)
   - <규칙 1>
 acceptance:                            # 선택 — 이 프로젝트에서 구현 시 자주 빠뜨리는 축을 한 줄씩
   - <축 1>
   - <축 2>
+contextDocs:                           # 선택 — 이미 있는 프로젝트 규칙 문서를 그대로 채택(내용 복제 금지)
+  - AGENTS.md                          #   /omj·/omj-review·design-qa가 함께 Read — 중복 SoT를 만들지 않는다
+  - .claude/rules/components.md
+decisions:                             # 선택 — 재발 방지 결정/ADR 한 줄씩 (스펙·리뷰가 과거 결정의 재발을 잡게 함)
+  - <결정 ID 또는 한 줄 규칙>
 ```
 
 **예시 (어디까지나 *그 프로젝트의* 선언일 뿐, OMJ 기본값이 아니다):**

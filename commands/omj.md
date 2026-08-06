@@ -1,7 +1,7 @@
 ---
-description: 프론트엔드 프라이머 — Figma/코드 명세를 수집해 FF·vercel 적용 구현 스펙(Plan)을 만들고 멈춘다(승인 후 구현)
+description: FE 작업·Figma 디자인 구현(design to code)의 진입점 — figma.com 링크를 붙여넣거나 "이 디자인/화면/컴포넌트 구현해줘"(implement this Figma design) 요청이면 이 커맨드가 먼저다. 명세를 수집해 FF·vercel 적용 구현 스펙(Plan)을 만들고 멈춘다(승인 후 구현)
 argument-hint: "[figma-url … 또는 작업설명] [route]"
-allowed-tools: Read, Grep, Glob, Skill, AskUserQuestion, mcp__plugin_figma_figma__get_design_context, mcp__plugin_figma_figma__get_screenshot, mcp__plugin_figma_figma__get_variable_defs, mcp__plugin_figma_figma__get_metadata, mcp__plugin_context7-plugin_context7__*
+allowed-tools: Read, Grep, Glob, Skill, AskUserQuestion, mcp__plugin_figma_figma__get_design_context, mcp__plugin_figma_figma__get_screenshot, mcp__plugin_figma_figma__get_variable_defs, mcp__plugin_figma_figma__get_metadata, mcp__figma__get_design_context, mcp__figma__get_screenshot, mcp__figma__get_variable_defs, mcp__figma__get_metadata, mcp__plugin_context7-plugin_context7__*, mcp__context7__*
 ---
 
 # /omj — 프론트엔드 Plan 프라이머
@@ -32,11 +32,12 @@ allowed-tools: Read, Grep, Glob, Skill, AskUserQuestion, mcp__plugin_figma_figma
 - `mcp__plugin_figma_figma__get_variable_defs` — 디자인 토큰/변수
 - `mcp__plugin_figma_figma__get_metadata` — 노드 메타(선택)
 - Figma MCP를 쓸 수 없으면(미설치·데스크톱 미연결) **에러로 취급하지 말고** "Figma 미연결 — URL 내용 없이 진행하거나 수동 명세를 받겠다"고 안내(graceful). 뷰어 권한 파일은 변수/노드 접근이 거부된다 — "사본 만들기(Duplicate) 후 사본 URL로 재시도" 안내.
+- **figma 공식 스킬과의 역할 경계**: 공식 figma 플러그인의 `figma-design-to-code` 스킬은 `get_design_context` 호출 전 자기 로드를 MANDATORY로 규정하지만, `/omj` 프라이밍은 이를 **알고도 따르지 않는 의도적 결정**이다 — 그 스킬은 구현을 전제하는데 프라이밍은 스펙 작성용 읽기이며, 구현 유도 지침을 로드하면 read-only plan-gate 정체성(PRINCIPLES ①③)이 침식된다. 상류 지침은 **승인 후 구현 단계**(figma-implementer·inline 실행자)가 따른다. 두 스킬이 동시 로드된 세션에서도 역할 분담은 같다: 프라이밍=OMJ, 구현=상류 지침 준수(내용 복제 없음). 이 절은 스킬 **발동 경쟁을 중재하지 않는다** — 그 층은 description 트리거가 담당한다.
 
 **dev 프라이머**: 대상 코드를 읽는다.
 - 작업과 관련된 컴포넌트/훅/스타일/타입을 `Glob`·`Grep`·`Read`로 수집해 현재 구조와 재사용 가능한 패턴을 파악한다.
 
-**공통(선택)**: 변경이 Next.js 버전 민감 주제와 관련되면 **`frontend-fundamentals` 스킬의 라우팅 규칙**에 따라 Context7로 `/vercel/next.js` 최신 문서를 조회한다(`resolve-library-id` → `query-docs`). 버전 민감 주제 목록과 vercel/Context7 라우팅의 SoT는 FF 스킬이며, 여기서는 중복 서술하지 않고 위임한다. Context7 부재 시 이 단계 생략(graceful). 레포 루트에 `.omj/fe-context.md`가 있고 `designDocPath`가 선언돼 있으면 그 문서도 `Read`해 브랜드·조합 규칙을 스펙에 반영한다.
+**공통(선택)**: 변경이 Next.js 버전 민감 주제와 관련되면 **`frontend-fundamentals` 스킬의 라우팅 규칙**에 따라 Context7로 `/vercel/next.js` 최신 문서를 조회한다(`resolve-library-id` → `query-docs`). 버전 민감 주제 목록과 vercel/Context7 라우팅의 SoT는 FF 스킬이며, 여기서는 중복 서술하지 않고 위임한다. Context7 부재 시 이 단계 생략(graceful). 레포 루트에 `.omj/fe-context.md`가 있고 `designDocPath`·`contextDocs`가 선언돼 있으면 그 문서들도 `Read`해 브랜드·조합·프로젝트 규칙을 스펙에 반영한다(`decisions:` 목록은 재발 방지 체크로). 반대로 **셋업 흔적이 전혀 없으면**(레포에 `.omj/` 없음 + `~/.claude/.omj-setup.json` 마커 없음) 스펙 말미에 "처음이면 `/omj-setup` 1회 실행 권장(fe-context·훅·의존성 점검)" 한 줄을 포함한다 — 제안만 하고 실행하지 않는다.
 
 ## Phase 2 — 구현 스펙 author 후 STOP
 
@@ -55,9 +56,9 @@ allowed-tools: Read, Grep, Glob, Skill, AskUserQuestion, mcp__plugin_figma_figma
 
 **과설계 금지**: 함께 바뀔 게 확실할 때만 추상화. 단순 로직을 불필요하게 추상화하거나 일어나지 않을 미래를 위한 깊은 계층을 만들지 않는다(`frontend-fundamentals` "과설계 경고").
 
-**실행 레인 선택 (읽기 전용 핸드오프)**: 스펙 끝에 `## 실행 레인 선택` 섹션을 반드시 추가한다. 라우팅 규칙의 SoT는 `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md`(레포 기준 `docs/EXECUTION-HANDOFF.md`)이며, 이 파일을 읽을 수 없을 때만 최소 fallback(작으면 inline/manual, 지속 목표면 `$ultragoal` 또는 `/goal`, 병렬 lane이 있으면 `$team`, 순차 완료 압박이면 `$ralph`, 구현 후 hostile QA면 `$ultraqa`, 합의가 더 필요하면 `$ralplan`)을 사용한다. 커맨드 본문에는 점수표·임계값을 중복 정의하지 않는다.
+**실행 레인 선택 (읽기 전용 핸드오프)**: 스펙 끝에 `## 실행 레인 선택` 섹션을 반드시 추가한다. 라우팅 규칙의 SoT는 `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md`(레포 기준 `docs/EXECUTION-HANDOFF.md`)이며, 이 파일을 읽을 수 없을 때만 최소 fallback(작으면 inline/manual, 지속 목표면 `$ultragoal` 또는 `/goal`, 병렬 lane이 있으면 `$team`, 순차 완료 압박이면 `$ralph`, 구현 후 hostile QA면 `$ultraqa`, 합의가 더 필요하면 `/ralplan`·`$ralplan`)을 사용한다. 커맨드 본문에는 점수표·임계값을 중복 정의하지 않는다.
 
-레인 선택 질문은 **조건부**다(SoT의 auto-select 규칙): 추천 레인이 `Wrapper=none; Sublane=inline/manual`이면 **묻지 않고** 스펙에 `선택된 레인: Wrapper=none; Sublane=inline/manual (auto)`로 기록만 한다 — Plan 승인이 곧 레인 동의이며, 이견이면 승인 화면에서 plan을 수정하거나 `/omj-start`에서 재선택할 수 있다. 그 외 레인($team/$ultragoal/$ralph/$ralplan/$ultraqa)이 추천이면 스펙 완성 뒤 **정확히 한 번만** `AskUserQuestion`으로 묻는다. 1번 옵션은 항상 결정적 추천값이며 라벨에 `(추천)`을 붙인다. 추천은 `Wrapper`(durable/checkpoint owner: `none`·`/goal`·`$ultragoal`)와 `Sublane`(실행 방식: `inline/manual`·`$ralph`·`$team`)을 분리해 적는다. 구현이 끝난 뒤 QA만 필요한 경우에만 `$ultraqa`를 1번으로 추천하고, 아직 요구·경계·아키텍처 합의가 부족하면 `$ralplan`을 먼저 추천한다.
+레인 선택 질문은 **조건부**다(SoT의 auto-select 규칙): 추천 레인이 `Wrapper=none; Sublane=inline/manual`이면 **묻지 않고** 스펙에 `선택된 레인: Wrapper=none; Sublane=inline/manual (auto)`로 기록만 한다 — Plan 승인이 곧 레인 동의이며, 이견이면 승인 화면에서 plan을 수정하거나 `/omj-start`에서 재선택할 수 있다. 그 외 레인($team/$ultragoal/$ralph/$ralplan/$ultraqa)이 추천이면 스펙 완성 뒤 **정확히 한 번만** `AskUserQuestion`으로 묻는다. 1번 옵션은 항상 결정적 추천값이며 라벨에 `(추천)`을 붙인다. 추천은 `Wrapper`(durable/checkpoint owner: `none`·`/goal`·`$ultragoal`)와 `Sublane`(실행 방식: `inline/manual`·`$ralph`·`$team`)을 분리해 적는다. 구현이 끝난 뒤 QA만 필요한 경우에만 `$ultraqa`를 1번으로 추천하고, 아직 요구·경계·아키텍처 합의가 부족하면 `/ralplan`/`$ralplan`을 먼저 추천한다(OMX `$ralplan`은 계획 산출 후 정지 — 비대칭 정본: SoT).
 
 최종 스펙에는 선택 결과를 아래 형식으로 남긴다:
 

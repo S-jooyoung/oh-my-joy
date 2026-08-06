@@ -1,7 +1,7 @@
 ---
-description: 붙여넣은 스크린샷+route의 시각/동작 결함을 고치고 재캡처로 확인하는 능동 루프 (관찰/재확인은 /omj-verify 캡처 프로토콜 재사용)
+description: 스크린샷을 붙여넣고 "정렬이 안 맞아/잘려 보여/간격·색·hover가 이상해/줄바꿈이 어색해" 같은 시각·동작 결함을 서술하면 이 커맨드 — route의 결함을 고치고 재캡처로 확인하는 능동 루프 (관찰/재확인은 /omj-verify 캡처 프로토콜 재사용)
 argument-hint: "<route> [\"불만/설명\"] [--base <url>] [--commit]"
-allowed-tools: Read, Grep, Glob, Edit, Skill, Bash(command:*), Bash(playwright-cli:*), Bash(curl:*), Bash(git status:*), Bash(git diff:*), Bash(git add:*), Bash(git commit:*), Bash(npx tsc:*), mcp__playwright__*, mcp__plugin_playwright_playwright__*, mcp__plugin_context7-plugin_context7__*
+allowed-tools: Read, Grep, Glob, Edit, Skill, Bash(command:*), Bash(playwright-cli:*), Bash(curl:*), Bash(git status:*), Bash(git diff:*), Bash(git add:*), Bash(git commit:*), Bash(npx tsc:*), mcp__playwright__*, mcp__plugin_playwright_playwright__*, mcp__plugin_context7-plugin_context7__*, mcp__context7__*
 ---
 
 # /omj-fix — 시각/동작 결함 수정 루프
@@ -37,7 +37,7 @@ allowed-tools: Read, Grep, Glob, Edit, Skill, Bash(command:*), Bash(playwright-c
 5. **재확인** — `/omj-verify` 캡처 프로토콜로 재캡처해 결함 해소를 확인하고 `close`로 세션을 정리한다. 결함이 남았으면 3–5를 반복(최대 2회), 그래도 안 되면 잔여 결함을 보고하고 멈춘다.
 
 6. **(--commit일 때만) 커밋** — 프로젝트 컨벤션 `<type>(<scope>): <subject>`, 한국어. **AI 서명/`Co-Authored-By` 금지.** pre-commit 훅 우회(`--no-verify`) 금지.
-   - **스테이징 범위 하드 규칙**: step 4에서 `Edit`한 파일 경로만 `git add <path> …`로 명시 스테이징한다. `git add -A`·`git add .` 금지 — 이 커맨드가 만들지 않은 작업 트리 변경을 함께 커밋하지 않는다.
+   - **스테이징 범위 하드 규칙**: 커밋 전 `git status`·`git diff`로 작업 트리와 변경 내용을 확인한 뒤, step 4에서 `Edit`한 파일 경로만 `git add <path> …`로 명시 스테이징한다. `git add -A`·`git add .` 금지 — 이 커맨드가 만들지 않은 작업 트리 변경을 함께 커밋하지 않는다.
    - `--commit` 없이 호출됐으면 `git add`/`git commit`을 아예 실행하지 않는다(권한 선언은 커맨드 단위라 플래그 유무를 본문이 강제한다).
 
 ## 출력

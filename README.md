@@ -82,12 +82,14 @@ The reasoning behind each decision — problem → decision → rationale → ou
 | **`/omj`** | Gather specs + author an implementation spec (Plan) + recommend one execution lane, then stop (read-only primer). Infers the verify route when omitted; supports multiple Figma nodes mixed with text tasks | The starting point for every FE task | `/omj https://figma.com/design/abc?node-id=1-2 /settings/profile` |
 | **`/omj-start`** | Handoff an approved OMJ spec to the selected OMC/OMX execution lane | After approving a spec when auto-start is unavailable (not needed for `(auto)` inline specs) | `/omj-start ./omj-search-spec.md` |
 | **`/omj-review`** | Review the changed FE diff against FF 4-criteria + a11y · Figma fidelity · vercel · Next.js (report only) | Right after implementing, before a PR | `/omj-review --base main` |
-| **`/omj-verify`** | Open a route in a real browser (playwright-cli, falls back to playwright MCP) and check visuals/structure against the Figma baseline (`.omj/baselines/`) | Visual-regression check before a PR | `/omj-verify /settings/profile` |
+| **`/omj-verify`** | Open a route in a real browser (playwright-cli, falls back to playwright MCP) and check visuals/structure against the Figma baseline (`.omj/baselines/`); always asserts the captured page actually reached the requested route (auth redirects are reported as failures, never compared) | Visual-regression check before a PR | `/omj-verify /settings/profile` |
 | **`/omj-fix`** | Fix defects from a pasted screenshot + route, then re-capture to confirm (active loop) | Quick fixes for pixel/visual defects | `/omj-fix /pricing "banner z-index too low"` |
 | **`/omj-sync`** | Reconcile drift between the token store (`tokens.json` **or CSS custom properties**) ↔ Figma by **asking you the direction**; `extract` bootstraps CSS tokens from Figma variables | Aligning code/Figma tokens · first extraction | `/omj-sync` · `check` · `push` · `extract <figma-url>` |
-| **`/omj-setup`** | Dependency doctor + install guide + scaffolding for `.omj/fe-context.md` and opt-in token-guard hooks | Before first use | `/omj-setup` |
+| **`/omj-setup`** | Dependency doctor + batch multi-select install + scaffolding for `.omj/fe-context.md` (adopts existing rule docs like `AGENTS.md`/`.claude/rules/` via `contextDocs:` instead of duplicating them) and opt-in token-guard hooks (the Story hook is offered only when Storybook is detected); optionally offers a GitHub star at the end (skipped silently if already starred, never blocks setup) | Before first use — `/omj` also suggests it once when no setup trace exists | `/omj-setup` |
 
 > **read-only vs active op.** `/omj` and `/omj-review` are read-only (report only) — `/omj` may ask **at most one** post-spec execution-lane question (skipped with an `(auto)` record when inline/manual is recommended — Plan approval doubles as lane consent), and still cannot Write/Edit/build/test. `/omj-start` is a handoff command: it launches only when the runtime surface is explicit and safe, otherwise it prints one copyable action. `/omj-verify`, `/omj-fix`, and `/omj-sync` (sync/push/extract) are active ops using Figma write / `Edit`/`Write` / Bash; if your environment blocks those in Plan mode, exit Plan mode first. Each command's syntax, arguments, and steps live in its `commands/<name>.md` (the source of truth).
+>
+> **Auto-trigger.** The command descriptions are written to match the two most frequent real-world patterns, so the agent can route to them without you typing the slash command: pasting a Figma Dev Mode link ("implement this design…") routes to `/omj`, and pasting a screenshot with a visual complaint ("misaligned", "clipped", "wrong spacing/color") routes to `/omj-fix`.
 
 ### Bundled agents & opt-in hooks (v0.3.0)
 
@@ -130,7 +132,7 @@ OMJ is a **standalone plugin independent of** oh-my-claudecode (OMC) and oh-my-c
 
 | Stage | OMJ | OMC/OMX |
 | --- | --- | --- |
-| Plan | `/omj` (FE spec, native Plan + execution selector) | `/omc-plan` · `/ralplan` · `$ralplan` |
+| Plan | `/omj` (FE spec, native Plan + execution selector) | `/oh-my-claudecode:plan` · `/ralplan` · `$ralplan` (OMX: plan-only) |
 | Execute | `/omj-start` fallback handoff | `/goal` · `$ultragoal` · `/team`/`$team` · `/ralph`/`$ralph` |
 | Verify | `/omj-review` · `/omj-verify` | `/verify` · `$ultraqa` |
 

@@ -14,7 +14,7 @@
   - `$ralph`/`/ralph`: 한 명의 persistent owner가 끝까지 밀고 검증해야 할 때.
   - `$team`/`/team`: 병렬 가능한 구현·문서·검증 lane이 2개 이상일 때.
 - **QA follow-up**: `$ultraqa`/`/ultraqa`, 구현 후 adversarial e2e/hostile QA가 목표일 때.
-- **Consensus fallback**: `$ralplan`/`/ralplan`, 아직 모호하거나 아키텍처 합의가 필요한 경우.
+- **Consensus fallback**: `/ralplan`(OMC) 또는 `$ralplan`(OMX), 아직 모호하거나 아키텍처 합의가 필요한 경우. **런타임 비대칭**: OMC `/ralplan`은 합의 승인 시 실행(team/ralph)으로 이어지지만, OMX `$ralplan`은 현재 호스트 영수증 게이트로 **계획 산출 후 정지**한다(fail-closed) — 합의 뒤 실행 레인은 사용자가 별도로 시작해야 하며, OMX 문맥에서 이 레인을 추천할 때는 selector가 그 사실을 함께 안내한다.
 
 ## 추천 입력
 
@@ -36,7 +36,7 @@
 3. **병렬 가능**: 화면/문서/검증 등 독립 lane 2개 이상 → `Sublane: $team` 또는 `/team`.
 4. **순차 압박**: 병렬성은 낮지만 완료/검증 루프가 중요 → `Sublane: $ralph` 또는 `/ralph`.
 5. **QA-only**: 구현이 끝났고 hostile 시나리오·시각/상호작용 결함 탐지가 목표 → `$ultraqa`/`/ultraqa`를 1번으로 추천.
-6. **모호/고위험**: 요구·경계·아키텍처가 불명확 → `$ralplan`/`/ralplan`을 먼저 추천.
+6. **모호/고위험**: 요구·경계·아키텍처가 불명확 → `/ralplan`/`$ralplan`을 먼저 추천(OMX면 plan-only 안내 포함 — 위 Consensus fallback 참조).
 7. **런타임 없음**: OMC/OMX 없음 → copyable manual command/action만 출력하고 실패하지 않는다.
 
 ## Auto-select 규칙 (inline/manual 한정 질문 생략)
@@ -70,15 +70,18 @@
 - 선택 lane이 없을 때만 동일한 단일 selector를 한 번 묻는다.
 - 직접 launch가 가능하고 안전하면 launch한다.
 - 직접 launch가 불가하거나 slash/dollar command semantics가 불명확하면 정확히 하나의 copyable command/action만 출력한다.
+- OMX ultragoal direct launch는 **2단계**다: `omx ultragoal create-goals --brief-file '<path>'`는 durable goal을 **생성만** 하고, 시작/재개는 `omx ultragoal complete-goals`가 담당한다 — create-goals 실행 후 최종 copyable action은 `omx ultragoal complete-goals`로 한다.
 - `/goal clear`는 절대 자동으로 하지 않는다. 이미 완료된 이전 goal이 새 same-thread goal을 막을 때만 명시적 사용자 액션으로 출력한다.
 
 ## Syntax map
 
 | Runtime | Durable wrapper | Team sublane | Ralph sublane | UltraQA | Ralplan |
 | --- | --- | --- | --- | --- | --- |
-| Codex/OMX | `$ultragoal` + Codex `/goal` | `$team` / `omx team` | `$ralph` | `$ultraqa` | `$ralplan` |
+| Codex/OMX | `$ultragoal` + Codex `/goal` | `$team` / `omx team`¹ | `$ralph` | `$ultraqa` | `$ralplan`(plan-only) |
 | Claude/OMC | `/goal` | `/team` | `/ralph` | `/ultraqa` | `/ralplan` |
 | No runtime | manual/copyable action | manual | manual | manual QA checklist | manual plan review |
+
+¹ Codex App·tmux 밖 세션에서는 `$team`/`omx team`을 직접 제시하지 않는다 — shell에서 OMX CLI를 먼저 기동해야 한다(OMX README).
 
 ## Clear/start safety
 

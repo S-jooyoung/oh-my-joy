@@ -1,7 +1,7 @@
 ---
 description: 디자인 토큰을 code↔Figma 동기화 — 드리프트를 클래스별로 묶어 방향을 물어 해소(코드가 기본 SoT). extract로 Figma 변수를 CSS custom properties로 추출
 argument-hint: "[sync|check|push|extract <figma-url>] [--tokens <path>]"
-allowed-tools: Read, Edit, Write, Grep, Glob, Skill, AskUserQuestion, mcp__plugin_figma_figma__get_variable_defs, mcp__plugin_figma_figma__use_figma
+allowed-tools: Read, Edit, Write, Grep, Glob, Skill, AskUserQuestion, mcp__plugin_figma_figma__get_variable_defs, mcp__plugin_figma_figma__use_figma, mcp__figma__get_variable_defs, mcp__figma__use_figma
 ---
 
 # /omj-sync — 디자인 토큰 sync (code ↔ Figma, 대화형)

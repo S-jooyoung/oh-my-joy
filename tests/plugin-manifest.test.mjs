@@ -165,6 +165,85 @@ describe('agents/*.md frontmatter', () => {
   }
 });
 
+/**
+ * 도구 선언 불변식 — 같은 결함 클래스가 3회 재발한 뒤 도입(ralplan 2026-08).
+ * (a) MCP 이중 프리픽스: v0.4.0이 playwright에서 "설치 출처에 따라 도구명이 달라진다"를
+ *     고쳤지만 figma·context7로 전파되지 않았다 — 테스트가 없어서였다.
+ * (b) 호출 지점 없는 권한 선언: v0.4.0에서 3건 제거 후에도 재유입됐다.
+ *     이 검사는 **언급 기반**이다(본문 어디든 명령 문자열이 있으면 통과) — 구조적 단언이
+ *     아니라 성실성 의존 게이트임을 알고 유지하라.
+ */
+describe('도구 선언 불변식 (commands allowed-tools · agents tools)', () => {
+  const surfaces = [
+    ...listCommandFiles().map((f) => ({
+      file: `commands/${f}`,
+      source: readRepoFile('commands', f),
+      field: 'allowed-tools',
+    })),
+    // 에이전트는 tools: 필드를 쓴다. 현재 에이전트는 bare Bash만 선언해 (b) 매칭 0건이
+    // 정상이다(에이전트 tools는 scoped Bash 문법이 없다) — 공허 통과를 회귀로 오인하지 말 것.
+    ...listAgentFiles().map((f) => ({
+      file: `agents/${f}`,
+      source: readRepoFile('agents', f),
+      field: 'tools',
+    })),
+  ];
+
+  const parsed = surfaces
+    .map(({ file, source, field }) => {
+      const fm = parseFrontmatter(source);
+      const decl = fm?.[field];
+      if (!decl) return null;
+      return {
+        file,
+        tokens: decl.split(',').map((t) => t.trim()).filter(Boolean),
+        body: source.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, ''),
+      };
+    })
+    .filter(Boolean);
+
+  it('플러그인 경유 MCP 선언은 bare 서버 변형을 병기한다', () => {
+    const violations = [];
+    for (const { file, tokens } of parsed) {
+      for (const token of tokens) {
+        const m = /^mcp__plugin_(.+)__([A-Za-z0-9_*-]+)$/.exec(token);
+        if (!m) continue;
+        // bare 이름은 플러그인이 아니라 **MCP 서버** 이름에서 온다 —
+        // `mcp__plugin_<plugin>_<server>__`의 마지막 `_` 세그먼트가 서버다.
+        // 전제: 서버명에 `_`가 없다(현 서버 figma·context7·playwright 전부 안전).
+        const server = m[1].split('_').pop();
+        const tool = m[2];
+        const ok =
+          tokens.includes(`mcp__${server}__*`) ||
+          (tool !== '*' && tokens.includes(`mcp__${server}__${tool}`));
+        if (!ok) violations.push(`${file}: ${token} → bare mcp__${server}__${tool === '*' ? '*' : tool} 병기 필요`);
+      }
+    }
+    assert.deepEqual(
+      violations,
+      [],
+      `raw MCP 등록(claude mcp add) 사용자는 플러그인 프리픽스 도구명이 없어 사전승인을 잃는다:\n${violations.join('\n')}`,
+    );
+  });
+
+  it('Bash 선언은 frontmatter 제외 본문에 호출 지점이 있다', () => {
+    const violations = [];
+    for (const { file, tokens, body } of parsed) {
+      for (const token of tokens) {
+        const m = /^Bash\((.+)\)$/.exec(token);
+        if (!m) continue;
+        const cmd = m[1].replace(/:\*$/, '');
+        if (!body.includes(cmd)) violations.push(`${file}: Bash(${m[1]}) — 본문에 "${cmd}" 없음`);
+      }
+    }
+    assert.deepEqual(
+      violations,
+      [],
+      `본문 절차에 호출 지점이 없는 도구는 선언하지 않는다(CLAUDE.md):\n${violations.join('\n')}`,
+    );
+  });
+});
+
 describe('skills/frontend-fundamentals', () => {
   const fm = parseFrontmatter(readRepoFile('skills', 'frontend-fundamentals', 'SKILL.md'));
 
