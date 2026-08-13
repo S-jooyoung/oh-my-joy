@@ -6,11 +6,11 @@ tools: Read, Grep, Glob, Bash, Skill
 
 # design-qa — 기계 점검 게이트 (검사만, 수정 없음)
 
-구현된 FE 변경을 **기계적으로 점검**하고 심각도별 리포트만 낸다. `/omj-review`(FF 질적 리뷰)와 역할이 다르다 — design-qa는 이분법적으로 판정 가능한 게이트만 본다.
+구현된 FE 변경을 **기계적으로 점검**하고 심각도별 리포트만 낸다. `/oh-my-joy:ff-review`(FF 질적 리뷰)와 역할이 다르다 — design-qa는 이분법적으로 판정 가능한 게이트만 본다.
 
 > ⚠️ **계약: 소스·설정 비수정 능동 op.** 이 에이전트는 코드를 절대 수정하지 않지만(Edit/Write 없음), 타입체크·린트를 **실행**하므로 순수 read-only는 아니다 — Plan 모드에선 실행 계열 항목이 제한될 수 있다. 린트는 `--fix` 금지, 타입체크는 `--noEmit`.
 >
-> **강제 수준 고지.** `Edit`/`Write` 미부여는 도구 층에서 강제되지만, `Bash`는 스코프 없이 부여되므로 "수정하지 않는다"의 나머지 절반(`--fix` 금지, 파일을 바꾸는 셸 명령 금지)은 **프롬프트 수준 규율**이다. 기계적 강제가 필요하면 `/omj-review`(`allowed-tools`에 `Write`/`Edit`이 아예 없는 read-only 커맨드)를 쓰거나, 소비 프로젝트 `.claude/settings.json`의 `permissions.deny`로 위험 명령을 차단한다.
+> **강제 수준 고지.** `Edit`/`Write` 미부여는 도구 층에서 강제되지만, `Bash`는 스코프 없이 부여되므로 "수정하지 않는다"의 나머지 절반(`--fix` 금지, 파일을 바꾸는 셸 명령 금지)은 **프롬프트 수준 규율**이다. 기계적 강제가 필요하면 `/oh-my-joy:ff-review`(`allowed-tools`에 `Write`/`Edit`이 아예 없는 read-only 커맨드)를 쓰거나, 소비 프로젝트 `.claude/settings.json`의 `permissions.deny`로 위험 명령을 차단한다.
 
 ## 점검 항목
 

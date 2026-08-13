@@ -84,7 +84,7 @@ allowed-tools: Read, Grep, Glob, Skill, AskUserQuestion, mcp__plugin_figma_figma
 
 ## 승인 후 (이 커맨드의 범위 밖, 참고)
 
-사용자가 스펙을 승인하면 메인 세션이 선택된 실행 레인으로 스펙을 넘긴다. 선택 레인이 이미 스펙에 기록되어 있으면(수동 선택이든 `(auto)`든) 다시 묻지 말고 그대로 사용한다. 자동 시작이 불가하거나 런타임이 불명확하면 `/omj-start <approved-spec-or-plan-path>` 한 줄만 출력한다. 구현이 끝나면 `/omj-review`로 코드 diff를(FF·a11y·vercel·nextjs), `/omj-verify <route>`로 시각을 검증한다. (OMC/OMX 실행 도구와 `/goal`/`$ultragoal` 핸드오프 메커니즘은 `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md`(레포 기준 `docs/EXECUTION-HANDOFF.md`), 통합 플로우는 `${CLAUDE_PLUGIN_ROOT}/docs/OMC-INTEGRATION.md`(레포 기준 `docs/OMC-INTEGRATION.md`) 참고.)
+사용자가 스펙을 승인하면 메인 세션이 선택된 실행 레인으로 스펙을 넘긴다. 선택 레인이 이미 스펙에 기록되어 있으면(수동 선택이든 `(auto)`든) 다시 묻지 말고 그대로 사용한다. 자동 시작이 불가하거나 런타임이 불명확하면 `/omj-start <approved-spec-or-plan-path>` 한 줄만 출력한다. 구현이 끝나면 `/oh-my-joy:ff-review`로 코드 diff를(FF·a11y·vercel·nextjs), `/omj-verify <route>`로 시각을 검증한다. (OMC/OMX 실행 도구와 `/goal`/`$ultragoal` 핸드오프 메커니즘은 `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md`(레포 기준 `docs/EXECUTION-HANDOFF.md`), 통합 플로우는 `${CLAUDE_PLUGIN_ROOT}/docs/OMC-INTEGRATION.md`(레포 기준 `docs/OMC-INTEGRATION.md`) 참고.)
 
 ## 사용법 (bare `/omj`)
 
@@ -93,7 +93,7 @@ allowed-tools: Read, Grep, Glob, Skill, AskUserQuestion, mcp__plugin_figma_figma
 /omj <figma-url> <figma-url> "<작업 설명>"   다중 노드 + 텍스트 작업 혼합도 지원(합성 수집. 노드 5개 초과 시 분할 제안)
 /omj "<작업 설명>" [route]       코드 작업 → 구현 스펙(Plan). 예: /omj "검색 입력 폼 컴포넌트" /settings/profile
 /omj-start <approved-spec>      승인된 OMJ 스펙을 선택된 OMC/OMX 실행 레인으로 handoff ((auto) inline 스펙은 불필요)
-/omj-review [--base <ref>]      구현 후 코드 diff 리뷰(FF·a11y·vercel·nextjs, Plan 해제 후 실행)
+/oh-my-joy:ff-review [--base <ref>]      구현 후 코드 diff 리뷰(FF·a11y·vercel·nextjs, Plan 해제 후 실행)
 /omj-verify <route>             구현 후 시각 검증(Plan 해제 후 실행)
 /omj-fix <route> ["설명"]        스크린샷+route 결함 수정 루프(Plan 해제 후 실행)
 /omj-sync [sync|check|push|extract <figma-url>]   디자인 토큰 code↔Figma (extract: Figma 변수 → CSS custom properties)

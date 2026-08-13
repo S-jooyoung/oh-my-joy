@@ -1,10 +1,10 @@
 ---
-description: 브랜치/스테이징 diff를 FF 4기준+a11y · vercel(성능/합성) · Next.js(Context7) 기준으로 통합 리뷰 (read-only)
+description: 브랜치/스테이징 diff를 FF 4기준+a11y · vercel(성능/합성) · Next.js(Context7) 기준으로 통합 리뷰 (read-only). 정규 호출은 /oh-my-joy:ff-review (구 /omj-review — v0.6.0에서 개명)
 argument-hint: "[--base <ref>]"
 allowed-tools: Read, Grep, Glob, Skill, Bash(git diff:*), Bash(git rev-parse:*), mcp__plugin_context7-plugin_context7__*, mcp__context7__*
 ---
 
-# /omj-review — FF 통합 코드 리뷰 (검증, read-only)
+# /oh-my-joy:ff-review — FF 통합 코드 리뷰 (검증, read-only)
 
 변경된 프론트엔드 코드(diff)를 **frontend-fundamentals 4기준 + 접근성**, **vercel 성능/합성**, **Next.js(Context7) 최신 권장**으로 한 번에 검토하고 **심각도별 리포트만** 낸다. **수정하지 않는다.**
 
@@ -12,7 +12,7 @@ allowed-tools: Read, Grep, Glob, Skill, Bash(git diff:*), Bash(git rev-parse:*),
 >
 > ⚠️ **Bash(git)로 diff를 읽는다.** `git diff`/`git rev-parse`는 **read-only**라 현재 Claude Code Plan 모드에서도 대체로 그대로 동작한다(Plan 모드는 `Write`/`Edit`와 부작용 있는 Bash만 차단, 읽기 전용 Bash는 허용). 다만 사용하는 환경의 Plan 모드가 Bash를 전면 차단한다면 Plan 모드를 해제한 뒤 실행한다.
 >
-> **처방 vs 검증**: `/omj`(author)가 "무엇을 만들지"를 FF 기준으로 **처방(prescriptive)** 한다면, `/omj-review`는 구현된 diff가 그 기준을 지켰는지 **검증(descriptive)** 한다. 같은 FF SoT(`frontend-fundamentals` 스킬)를 단계만 달리 쓴다. 시각 회귀는 `/omj-verify`가 담당.
+> **처방 vs 검증**: `/omj`(author)가 "무엇을 만들지"를 FF 기준으로 **처방(prescriptive)** 한다면, `/oh-my-joy:ff-review`는 구현된 diff가 그 기준을 지켰는지 **검증(descriptive)** 한다. 같은 FF SoT(`frontend-fundamentals` 스킬)를 단계만 달리 쓴다. 시각 회귀는 `/omj-verify`가 담당.
 
 ## 인자
 
@@ -43,9 +43,9 @@ allowed-tools: Read, Grep, Glob, Skill, Bash(git diff:*), Bash(git rev-parse:*),
 ## 사용법
 
 ```
-/omj-review                  작업 트리 미커밋+staged 변경 리뷰
-/omj-review --base main      main 대비 브랜치 전체 diff 리뷰
-/omj-review --base origin/main
+/oh-my-joy:ff-review                  작업 트리 미커밋+staged 변경 리뷰
+/oh-my-joy:ff-review --base main      main 대비 브랜치 전체 diff 리뷰
+/oh-my-joy:ff-review --base origin/main
 ```
 
 > 구현 직후 PR 전에 한 번 돌려 FF/a11y/vercel/nextjs 위반을 차단한다. 시각 회귀가 목적이면 `/omj-verify <route>`를 쓴다.

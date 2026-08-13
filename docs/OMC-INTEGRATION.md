@@ -12,7 +12,7 @@
 
 - **계획**: `/omj`(FE 맥락 스펙, 네이티브 Plan + 실행 selector). 합의가 필요한 대규모만 승인 후 `/ralplan`/`$ralplan`에 시드로 넘김(런타임 비대칭 — OMC `/ralplan`은 승인 시 실행 연결, OMX `$ralplan`은 현재 plan-only로 계획 산출 후 정지. 정본: [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md)).
 - **실행**: `/goal`/`$ultragoal`(durable goal/checkpoint) · `/team`/`$team`(병렬 N에이전트) · `/ralph`/`$ralph`(순차 루프). `/omj-start`는 자동 시작이 안 될 때의 canonical fallback handoff. inline 레인(`(auto)` 포함)에서는 OMJ 번들 `figma-implementer` 에이전트가 승인된 스펙의 표준 실행자로 쓰일 수 있다 — 단 OMC/OMX 레인이 선택된 스펙은 항상 그 레인이 우선한다(레인이 아니라 레인이 쓰는 실행자).
-- **검증**: `/omj-review`(FE 코드 diff) · `/omj-verify`(FE 시각) · OMC/OMX 일반 검증 또는 `$ultraqa`(adversarial QA).
+- **검증**: `/oh-my-joy:ff-review`(FE 코드 diff) · `/omj-verify`(FE 시각) · OMC/OMX 일반 검증 또는 `$ultraqa`(adversarial QA).
 
 ## 게이트 규칙 (왜 안 겹치나)
 
@@ -31,7 +31,7 @@
 1. `/omj <figma-url|작업> [route]` → 구현 스펙(Plan) + 실행 레인 선택.
 2. 검토 후 승인(ExitPlanMode).
 3. 선택된 레인이 작으면 inline/manual 또는 `/ralph`/`$ralph`; 파일·검증 lane이 나뉘면 `/team`/`$team`.
-4. `/omj-review`로 diff 점검 → `/omj-verify <route>` 시각 점검. 어긋나면 `/omj-fix`로 수정·재확인. 토큰이 바뀌면 `/omj-sync`(대화형: 코드가 기본 SoT이되 충돌 시 사용자가 방향 선택 — 그대로 밀어넣으려면 `push`).
+4. `/oh-my-joy:ff-review`로 diff 점검 → `/omj-verify <route>` 시각 점검. 어긋나면 `/omj-fix`로 수정·재확인. 토큰이 바뀌면 `/omj-sync`(대화형: 코드가 기본 SoT이되 충돌 시 사용자가 방향 선택 — 그대로 밀어넣으려면 `push`).
 
 ## B. 대규모/복잡 FE (여러 화면·리팩터링)
 
@@ -39,13 +39,13 @@
 2. 승인(ExitPlanMode) 후 durable work면 `/goal` 또는 `$ultragoal` wrapper를 둔다.
 3. 병렬 가능한 구현·문서·검증 lane이 있으면 wrapper 안에서 `/team`/`$team`을 쓴다. 순차 완료 압박이 크면 `/ralph`/`$ralph`를 쓴다.
 4. 진짜 모호하거나 합의가 필요할 때만 승인 후 명시적 `/ralplan`/`$ralplan`에 스펙을 시드로 투입한다(OMX `$ralplan`은 plan-only — 합의 뒤 실행 레인은 별도로 시작).
-5. 화면별 `/omj-review`·`/omj-verify`, 잔여 diff 재실행.
+5. 화면별 `/oh-my-joy:ff-review`·`/omj-verify`, 잔여 diff 재실행.
 
 ## C. 풀스택 (FE+BE)
 
 1. 전체 큰 그림은 OMC/OMX 계획 도구로 잡는다.
 2. FE 잎 = `/omj` 프라이밍 → 승인 → 선택된 실행 레인. BE = OMC/OMX 일반 executor/worker.
-3. 검증: FE `/omj-review`·`/omj-verify`, BE 일반 검증, 필요 시 `$ultraqa`.
+3. 검증: FE `/oh-my-joy:ff-review`·`/omj-verify`, BE 일반 검증, 필요 시 `$ultraqa`.
 
 ## 핸드오프 제약 (메커니즘 주의)
 

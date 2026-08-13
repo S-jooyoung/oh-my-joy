@@ -33,7 +33,7 @@ acceptance:                            # 선택 — 이 프로젝트에서 구�
   - <축 1>
   - <축 2>
 contextDocs:                           # 선택 — 이미 있는 프로젝트 규칙 문서를 그대로 채택(내용 복제 금지)
-  - AGENTS.md                          #   /omj·/omj-review·design-qa가 함께 Read — 중복 SoT를 만들지 않는다
+  - AGENTS.md                          #   /omj·/oh-my-joy:ff-review·design-qa가 함께 Read — 중복 SoT를 만들지 않는다
   - .claude/rules/components.md
 decisions:                             # 선택 — 재발 방지 결정/ADR 한 줄씩 (스펙·리뷰가 과거 결정의 재발을 잡게 함)
   - <결정 ID 또는 한 줄 규칙>

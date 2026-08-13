@@ -18,8 +18,8 @@ oh-my-joy(마켓플레이스 `omj`)는 **코드↔Figma 프론트엔드 루프 �
 
 ## 커맨드·에이전트·훅 규칙
 
-- 네이밍 2축: FE 루프 커맨드는 `/omj-*` 접두(루트 `/omj` 제외), 범용 워크플로우 커맨드는 무접두 basename + 테스트의 `WORKFLOW_COMMANDS` 화이트리스트 등재. 워크플로우 커맨드의 문서·selector 표기는 **항상 `/oh-my-joy:<name>` 정규 호출**(bare `/deep-interview` 류 표기 금지 — 테스트 강제).
-- v1 커맨드: `/omj`(Plan 프라이머 + 실행 레인 selector, auto-select 시 질문 생략)·`/omj-start`(승인 후 OMC/OMX handoff fallback)·`/omj-review`(FF 코드 diff 리뷰)·`/omj-verify`(playwright-cli 우선·MCP 폴백, baseline 3단계 비교)·`/omj-fix`(시각 결함 수정 루프, 능동)·`/omj-sync`(토큰 code↔Figma sync + extract, 대화형·능동)·`/omj-setup`(의존성 닥터 + fe-context/훅 스캐폴딩)·`/oh-my-joy:deep-interview`(범용 딥 인터뷰 — 네이티브 Plan 산출). (v1.1: `/omj-push`·`/omj-spec`.)
+- 네이밍 2축: OMJ 고유 FE 루프 동사는 `/omj-*` 접두(루트 `/omj` 제외), **이름 있는 방법론·루브릭 커맨드**(`deep-interview`·`ff-review`)는 무접두 basename + 테스트의 `WORKFLOW_COMMANDS` 등재. 무접두 커맨드의 문서·selector 표기는 **항상 `/oh-my-joy:<name>` 정규 호출**(bare 표기 금지 — 테스트 강제).
+- v1 커맨드: `/omj`(Plan 프라이머 + 실행 레인 selector, auto-select 시 질문 생략)·`/omj-start`(승인 후 OMC/OMX handoff fallback)·`/oh-my-joy:ff-review`(FF 코드 diff 리뷰)·`/omj-verify`(playwright-cli 우선·MCP 폴백, baseline 3단계 비교)·`/omj-fix`(시각 결함 수정 루프, 능동)·`/omj-sync`(토큰 code↔Figma sync + extract, 대화형·능동)·`/omj-setup`(의존성 닥터 + fe-context/훅 스캐폴딩)·`/oh-my-joy:deep-interview`(범용 딥 인터뷰 — 네이티브 Plan 산출). (v1.1: `/omj-push`·`/omj-spec`.)
 - 새 커맨드 = `commands/<name>.md` + frontmatter: `description`, `argument-hint`, `allowed-tools`(**최소 권한** — read-only면 Write/Edit/Bash 넣지 않음. 모드별 권한 차등은 본문이 강제 — 예: omj-sync의 "Write는 extract 전용").
 - **본문 절차에 호출 지점이 없는 도구는 선언하지 않는다.** Bash는 실행 가능한 최소 prefix까지 좁힌다(`Bash(npm:*)`가 아니라 `Bash(npm i -g playwright-cli:*)`). MCP 도구는 플러그인 프리픽스와 bare 서버 변형(`mcp__figma__*` 등)을 **병기**한다 — 설치 출처에 따라 도구명이 달라진다. 둘 다 불변식 테스트가 강제(`tests/plugin-manifest.test.mjs`). 위험한 실행을 굳이 사전승인하지 않는 것 자체가 안전 게이트다 — 권한 프롬프트가 사용자 확인 지점이 된다(PRINCIPLES ③).
 - **에이전트**(`agents/*.md`): 번들 2종 — `figma-implementer`(승인된 스펙 필수 입력 — bare Figma URL 구현 거부, plan-gate 우회 금지)·`design-qa`(검사만, 소스 비수정). 새 에이전트의 description은 자동위임 오발동을 막게 좁게 쓴다. EXECUTION-HANDOFF(레인 SoT)·selector에 에이전트를 올리지 않는다(레인이 아니라 실행자).
@@ -33,7 +33,7 @@ oh-my-joy(마켓플레이스 `omj`)는 **코드↔Figma 프론트엔드 루프 �
 - **code↔Figma 토큰 sync**: 코드가 기본 SoT, 충돌 시 사용자가 방향 선택(대화형 `sync`). `check`는 드리프트만 보고, `push`는 명시적 code-wins.
 - **번들 최소화**: 자작 `frontend-fundamentals` 1개만 번들. vercel 스킬은 참조(`npx skills add/update`).
 - **graceful degradation**: figma/context7/playwright-cli/OMC/OMX 부재는 에러가 아니라 스킵 + 안내.
-- **처방 vs 검증 / 게이트 공존**: FF 지식은 `/omj`가 처방(prescriptive), `/omj-review`·`/omj-verify`가 검증(descriptive) — 같은 FF SoT를 단계만 달리. `/omj`(네이티브 plan 읽기 게이트)와 OMC/OMX 실행/goal 게이트는 직교 — 기본은 승인 후 선택된 레인 직행, `/ralplan`/`$ralplan` 합의는 모호·고위험만(OMX `$ralplan`은 현재 plan-only — 합의 뒤 실행 레인 별도 시작). 정본은 README/PRINCIPLES/EXECUTION-HANDOFF.
+- **처방 vs 검증 / 게이트 공존**: FF 지식은 `/omj`가 처방(prescriptive), `/oh-my-joy:ff-review`·`/omj-verify`가 검증(descriptive) — 같은 FF SoT를 단계만 달리. `/omj`(네이티브 plan 읽기 게이트)와 OMC/OMX 실행/goal 게이트는 직교 — 기본은 승인 후 선택된 레인 직행, `/ralplan`/`$ralplan` 합의는 모호·고위험만(OMX `$ralplan`은 현재 plan-only — 합의 뒤 실행 레인 별도 시작). 정본은 README/PRINCIPLES/EXECUTION-HANDOFF.
 
 ## Git / 커밋
 

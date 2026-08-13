@@ -52,4 +52,4 @@ allowed-tools: Read, Grep, Glob, Edit, Skill, Bash(command:*), Bash(playwright-c
 /omj-fix / --base http://localhost:5173 "히어로 라운드 밖 색 샘"
 ```
 
-> `/omj-verify`(점검)로 끝났는데 고칠 게 있으면 `/omj-fix`로 잇는다. 시각만 보고 안 고치려면 `/omj-verify`, 코드 품질 리포트만 원하면 `/omj-review`.
+> `/omj-verify`(점검)로 끝났는데 고칠 게 있으면 `/omj-fix`로 잇는다. 시각만 보고 안 고치려면 `/omj-verify`, 코드 품질 리포트만 원하면 `/oh-my-joy:ff-review`.

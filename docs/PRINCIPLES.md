@@ -2,7 +2,7 @@
 
 > 이 문서가 **정본**이다. 영문 요약표는 [`PRINCIPLES.en.md`](PRINCIPLES.en.md) — 요약이 정본과 어긋나면 이 문서를 따른다. 원리를 바꾸면 요약표의 해당 행도 같은 커밋에서 갱신한다.
 
-이 문서는 oh-my-joy(OMJ)의 각 설계 결정이 **왜** 그렇게 내려졌는지를 설명한다. 정본 사실(README/SoT)이 "무엇을"을 정의한다면, 이 문서는 "왜"를 정의한다. 각 원리는 `문제 → 결정 → 근거 → 결과` 구조로 서술하며, 가능한 경우 버린 대안과 그 이유도 함께 남긴다. 커맨드의 실제 동작은 `commands/omj.md`, `commands/omj-start.md`, `commands/omj-review.md`, `commands/omj-verify.md`, `commands/omj-fix.md`, `commands/omj-sync.md`, `commands/omj-setup.md`, `commands/deep-interview.md`가 정본이며, 이 문서는 그 동작과 정합한다.
+이 문서는 oh-my-joy(OMJ)의 각 설계 결정이 **왜** 그렇게 내려졌는지를 설명한다. 정본 사실(README/SoT)이 "무엇을"을 정의한다면, 이 문서는 "왜"를 정의한다. 각 원리는 `문제 → 결정 → 근거 → 결과` 구조로 서술하며, 가능한 경우 버린 대안과 그 이유도 함께 남긴다. 커맨드의 실제 동작은 `commands/omj.md`, `commands/omj-start.md`, `commands/ff-review.md`, `commands/omj-verify.md`, `commands/omj-fix.md`, `commands/omj-sync.md`, `commands/omj-setup.md`, `commands/deep-interview.md`가 정본이며, 이 문서는 그 동작과 정합한다.
 
 ---
 
@@ -72,7 +72,7 @@
 
 **결과.** 모든 `/omj` 스펙이 같은 6섹션을 갖고, 각 섹션이 동일한 품질 잣대로 검토된다. 사용자가 승인하는 Plan은 항상 같은 구조여서 검토 부담이 낮고, 구현자(사람/executor)는 빈칸 없는 명세를 받는다. **과설계 금지** 규칙("함께 바뀔 게 확실할 때만 추상화")도 이 단계에서 명시되어, 스펙이 불필요한 계층을 부추기지 않는다.
 
-**처방 vs 검증 경계.** 같은 FF SoT를 *단계*에 따라 다르게 쓴다 — `/omj`는 스펙 author 시점에 "무엇을 만들지"를 FF 기준으로 **처방(prescriptive)** 하고, `/omj-review`(코드 diff)·`/omj-verify`(시각)는 구현이 그 기준을 지켰는지 **검증(descriptive)** 한다. FF 스킬(`references/`)은 단일 SoT이고 처방/검증이 그것을 단계만 달리 호출하므로, 품질 지식을 `/omj` 본문에 잠그지 않으면서도(드리프트 없이) 한 곳에서 관리된다. 이것이 "디자인 수집 + FE 지식 적용을 `/omj`가 함께 처방하는 것이 결합 스멜이 아니라 올바른 레이어링"인 이유다 — 다운스트림 OMC 실행 도구는 도메인 중립이라 FE 지식을 담지 않으므로, 처방은 업스트림 `/omj`가 맡아야 한다.
+**처방 vs 검증 경계.** 같은 FF SoT를 *단계*에 따라 다르게 쓴다 — `/omj`는 스펙 author 시점에 "무엇을 만들지"를 FF 기준으로 **처방(prescriptive)** 하고, `/oh-my-joy:ff-review`(코드 diff)·`/omj-verify`(시각)는 구현이 그 기준을 지켰는지 **검증(descriptive)** 한다. FF 스킬(`references/`)은 단일 SoT이고 처방/검증이 그것을 단계만 달리 호출하므로, 품질 지식을 `/omj` 본문에 잠그지 않으면서도(드리프트 없이) 한 곳에서 관리된다. 이것이 "디자인 수집 + FE 지식 적용을 `/omj`가 함께 처방하는 것이 결합 스멜이 아니라 올바른 레이어링"인 이유다 — 다운스트림 OMC 실행 도구는 도메인 중립이라 FE 지식을 담지 않으므로, 처방은 업스트림 `/omj`가 맡아야 한다.
 
 ---
 
@@ -136,7 +136,7 @@
 
 **문제.** 실측 로그에서 가장 잦은 재작업 원인은 *체계적 누락*이었는데, 그 누락은 거의 항상 **프로젝트마다 다른 특수 조건**에서 나왔다(예: 다국어 병행, 테마/브랜드 모드, 통화·포맷 규칙). 이를 스펙 단계에서 강제하면 재작업이 줄지만, "무엇을 강제할지"가 레포마다 다르다. OMJ는 회사 레포·개인 프로젝트는 물론 **제3자의 오픈소스 사용까지** 노리므로, 특정 축(다국어·모드 등)을 플러그인 본문에 박으면 다른 사용자에겐 거짓이 되어 범용성을 깬다.
 
-**결정.** acceptance를 **메커니즘(플러그인)과 축·값(프로젝트)으로 분리**하고, **플러그인은 어떤 축도 빌트인으로 강제하지 않는다**(예시로 들 수는 있되 기본값으로 탑재하지 않는다). (a) `references/fe-acceptance.md`는 "프로젝트가 `.omj/fe-context.md`에 선언한 acceptance를 읽어 스펙·`/omj-fix` 진단에 반영"하는 *메커니즘만* 소유한다. `/omj`·`/omj-review`가 이미 FF를 invoke하므로 **신규 메커니즘 0**. (b) **무엇을 점검할지**(다국어? 모드? 통화?)는 100% 프로젝트가 자기 `.omj/fe-context.md`에 적는다 — 없으면 보편 FF 기준만(graceful, ⑨). 보편 축(반응형·토큰·a11y)은 omj.md Phase 2/FF `references/`가 이미 다룬다(⑧ SoT 단일화).
+**결정.** acceptance를 **메커니즘(플러그인)과 축·값(프로젝트)으로 분리**하고, **플러그인은 어떤 축도 빌트인으로 강제하지 않는다**(예시로 들 수는 있되 기본값으로 탑재하지 않는다). (a) `references/fe-acceptance.md`는 "프로젝트가 `.omj/fe-context.md`에 선언한 acceptance를 읽어 스펙·`/omj-fix` 진단에 반영"하는 *메커니즘만* 소유한다. `/omj`·`/oh-my-joy:ff-review`가 이미 FF를 invoke하므로 **신규 메커니즘 0**. (b) **무엇을 점검할지**(다국어? 모드? 통화?)는 100% 프로젝트가 자기 `.omj/fe-context.md`에 적는다 — 없으면 보편 FF 기준만(graceful, ⑨). 보편 축(반응형·토큰·a11y)은 omj.md Phase 2/FF `references/`가 이미 다룬다(⑧ SoT 단일화).
 
 **근거 — 버린 대안 둘.** (1) "FE 편집마다 체크리스트를 주입하는 **상시(always-on) 훅**"은 OMJ의 zero-hook·side-effect-free 설계(①③)를 깨고, 설치된 모든 레포에서 발화해 비포터블하며, 사용자의 글로벌 FE-visual-verify PostToolUse 훅과 충돌(.tsx/.jsx/.css 이중 발화)한다. (2) "i18n·모드 같은 축을 FF에 기본 탑재"는 그 축이 특정 도메인(다국어·다중 브랜드) 한정이라 단일 로케일 개인 프로젝트나 남의 레포엔 노이즈가 된다. 둘 다 *범용성*을 깬다. **"구조는 플러그인, 축·답은 프로젝트"** 가 포터빌리티와 정확성을 동시에 만족시키는 분해다.
 
