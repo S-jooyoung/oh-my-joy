@@ -183,6 +183,14 @@ function parseArgs(argv) {
 // 좁혀야 스택 트레이스 대신 의도한 에러 메시지가 나간다.
 const str = (value) => (typeof value === 'string' ? value : '');
 
+// slug는 경로 세그먼트가 된다 — 모든 진입로(main·reconcile)가 같은 검증을 지나야
+// `../../x` 류 traversal이 사전승인된 Bash 규칙 아래로 숨지 못한다(PRINCIPLES ③).
+function requireSlug(args) {
+  const slug = str(args.slug);
+  if (!slug || !/^[a-z0-9][a-z0-9-]*$/.test(slug)) fail('--slug는 소문자·숫자·하이픈만 허용합니다');
+  return slug;
+}
+
 const normalizeGoals = (raw, startIndex = 0) =>
   raw.map((goal, index) => {
     if (!str(goal.title).trim() || !str(goal.objective).trim()) fail('각 골은 title과 objective가 필요합니다');
@@ -192,13 +200,17 @@ const normalizeGoals = (raw, startIndex = 0) =>
 function main() {
   const [verb, ...rest] = process.argv.slice(2);
   const args = parseArgs(rest);
-  const slug = str(args.slug);
   if (!verb) fail('사용법: goal-state.mjs <init|transition|add-goal|close|status|validate|reconcile> --slug <slug> …');
-  if (!slug || !/^[a-z0-9][a-z0-9-]*$/.test(slug)) fail('--slug는 소문자·숫자·하이픈만 허용합니다');
+  const slug = requireSlug(args);
 
   if (verb === 'init') {
     if (existsSync(goalsRoot(slug))) fail(`.omj/goals/${slug}/가 이미 있습니다 — 재개는 status/reconcile, 새 계획은 다른 slug로`);
-    const brief = str(args['brief-file']) ? readFileSync(args['brief-file'], 'utf8') : str(args.brief);
+    const briefFile = str(args['brief-file']);
+    // 레포 내 상대경로만 — 절대경로·traversal은 사전승인 규칙 아래의 임의 파일 읽기가 된다.
+    if (briefFile && (briefFile.startsWith('/') || briefFile.split(path.sep).includes('..') || briefFile.split('/').includes('..'))) {
+      fail('--brief-file은 레포 내 상대경로만 허용합니다(절대경로·.. 금지)');
+    }
+    const brief = briefFile ? readFileSync(briefFile, 'utf8') : str(args.brief);
     if (!brief.trim()) fail('--brief 또는 --brief-file이 필요합니다');
     let goals;
     try {
@@ -324,9 +336,7 @@ function reconcileMain(slug) {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const [verb, ...rest] = process.argv.slice(2);
   if (verb === 'reconcile') {
-    const args = parseArgs(rest);
-    if (!args.slug) fail('--slug가 필요합니다');
-    reconcileMain(args.slug);
+    reconcileMain(requireSlug(parseArgs(rest)));
   } else {
     main();
   }
