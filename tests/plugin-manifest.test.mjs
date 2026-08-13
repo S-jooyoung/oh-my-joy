@@ -25,9 +25,18 @@ const marketplace = readJson('.claude-plugin', 'marketplace.json');
 /**
  * 소스 코드에 부작용을 낼 수 없다고 문서가 선언한 커맨드들.
  * `/omj`는 plan-gate를 우회할 쓰기 경로가 없어야 하고(PRINCIPLES ①③),
- * `/omj-review`·`/omj-verify`는 리포트만 내는 검증 커맨드다.
+ * `/omj-review`·`/omj-verify`는 리포트만 내는 검증 커맨드,
+ * `deep-interview`는 네이티브 Plan만 산출하는 인터뷰 프라이머다.
  */
-const READ_ONLY_COMMANDS = new Set(['omj.md', 'omj-review.md', 'omj-verify.md']);
+const READ_ONLY_COMMANDS = new Set(['omj.md', 'omj-review.md', 'omj-verify.md', 'deep-interview.md']);
+
+/**
+ * 무접두 네이밍이 허용된 범용 워크플로우 커맨드(2축 규칙 — CLAUDE.md).
+ * FE 루프 커맨드는 `/omj-*` 정규식이, 워크플로우 커맨드는 이 화이트리스트가 담당한다.
+ * 이 목록은 새 커맨드를 추가하는 PR에서 함께 편집되므로 하드 차단이 아니라
+ * 속도 방지턱이다 — 우발적 무접두 파일 추가를 리뷰 가시권으로 끌어낸다.
+ */
+const WORKFLOW_COMMANDS = new Set(['deep-interview.md']);
 
 describe('plugin.json', () => {
   it('필수 필드를 갖는다', () => {
@@ -131,17 +140,22 @@ describe('commands/*.md frontmatter', () => {
       });
 
       if (READ_ONLY_COMMANDS.has(file)) {
-        it('read-only 커맨드는 쓰기 도구를 갖지 않는다', () => {
+        // Task/Agent를 함께 막는 이유: 서브에이전트는 부모의 allowed-tools를 상속하지
+        // 않으므로, 소집 선언 하나로 read-only 계약이 매니페스트 수준에서 무의미해진다.
+        it('read-only 커맨드는 쓰기 도구·서브에이전트 소집을 선언하지 않는다', () => {
           assert.doesNotMatch(
             fm['allowed-tools'],
-            /(^|,\s*)(Write|Edit|MultiEdit|NotebookEdit)\b/,
-            `${file}은 read-only 계약인데 쓰기 도구가 선언됐습니다`,
+            /(^|,\s*)(Write|Edit|MultiEdit|NotebookEdit|Task|Agent)\b/,
+            `${file}은 read-only 계약인데 쓰기 도구 또는 Task/Agent가 선언됐습니다`,
           );
         });
       }
 
-      it('네임스페이스 규칙을 지킨다 (/omj 또는 /omj-*)', () => {
-        assert.match(file, /^omj(-[a-z-]+)?\.md$/);
+      it('네임스페이스 2축 규칙을 지킨다 (/omj·/omj-* 또는 워크플로우 화이트리스트)', () => {
+        assert.ok(
+          /^omj(-[a-z-]+)?\.md$/.test(file) || WORKFLOW_COMMANDS.has(file),
+          `${file}: FE 커맨드는 omj-* 접두, 워크플로우 커맨드는 WORKFLOW_COMMANDS 등재가 필요합니다`,
+        );
       });
     });
   }

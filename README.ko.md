@@ -86,8 +86,9 @@ _점선 = read-only, 소스 부작용 없음. 승인 게이트를 사용자 없�
 | **`/omj-fix`** | 붙인 스크린샷+route 결함을 고치고 재캡처로 확인 (능동 루프) | 픽셀/시각 결함 빠른 수정 | `/omj-fix /pricing "배너 z-index 낮음"` |
 | **`/omj-sync`** | 토큰 스토어(`tokens.json` **또는 CSS custom properties**) ↔ Figma 드리프트를 **방향 물어** 해소. `extract`로 Figma 변수를 CSS로 부트스트랩 | 코드/Figma 토큰 정렬·최초 추출 | `/omj-sync` · `check` · `push` · `extract <figma-url>` |
 | **`/omj-setup`** | 의존성 점검 + 일괄 multiSelect 선택 설치 + `.omj/fe-context.md` 스캐폴딩(`AGENTS.md`/`.claude/rules/` 같은 기존 규칙 문서는 복제 대신 `contextDocs:`로 채택) + 토큰 가드 훅(opt-in, Story 훅은 Storybook 감지 시에만 제안). 마무리에 GitHub star를 선택적으로 제안(이미 star면 조용히 스킵, 셋업을 막지 않음) | 첫 사용 전 — 셋업 흔적이 없으면 `/omj`가 1회 제안 | `/omj-setup` |
+| **`/oh-my-joy:deep-interview`** | 모호한 아이디어를 라운드당 1문항 소크라테스식 인터뷰로 파고들어 가중 모호도 점수가 임계 이하로 떨어지면 스펙(네이티브 Plan)을 제시 — 토폴로지 고정, 최약 차원 타겟팅, 온톨로지 수렴 추적, Restate/Closure 이중 종료 (read-only) | 목표 자체가 아직 흐릿할 때 — `/omj`나 구현보다 앞 단계 | `/oh-my-joy:deep-interview "사내 지식 베이스 — 아직 흐릿함"` |
 
-> **read-only vs 능동 op.** `/omj`·`/omj-review`는 read-only(리포트만) — `/omj`는 스펙 뒤 실행 레인 질문을 **최대 1회** 할 수 있고(inline/manual 추천이면 질문 없이 `(auto)` 기록만 — Plan 승인이 곧 레인 동의), 여전히 Write/Edit/build/test는 못 합니다. `/omj-start`는 handoff 커맨드입니다: 런타임 surface가 명시적이고 안전할 때만 시작하고, 아니면 copyable action 한 줄만 출력합니다. `/omj-verify`·`/omj-fix`·`/omj-sync`(sync/push/extract)는 Figma write·`Edit`/`Write`·Bash를 쓰는 능동 op라, 환경이 Plan 모드에서 이를 막으면 Plan을 해제한 뒤 실행하세요. 각 커맨드의 구문·인자·단계는 `commands/<name>.md`가 정본입니다.
+> **read-only vs 능동 op.** `/omj`·`/omj-review`·`/oh-my-joy:deep-interview`는 read-only(리포트/스펙만) — `/omj`는 스펙 뒤 실행 레인 질문을 **최대 1회** 할 수 있고(inline/manual 추천이면 질문 없이 `(auto)` 기록만 — Plan 승인이 곧 레인 동의), 인터뷰는 자체 라운드 상한 아래 라운드당 1문항을 물으며, 셋 다 Write/Edit/build/test는 못 합니다. `/omj-start`는 handoff 커맨드입니다: 런타임 surface가 명시적이고 안전할 때만 시작하고, 아니면 copyable action 한 줄만 출력합니다. `/omj-verify`·`/omj-fix`·`/omj-sync`(sync/push/extract)는 Figma write·`Edit`/`Write`·Bash를 쓰는 능동 op라, 환경이 Plan 모드에서 이를 막으면 Plan을 해제한 뒤 실행하세요. 각 커맨드의 구문·인자·단계는 `commands/<name>.md`가 정본입니다.
 >
 > **자동 발동.** 커맨드 description은 가장 빈발하는 실사용 패턴 2가지에 맞춰 작성돼 있어, 슬래시 커맨드를 직접 타이핑하지 않아도 에이전트가 라우팅할 수 있습니다: Figma Dev Mode 링크 붙여넣기("이 디자인을 구현하세요…")는 `/omj`로, 스크린샷+시각 불만("정렬이 안 맞아", "잘려 보여", "간격/색이 이상해")은 `/omj-fix`로 갑니다.
 
@@ -126,12 +127,13 @@ _점선 = read-only, 소스 부작용 없음. 승인 게이트를 사용자 없�
 
 ## OMJ × OMC/OMX
 
-OMJ는 oh-my-claudecode(OMC), oh-my-codex(OMX)와 **별개의 독립 플러그인**입니다. 같이 설치해도 `/omj*` 네임스페이스는 OMJ가 소유하므로 충돌하지 않습니다.
+OMJ는 oh-my-claudecode(OMC), oh-my-codex(OMX)와 **별개의 독립 플러그인**입니다. 같이 설치해도 충돌하지 않습니다 — FE 커맨드는 OMJ가 소유한 `/omj*` 접두를 쓰고, 범용 워크플로우 커맨드는 항상 `/oh-my-joy:` 네임스페이스(예: `/oh-my-joy:deep-interview`)로 호출하므로 동명의 OMC 스킬·Claude Code 네이티브 커맨드와 섞이지 않습니다.
 
 - **멘탈 모델 (1문장)**: "FE는 무조건 `/omj`로 시작 — 스펙을 승인한 뒤 특별한 이유가 없으면 1번 `(추천)` 실행 레인으로 간다."
 
 | 단계 | OMJ | OMC/OMX |
 | --- | --- | --- |
+| 명료화 | `/oh-my-joy:deep-interview`(모호한 아이디어→스펙) | `/oh-my-claudecode:deep-interview`(OMC 스킬) |
 | 계획 | `/omj`(FE 스펙, 네이티브 Plan + 실행 selector) | `/oh-my-claudecode:plan`·`/ralplan`·`$ralplan`(OMX: plan-only) |
 | 실행 | `/omj-start` fallback handoff | `/goal`·`$ultragoal`·`/team`/`$team`·`/ralph`/`$ralph` |
 | 검증 | `/omj-review`·`/omj-verify` | `/verify`·`$ultraqa` |
