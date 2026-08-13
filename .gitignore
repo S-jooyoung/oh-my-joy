@@ -8,3 +8,7 @@
 # Node (if ever added)
 node_modules/
 *.log
+
+# OMJ operational state — 자기적용(dogfood) 산출물, 커밋 금지
+.omj/goals/
+.omj/baselines/

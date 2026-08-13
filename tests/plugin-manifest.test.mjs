@@ -36,7 +36,7 @@ const READ_ONLY_COMMANDS = new Set(['omj.md', 'ff-review.md', 'omj-verify.md', '
  * 이 목록은 새 커맨드를 추가하는 PR에서 함께 편집되므로 하드 차단이 아니라
  * 속도 방지턱이다 — 우발적 무접두 파일 추가를 리뷰 가시권으로 끌어낸다.
  */
-const WORKFLOW_COMMANDS = new Set(['deep-interview.md', 'ff-review.md']);
+const WORKFLOW_COMMANDS = new Set(['deep-interview.md', 'ff-review.md', 'goal-loop.md']);
 
 describe('plugin.json', () => {
   it('필수 필드를 갖는다', () => {

@@ -87,6 +87,7 @@ _점선 = read-only, 소스 부작용 없음. 승인 게이트를 사용자 없�
 | **`/omj-sync`** | 토큰 스토어(`tokens.json` **또는 CSS custom properties**) ↔ Figma 드리프트를 **방향 물어** 해소. `extract`로 Figma 변수를 CSS로 부트스트랩 | 코드/Figma 토큰 정렬·최초 추출 | `/omj-sync` · `check` · `push` · `extract <figma-url>` |
 | **`/omj-setup`** | 의존성 점검 + 일괄 multiSelect 선택 설치 + `.omj/fe-context.md` 스캐폴딩(`AGENTS.md`/`.claude/rules/` 같은 기존 규칙 문서는 복제 대신 `contextDocs:`로 채택) + 토큰 가드 훅(opt-in, Story 훅은 Storybook 감지 시에만 제안). 마무리에 GitHub star를 선택적으로 제안(이미 star면 조용히 스킵, 셋업을 막지 않음) | 첫 사용 전 — 셋업 흔적이 없으면 `/omj`가 1회 제안 | `/omj-setup` |
 | **`/oh-my-joy:deep-interview`** | 모호한 아이디어를 라운드당 1문항 소크라테스식 인터뷰로 파고들어 가중 모호도 점수가 임계 이하로 떨어지면 스펙(네이티브 Plan)을 제시 — 토폴로지 고정, 최약 차원 타겟팅, 온톨로지 수렴 추적, Restate/Closure 이중 종료 (read-only) | 목표 자체가 아직 흐릿할 때 — `/omj`나 구현보다 앞 단계 | `/oh-my-joy:deep-interview "사내 지식 베이스 — 아직 흐릿함"` |
+| **`/oh-my-joy:goal-loop`** | 승인된 스펙을 골 단위로 `.omj/goals/`에 영속시켜 하나씩 완주하는 단일 owner durable 루프 — 완료는 validator 스크립트의 증거 객체 검사를 통과해야만 성립(불법 전이·잘린 ledger·증거 없는 완료는 non-zero 거부, Plan 해제 후 실행) | 중단을 견디고 완료를 증명해야 하는 여러 턴 작업 — OMC/OMX 유무 무관 | `/oh-my-joy:goal-loop ./approved-spec.md --slug search-form` |
 
 > **read-only vs 능동 op.** `/omj`·`/oh-my-joy:ff-review`·`/oh-my-joy:deep-interview`는 read-only(리포트/스펙만) — `/omj`는 스펙 뒤 실행 레인 질문을 **최대 1회** 할 수 있고(inline/manual 추천이면 질문 없이 `(auto)` 기록만 — Plan 승인이 곧 레인 동의), 인터뷰는 자체 라운드 상한 아래 라운드당 1문항을 물으며, 셋 다 Write/Edit/build/test는 못 합니다. `/omj-start`는 handoff 커맨드입니다: 런타임 surface가 명시적이고 안전할 때만 시작하고, 아니면 copyable action 한 줄만 출력합니다. `/omj-verify`·`/omj-fix`·`/omj-sync`(sync/push/extract)는 Figma write·`Edit`/`Write`·Bash를 쓰는 능동 op라, 환경이 Plan 모드에서 이를 막으면 Plan을 해제한 뒤 실행하세요. 각 커맨드의 구문·인자·단계는 `commands/<name>.md`가 정본입니다.
 >
@@ -135,7 +136,7 @@ OMJ는 oh-my-claudecode(OMC), oh-my-codex(OMX)와 **별개의 독립 플러그�
 | --- | --- | --- |
 | 명료화 | `/oh-my-joy:deep-interview`(모호한 아이디어→스펙) | `/oh-my-claudecode:deep-interview`(OMC 스킬) |
 | 계획 | `/omj`(FE 스펙, 네이티브 Plan + 실행 selector) | `/oh-my-claudecode:plan`·`/ralplan`·`$ralplan`(OMX: plan-only) |
-| 실행 | `/omj-start` fallback handoff | `/goal`·`$ultragoal`·`/team`/`$team`·`/ralph`/`$ralph` |
+| 실행 | `/omj-start` fallback handoff · `/oh-my-joy:goal-loop`(durable·증거 게이트 — OMC/OMX 없이 동작) | `/goal`·`$ultragoal`·`/team`/`$team`·`/ralph`/`$ralph` |
 | 검증 | `/oh-my-joy:ff-review`·`/omj-verify` | `/verify`·`$ultraqa` |
 
 `/omj`가 만든 구현 스펙이 곧 OMC/OMX 실행 도구가 소비하는 입력입니다. 실행 레인 라우팅 정본은 **[docs/EXECUTION-HANDOFF.md](docs/EXECUTION-HANDOFF.md)**, A/B/C 플로우·게이트 규칙·핸드오프 제약은 **[docs/OMC-INTEGRATION.md](docs/OMC-INTEGRATION.md)** 참고.
