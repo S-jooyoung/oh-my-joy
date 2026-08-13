@@ -2,7 +2,7 @@
 
 > 이 문서가 **정본**이다. 영문 요약표는 [`PRINCIPLES.en.md`](PRINCIPLES.en.md) — 요약이 정본과 어긋나면 이 문서를 따른다. 원리를 바꾸면 요약표의 해당 행도 같은 커밋에서 갱신한다.
 
-이 문서는 oh-my-joy(OMJ)의 각 설계 결정이 **왜** 그렇게 내려졌는지를 설명한다. 정본 사실(README/SoT)이 "무엇을"을 정의한다면, 이 문서는 "왜"를 정의한다. 각 원리는 `문제 → 결정 → 근거 → 결과` 구조로 서술하며, 가능한 경우 버린 대안과 그 이유도 함께 남긴다. 커맨드의 실제 동작은 `commands/omj.md`, `commands/omj-start.md`, `commands/ff-review.md`, `commands/omj-verify.md`, `commands/omj-fix.md`, `commands/omj-sync.md`, `commands/omj-setup.md`, `commands/deep-interview.md`가 정본이며, 이 문서는 그 동작과 정합한다.
+이 문서는 oh-my-joy(OMJ)의 각 설계 결정이 **왜** 그렇게 내려졌는지를 설명한다. 정본 사실(README/SoT)이 "무엇을"을 정의한다면, 이 문서는 "왜"를 정의한다. 각 원리는 `문제 → 결정 → 근거 → 결과` 구조로 서술하며, 가능한 경우 버린 대안과 그 이유도 함께 남긴다. 커맨드의 실제 동작은 `commands/omj.md`, `commands/omj-start.md`, `commands/ff-review.md`, `commands/omj-verify.md`, `commands/omj-fix.md`, `commands/omj-sync.md`, `commands/omj-setup.md`, `commands/deep-interview.md`, `commands/goal-loop.md`, `commands/ralplan.md`가 정본이며, 이 문서는 그 동작과 정합한다.
 
 ---
 

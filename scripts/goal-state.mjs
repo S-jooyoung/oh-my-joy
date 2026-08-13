@@ -179,23 +179,27 @@ function parseArgs(argv) {
   return args;
 }
 
+// 값 없는 플래그(--reason 단독)는 parseArgs가 true를 넣는다 — 문자열 검사 전에
+// 좁혀야 스택 트레이스 대신 의도한 에러 메시지가 나간다.
+const str = (value) => (typeof value === 'string' ? value : '');
+
 const normalizeGoals = (raw, startIndex = 0) =>
   raw.map((goal, index) => {
-    if (!goal.title?.trim() || !goal.objective?.trim()) fail('각 골은 title과 objective가 필요합니다');
+    if (!str(goal.title).trim() || !str(goal.objective).trim()) fail('각 골은 title과 objective가 필요합니다');
     return { id: goal.id ?? `G${String(startIndex + index + 1).padStart(3, '0')}`, title: goal.title, objective: goal.objective };
   });
 
 function main() {
   const [verb, ...rest] = process.argv.slice(2);
   const args = parseArgs(rest);
-  const slug = args.slug;
+  const slug = str(args.slug);
   if (!verb) fail('사용법: goal-state.mjs <init|transition|add-goal|close|status|validate|reconcile> --slug <slug> …');
   if (!slug || !/^[a-z0-9][a-z0-9-]*$/.test(slug)) fail('--slug는 소문자·숫자·하이픈만 허용합니다');
 
   if (verb === 'init') {
     if (existsSync(goalsRoot(slug))) fail(`.omj/goals/${slug}/가 이미 있습니다 — 재개는 status/reconcile, 새 계획은 다른 slug로`);
-    const brief = args['brief-file'] ? readFileSync(args['brief-file'], 'utf8') : args.brief;
-    if (!brief?.trim()) fail('--brief 또는 --brief-file이 필요합니다');
+    const brief = str(args['brief-file']) ? readFileSync(args['brief-file'], 'utf8') : str(args.brief);
+    if (!brief.trim()) fail('--brief 또는 --brief-file이 필요합니다');
     let goals;
     try {
       goals = normalizeGoals(JSON.parse(args['goals-json'] ?? '[]'));
@@ -255,17 +259,17 @@ function main() {
       const evidenceError = validateEvidence(evidence);
       if (evidenceError) fail(`증거 불충분 — ${evidenceError}. 증거 객체 없이는 완료가 성립하지 않습니다`);
     }
-    if ((to === 'blocked' || to === 'failed') && !args.reason?.trim()) fail(`${to} 전이에는 --reason이 필요합니다`);
+    if ((to === 'blocked' || to === 'failed') && !str(args.reason).trim()) fail(`${to} 전이에는 --reason이 필요합니다`);
 
     const event = appendEvent(slug, snapshot, {
       event: TRANSITION_EVENT[`${goal.status}>${to}`],
       goal_id: goal.id,
       ...(evidence ? { evidence } : {}),
-      ...(args.reason ? { reason: args.reason } : {}),
+      ...(str(args.reason) ? { reason: str(args.reason) } : {}),
     });
     goal.status = to;
     if (evidence) goal.evidence = evidence;
-    if (args.reason) goal.reason = args.reason;
+    if (str(args.reason)) goal.reason = str(args.reason);
     writeSnapshot(slug, snapshot);
     return ok({ transitioned: goal.id, to, seq: event.seq });
   }

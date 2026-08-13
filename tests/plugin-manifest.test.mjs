@@ -25,8 +25,8 @@ const marketplace = readJson('.claude-plugin', 'marketplace.json');
 /**
  * 소스 코드에 부작용을 낼 수 없다고 문서가 선언한 커맨드들.
  * `/omj`는 plan-gate를 우회할 쓰기 경로가 없어야 하고(PRINCIPLES ①③),
- * `/omj-review`·`/omj-verify`는 리포트만 내는 검증 커맨드,
- * `deep-interview`는 네이티브 Plan만 산출하는 인터뷰 프라이머다.
+ * `ff-review`·`/omj-verify`는 리포트만 내는 검증 커맨드,
+ * `deep-interview`·`ralplan`은 네이티브 Plan만 산출하는 프라이머·리뷰 커맨드다.
  */
 const READ_ONLY_COMMANDS = new Set(['omj.md', 'ff-review.md', 'omj-verify.md', 'deep-interview.md', 'ralplan.md']);
 

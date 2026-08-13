@@ -205,12 +205,13 @@ describe('커맨드 목록 정합', () => {
 
   it('워크플로우 커맨드를 bare 슬래시로 표기하지 않는다 — 정규 호출만', () => {
     // bare `/deep-interview` 류는 OMC 동명 스킬·Claude Code 네이티브 커맨드와 어느
-    // 구현이 뜨는지 모호하다. 문서·selector·copyable action 전 표면에서 차단한다.
+    // 구현이 뜨는지 모호하다. 추적되는 전 마크다운 표면에서 차단한다 —
+    // CHANGELOG만 예외(과거 릴리스 항목은 개명 전 표기를 이력으로 보존한다).
     const sources = [
       ['README.md', readmeEn],
       ['README.ko.md', readmeKo],
       ...listMarkdownFiles()
-        .filter((f) => f.startsWith('docs/') || f.startsWith('commands/'))
+        .filter((f) => f !== 'CHANGELOG.md' && !f.startsWith('README'))
         .map((f) => [f, readRepoFile(f)]),
     ];
     const offenders = [];
