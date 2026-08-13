@@ -85,7 +85,7 @@ const readLedger = (slug) => {
 };
 
 /** ledger에서 스냅샷 상태를 재유도한다 — reconcile과 validate의 공용 심장. */
-export function deriveFromLedger(events) {
+function deriveFromLedger(events) {
   const goals = new Map();
   let closed = false;
   for (const event of events) {
