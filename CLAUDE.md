@@ -33,7 +33,7 @@ oh-my-joy(마켓플레이스 `omj`)는 **코드↔Figma 프론트엔드 루프 �
 - **code↔Figma 토큰 sync**: 코드가 기본 SoT, 충돌 시 사용자가 방향 선택(대화형 `sync`). `check`는 드리프트만 보고, `push`는 명시적 code-wins.
 - **번들 최소화**: 자작 `frontend-fundamentals` 1개만 번들. vercel 스킬은 참조(`npx skills add/update`).
 - **graceful degradation**: figma/context7/playwright-cli/OMC/OMX 부재는 에러가 아니라 스킵 + 안내.
-- **처방 vs 검증 / 게이트 공존**: FF 지식은 `/omj`가 처방(prescriptive), `/oh-my-joy:ff-review`·`/omj-verify`가 검증(descriptive) — 같은 FF SoT를 단계만 달리. `/omj`(네이티브 plan 읽기 게이트)와 OMC/OMX 실행/goal 게이트는 직교 — 기본은 승인 후 선택된 레인 직행, `/ralplan`/`$ralplan` 합의는 모호·고위험만(OMX `$ralplan`은 현재 plan-only — 합의 뒤 실행 레인 별도 시작). 정본은 README/PRINCIPLES/EXECUTION-HANDOFF.
+- **처방 vs 검증 / 게이트 공존**: FF 지식은 `/omj`가 처방(prescriptive), `/oh-my-joy:ff-review`·`/omj-verify`가 검증(descriptive) — 같은 FF SoT를 단계만 달리. `/omj`(네이티브 plan 읽기 게이트)와 OMC/OMX 실행/goal 게이트는 직교 — 기본은 승인 후 선택된 레인 직행, `/oh-my-claudecode:ralplan`/`$ralplan` 합의는 모호·고위험만(OMX `$ralplan`은 현재 plan-only — 합의 뒤 실행 레인 별도 시작). 정본은 README/PRINCIPLES/EXECUTION-HANDOFF.
 
 ## Git / 커밋
 

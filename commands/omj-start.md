@@ -26,7 +26,7 @@ allowed-tools: Read, Grep, AskUserQuestion
    - Wrapper: `none` · `/goal` · `$ultragoal` · `/oh-my-joy:goal-loop`(OMJ native — 런타임 불요, 정본: `docs/EXECUTION-HANDOFF.md`의 "OMJ native 레인")
    - Sublane: `inline/manual` · `$ralph` · `$team`
    - QA follow-up: `$ultraqa`
-   - Consensus fallback: `/ralplan`(OMC — 합의 승인 시 실행 연결) · `$ralplan`(OMX — plan-only: 계획 산출 후 정지, 합의 뒤 실행 레인 별도 시작. 정본: `docs/EXECUTION-HANDOFF.md`)
+   - Consensus fallback: `/oh-my-claudecode:ralplan`(OMC — 합의 승인 시 실행 연결) · `$ralplan`(OMX — plan-only: 계획 산출 후 정지, 합의 뒤 실행 레인 별도 시작. 정본: `docs/EXECUTION-HANDOFF.md`)
 5. 런타임을 감지한다.
    - shell availability probe는 쓰지 않는다. 현재 세션 문맥과 스펙의 선택 lane만으로 안전하게 판단한다.
    - 현재 세션이 명시적 OMX/Codex 문맥이고 입력이 파일 경로이며 `Wrapper=$ultragoal`이면 `omx ultragoal create-goals --brief-file '<safe-approved-spec-path>'`만 직접 실행할 수 있다. 단 create-goals는 durable goal을 **생성만** 한다 — 생성 성공 후 최종 출력의 copyable action은 시작/재개 담당인 `omx ultragoal complete-goals`로 한다(2단계 CLI, 정본: `docs/EXECUTION-HANDOFF.md`).

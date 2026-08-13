@@ -10,7 +10,7 @@
 
 ## 한 줄 역할 분담
 
-- **계획**: `/omj`(FE 맥락 스펙, 네이티브 Plan + 실행 selector). 합의가 필요한 대규모만 승인 후 `/ralplan`/`$ralplan`에 시드로 넘김(런타임 비대칭 — OMC `/ralplan`은 승인 시 실행 연결, OMX `$ralplan`은 현재 plan-only로 계획 산출 후 정지. 정본: [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md)).
+- **계획**: `/omj`(FE 맥락 스펙, 네이티브 Plan + 실행 selector). 합의가 필요한 대규모만 승인 후 `/oh-my-claudecode:ralplan`/`$ralplan`에 시드로 넘김(런타임 비대칭 — OMC `/oh-my-claudecode:ralplan`은 승인 시 실행 연결, OMX `$ralplan`은 현재 plan-only로 계획 산출 후 정지. 정본: [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md)).
 - **실행**: `/goal`/`$ultragoal`(durable goal/checkpoint) · `/team`/`$team`(병렬 N에이전트) · `/ralph`/`$ralph`(순차 루프). `/omj-start`는 자동 시작이 안 될 때의 canonical fallback handoff. inline 레인(`(auto)` 포함)에서는 OMJ 번들 `figma-implementer` 에이전트가 승인된 스펙의 표준 실행자로 쓰일 수 있다 — 단 OMC/OMX 레인이 선택된 스펙은 항상 그 레인이 우선한다(레인이 아니라 레인이 쓰는 실행자).
 - **검증**: `/oh-my-joy:ff-review`(FE 코드 diff) · `/omj-verify`(FE 시각) · OMC/OMX 일반 검증 또는 `$ultraqa`(adversarial QA).
 
@@ -24,7 +24,7 @@
 2. 사용자가 Plan을 승인한다.
 3. 선택된 레인으로 바로 실행하거나, 자동 시작이 불가하면 `/omj-start <approved-spec>` 한 줄로 넘긴다.
 
-`/ralplan`/`$ralplan` 합의는 모호·고위험·아키텍처 합의가 필요할 때만 명시적으로 거칩니다. 단순히 "큰 작업"이라는 이유만으로 매번 두 번째 계획 게이트를 강제하지 않습니다.
+`/oh-my-claudecode:ralplan`/`$ralplan` 합의는 모호·고위험·아키텍처 합의가 필요할 때만 명시적으로 거칩니다. 단순히 "큰 작업"이라는 이유만으로 매번 두 번째 계획 게이트를 강제하지 않습니다.
 
 ## A. 일반 FE 작업 (단순~중간)
 
@@ -38,7 +38,7 @@
 1. `/omj`로 핵심 화면 스펙 author (figma + FF/vercel) — 대상 파일·번호 단계·acceptance·검증 route를 스펙에 박음.
 2. 승인(ExitPlanMode) 후 durable work면 `/goal` 또는 `$ultragoal` wrapper를 둔다.
 3. 병렬 가능한 구현·문서·검증 lane이 있으면 wrapper 안에서 `/team`/`$team`을 쓴다. 순차 완료 압박이 크면 `/ralph`/`$ralph`를 쓴다.
-4. 진짜 모호하거나 합의가 필요할 때만 승인 후 명시적 `/ralplan`/`$ralplan`에 스펙을 시드로 투입한다(OMX `$ralplan`은 plan-only — 합의 뒤 실행 레인은 별도로 시작).
+4. 진짜 모호하거나 합의가 필요할 때만 승인 후 명시적 `/oh-my-claudecode:ralplan`/`$ralplan`에 스펙을 시드로 투입한다(OMX `$ralplan`은 plan-only — 합의 뒤 실행 레인은 별도로 시작).
 5. 화면별 `/oh-my-joy:ff-review`·`/omj-verify`, 잔여 diff 재실행.
 
 ## C. 풀스택 (FE+BE)
