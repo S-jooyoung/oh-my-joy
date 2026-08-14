@@ -25,6 +25,9 @@
 
 ### Fixed
 
+- **`Bash(command:*)` 사전승인 제거** — `command`는 인자를 그대로 실행하는 셸 builtin이라 이 스코프는 사실상 bare Bash였다(스코프 문법을 쓰고도 임의 실행을 승인하는 세탁 경로). 3개 커맨드(omj-verify·omj-fix·omj-setup)를 실호출인 `Bash(command -v:*)`로 축소하고, 실행 위임 builtin(command·eval·exec·env·xargs 등) 단독 prefix를 불변식 테스트로 차단. Bash 호출지점 검사도 substring에서 단어 경계 정규식으로 강화 — 한국어 산문의 우연 일치로 공허 통과하던 구멍 봉합.
+- **omj-start의 미사용 `Grep` 선언 제거** — 본문 절차에 호출 지점이 없는 도구 선언 금지 규칙(CLAUDE.md) 위반이었다. Read·AskUserQuestion만으로 절차가 완결된다.
+
 ### Security
 
 ## [0.5.0] - 2026-08-06

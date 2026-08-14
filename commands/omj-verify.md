@@ -1,7 +1,7 @@
 ---
 description: 라우트를 시각 검증 — 디자인/명세 대비 점검. playwright-cli 우선, 부재 시 playwright MCP 폴백 (Plan 해제 후 실행)
 argument-hint: "<route> [--base <url>]"
-allowed-tools: Read, Bash(playwright-cli:*), Bash(curl:*), Bash(command:*), mcp__playwright__*, mcp__plugin_playwright_playwright__*
+allowed-tools: Read, Bash(playwright-cli:*), Bash(curl:*), Bash(command -v:*), mcp__playwright__*, mcp__plugin_playwright_playwright__*
 ---
 
 # /omj-verify — 시각 검증 (능동 op)

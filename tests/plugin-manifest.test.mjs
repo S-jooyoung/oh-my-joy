@@ -139,6 +139,17 @@ describe('commands/*.md frontmatter', () => {
         );
       });
 
+      // Bash(command:*) 같은 실행 위임 builtin의 단독 prefix는 `command <아무거나>`를
+      // 무프롬프트로 승인한다 — 스코프 문법을 쓰고도 bare Bash와 동등해지는 세탁 경로.
+      // 인자까지 포함한 prefix(Bash(command -v:*))는 통과한다.
+      it('실행 위임 builtin을 단독 prefix로 스코프하지 않는다', () => {
+        assert.doesNotMatch(
+          fm['allowed-tools'],
+          /(^|,\s*)Bash\(\s*(command|eval|exec|source|sh|bash|zsh|env|xargs|sudo|nohup|time)\s*(:\*)?\s*\)/,
+          `${file}: 실행 위임 builtin 단독 스코프는 사실상 bare Bash다 — 인자까지 좁혀야 한다(예: Bash(command -v:*))`,
+        );
+      });
+
       if (READ_ONLY_COMMANDS.has(file)) {
         // Task/Agent를 함께 막는 이유: 서브에이전트는 부모의 allowed-tools를 상속하지
         // 않으므로, 소집 선언 하나로 read-only 계약이 매니페스트 수준에서 무의미해진다.
@@ -184,8 +195,9 @@ describe('agents/*.md frontmatter', () => {
  * (a) MCP 이중 프리픽스: v0.4.0이 playwright에서 "설치 출처에 따라 도구명이 달라진다"를
  *     고쳤지만 figma·context7로 전파되지 않았다 — 테스트가 없어서였다.
  * (b) 호출 지점 없는 권한 선언: v0.4.0에서 3건 제거 후에도 재유입됐다.
- *     이 검사는 **언급 기반**이다(본문 어디든 명령 문자열이 있으면 통과) — 구조적 단언이
- *     아니라 성실성 의존 게이트임을 알고 유지하라.
+ *     이 검사는 **언급 기반**이다(본문 어디든 명령 문자열이 단어 경계로 등장하면 통과) —
+ *     구조적 단언이 아니라 성실성 의존 게이트임을 알고 유지하라. substring 매칭은
+ *     한국어 산문의 우연 일치("command" 등)로 공허해져 단어 경계 정규식으로 강화했다.
  */
 describe('도구 선언 불변식 (commands allowed-tools · agents tools)', () => {
   const surfaces = [
@@ -247,7 +259,10 @@ describe('도구 선언 불변식 (commands allowed-tools · agents tools)', () 
         const m = /^Bash\((.+)\)$/.exec(token);
         if (!m) continue;
         const cmd = m[1].replace(/:\*$/, '');
-        if (!body.includes(cmd)) violations.push(`${file}: Bash(${m[1]}) — 본문에 "${cmd}" 없음`);
+        // 단어 경계 매칭 — `command` 선언이 산문 속 "command" 조각으로 통과하는 공허를 막는다.
+        const escaped = cmd.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const callSite = new RegExp(`(^|[^\\w-])${escaped}(?![\\w-])`);
+        if (!callSite.test(body)) violations.push(`${file}: Bash(${m[1]}) — 본문에 호출 지점 "${cmd}" 없음`);
       }
     }
     assert.deepEqual(

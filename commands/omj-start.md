@@ -1,7 +1,7 @@
 ---
 description: 승인된 OMJ 스펙을 OMC/OMX 실행 레인으로 넘기는 canonical fallback handoff command
 argument-hint: "<approved-spec-path 또는 pasted approved spec>"
-allowed-tools: Read, Grep, AskUserQuestion
+allowed-tools: Read, AskUserQuestion
 ---
 
 # /omj-start — 승인 후 실행 레인 fallback
