@@ -9,7 +9,7 @@
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -136,6 +136,35 @@ describe('goal-state: 경로 검증 (사전승인 아래로 숨는 우회 차단
     const traversal = run(root, ['init', '--slug', 'demo', '--brief-file', '../outside.md', '--goals-json', GOALS]);
     assert.equal(traversal.code, 1);
     assert.match(traversal.stderr, /상대경로만/);
+  });
+
+  it('win32 절대경로(드라이브·UNC)와 백슬래시 traversal도 거부한다 — POSIX 전용 가드의 구멍', () => {
+    const root = makeRoot();
+    for (const briefFile of ['C:\\evil\\b.md', 'C:/evil/b.md', '\\\\srv\\share\\b.md', 'a\\..\\outside.md']) {
+      const result = run(root, ['init', '--slug', 'demo', '--brief-file', briefFile, '--goals-json', GOALS]);
+      assert.equal(result.code, 1, `${briefFile}가 가드를 통과했습니다`);
+      assert.match(result.stderr, /상대경로만/);
+    }
+  });
+});
+
+describe('goal-state: init 원자성', () => {
+  it('성공한 init은 .tmp- 잔재를 남기지 않고 완결 디렉터리만 남긴다', () => {
+    const root = makeRoot();
+    assert.equal(initDemo(root).code, 0);
+    const entries = readdirSync(path.join(root, '.omj/goals'));
+    assert.deepEqual(entries, ['demo'], `잔재가 남았습니다: ${entries.join(', ')}`);
+    for (const file of ['brief.md', 'goals.json', 'ledger.jsonl']) {
+      assert.ok(existsSync(path.join(root, '.omj/goals/demo', file)), `${file} 누락`);
+    }
+  });
+
+  it('크래시 잔해(.tmp- 디렉터리)가 있어도 재init이 성공한다 — 최종 경로 비점유 보장', () => {
+    const root = makeRoot();
+    // 중간 크래시를 재현: temp 경로만 만들어지고 rename 전에 죽은 상태.
+    mkdirSync(path.join(root, '.omj/goals/demo.tmp-99999'), { recursive: true });
+    assert.equal(initDemo(root).code, 0);
+    assert.ok(existsSync(path.join(root, '.omj/goals/demo/goals.json')));
   });
 });
 

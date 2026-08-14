@@ -35,6 +35,8 @@
 - **훅 fail-open 구멍 봉합** — 두 훅의 fe-context 판독이 try/catch 밖에 있어 판독 불가(디렉터리·권한) 시 uncaught exception이 exit 1로 새어 "검사만, exit 0" 계약이 깨졌다. try/catch로 no-op 처리 + 계약 테스트 2건.
 - **NOTICE 상대링크 3곳(deep-interview·goal-loop·ralplan)에 런타임 경로 병기** — 설치된 플러그인 프롬프트에선 상대링크가 소비 프로젝트 cwd 기준으로 해석되므로 `${CLAUDE_PLUGIN_ROOT}/NOTICE.md`를 함께 표기(GitHub 렌더링용 상대링크는 유지).
 - **design-qa description에 비트리거 절 추가** — 번들 3종 중 유일하게 "어떤 요청은 이 에이전트가 아니다" 서술이 없어 자동위임 오발동 여지가 있었다. 질적 리뷰(ff-review)·수정 루프(omj-fix)와의 경계를 명시.
+- **goal-state `--brief-file` 절대경로 가드의 win32 구멍 봉합** — 기존 가드가 POSIX 전용(`/` 시작)이라 Windows 드라이브(`C:\…`·`C:/…`)·UNC(`\\srv\…`) 절대경로와 백슬래시 traversal이 통과해, 사전승인 Bash 규칙 아래 임의 파일 읽기가 가능했다. `path.win32.isAbsolute` 병용 + 거부 케이스 4종 테스트.
+- **goal-state init 원자화** — 최종 경로에 단계별로 쓰던 init은 중간 크래시 잔해가 경로를 점유해 재init·타 동사·reconcile 전부가 거부하는 복구 불능 상태를 만들 수 있었다. temp 디렉터리에 완성 후 rename하는 원자 이동으로 교체(writeSnapshot과 같은 계약을 init 전체로 확장). CLI·파일 계약은 불변.
 - **goal-loop의 Task 비선언이 의도임을 본문에 성문화** — 본문이 서브에이전트 소집을 지시하면서 allowed-tools에 Task가 없는 것이 결함처럼 읽혔다. 소집 시 권한 프롬프트가 확인 지점이라는 근거(PRINCIPLES ③)를 블록쿼트로 명시. 에이전트 `model` 필드 미지정=세션 모델 상속 의도도 CLAUDE.md에 성문화.
 
 ### Security

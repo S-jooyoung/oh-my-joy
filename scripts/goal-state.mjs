@@ -11,7 +11,7 @@
  * ledger 꼬리의 일치를 검사한다 — 불일치는 "reconcile 먼저"로 멈춘다.
  * 동시 writer는 지원하지 않는다(단일 owner 순차 루프 전제).
  */
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -207,7 +207,11 @@ function main() {
     if (existsSync(goalsRoot(slug))) fail(`.omj/goals/${slug}/가 이미 있습니다 — 재개는 status/reconcile, 새 계획은 다른 slug로`);
     const briefFile = str(args['brief-file']);
     // 레포 내 상대경로만 — 절대경로·traversal은 사전승인 규칙 아래의 임의 파일 읽기가 된다.
-    if (briefFile && (briefFile.startsWith('/') || briefFile.split(path.sep).includes('..') || briefFile.split('/').includes('..'))) {
+    // POSIX와 win32 판정을 병용해야 C:\…·C:/…·\\UNC\… 드라이브 절대경로가 가드를 통과하지 못한다.
+    if (
+      briefFile &&
+      (path.isAbsolute(briefFile) || path.win32.isAbsolute(briefFile) || briefFile.split(/[\\/]/).includes('..'))
+    ) {
       fail('--brief-file은 레포 내 상대경로만 허용합니다(절대경로·.. 금지)');
     }
     const brief = briefFile ? readFileSync(briefFile, 'utf8') : str(args.brief);
@@ -220,20 +224,26 @@ function main() {
     }
     if (goals.length === 0) fail('골이 최소 1개 필요합니다');
 
-    mkdirSync(goalsRoot(slug), { recursive: true });
-    writeFileSync(path.join(goalsRoot(slug), 'brief.md'), brief);
     const snapshot = {
       schema_version: SCHEMA_VERSION,
       slug,
       closed: false,
       created_at: new Date().toISOString(),
-      updated_at: null,
-      last_event_id: 0,
+      updated_at: new Date().toISOString(),
+      last_event_id: 1,
       goals: goals.map((goal) => ({ ...goal, status: 'pending', evidence: null, reason: null })),
     };
-    writeFileSync(ledgerPath(slug), '');
-    appendEvent(slug, snapshot, { event: 'plan_created', goals });
-    writeSnapshot(slug, snapshot);
+    // temp 디렉터리에 완성한 뒤 rename — 최종 경로에 직접 단계별로 쓰면 중간 크래시
+    // 잔해가 경로를 점유해 init('이미 있습니다')·타 동사·reconcile('init 먼저') 전부가
+    // 거부하는 복구 불능 상태가 된다(writeSnapshot의 원자 교체와 같은 계약을 init 전체로 확장).
+    const tmpRoot = `${goalsRoot(slug)}.tmp-${process.pid}`;
+    rmSync(tmpRoot, { recursive: true, force: true });
+    mkdirSync(tmpRoot, { recursive: true });
+    writeFileSync(path.join(tmpRoot, 'brief.md'), brief);
+    const firstEvent = { seq: 1, ts: new Date().toISOString(), event: 'plan_created', goals };
+    writeFileSync(path.join(tmpRoot, 'ledger.jsonl'), `${JSON.stringify(firstEvent)}\n`);
+    writeFileSync(path.join(tmpRoot, 'goals.json'), `${JSON.stringify(snapshot, null, 2)}\n`);
+    renameSync(tmpRoot, goalsRoot(slug));
     return ok({ initialized: slug, goals: snapshot.goals.map((g) => ({ id: g.id, title: g.title, status: g.status })) });
   }
 
