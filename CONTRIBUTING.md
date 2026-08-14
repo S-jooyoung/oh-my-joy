@@ -48,8 +48,13 @@ node --test          # 의존성 설치 단계가 없다 — Node 20.11+ 만 있
 
 ## 릴리스
 
-1. `CHANGELOG.md`의 `[Unreleased]`를 새 버전 절로 확정하고 링크 정의를 추가한다.
-2. 버전 4표면을 함께 올린다 — `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`의 `plugins[].version`과 최상위 `version`, `package.json`. 테스트(`tests/plugin-manifest.test.mjs`)가 4곳 일치를 강제하므로 하나라도 빠지면 `npm test`가 실패한다.
-3. `chore(release): vX.Y.Z` 커밋 후 `git tag -a vX.Y.Z`.
+**배포 모델.** 마켓플레이스(`/plugin install oh-my-joy@omj`)는 태그를 받지 않고 main HEAD를 shallow clone으로 내려받되, **`plugin.json`의 `version`이 배포 게이트**다 — 이 문자열이 바뀌지 않는 한 기존 설치자는 캐시된 버전을 유지한다(수동 강제 업데이트 제외). 즉 **버전 범프가 main에 머지되는 순간이 곧 배포**이고, 태그·GitHub Release는 사람이 읽는 이력 라벨이다. main에 기능이 쌓여도 릴리스를 컷하기 전에는 사용자에게 도달하지 않는다.
+
+절차:
+
+1. 평소처럼 `[Unreleased]`에 변경 항목을 서술한다 — 산문은 사람이 쓴다(자동 생성 없음).
+2. `node scripts/release.mjs cut --version X.Y.Z` → CHANGELOG 절 확정·링크 정의·버전 4표면(plugin.json / marketplace.json 2곳 / package.json)이 한 번에 변환된다. diff를 검토하고 산문을 다듬는다.
+3. `release/vX.Y.Z` 브랜치에서 `chore(release): vX.Y.Z` 커밋 → 동일 제목 PR → CI green 확인 후 머지.
+4. **태깅·GitHub Release는 자동이다** — 머지 push에서 `.github/workflows/release-tag.yml`이 plugin.json 버전의 태그를 방금 머지된 main 커밋에 부착하고, CHANGELOG 해당 절을 본문으로 Release를 발행한다. **수동 `git tag`는 금지** — v0.4.0 태그가 main 밖 고아 커밋에 붙었던 사고가 이 규칙의 근거다(부분 실패는 워크플로우 수동 재실행으로 치유, 로직이 멱등·main ref 전용). 현재 버전의 태그는 있는데 GitHub Release가 없는 상태(자동화 도입 이전 릴리스)도 다음 main push에서 소급 백필된다 — 의도된 동작이다.
 
 번들 스킬(`skills/*/SKILL.md`)의 `metadata.version`은 플러그인 버전과 무관한 독립 semver다 — 스킬 내용(SKILL.md·`references/`) 변경이 있는 릴리스에서만 함께 올린다.

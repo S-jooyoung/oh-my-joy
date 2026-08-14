@@ -1,0 +1,76 @@
+# main 머지 시 plugin.json 버전에 태그·GitHub Release를 자동 부착한다.
+#
+# 판정은 커밋 제목 파싱이 아니라 **상태 비교**다(plugin.json 버전의 태그가 없으면 생성) —
+# 릴리스 커밋 제목 관례는 이력상 불균질했고(v0.5.0에 "(#N)" 없음, v0.1~0.3은 feat 커밋 태그),
+# 상태 비교는 제목 편집·수동 push 전부에 무관하게 멱등이다. 태그는 항상 방금 push된
+# main 커밋($GITHUB_SHA)에 붙으므로 v0.4.0(고아 커밋 태깅) 실패 모드가 재발할 수 없다.
+#
+# 무한 트리거 없음(2중): ① GITHUB_TOKEN이 만든 태그 push·release 이벤트는 다른 워크플로우를
+# 트리거하지 않는다(GitHub 재귀 방지). ② 어떤 워크플로우도 tags/release를 듣지 않고,
+# ci.yml의 branches 필터는 태그 push에 매칭되지 않는다.
+#
+# contents:write는 이 파일에만 둔다 — ci.yml은 read 최소권한 유지.
+name: Release tag
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # 부분 실패 재실행·수동 dry-run용 — 로직이 멱등이라 언제 눌러도 안전
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-tag
+  cancel-in-progress: false # 태깅 도중 취소 금지 — 연속 머지는 큐잉으로 처리
+
+jobs:
+  tag:
+    # workflow_dispatch를 feature 브랜치 ref로 실행하면 $GITHUB_SHA가 main 밖 커밋이 된다 —
+    # 바로 그 경로가 v0.4.0 고아 태그 사고였으므로 main ref 밖에서는 잡 자체를 돌리지 않는다.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 태그 존재·ancestry 판정에 전체 이력 필요
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # 태깅 전 자체 게이트 — 버전 4표면 일치·CHANGELOG 링크·골격 검사가 여기서 돈다.
+      - name: 검증 스위트
+        run: npm test
+
+      - name: 버전 태그 판정·생성
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "JSON.parse(require('fs').readFileSync('.claude-plugin/plugin.json','utf8')).version")
+          TAG="v$VERSION"
+
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            EXISTING=$(git rev-list -n1 "$TAG")
+            if git merge-base --is-ancestor "$EXISTING" "$GITHUB_SHA"; then
+              echo "::notice::$TAG 이미 존재(main 도달 가능) — no-op"
+            else
+              # 감지만 하고 계속 가면 고아 태그에 Release가 발행된다 — 여기서 잡을 실패시켜 차단.
+              echo "::error::$TAG 가 main 밖 커밋($EXISTING)을 가리킴 — 태그를 main 커밋으로 정정한 뒤 재실행하세요"
+              exit 1
+            fi
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$TAG" -m "release $TAG" "$GITHUB_SHA"
+            git push origin "$TAG"
+            echo "::notice::$TAG 를 $GITHUB_SHA 에 부착"
+          fi
+
+          # 태그는 있는데 Release만 없는 부분 실패도 재실행으로 치유된다.
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            node scripts/release.mjs notes --version "$VERSION" > "$RUNNER_TEMP/notes.md"
+            gh release create "$TAG" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
+            echo "::notice::GitHub Release $TAG 발행"
+          fi

@@ -15,6 +15,7 @@ import {
   repoPath,
   listMarkdownFiles,
   listCommandFiles,
+  parseFrontmatter,
   stripCode,
   REPO_ROOT,
 } from './helpers/repo.mjs';
@@ -130,6 +131,40 @@ describe('CHANGELOG 링크 무결성', () => {
   });
 });
 
+describe('CHANGELOG keep-a-changelog 골격', () => {
+  // scripts/release.mjs cut의 골격 재생성 계약을 CI에서 봉인한다 — 이 검사가 없으면
+  // 자동화나 편집이 빈 섹션을 지우거나 섹션 어휘를 바꿔도 어떤 테스트도 실패하지 않는다.
+  const SECTIONS = ['Added', 'Changed', 'Deprecated', 'Removed', 'Fixed', 'Security'];
+
+  // stripCode: 릴리스 노트 산문이 코드펜스로 `## [`·`### ` 예시를 인용해도 오탐하지 않게.
+  const strippedChangelog = stripCode(changelog);
+
+  it('[Unreleased]는 6섹션 전부를 정본 순서로 갖는다', () => {
+    const start = strippedChangelog.indexOf('## [Unreleased]');
+    assert.ok(start !== -1, '## [Unreleased] 절이 없습니다');
+    const rest = strippedChangelog.slice(start);
+    const next = rest.search(/\n## \[/);
+    const section = next === -1 ? rest : rest.slice(0, next);
+    const headings = [...section.matchAll(/^### (.+)$/gm)].map((m) => m[1]);
+    assert.deepEqual(headings, SECTIONS);
+  });
+
+  it('모든 절의 ### 헤딩이 keep-a-changelog 어휘·정본 순서를 지킨다 (릴리스 절은 부분집합 허용)', () => {
+    const offenders = [];
+    for (const chunk of strippedChangelog.split(/^## /m).slice(1)) {
+      const label = chunk.slice(0, chunk.indexOf('\n'));
+      let last = -1;
+      for (const [, heading] of chunk.matchAll(/^### (.+)$/gm)) {
+        const index = SECTIONS.indexOf(heading);
+        if (index === -1) offenders.push(`${label}: 비표준 섹션 "${heading}"`);
+        else if (index < last) offenders.push(`${label}: "${heading}" 순서 위반`);
+        else last = index;
+      }
+    }
+    assert.deepEqual(offenders, [], offenders.join('\n'));
+  });
+});
+
 describe('내부 링크 무결성', () => {
   it('마크다운의 상대 링크가 모두 실재하는 파일을 가리킨다', () => {
     const broken = [];
@@ -177,6 +212,26 @@ describe('커맨드 목록 정합', () => {
   // 예고된 v1.1 커맨드(CLAUDE.md)와 개명 전 이력 표기는 명시 allowlist로 허용한다.
   const PLANNED_COMMANDS = new Set(['/omj-push', '/omj-spec']);
   const HISTORICAL_COMMANDS = new Set(['/omj-review']);
+
+  // 표 행이 커맨드 토큰만 싣고 인자를 빠뜨리는 드리프트(감사에서 --threshold 미문서화로
+  // 실증)를 막는다 — argument-hint의 플래그는 사용자가 알아야 호출할 수 있는 표면이다.
+  // --help는 관례 플래그라 제외. 매칭은 경계 정규식 — --slug가 --slugify로 충족되지 않게.
+  it('전 커맨드의 argument-hint 플래그가 README(EN/KO) 양쪽에 문서화돼 있다', () => {
+    const offenders = [];
+    for (const file of commandFiles) {
+      const fm = parseFrontmatter(readRepoFile('commands', file));
+      const flags = [...(fm['argument-hint'] ?? '').matchAll(/--[A-Za-z][\w-]*/g)]
+        .map((m) => m[0])
+        .filter((flag) => flag !== '--help');
+      for (const flag of flags) {
+        const bounded = new RegExp(`${flag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w-])`);
+        for (const [label, source] of [['EN', readmeEn], ['KO', readmeKo]]) {
+          if (!bounded.test(source)) offenders.push(`${label}: ${file}의 ${flag}`);
+        }
+      }
+    }
+    assert.deepEqual(offenders, [], `플래그 문서 누락:\n${offenders.join('\n')}`);
+  });
 
   it('추적되는 전 마크다운이 실재하는 커맨드만 문서화한다', () => {
     const offenders = [];
