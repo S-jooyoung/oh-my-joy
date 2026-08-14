@@ -61,7 +61,7 @@
 
 ## Auto-select 규칙 (inline/manual 한정 질문 생략)
 
-추천 레인이 **`Wrapper=none; Sublane=inline/manual`일 때만** selector의 `AskUserQuestion`을 생략하고, 스펙에 `선택된 레인: Wrapper=none; Sublane=inline/manual (auto)`로 기록만 한다.
+추천 레인이 **`Wrapper=none; Sublane=inline/manual`일 때만** selector의 `AskUserQuestion`을 생략하고, 스펙에 `Selected lane: Wrapper=none; Sublane=inline/manual (auto)`로 기록만 한다.
 
 - **근거**: 이 경우 질문의 답이 자명해 프롬프트 피로만 남는다(PRINCIPLES ⑪ — 추론 가능+저비용이면 묻지 않는다). 오판의 blast radius도 작다 — 잘못돼도 "가장 값싼 레인으로 진행" 또는 사용자가 승인 화면에서 정정.
 - **경계**: `$team`/`$ultragoal`/`/goal`/`$ralph`/`$ralplan`/`$ultraqa`가 추천이면 **항상 정확히 1회 질문**한다(무거운 레인의 침묵 진행 금지).
@@ -70,17 +70,17 @@
 
 ## Selector output contract
 
-항상 option 1이 추천이어야 하며 `(추천)`을 붙인다(auto-select 조건에 해당하면 질문 없이 아래 형식의 `선택된 레인` 줄에 `(auto)`를 붙여 기록만 한다). Wrapper와 Sublane이 모두 적용되면 한 줄 안에 분리해 쓴다.
+항상 option 1이 추천이어야 하며 `(recommended)`를 붙인다(auto-select 조건에 해당하면 질문 없이 아래 형식의 `Selected lane` 줄에 `(auto)`를 붙여 기록만 한다). Wrapper와 Sublane이 모두 적용되면 한 줄 안에 분리해 쓴다.
 
 ```md
-## 실행 레인 선택
-1. Wrapper: $ultragoal; Sublane: $team (추천) — 여러 문서/커맨드/검증 lane이 분리 가능하고 checkpoint가 필요함.
-2. Wrapper: none; Sublane: $ralph — 한 owner가 순차 구현/검증.
-3. QA follow-up: $ultraqa — 구현 후 hostile QA/fix 루프.
+## Execution lane selection
+1. Wrapper: $ultragoal; Sublane: $team (recommended) — multiple doc/command/verification lanes can be split; checkpoints needed.
+2. Wrapper: none; Sublane: $ralph — one owner implements/verifies sequentially.
+3. QA follow-up: $ultraqa — hostile QA/fix loop after implementation.
 
-선택된 레인: Wrapper=$ultragoal; Sublane=$team
+Selected lane: Wrapper=$ultragoal; Sublane=$team
 
-승인 후 자동 시작이 불가하면 다음 한 줄만 실행:
+If auto-start is not possible after approval, run exactly this one line:
 /omj-start <approved-spec-or-plan-path>
 ```
 

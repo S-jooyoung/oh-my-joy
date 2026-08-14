@@ -20,8 +20,8 @@ allowed-tools: Read, AskUserQuestion
 ## 절차
 
 1. 입력이 경로면 `Read`로 읽고, 본문이면 그대로 분석한다.
-2. `selectedLane`, `선택된 레인`, 또는 `## 실행 레인 선택` 아래의 선택값이 있으면 **다시 묻지 않는다**.
-3. 선택값이 없을 때만 `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md`(레포 기준 `docs/EXECUTION-HANDOFF.md`)를 기준으로 `AskUserQuestion`을 정확히 한 번 사용한다. 1번 옵션은 항상 추천값이며 라벨에 `(추천)`을 붙인다. (스펙의 `선택된 레인`이 `(auto)`면 실행할 별도 레인이 없다는 뜻 — "인라인 구현 대상, /omj-start 불필요"를 안내하고 종료한다.)
+2. `selectedLane`, `Selected lane`, 또는 `## Execution lane selection` 아래의 선택값이 있으면 **다시 묻지 않는다**. legacy 한국어 라벨(`선택된 레인`, `## 실행 레인 선택`, `(추천)`)도 동일하게 선택값으로 인식한다 — 읽기는 양쪽 라벨, 새로 쓰는 스펙은 영어 라벨만.
+3. 선택값이 없을 때만 `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md`(레포 기준 `docs/EXECUTION-HANDOFF.md`)를 기준으로 `AskUserQuestion`을 정확히 한 번 사용한다. 1번 옵션은 항상 추천값이며 라벨에 `(recommended)`를 붙인다. (스펙의 `Selected lane`이 `(auto)`면 실행할 별도 레인이 없다는 뜻 — "인라인 구현 대상, /omj-start 불필요"를 안내하고 종료한다.)
 4. 선택 결과를 `Wrapper`와 `Sublane`으로 분리한다.
    - Wrapper: `none` · `/goal` · `$ultragoal` · `/oh-my-joy:goal-loop`(OMJ native — 런타임 불요, 정본: `docs/EXECUTION-HANDOFF.md`의 "OMJ native 레인")
    - Sublane: `inline/manual` · `$ralph` · `$team`

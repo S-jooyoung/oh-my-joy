@@ -56,20 +56,20 @@ allowed-tools: Read, Grep, Glob, Skill, AskUserQuestion, mcp__plugin_figma_figma
 
 **과설계 금지**: 함께 바뀔 게 확실할 때만 추상화. 단순 로직을 불필요하게 추상화하거나 일어나지 않을 미래를 위한 깊은 계층을 만들지 않는다(`frontend-fundamentals` "과설계 경고").
 
-**실행 레인 선택 (읽기 전용 핸드오프)**: 스펙 끝에 `## 실행 레인 선택` 섹션을 반드시 추가한다. 라우팅 규칙의 SoT는 `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md`(레포 기준 `docs/EXECUTION-HANDOFF.md`)이며, 이 파일을 읽을 수 없을 때만 최소 fallback(작으면 inline/manual, 지속 목표면 `$ultragoal` 또는 `/goal` — OMC/OMX가 없으면 `/oh-my-joy:goal-loop`, 병렬 lane이 있으면 `$team`, 순차 완료 압박이면 `$ralph`, 구현 후 hostile QA면 `$ultraqa`, 합의가 더 필요하면 `/oh-my-claudecode:ralplan`·`$ralplan` — 둘 다 없으면 `/oh-my-joy:ralplan`)을 사용한다. 커맨드 본문에는 점수표·임계값을 중복 정의하지 않는다.
+**실행 레인 선택 (읽기 전용 핸드오프)**: 스펙 끝에 `## Execution lane selection` 섹션을 반드시 추가한다. 라우팅 규칙의 SoT는 `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md`(레포 기준 `docs/EXECUTION-HANDOFF.md`)이며, 이 파일을 읽을 수 없을 때만 최소 fallback(작으면 inline/manual, 지속 목표면 `$ultragoal` 또는 `/goal` — OMC/OMX가 없으면 `/oh-my-joy:goal-loop`, 병렬 lane이 있으면 `$team`, 순차 완료 압박이면 `$ralph`, 구현 후 hostile QA면 `$ultraqa`, 합의가 더 필요하면 `/oh-my-claudecode:ralplan`·`$ralplan` — 둘 다 없으면 `/oh-my-joy:ralplan`)을 사용한다. 커맨드 본문에는 점수표·임계값을 중복 정의하지 않는다.
 
-레인 선택 질문은 **조건부**다(SoT의 auto-select 규칙): 추천 레인이 `Wrapper=none; Sublane=inline/manual`이면 **묻지 않고** 스펙에 `선택된 레인: Wrapper=none; Sublane=inline/manual (auto)`로 기록만 한다 — Plan 승인이 곧 레인 동의이며, 이견이면 승인 화면에서 plan을 수정하거나 `/omj-start`에서 재선택할 수 있다. 그 외 레인($team/$ultragoal/$ralph/$ralplan/$ultraqa)이 추천이면 스펙 완성 뒤 **정확히 한 번만** `AskUserQuestion`으로 묻는다. 1번 옵션은 항상 결정적 추천값이며 라벨에 `(추천)`을 붙인다. 추천은 `Wrapper`(durable/checkpoint owner: `none`·`/goal`·`$ultragoal`)와 `Sublane`(실행 방식: `inline/manual`·`$ralph`·`$team`)을 분리해 적는다. 구현이 끝난 뒤 QA만 필요한 경우에만 `$ultraqa`를 1번으로 추천하고, 아직 요구·경계·아키텍처 합의가 부족하면 `/oh-my-claudecode:ralplan`/`$ralplan`을 먼저 추천한다(OMX `$ralplan`은 계획 산출 후 정지 — 비대칭 정본: SoT).
+레인 선택 질문은 **조건부**다(SoT의 auto-select 규칙): 추천 레인이 `Wrapper=none; Sublane=inline/manual`이면 **묻지 않고** 스펙에 `Selected lane: Wrapper=none; Sublane=inline/manual (auto)`로 기록만 한다 — Plan 승인이 곧 레인 동의이며, 이견이면 승인 화면에서 plan을 수정하거나 `/omj-start`에서 재선택할 수 있다. 그 외 레인($team/$ultragoal/$ralph/$ralplan/$ultraqa)이 추천이면 스펙 완성 뒤 **정확히 한 번만** `AskUserQuestion`으로 묻는다. 1번 옵션은 항상 결정적 추천값이며 라벨에 `(recommended)`를 붙인다. 추천은 `Wrapper`(durable/checkpoint owner: `none`·`/goal`·`$ultragoal`)와 `Sublane`(실행 방식: `inline/manual`·`$ralph`·`$team`)을 분리해 적는다. 구현이 끝난 뒤 QA만 필요한 경우에만 `$ultraqa`를 1번으로 추천하고, 아직 요구·경계·아키텍처 합의가 부족하면 `/oh-my-claudecode:ralplan`/`$ralplan`을 먼저 추천한다(OMX `$ralplan`은 계획 산출 후 정지 — 비대칭 정본: SoT).
 
 최종 스펙에는 선택 결과를 아래 형식으로 남긴다:
 
 ```md
-## 실행 레인 선택
-1. Wrapper: $ultragoal; Sublane: $team (추천) — 여러 문서/커맨드/검증 lane이 분리 가능하고 checkpoint가 필요함.
-2. Wrapper: none; Sublane: $ralph — 한 owner가 순차 구현/검증.
-3. QA follow-up: $ultraqa — 구현 후 hostile QA/fix 루프.
+## Execution lane selection
+1. Wrapper: $ultragoal; Sublane: $team (recommended) — multiple doc/command/verification lanes can be split; checkpoints needed.
+2. Wrapper: none; Sublane: $ralph — one owner implements/verifies sequentially.
+3. QA follow-up: $ultraqa — hostile QA/fix loop after implementation.
 
-선택된 레인: Wrapper=<...>; Sublane=<...>          # auto-select 시: Wrapper=none; Sublane=inline/manual (auto)
-승인 후 자동 시작이 불가하면: /omj-start <approved-spec-or-plan-path>
+Selected lane: Wrapper=<...>; Sublane=<...>          # on auto-select: Wrapper=none; Sublane=inline/manual (auto)
+If auto-start is not possible after approval: /omj-start <approved-spec-or-plan-path>
 ```
 
 승인 후에는 두 동작 중 하나만 한다: (a) 현재 런타임이 명시적이고 안전한 handoff surface를 제공하면 선택된 레인을 시작한다, 또는 (b) 자동 시작이 불가하면 정확히 한 줄의 `/omj-start <approved-spec-or-plan-path>`만 출력하고 멈춘다. **`(auto)` 기록된 inline/manual 스펙은 `/omj-start`가 불필요하다** — 승인 즉시 현재 세션이 인라인으로 구현을 진행한다. `/omj`는 구현·빌드·테스트·서브에이전트 위임·숨은 `/goal clear`를 하지 않는다.

@@ -6,7 +6,7 @@
 
 ## 멘탈 모델 (1문장)
 
-"FE는 무조건 `/omj`로 시작 — 스펙을 승인한 뒤 특별한 이유가 없으면 1번 `(추천)` 실행 레인으로 간다."
+"FE는 무조건 `/omj`로 시작 — 스펙을 승인한 뒤 특별한 이유가 없으면 1번 `(recommended)` 실행 레인으로 간다."
 
 ## 한 줄 역할 분담
 
@@ -50,7 +50,7 @@
 ## 핸드오프 제약 (메커니즘 주의)
 
 - `/omj`는 read-only라 소스 코드를 스스로 못 씁니다. 파일 materialize/수정은 `ExitPlanMode` 승인 **후** 실행 레인이 담당합니다.
-- `/omj`는 실행 레인 선택을 **최대 한 번만** 묻습니다 — 추천이 `Wrapper=none; Sublane=inline/manual`이면 묻지 않고 `(auto)`로 기록만 하며(Plan 승인=레인 동의), 그 외 레인 추천일 때만 1회 질문에 1번 옵션을 `(추천)`으로 둡니다. 선택값은 최종 스펙에 남깁니다(auto-select 규칙 정본: `EXECUTION-HANDOFF.md`).
+- `/omj`는 실행 레인 선택을 **최대 한 번만** 묻습니다 — 추천이 `Wrapper=none; Sublane=inline/manual`이면 묻지 않고 `(auto)`로 기록만 하며(Plan 승인=레인 동의), 그 외 레인 추천일 때만 1회 질문에 1번 옵션을 `(recommended)`로 둡니다. 선택값은 최종 스펙에 남깁니다(auto-select 규칙 정본: `EXECUTION-HANDOFF.md`).
 - 자동 시작이 불가하면 `/omj-start <approved-spec-or-plan-path>` 한 줄만 출력합니다. 사용자가 다시 판단해야 하는 여러 command를 동시에 뿌리지 않습니다.
 - `/goal clear`는 자동 실행하지 않습니다. 이전 completed goal이 새 same-thread goal을 막을 때만 명시적 사용자 action으로 안내합니다.
 - OMC/OMX syntax와 wrapper/sublane 분리는 [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md)가 정본입니다. 이 문서는 플로우 설명만 유지합니다.
