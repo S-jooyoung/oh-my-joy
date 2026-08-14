@@ -4,7 +4,7 @@ description: Frontend code-quality guide based on Toss frontend-fundamentals. Ap
 license: MIT
 metadata:
   author: Jooyoung Shin
-  version: '1.1.0'
+  version: '1.2.0'
   source: https://github.com/toss/frontend-fundamentals
 ---
 
