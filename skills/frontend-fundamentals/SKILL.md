@@ -1,6 +1,6 @@
 ---
 name: frontend-fundamentals
-description: 토스 frontend-fundamentals 기반 프론트엔드 코드 품질 가이드. React 컴포넌트/훅을 작성·수정·리팩터링하거나 코드 리뷰할 때 가독성·예측가능성·응집도·결합도·접근성 원칙을 적용한다. 성능/번들은 vercel-react-best-practices, 컴포넌트 합성/확장성은 vercel-composition-patterns, Next.js 최신 API는 Context7로 라우팅한다. "컴포넌트 작성", "훅 작성", "컴포넌트/훅 리팩터링", "프론트엔드 코드 리뷰", "가독성" 등 FE 맥락에서 활성화(백엔드·비프론트 코드 리뷰는 대상 아님).
+description: Frontend code-quality guide based on Toss frontend-fundamentals. Applies the readability, predictability, cohesion, coupling, and accessibility principles when writing, modifying, or refactoring React components/hooks or reviewing code. Routes performance/bundle to vercel-react-best-practices, component composition/extensibility to vercel-composition-patterns, and latest Next.js APIs to Context7. Activates in FE contexts like "write a component" ("컴포넌트 작성"), "write a hook", "refactor this component/hook", "frontend code review", "readability" (backend/non-frontend code review is out of scope).
 license: MIT
 metadata:
   author: Jooyoung Shin
@@ -8,64 +8,64 @@ metadata:
   source: https://github.com/toss/frontend-fundamentals
 ---
 
-# Frontend Fundamentals (통합 품질 가이드)
+# Frontend Fundamentals (integrated quality guide)
 
-토스 [frontend-fundamentals](https://github.com/toss/frontend-fundamentals)의 "변경하기 쉬운 코드" 원칙을 Next.js / React 스택에 맞춰 정리한 가이드. **확장성 있고, 접근성 좋고, 예측 가능한 코드**를 목표로 한다.
+A guide organizing the "code that is easy to change" principles of Toss [frontend-fundamentals](https://github.com/toss/frontend-fundamentals) for the Next.js / React stack. The goal is **extensible, accessible, predictable code**.
 
-## 핵심 원칙: 좋은 코드의 4가지 기준
+## Core principle: the 4 criteria of good code
 
-| 기준                           | 한 줄 정의                             | 상세                                                         |
-| ------------------------------ | -------------------------------------- | ------------------------------------------------------------ |
-| **가독성**(Readability)        | 코드가 한 번에 담는 맥락을 줄인다      | [references/readability.md](references/readability.md)       |
-| **예측가능성**(Predictability) | 이름만 보고 동작을 예측할 수 있다      | [references/predictability.md](references/predictability.md) |
-| **응집도**(Cohesion)           | 함께 바뀌는 코드는 함께 둔다           | [references/cohesion.md](references/cohesion.md)             |
-| **결합도**(Coupling)           | 모듈 간 의존을 낮춰 변경 파급을 줄인다 | [references/coupling.md](references/coupling.md)             |
+| Criterion                       | One-line definition                                   | Details                                                       |
+| ------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------- |
+| **Readability**                 | Reduce the context code carries at once               | [references/readability.md](references/readability.md)        |
+| **Predictability**              | Behavior is predictable from the name alone           | [references/predictability.md](references/predictability.md)  |
+| **Cohesion**                    | Code that changes together lives together             | [references/cohesion.md](references/cohesion.md)              |
+| **Coupling**                    | Lower inter-module dependencies to shrink change blast radius | [references/coupling.md](references/coupling.md)      |
 
-> **핵심 트레이드오프**: 네 기준을 한 번에 모두 충족하기는 어렵다. 지금 코드가 **장기적으로 수정하기 쉬워지려면** 어떤 가치를 우선할지 상황에 따라 판단한다. (예: 응집도를 높이려 추상화하면 결합도가 올라갈 수 있다.)
+> **Core trade-off**: satisfying all four at once is hard. Judge case by case which value to prioritize so the code becomes **easier to change long-term**. (e.g. abstracting for cohesion can raise coupling.)
 
-추가 영역:
+Additional areas:
 
-- **접근성(a11y)** → [references/a11y.md](references/a11y.md) — WCAG 2.2 성공 기준 병기(시맨틱·alt·대비·포커스·모션·터치 타깃·폼 에러)
-- **경계(Server/Client·에러·테스트 가능성)** → [references/boundaries.md](references/boundaries.md) — `'use client'`를 어디에 두는가가 번들과 렌더 모델을 함께 결정한다
-- **번들/디버그** → [references/bundling-debug.md](references/bundling-debug.md)
-- **프로젝트 acceptance 축(메커니즘)** → [references/fe-acceptance.md](references/fe-acceptance.md) — 프로젝트가 `.omj/fe-context.md`에 선언한 '자주 빠뜨리는 축'을 스펙에 반영(플러그인은 특정 축을 강제하지 않음 — 범용). 토큰 시스템 탐지 순서의 SoT도 이 파일.
-- **Figma 충실도(design→code 보편 규칙)** → [references/figma-fidelity.md](references/figma-fidelity.md) — 원본 텍스트 유지·임의 variant 금지·고정 px 금지(w-full+부모 padding)·토큰 하드코딩 금지. `/omj`가 처방, `/oh-my-joy:ff-review`·`design-qa`가 검증.
+- **Accessibility (a11y)** → [references/a11y.md](references/a11y.md) — annotated with WCAG 2.2 success criteria (semantics, alt, contrast, focus, motion, touch targets, form errors)
+- **Boundaries (Server/Client, errors, testability)** → [references/boundaries.md](references/boundaries.md) — where `'use client'` sits decides the bundle and the render model together
+- **Bundle/debug** → [references/bundling-debug.md](references/bundling-debug.md)
+- **Project acceptance axes (mechanism)** → [references/fe-acceptance.md](references/fe-acceptance.md) — reflects the "frequently missed axes" a project declares in `.omj/fe-context.md` into specs (the plugin forces no particular axis — general-purpose). Also the SoT for the token-system detection order.
+- **Figma fidelity (universal design→code rules)** → [references/figma-fidelity.md](references/figma-fidelity.md) — keep original text, no invented variants, no fixed px (w-full + parent padding), no hardcoded tokens. `/omj` prescribes; `/oh-my-joy:ff-review`·`design-qa` verify.
 
-## 빠른 점검표 (smell → remedy)
+## Quick checklist (smell → remedy)
 
-| Smell                                          | 원칙          | Remedy                                 |
-| ---------------------------------------------- | ------------- | -------------------------------------- |
-| 중첩 삼항 / 이름 없는 복잡 조건                | 가독성        | 명명된 변수·early return·`if`로 분리   |
-| 한 컴포넌트에 viewer/admin 등 비동시 분기 혼재 | 가독성        | 분기별 컴포넌트 분리                   |
-| 매직 넘버(`7`, `3600`) 산재                    | 가독성·응집도 | 의미 있는 상수로 명명                  |
-| 이름과 다른 숨은 사이드이펙트                  | 예측가능성    | 이름-동작 일치, 부수효과 분리          |
-| 같은 종류 함수가 제각각 반환 타입              | 예측가능성    | 반환 형태 통일                         |
-| 함께 바뀌는 로직이 여러 파일에 흩어짐          | 응집도        | 한 단위(폼/도메인)로 모으기            |
-| props 3단계 이상 drilling                      | 결합도        | composition/context (아래 라우팅 참조) |
-| 책임 과다 훅(한 훅이 여러 관심사)              | 결합도        | 관심사별 훅 분리                       |
-| `<img>` alt 누락 / 클릭만 가능한 `div`         | 접근성        | alt·시맨틱 태그·키보드 핸들러          |
-| 페이지 최상단 `'use client'`                   | 경계          | 상태를 쓰는 잎으로 내리고 `children` 합성 |
-| 에러 경계가 루트에 하나뿐                      | 경계          | 독립 실패 영역마다 `error.tsx`         |
+| Smell                                                  | Principle              | Remedy                                     |
+| ------------------------------------------------------ | ---------------------- | ------------------------------------------ |
+| Nested ternaries / unnamed complex conditions          | Readability            | Named variables, early returns, split `if` |
+| viewer/admin non-concurrent branches in one component  | Readability            | Split components per branch                |
+| Magic numbers (`7`, `3600`) scattered                  | Readability·Cohesion   | Name them as meaningful constants          |
+| Hidden side effects differing from the name            | Predictability         | Align name and behavior, split side effects |
+| Same-kind functions with divergent return types        | Predictability         | Unify return shapes                        |
+| Logic that changes together scattered across files     | Cohesion               | Gather into one unit (form/domain)         |
+| Props drilling 3+ levels                               | Coupling               | composition/context (see routing below)    |
+| Over-responsible hook (one hook, many concerns)        | Coupling               | Split hooks per concern                    |
+| `<img>` missing alt / click-only `div`                 | Accessibility          | alt, semantic tags, keyboard handlers      |
+| `'use client'` at the top of a page                    | Boundaries             | Push state into leaves, compose `children` |
+| A single error boundary at the root                    | Boundaries             | `error.tsx` per independent failure zone   |
 
-## 통합 라우팅 규칙 (중복 금지, 조합 우선)
+## Integrated routing rules (no duplication, composition first)
 
-이 스킬은 **품질 4기준 + 접근성**만 소유한다. 아래 영역은 기존 스킬/도구로 위임한다:
+This skill owns **only the 4 quality criteria + accessibility**. The areas below are delegated to existing skills/tools:
 
-- **성능·번들·리렌더·데이터 페칭·직렬화·Suspense 경계** → `vercel-react-best-practices` 스킬을 참조한다. (waterfall 제거, `next/dynamic`, 메모이제이션 등. **규칙 수는 적지 않는다** — 상류에서 바뀌면 곧바로 드리프트가 된다.) 스킬 미설치 환경이면 이 레이어는 생략한다(graceful, 에러 아님).
-- **props 비대화·확장 가능한 컴포넌트 API·compound component** → `vercel-composition-patterns` 스킬을 참조한다. 미설치면 이 레이어 생략(graceful, 에러 아님).
-- **버전 게이팅** — 위임한 스킬에는 React 19 전용 절이 있다. 프로젝트 `package.json`의 `react`/`next` 버전을 읽어 **어느 절을 적용하고 어느 절을 생략할지**만 결정한다(규칙 내용을 이 스킬에 복제하지 않는다). `package.json`을 못 읽으면 게이팅을 생략한다(graceful).
-- **Next.js App Router·Server Component·`fetch` 캐싱·metadata 등 버전 민감 주제** → **Context7 MCP로 `/vercel/next.js` 최신 공식 문서를 조회**한 뒤 권장안을 적용한다. (training data가 아닌 런타임 문서 기준)
-  - Context7 MCP를 쓸 수 없는 환경(`context7` 플러그인 미설치·CI)이면 이 레이어는 생략하고 training-data 기반 일반 권장으로 대체한다(에러 아님).
-- **심화 a11y/UX 감사** → `web-design-guidelines` 스킬의 동적 fetch 리뷰를 활용한다. 미설치면 이 레이어 생략(graceful, 에러 아님).
+- **Performance, bundle, re-renders, data fetching, serialization, Suspense boundaries** → refer to the `vercel-react-best-practices` skill. (waterfall elimination, `next/dynamic`, memoization, … **No rules are copied here** — upstream changes would instantly become drift.) In environments without the skill, skip this layer (graceful, not an error).
+- **Props bloat, extensible component APIs, compound components** → refer to the `vercel-composition-patterns` skill. Skip if not installed (graceful, not an error).
+- **Version gating** — the delegated skills contain React 19-only sections. Read `react`/`next` versions from the project's `package.json` to decide **only which sections apply and which to skip** (never duplicate rule content into this skill). If `package.json` is unreadable, skip gating (graceful).
+- **Next.js version-sensitive topics — App Router, Server Components, `fetch` caching, metadata, …** → **query the latest official `/vercel/next.js` docs via the Context7 MCP** and apply the recommendations. (Runtime docs over training data.)
+  - In environments without the Context7 MCP (`context7` plugin missing, CI), skip this layer and fall back to training-data general recommendations (not an error).
+- **Deep a11y/UX audit** → use the `web-design-guidelines` skill's dynamic-fetch review. Skip if not installed (graceful, not an error).
 
-## 과설계 경고
+## Overengineering warning
 
-원칙을 "지키려고" 다음을 하지 말 것:
+Never do the following "to obey" the principles:
 
-- 단순한 로직을 불필요하게 추상화하지 않는다.
-- 일어나지 않을 미래 유연성을 위해 깊은 계층 구조를 만들지 않는다.
-- 나쁜 코드에 주석을 다는 대신 코드 자체를 개선한다.
+- Do not needlessly abstract simple logic.
+- Do not build deep hierarchies for future flexibility that will not happen.
+- Improve the code itself instead of commenting on bad code.
 
-## 연동 커맨드
+## Companion command
 
-`/oh-my-joy:ff-review` — 현재 브랜치/스테이징 diff를 위 4기준 + a11y + Vercel 성능/합성 + Next.js(Context7) 기준으로 통합 리뷰한다(read-only). `/omj`(처방)와 같은 FF SoT를 검증 단계에서 재사용한다.
+`/oh-my-joy:ff-review` — integrated review of the current branch/staged diff against the 4 criteria above + a11y + Vercel performance/composition + Next.js (Context7) (read-only). Reuses the same FF SoT as `/omj` (prescription) at the verification stage.

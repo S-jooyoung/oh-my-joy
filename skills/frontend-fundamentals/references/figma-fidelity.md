@@ -1,16 +1,16 @@
-# Figma 충실도 (figma-fidelity) — design→code 변환의 보편 규칙
+# Figma fidelity (figma-fidelity) — universal rules for design→code conversion
 
-Figma 디자인을 코드로 옮길 때 **디자이너의 결정을 임의로 바꾸지 않는 것**이 기본값이다. 이 규칙은 프로젝트 무관 보편 규칙으로, `/omj` Phase 2가 스펙 author 시 **처방**하고 `/oh-my-joy:ff-review`·`design-qa`가 구현 후 **검증**한다(처방↔검증 same-SoT).
+When moving a Figma design into code, **never altering the designer's decisions** is the default. These are project-agnostic universal rules: `/omj` Phase 2 **prescribes** them while authoring the spec, and `/oh-my-joy:ff-review`·`design-qa` **verify** them after implementation (prescription↔verification, same SoT).
 
-## 규칙
+## Rules
 
-1. **원본 텍스트 유지** — Figma의 문구·조사·줄바꿈 의도를 그대로 옮긴다. "더 자연스러워 보여서" 문구를 고치지 않는다. 오탈자로 보이면 *스펙에 질문으로 표기*하지, 코드에서 조용히 수정하지 않는다.
-2. **없는 variant 임의 생성 금지** — Figma에 없는 상태/사이즈/톤 variant를 "필요할 것 같아서" 만들지 않는다(FF 과설계 경고와 동일 축). 필요하면 스펙 단계에서 제안하고 사용자 승인 후 추가한다.
-3. **고정 px 너비 금지** — 컴포넌트 너비는 프레임의 px을 하드코딩하지 않고 `w-full` + 부모 컨테이너의 padding/max-width로 제어한다. Figma의 프레임 폭은 *컨테이너* 명세이지 컴포넌트 명세가 아니다.
-4. **토큰 하드코딩 금지** — raw hex·rgb()·임의 px 대신 프로젝트 토큰 시스템의 시맨틱 값으로 매핑한다(탐지 순서는 `fe-acceptance.md`). Figma 값과 토큰이 안 맞으면 *가장 가까운 시맨틱 토큰 + 스펙에 편차 기록*이 기본이고, 새 토큰 추가는 사용자 결정이다.
-5. **레이어 구조 ≠ DOM 구조** — Figma 레이어 트리를 그대로 DOM으로 복제하지 않는다. 시맨틱 태그·접근성 구조(`references/a11y.md`)가 우선하고, 시각 결과만 디자인과 일치시킨다.
+1. **Keep original text** — carry over Figma's copy, particles, and line-break intent verbatim. Never edit copy because "it reads more naturally". If something looks like a typo, *flag it as a question in the spec*; never fix it silently in code.
+2. **No invented variants** — never create state/size/tone variants absent from Figma because "they will probably be needed" (the same axis as the FF overengineering warning). If needed, propose at the spec stage and add after user approval.
+3. **No fixed px widths** — never hardcode the frame's px as the component width; control it with `w-full` + the parent container's padding/max-width. A Figma frame's width is a *container* spec, not a component spec.
+4. **No hardcoded tokens** — map to the project token system's semantic values instead of raw hex, rgb(), or arbitrary px (detection order in `fe-acceptance.md`). When a Figma value and the tokens disagree, the default is *nearest semantic token + record the deviation in the spec*; adding a new token is the user's decision.
+5. **Layer structure ≠ DOM structure** — never clone the Figma layer tree into the DOM as is. Semantic tags and accessibility structure (`references/a11y.md`) take precedence; only the visual result matches the design.
 
-## 판단이 필요한 경계
+## Boundaries needing judgment
 
-- 반응형: Figma에 단일 프레임만 있으면 다른 브레이크포인트는 *합리적 보간*이 필요하다 — 보간 결정을 스펙에 명시해 승인받는다(침묵 창작 금지).
-- 디자인 시스템과 충돌: Figma 값이 기존 컴포넌트/토큰과 어긋나면 "Figma를 따를지, 시스템을 따를지"를 스펙의 질문으로 올린다. 기본값은 시스템(토큰) 우선.
+- Responsive: when Figma has a single frame only, other breakpoints require *reasonable interpolation* — state the interpolation decisions in the spec and get them approved (no silent invention).
+- Design-system conflicts: when a Figma value clashes with existing components/tokens, raise "follow Figma or follow the system?" as a spec question. The default is system (tokens) first.
