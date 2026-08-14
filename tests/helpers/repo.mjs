@@ -1,8 +1,9 @@
 /**
- * 테스트 공용 헬퍼 — 레포 경로 해석, 훅 스크립트 실행, 임시 프로젝트 픽스처.
+ * Shared test helpers — repo path resolution, hook script execution, temp project fixtures.
  *
- * 의존성 0개(Node 내장 모듈만). 플러그인 자체는 런타임 의존성이 없고,
- * 검증 하네스도 같은 제약을 지켜 `npm i` 없이 `node --test`만으로 돌아간다.
+ * Zero dependencies (Node built-ins only). The plugin itself ships no runtime
+ * dependencies, and the verification harness honors the same constraint so the
+ * suite runs with plain `node --test`, no `npm i` required.
  */
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, readdirSync } from 'node:fs';
@@ -18,11 +19,14 @@ export const readRepoFile = (...segments) => readFileSync(repoPath(...segments),
 
 export const readJson = (...segments) => JSON.parse(readRepoFile(...segments));
 
-/** 레포에 커밋된 마크다운 전체(테스트 픽스처 제외). */
-export function listMarkdownFiles() {
-  const out = execFileSync('git', ['ls-files', '*.md'], { cwd: REPO_ROOT, encoding: 'utf8' });
+/** Tracked files matching the given git pathspecs (committed surface only). */
+export function listTrackedFiles(...patterns) {
+  const out = execFileSync('git', ['ls-files', ...patterns], { cwd: REPO_ROOT, encoding: 'utf8' });
   return out.split('\n').filter(Boolean);
 }
+
+/** All markdown committed to the repo (test fixtures excluded). */
+export const listMarkdownFiles = () => listTrackedFiles('*.md');
 
 export const listCommandFiles = () =>
   readdirSync(repoPath('commands'))
@@ -35,8 +39,9 @@ export const listAgentFiles = () =>
     .sort();
 
 /**
- * 코드 블록과 인라인 코드를 제거한다. 코드 span 안의 `[텍스트](경로)`는 링크가 아니라
- * 링크를 *설명하는* 예시이므로, 링크 검사가 그것까지 잡으면 문서를 못 쓰게 된다.
+ * Strips fenced code blocks and inline code. A `[text](path)` inside a code span
+ * is an example *describing* a link, not a link — if the link checks matched it,
+ * the docs would become unwritable.
  */
 export const stripCode = (source) =>
   source.replace(/```[\s\S]*?```/g, '').replace(/`[^`\n]*`/g, '');
@@ -44,27 +49,29 @@ export const stripCode = (source) =>
 const unquote = (value) => value.trim().replace(/^"(.*)"$|^'(.*)'$/, (_m, d, s) => d ?? s);
 
 /**
- * 마크다운 frontmatter를 파싱한다. YAML 파서를 들이지 않고 이 레포가 실제로 쓰는
- * 부분집합만 다룬다: `key: value` 한 줄, `- item` 리스트, 한 단계 중첩 매핑.
+ * Parses markdown frontmatter. No YAML parser is pulled in — only the subset this
+ * repo actually uses is handled: single-line `key: value`, `- item` lists, and
+ * one level of nested mappings.
  *
- * **지원 범위를 넘는 문법은 던진다.** 조용히 드롭하면 테스트가 "값이 없다"와
- * "파서가 못 읽었다"를 구분하지 못해 거짓 안심을 만든다 — 실제로 `metadata:`
- * 중첩 매핑이 통째로 소실되던 것이 그 사례였다. 블록 스칼라(`>`/`|`)처럼
- * 여기서 다루지 않는 문법이 들어오면 파서를 확장하라는 신호로 실패시킨다.
+ * **Anything beyond the supported syntax throws.** Silently dropping it would make
+ * tests unable to distinguish "no value" from "the parser could not read it",
+ * producing false confidence — the `metadata:` nested mapping being lost wholesale
+ * was exactly that failure. Unsupported syntax such as block scalars (`>`/`|`)
+ * fails loudly as a signal to extend the parser.
  */
 export function parseFrontmatter(source) {
   const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(source);
   if (!match) return null;
 
   const fields = {};
-  let pendingKey = null; // 값이 비어 있던 직전 키 — 다음 들여쓴 줄이 리스트인지 매핑인지로 확정된다
+  let pendingKey = null; // last key with an empty value — the next indented line decides list vs mapping
 
   for (const line of match[1].split('\n')) {
     if (!line.trim()) continue;
 
     const indented = /^\s+(.*)$/.exec(line);
     if (indented) {
-      if (!pendingKey) throw new Error(`지원하지 않는 frontmatter 들여쓰기: ${line}`);
+      if (!pendingKey) throw new Error(`Unsupported frontmatter indentation: ${line}`);
 
       const listItem = /^-\s+(.*)$/.exec(indented[1]);
       if (listItem) {
@@ -74,9 +81,9 @@ export function parseFrontmatter(source) {
       }
 
       const nested = /^([A-Za-z0-9_-]+):\s*(.+)$/.exec(indented[1]);
-      if (!nested) throw new Error(`지원하지 않는 frontmatter 문법: ${line}`);
+      if (!nested) throw new Error(`Unsupported frontmatter syntax: ${line}`);
       if (Array.isArray(fields[pendingKey]) && fields[pendingKey].length > 0) {
-        throw new Error(`리스트와 매핑을 섞을 수 없습니다: ${line}`);
+        throw new Error(`Cannot mix list and mapping: ${line}`);
       }
       if (!fields[pendingKey] || Array.isArray(fields[pendingKey])) fields[pendingKey] = {};
       fields[pendingKey][nested[1]] = unquote(nested[2]);
@@ -84,14 +91,14 @@ export function parseFrontmatter(source) {
     }
 
     const pair = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(line);
-    if (!pair) throw new Error(`지원하지 않는 frontmatter 문법: ${line}`);
+    if (!pair) throw new Error(`Unsupported frontmatter syntax: ${line}`);
 
     const [, key, rawValue] = pair;
     if (rawValue.trim() === '') {
       pendingKey = key;
       fields[key] = [];
     } else if (/^[>|]/.test(rawValue.trim())) {
-      throw new Error(`블록 스칼라는 지원하지 않습니다(파서를 확장하세요): ${line}`);
+      throw new Error(`Block scalars are not supported (extend the parser): ${line}`);
     } else {
       pendingKey = null;
       fields[key] = unquote(rawValue);
@@ -102,14 +109,15 @@ export function parseFrontmatter(source) {
 }
 
 /**
- * 훅 스크립트를 실제 자식 프로세스로 띄워 PostToolUse 계약대로 stdin JSON을 먹인다.
- * 함수를 import해서 부르지 않고 프로세스로 실행하는 이유: 훅의 계약 표면은
- * stdin/stdout/exit code이며, 그 경계가 곧 회귀가 나는 지점이기 때문이다.
- * (`execFileSync`는 비정상 종료에서 throw하므로 크래시는 테스트 실패로 드러난다.)
+ * Runs a hook script as a real child process, feeding stdin JSON per the
+ * PostToolUse contract. It is executed as a process rather than imported as a
+ * function because the hook's contract surface IS stdin/stdout/exit code, and
+ * that boundary is where regressions happen.
+ * (`execFileSync` throws on abnormal exit, so crashes surface as test failures.)
  *
- * `raw: true`면 payload를 문자열 그대로 보낸다 — 파싱 불가 stdin을 재현하려면
- * 필수다. `JSON.stringify('not-json')`은 `"not-json"`이라는 **유효한 JSON**이라
- * 그것만으로는 훅의 파싱 방어 코드를 한 번도 밟지 못한다.
+ * With `raw: true` the payload is sent as-is — required to reproduce unparseable
+ * stdin. `JSON.stringify('not-json')` yields `"not-json"`, which is **valid
+ * JSON**, so it alone never exercises the hook's parse-guard code.
  */
 export function runHook(scriptName, payload, { raw = false } = {}) {
   const result = execFileSync('node', [repoPath('templates', 'hooks', scriptName)], {
@@ -124,8 +132,9 @@ export function runHook(scriptName, payload, { raw = false } = {}) {
 }
 
 /**
- * 소비 프로젝트를 흉내 낸 임시 디렉터리를 만든다.
- * files: { '<상대경로>': '<내용>' } — `.omj/fe-context.md` 포함 여부로 게이트를 검증한다.
+ * Creates a temp directory mimicking a consuming project.
+ * files: { '<relative path>': '<contents>' } — the presence of `.omj/fe-context.md`
+ * is what the gate checks are verified against.
  */
 export function makeProject(files) {
   const root = mkdtempSync(path.join(tmpdir(), 'omj-test-'));
@@ -141,7 +150,7 @@ export function makeProject(files) {
   };
 }
 
-/** PostToolUse 훅이 실제로 받는 stdin 페이로드 형태. */
+/** The stdin payload shape a PostToolUse hook actually receives. */
 export const postToolUsePayload = ({ cwd, filePath, toolName = 'Edit' }) => ({
   session_id: 'test-session',
   transcript_path: '/dev/null',
