@@ -15,6 +15,8 @@
 
 - **합의 리뷰 커맨드 `/oh-my-joy:ralplan` + `plan-critic` 에이전트** — 이미 존재하는 스펙/플랜을 적대 리뷰로 합의시키는 read-only 커맨드(풀 사이클 확장 3단계·최종). 진입 조건을 "요구가 모호"(그건 deep-interview)가 아니라 "**아티팩트가 이미 있고 설계 이견 위험**"으로 못 박아 두 단계의 함수를 분리했다. v1은 교차 리뷰 수렴대로 Planner 정규화(Drivers·Viable Options ≥2·ADR) → 독립 `plan-critic` 1패스 → 최대 2회 → PLANNING-STUCK(최선 플랜 보존·실행 금지·쟁점 목록)로 축소 — Architect 2차 패스는 고위험 트리거 실측 후. 리뷰어는 빌트인이 아니라 **소유 에이전트 정의**(`agents/plan-critic.md`, `tools: Read, Grep, Glob`)라 도구 표면이 불변식 테스트로 고정된다. 서브에이전트 불가 환경은 순차 critic 패스로 degrade(⑨). **이 PR 자체가 `/oh-my-joy:goal-loop` 자기적용(E2E)으로 구현됐다** — `.omj/goals/pr3-ralplan/` ledger에 골 3건의 시작·완료·증거가 기록됨(gitignore 대상 로컬 산출물이라 PR에는 포함되지 않는다 — 형식은 `tests/goal-state.test.mjs`가 증명).
 
+- **에이전트 도구 계약 불변식** — plan-critic 도구 표면 정확일치(Read·Grep·Glob), design-qa 쓰기 도구 부재, 번들 3종 존재(루프 공허 통과 방지)를 테스트로 고정. ralplan 본문·본 CHANGELOG의 "도구 표면이 불변식 테스트로 고정된다" 주장이 이 시점부터 사실이 된다(감사에서 해당 테스트 부재가 확인됐었다).
+
 ### Changed
 
 - **BREAKING: `/omj-review` → `/oh-my-joy:ff-review` 개명 (2026-08-13)** — 사용자 결정으로 "이름 있는 방법론·루브릭 커맨드" 축(무접두 basename + 정규 호출)으로 이동. 기존 호출 `/omj-review [--base <ref>]`는 `/oh-my-joy:ff-review [--base <ref>]`로 바꾸면 된다(인자·동작 동일, 파일만 `commands/ff-review.md`로 이동). ⚠️ 도달률 재측정 창(~09-03) 진행 중의 표면 개명 — 실사용이 확인된 유일한 커맨드였으므로 재측정 리포트 해석 시 이 시점 전후를 분리 집계할 것.
@@ -32,6 +34,8 @@
 - **훅 등록 matcher를 스크립트의 `MUTATING_TOOLS` 4종과 일치** — 설치 절차의 `Edit|Write` matcher가 스크립트 필터(Edit·Write·MultiEdit·NotebookEdit)보다 좁아 MultiEdit 저장이 훅을 조용히 우회했다.
 - **훅 fail-open 구멍 봉합** — 두 훅의 fe-context 판독이 try/catch 밖에 있어 판독 불가(디렉터리·권한) 시 uncaught exception이 exit 1로 새어 "검사만, exit 0" 계약이 깨졌다. try/catch로 no-op 처리 + 계약 테스트 2건.
 - **NOTICE 상대링크 3곳(deep-interview·goal-loop·ralplan)에 런타임 경로 병기** — 설치된 플러그인 프롬프트에선 상대링크가 소비 프로젝트 cwd 기준으로 해석되므로 `${CLAUDE_PLUGIN_ROOT}/NOTICE.md`를 함께 표기(GitHub 렌더링용 상대링크는 유지).
+- **design-qa description에 비트리거 절 추가** — 번들 3종 중 유일하게 "어떤 요청은 이 에이전트가 아니다" 서술이 없어 자동위임 오발동 여지가 있었다. 질적 리뷰(ff-review)·수정 루프(omj-fix)와의 경계를 명시.
+- **goal-loop의 Task 비선언이 의도임을 본문에 성문화** — 본문이 서브에이전트 소집을 지시하면서 allowed-tools에 Task가 없는 것이 결함처럼 읽혔다. 소집 시 권한 프롬프트가 확인 지점이라는 근거(PRINCIPLES ③)를 블록쿼트로 명시. 에이전트 `model` 필드 미지정=세션 모델 상속 의도도 CLAUDE.md에 성문화.
 
 ### Security
 

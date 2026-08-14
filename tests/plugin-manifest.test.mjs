@@ -201,6 +201,11 @@ describe('commands/*.md frontmatter', () => {
 });
 
 describe('agents/*.md frontmatter', () => {
+  // 루프 기반 검사는 디렉터리가 비면 전부 공허 통과한다 — 존재 단언이 그 구멍을 막는다.
+  it('번들 에이전트 3종이 실재한다', () => {
+    assert.ok(listAgentFiles().length >= 3, 'agents/에 번들 3종(figma-implementer·design-qa·plan-critic)이 있어야 합니다');
+  });
+
   for (const file of listAgentFiles()) {
     describe(file, () => {
       const fm = parseFrontmatter(readRepoFile('agents', file));
@@ -216,6 +221,26 @@ describe('agents/*.md frontmatter', () => {
       });
     });
   }
+
+  // 에이전트 도구 계약 — ralplan.md·CHANGELOG의 "도구 표면이 테스트로 고정된다" 주장을
+  // 실제로 참으로 만드는 단언. 이 단언이 없으면 계약은 선언 전용이고 회귀해도 침묵한다.
+  it('plan-critic의 도구 표면은 정확히 Read, Grep, Glob이다 (read-only 적대 리뷰어)', () => {
+    const fm = parseFrontmatter(readRepoFile('agents', 'plan-critic.md'));
+    assert.deepEqual(
+      fm.tools.split(',').map((t) => t.trim()).sort(),
+      ['Glob', 'Grep', 'Read'],
+      'plan-critic은 read-only 계약 — 도구 추가는 ralplan의 합의 신뢰 모델을 바꾸는 결정이다',
+    );
+  });
+
+  it('design-qa는 쓰기 도구를 선언하지 않는다 (검사만, 소스 비수정)', () => {
+    const fm = parseFrontmatter(readRepoFile('agents', 'design-qa.md'));
+    assert.doesNotMatch(
+      fm.tools,
+      /(^|,\s*)(Write|Edit|MultiEdit|NotebookEdit)\b/,
+      'design-qa는 검사 전용 — 쓰기 도구가 생기면 "검사만" 계약이 무너진다',
+    );
+  });
 });
 
 /**
