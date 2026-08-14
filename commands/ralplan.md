@@ -30,6 +30,9 @@ Plan/응답 본문이고, 파일화는 승인 후 실행 단계의 몫이다(pas
    말고 누락 스코프·가정을 표면화해 풍부화한다.
 2. **Critic 독립 리뷰** — `plan-critic` 에이전트(도구: Read/Grep/Glob — 소유 정의라
    도구 표면이 테스트로 고정된다)에게 정규화된 플랜과 원본 아티팩트 경로를 넘긴다.
+
+   > `Task`를 allowed-tools에 사전승인하지 않는 것은 의도다 — 소집 시 뜨는 권한
+   > 프롬프트가 사용자 확인 지점이 된다(PRINCIPLES ③, goal-loop의 구현 단계와 같은 규칙).
    critic은 파일 참조를 실제로 읽어 검증하고, 대표 구현 항목 2~3개를 실제 코드에
    대해 시뮬레이션하며, 치명 결함과 "얇아서 확장 필요"를 구분해 판정한다
    (`OKAY`/`ITERATE`/`REJECT` + 근거 목록).
@@ -56,5 +59,5 @@ durable 완주가 필요하면 `/oh-my-joy:goal-loop`, OMC/OMX가 있으면 해�
 ```
 
 > 방법론 출처: gajae-code ralplan의 합의 구조(리뷰 join·PLANNING-STUCK·RALPLAN-DR)를
-> 차용해 v1은 critic 1패스로 축소 재작성 — [NOTICE.md](../NOTICE.md). Architect 2차
+> 차용해 v1은 critic 1패스로 축소 재작성 — [NOTICE.md](../NOTICE.md)(런타임 경로 `${CLAUDE_PLUGIN_ROOT}/NOTICE.md`). Architect 2차
 > 패스는 security·migration·public API 같은 고위험 트리거가 실측될 때 추가한다.

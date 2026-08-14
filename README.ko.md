@@ -94,10 +94,11 @@ _점선 = read-only, 소스 부작용 없음. 승인 게이트를 사용자 없�
 >
 > **자동 발동.** 커맨드 description은 가장 빈발하는 실사용 패턴 2가지에 맞춰 작성돼 있어, 슬래시 커맨드를 직접 타이핑하지 않아도 에이전트가 라우팅할 수 있습니다: Figma Dev Mode 링크 붙여넣기("이 디자인을 구현하세요…")는 `/omj`로, 스크린샷+시각 불만("정렬이 안 맞아", "잘려 보여", "간격/색이 이상해")은 `/omj-fix`로 갑니다.
 
-### 번들 에이전트 & opt-in 훅 (v0.3.0)
+### 번들 에이전트 & opt-in 훅
 
 - **`figma-implementer`** (에이전트) — **승인된 OMJ 스펙**을 Clarify→Context→Plan→Generate→Evaluate 5단계로 구현하는 inline 레인 실행자. 스펙 없는 bare Figma URL은 구현을 거부하고 `/omj`부터 안내(plan-gate 우회 차단). OMC/OMX 레인이 선택됐으면 그 레인이 우선.
-- **`design-qa`** (에이전트) — 타입체크·린트·토큰 하드코딩·Figma 충실도·a11y 기본(+fe-context 선언 시 Story·i18n)을 **검사만** 하는 기계 게이트. 소스는 절대 수정하지 않음.
+- **`design-qa`** (에이전트) — 타입체크·린트·토큰 하드코딩·Figma 충실도·a11y 기본(+fe-context 선언 시 Story·i18n)을 **검사만** 하는 기계 게이트. 쓰기 도구(`Write`/`Edit`) 미선언(불변식 테스트로 고정)이되, 검사 명령 실행용 Bash는 있어 순수 read-only는 아님.
+- **`plan-critic`** (에이전트) — `/oh-my-joy:ralplan`의 합의 패스가 소집하는 적대 플랜 리뷰어. read-only 계약(`Read, Grep, Glob` — 불변식 테스트로 고정), ralplan 밖에서는 소집되지 않음.
 - **토큰 가드 훅** — `templates/hooks/`의 `check-design-tokens.mjs`(하드코딩 색상 경고)·`check-story-exists.mjs`(Story 누락 경고). **플러그인이 자동 발화시키지 않습니다** — `/omj-setup`이 소비 프로젝트 `.claude/hooks/`로 복사·등록할 때만(opt-in) 동작하고, `.omj/fe-context.md` 선언이 없으면 no-op입니다.
 
 ### `/omj-sync` — 방향을 사용자가 고른다
@@ -150,7 +151,7 @@ OMJ는 oh-my-claudecode(OMC), oh-my-codex(OMX)와 **별개의 독립 플러그�
 - **스펙 포맷**: uSpec 섹션(Anatomy/Structure/Color·Tokens/Props·Variants/A11y/Motion) + 각 항목 FF 4기준 + a11y + Figma 충실도(`figma-fidelity.md`).
 - **토큰 sync**: 코드가 기본 SoT, 충돌은 사용자가 방향 선택(대화형). 스토어는 DTCG json·CSS custom properties 양쪽.
 - **Figma 2-트랙**: (A) 앱 화면 design→code = 공식 Dev Mode MCP, (B) 디자인 시스템 스펙·토큰 = figma-console-mcp + uSpec(v1.1+).
-- **번들 최소화**: 외부가 관리하는 지식은 참조만(vercel 스킬 — `npx skills add/update`), OMJ가 소유한 자작물(FF 스킬·에이전트 2종·훅 템플릿)만 번들. 플러그인 자체는 훅을 발화시키지 않는 zero-hook 유지(훅은 opt-in 복사-설치).
+- **번들 최소화**: 외부가 관리하는 지식은 참조만(vercel 스킬 — `npx skills add/update`), OMJ가 소유한 자작물(FF 스킬·에이전트 3종·훅 템플릿)만 번들. 플러그인 자체는 훅을 발화시키지 않는 zero-hook 유지(훅은 opt-in 복사-설치).
 
 각 결정의 "왜"는 **[docs/PRINCIPLES.md](docs/PRINCIPLES.md)** 참고.
 

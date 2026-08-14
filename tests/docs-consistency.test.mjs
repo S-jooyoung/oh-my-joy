@@ -46,8 +46,12 @@ describe('README EN/KO 패리티', () => {
   });
 
   it('정본 설치 커맨드가 두 README에 모두 있다', () => {
+    // 리터럴 하드코딩이 아니라 manifest에서 조립한다 — plugin/marketplace name이
+    // 바뀌면 README가 옛 문자열을 안내하는 드리프트를 이 검사가 즉시 드러낸다.
+    const marketplace = JSON.parse(readRepoFile('.claude-plugin', 'marketplace.json'));
+    const installLine = `/plugin install ${marketplace.plugins[0].name}@${marketplace.name}`;
     for (const [label, source] of [['EN', readmeEn], ['KO', readmeKo]]) {
-      assert.match(source, /\/plugin install oh-my-joy@omj/, `${label} README에 install 문자열이 없습니다`);
+      assert.ok(source.includes(installLine), `${label} README에 정본 install 문자열(${installLine})이 없습니다`);
     }
   });
 });
@@ -169,24 +173,24 @@ describe('커맨드 목록 정합', () => {
     .filter((f) => !/^omj(-[a-z-]+)?\.md$/.test(f))
     .map((f) => f.replace(/\.md$/, ''));
 
-  it('README(EN/KO)가 실재하는 커맨드만 문서화한다', () => {
-    for (const [label, source] of [['EN', readmeEn], ['KO', readmeKo]]) {
-      const documentedFe = new Set(
-        [...source.matchAll(/`(\/omj(?:-[a-z-]+)?)`/g)].map((m) => m[1]),
-      );
-      for (const command of documentedFe) {
-        assert.ok(feCommands.includes(command), `${label} README가 없는 커맨드를 문서화합니다: ${command}`);
+  // README만 보면 docs/·commands/의 죽은 커맨드 참조를 놓친다. CHANGELOG는 이력 보존이라 제외,
+  // 예고된 v1.1 커맨드(CLAUDE.md)와 개명 전 이력 표기는 명시 allowlist로 허용한다.
+  const PLANNED_COMMANDS = new Set(['/omj-push', '/omj-spec']);
+  const HISTORICAL_COMMANDS = new Set(['/omj-review']);
+
+  it('추적되는 전 마크다운이 실재하는 커맨드만 문서화한다', () => {
+    const offenders = [];
+    for (const file of listMarkdownFiles().filter((f) => f !== 'CHANGELOG.md')) {
+      const source = readRepoFile(file);
+      for (const [, command] of source.matchAll(/`(\/omj(?:-[a-z-]+)?)`/g)) {
+        if (feCommands.includes(command) || PLANNED_COMMANDS.has(command) || HISTORICAL_COMMANDS.has(command)) continue;
+        offenders.push(`${file}: ${command}`);
       }
-      const documentedWorkflow = new Set(
-        [...source.matchAll(/`\/oh-my-joy:([a-z-]+)`/g)].map((m) => m[1]),
-      );
-      for (const name of documentedWorkflow) {
-        assert.ok(
-          workflowCommands.includes(name),
-          `${label} README가 없는 워크플로우 커맨드를 문서화합니다: /oh-my-joy:${name}`,
-        );
+      for (const [, name] of source.matchAll(/`\/oh-my-joy:([a-z-]+)`/g)) {
+        if (!workflowCommands.includes(name)) offenders.push(`${file}: /oh-my-joy:${name}`);
       }
     }
+    assert.deepEqual(offenders, [], `실재하지 않는 커맨드를 문서화합니다:\n${offenders.join('\n')}`);
   });
 
   it('모든 커맨드가 README(EN/KO)에 문서화돼 있다', () => {
@@ -216,9 +220,14 @@ describe('커맨드 목록 정합', () => {
     ];
     const offenders = [];
     for (const name of workflowCommands) {
-      const bare = `\`/${name}\``;
+      // 정확 매칭(`/name`)만 보면 인자 동반 인라인 코드(`/name --flag`)와 펜스 코드블록
+      // 안의 bare 표기를 놓친다. 앞 경계에서 `:`(정규 호출 oh-my-joy:name)·`/`·단어
+      // 문자(경로 조각 commands/name.md)·`.`(상대링크 ./name.md)·`~`·`}`(치환변수
+      // ${…}/name)를 제외하고, 뒤에 `.md`가 붙으면 경로로 간주해 제외한다.
+      // 알려진 잔존 오탐: 한국어 문자 바로 뒤의 `/name`(\w가 한글을 포함하지 않음).
+      const bare = new RegExp(`(^|[^\\w:/.~}])/${name}(?![\\w-]|\\.md)`, 'm');
       for (const [label, source] of sources) {
-        if (source.includes(bare)) offenders.push(`${label}: ${bare}`);
+        if (bare.test(source)) offenders.push(`${label}: /${name}`);
       }
     }
     assert.deepEqual(offenders, [], `bare 표기는 /oh-my-joy:<name>으로 바꿔야 합니다:\n${offenders.join('\n')}`);

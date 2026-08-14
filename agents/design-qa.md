@@ -1,6 +1,6 @@
 ---
 name: design-qa
-description: FE 구현 후 기계적 품질 게이트 — 타입체크·린트·토큰 하드코딩·Figma 충실도·a11y 기본과 (프로젝트 선언 시) Story 존재·i18n 키 페어를 검사만 하고 수정하지 않는 QA 에이전트. 구현 완료 후 커밋/PR 전에 사용한다.
+description: FE 구현 후 기계적 품질 게이트 — 타입체크·린트·토큰 하드코딩·Figma 충실도·a11y 기본과 (프로젝트 선언 시) Story 존재·i18n 키 페어를 검사만 하고 수정하지 않는 QA 에이전트. 구현 완료 후 커밋/PR 전에 명시 소집 전용. 코드 작성·수정 요청에는 위임하지 않는다 — 질적 FF 코드 리뷰는 /oh-my-joy:ff-review, 시각 결함 수정은 /omj-fix 소관이고, 이 에이전트는 이분법 판정 가능한 기계 게이트만 담당한다.
 tools: Read, Grep, Glob, Bash, Skill
 ---
 

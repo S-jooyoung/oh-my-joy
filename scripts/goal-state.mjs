@@ -11,7 +11,7 @@
  * ledger 꼬리의 일치를 검사한다 — 불일치는 "reconcile 먼저"로 멈춘다.
  * 동시 writer는 지원하지 않는다(단일 owner 순차 루프 전제).
  */
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -152,17 +152,19 @@ function loadState(slug) {
   return { snapshot, events };
 }
 
-function writeSnapshot(slug, snapshot) {
-  const target = snapshotPath(slug);
+// dir 인자는 init의 temp 디렉터리 경유용 — 직렬화·스탬프 경로를 이 두 함수 하나로
+// 유지해야 init이 형식을 복제하다 조용히 드리프트하는 사고를 막는다.
+function writeSnapshot(slug, snapshot, dir = goalsRoot(slug)) {
+  const target = path.join(dir, 'goals.json');
   const temp = `${target}.tmp`;
   snapshot.updated_at = new Date().toISOString();
   writeFileSync(temp, `${JSON.stringify(snapshot, null, 2)}\n`);
   renameSync(temp, target); // 원자적 교체 — 중단돼도 반쯤 쓰인 스냅샷이 남지 않는다
 }
 
-function appendEvent(slug, snapshot, event) {
+function appendEvent(slug, snapshot, event, dir = goalsRoot(slug)) {
   const entry = { seq: snapshot.last_event_id + 1, ts: new Date().toISOString(), ...event };
-  appendFileSync(ledgerPath(slug), `${JSON.stringify(entry)}\n`);
+  appendFileSync(path.join(dir, 'ledger.jsonl'), `${JSON.stringify(entry)}\n`);
   snapshot.last_event_id = entry.seq;
   return entry;
 }
@@ -207,7 +209,11 @@ function main() {
     if (existsSync(goalsRoot(slug))) fail(`.omj/goals/${slug}/가 이미 있습니다 — 재개는 status/reconcile, 새 계획은 다른 slug로`);
     const briefFile = str(args['brief-file']);
     // 레포 내 상대경로만 — 절대경로·traversal은 사전승인 규칙 아래의 임의 파일 읽기가 된다.
-    if (briefFile && (briefFile.startsWith('/') || briefFile.split(path.sep).includes('..') || briefFile.split('/').includes('..'))) {
+    // POSIX와 win32 판정을 병용해야 C:\…·C:/…·\\UNC\… 드라이브 절대경로가 가드를 통과하지 못한다.
+    if (
+      briefFile &&
+      (path.isAbsolute(briefFile) || path.win32.isAbsolute(briefFile) || briefFile.split(/[\\/]/).includes('..'))
+    ) {
       fail('--brief-file은 레포 내 상대경로만 허용합니다(절대경로·.. 금지)');
     }
     const brief = briefFile ? readFileSync(briefFile, 'utf8') : str(args.brief);
@@ -220,8 +226,6 @@ function main() {
     }
     if (goals.length === 0) fail('골이 최소 1개 필요합니다');
 
-    mkdirSync(goalsRoot(slug), { recursive: true });
-    writeFileSync(path.join(goalsRoot(slug), 'brief.md'), brief);
     const snapshot = {
       schema_version: SCHEMA_VERSION,
       slug,
@@ -231,9 +235,28 @@ function main() {
       last_event_id: 0,
       goals: goals.map((goal) => ({ ...goal, status: 'pending', evidence: null, reason: null })),
     };
-    writeFileSync(ledgerPath(slug), '');
-    appendEvent(slug, snapshot, { event: 'plan_created', goals });
-    writeSnapshot(slug, snapshot);
+    // temp 디렉터리에 완성한 뒤 rename — 최종 경로에 직접 단계별로 쓰면 중간 크래시
+    // 잔해가 경로를 점유해 init('이미 있습니다')·타 동사·reconcile('init 먼저') 전부가
+    // 거부하는 복구 불능 상태가 된다(writeSnapshot의 원자 교체와 같은 계약을 init 전체로 확장).
+    const goalsParent = path.dirname(goalsRoot(slug));
+    if (existsSync(goalsParent)) {
+      // 다른 pid가 남긴 크래시 잔해도 여기서 청소한다 — gitignore 아래서 조용히 누적되는 것을 막는다.
+      for (const entry of readdirSync(goalsParent)) {
+        if (entry.startsWith(`${slug}.tmp-`)) rmSync(path.join(goalsParent, entry), { recursive: true, force: true });
+      }
+    }
+    const tmpRoot = `${goalsRoot(slug)}.tmp-${process.pid}`;
+    try {
+      mkdirSync(tmpRoot, { recursive: true });
+      writeFileSync(path.join(tmpRoot, 'brief.md'), brief);
+      writeFileSync(path.join(tmpRoot, 'ledger.jsonl'), '');
+      appendEvent(slug, snapshot, { event: 'plan_created', goals }, tmpRoot);
+      writeSnapshot(slug, snapshot, tmpRoot);
+      renameSync(tmpRoot, goalsRoot(slug));
+    } catch (error) {
+      rmSync(tmpRoot, { recursive: true, force: true });
+      throw error;
+    }
     return ok({ initialized: slug, goals: snapshot.goals.map((g) => ({ id: g.id, title: g.title, status: g.status })) });
   }
 

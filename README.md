@@ -94,10 +94,11 @@ The reasoning behind each decision — problem → decision → rationale → ou
 >
 > **Auto-trigger.** The command descriptions are written to match the two most frequent real-world patterns, so the agent can route to them without you typing the slash command: pasting a Figma Dev Mode link ("implement this design…") routes to `/omj`, and pasting a screenshot with a visual complaint ("misaligned", "clipped", "wrong spacing/color") routes to `/omj-fix`.
 
-### Bundled agents & opt-in hooks (v0.3.0)
+### Bundled agents & opt-in hooks
 
 - **`figma-implementer`** (agent) — implements an **approved OMJ spec** through a 5-step loop (Clarify→Context→Plan→Generate→Evaluate) as the inline-lane executor. Refuses bare Figma URLs without a spec and points to `/omj` first (no plan-gate bypass). Selected OMC/OMX lanes always take precedence.
-- **`design-qa`** (agent) — a mechanical gate that only **checks** (never edits): typecheck, lint, hardcoded tokens, Figma fidelity, a11y basics, plus Story/i18n checks only when declared in fe-context.
+- **`design-qa`** (agent) — a mechanical gate that only **checks**: typecheck, lint, hardcoded tokens, Figma fidelity, a11y basics, plus Story/i18n checks only when declared in fe-context. Declares no write tools (`Write`/`Edit` absent — fixed by invariant tests); it does run check commands via Bash, so not purely read-only.
+- **`plan-critic`** (agent) — the adversarial plan reviewer that `/oh-my-joy:ralplan` runs for its consensus pass. Read-only by contract (`Read, Grep, Glob` — fixed by invariant tests); never invoked outside ralplan.
 - **Token-guard hooks** — `check-design-tokens.mjs` (hardcoded-color warning) and `check-story-exists.mjs` (missing-Story warning) in `templates/hooks/`. **The plugin never fires them by itself** — they run only after `/omj-setup` copies and registers them into a consuming project's `.claude/hooks/` (opt-in), and they no-op without an `.omj/fe-context.md` declaration.
 
 ### `/omj-sync` — you choose the direction
@@ -150,7 +151,7 @@ The implementation spec `/omj` produces is exactly the input OMC/OMX execution t
 - **Spec format**: uSpec sections (Anatomy / Structure / Color·Tokens / Props·Variants / A11y / Motion) + FF 4-criteria + a11y + Figma fidelity (`figma-fidelity.md`) per item.
 - **Token sync**: code is the default SoT, and you choose the direction on conflict (interactive). Both DTCG json and CSS custom-property stores.
 - **Figma 2-track**: (A) app-screen design→code = official Dev Mode MCP; (B) design-system spec/tokens = figma-console-mcp + uSpec (v1.1+).
-- **Minimal bundle**: externally-maintained knowledge is referenced only (vercel skills — `npx skills add/update`); OMJ bundles only what it owns (FF skill, 2 agents, hook templates). The plugin itself stays zero-hook — hooks fire only via opt-in copy-install.
+- **Minimal bundle**: externally-maintained knowledge is referenced only (vercel skills — `npx skills add/update`); OMJ bundles only what it owns (FF skill, 3 agents, hook templates). The plugin itself stays zero-hook — hooks fire only via opt-in copy-install.
 
 The "why" behind each decision lives in **[docs/PRINCIPLES.md](docs/PRINCIPLES.md)** (Korean).
 

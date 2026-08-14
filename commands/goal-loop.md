@@ -38,6 +38,10 @@ allowed-tools: Read, Grep, Glob, AskUserQuestion, Bash(node ${CLAUDE_PLUGIN_ROOT
 3. **구현** — 현 세션이 직접 구현한다. FE 골이면 `figma-implementer` 에이전트가
    실행자다. 병렬 서브에이전트는 **read-only 조사에만** 쓴다 — 상태 파일을 쓰는 건
    언제나 이 세션 하나다.
+
+   > `Task`를 allowed-tools에 사전승인하지 않는 것은 의도다 — 서브에이전트는 부모의
+   > allowed-tools를 상속하지 않으므로, 소집 시 뜨는 권한 프롬프트가 사용자 확인
+   > 지점이 된다(PRINCIPLES ③ — 권한을 빼는 것이 곧 안전 게이트).
 4. **검증·완료** — 골의 검증 명령을 실행하고(권한 프롬프트 승인) 결과를 증거로
    `transition --goal <id> --to complete --evidence-json '<evidence>'`. 증거는 원문
    출력 덤프가 아니라 **명령·종료 코드·요약**이다(비밀값·개인정보 금지):
@@ -80,4 +84,4 @@ fe-context를 잃는다 — `goals/`·`baselines/`만 지정한다.
 ```
 
 > 방법론 출처: gajae-code의 durable goal 루프와 oh-my-claudecode의 goals/ledger
-> 상태 계약을 차용해 재작성 — [NOTICE.md](../NOTICE.md). 런타임은 이식하지 않았다.
+> 상태 계약을 차용해 재작성 — [NOTICE.md](../NOTICE.md)(런타임 경로 `${CLAUDE_PLUGIN_ROOT}/NOTICE.md`). 런타임은 이식하지 않았다.

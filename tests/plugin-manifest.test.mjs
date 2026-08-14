@@ -23,12 +23,21 @@ const plugin = readJson('.claude-plugin', 'plugin.json');
 const marketplace = readJson('.claude-plugin', 'marketplace.json');
 
 /**
- * 소스 코드에 부작용을 낼 수 없다고 문서가 선언한 커맨드들.
- * `/omj`는 plan-gate를 우회할 쓰기 경로가 없어야 하고(PRINCIPLES ①③),
- * `ff-review`·`/omj-verify`는 리포트만 내는 검증 커맨드,
- * `deep-interview`·`ralplan`은 네이티브 Plan만 산출하는 프라이머·리뷰 커맨드다.
+ * 소스 코드에 부작용을 낼 수 없다고 문서가 선언한 커맨드들 — 권한 등급 2단.
+ *
+ * ZERO_BASH: 셸 실행 경로가 아예 없다(쓰기 도구·Task/Agent에 더해 Bash 토큰 0).
+ *   `/omj`는 plan-gate를 우회할 쓰기 경로가 없어야 하고(PRINCIPLES ①③),
+ *   `deep-interview`·`ralplan`은 네이티브 Plan만 산출하는 프라이머·리뷰 커맨드다.
+ * REPORT_ONLY: **소스**는 절대 수정하지 않지만 관찰·리포트용 스코프 Bash는 쓴다 —
+ *   `ff-review`(git diff 판독)·`omj-verify`(브라우저 기동·캡처. curl은 `.omj/baselines/`
+ *   다운로드 쓰기를 포함하므로 무쓰기가 아니라 "소스 비수정"이며 쓰기 범위는 본문이 강제).
+ *   bare Bash는 전 커맨드 공통 검사가 이미 차단하므로 여기선 쓰기 도구만 본다.
+ * `omj-start`(Read·AskUserQuestion뿐)는 의도적 미분류다 — 본문 "직접 Bash 실행 안전
+ *   조건"이 권한 프롬프트 게이트를 설계에 포함하므로 zero-bash 단언과 의미가 어긋난다.
  */
-const READ_ONLY_COMMANDS = new Set(['omj.md', 'ff-review.md', 'omj-verify.md', 'deep-interview.md', 'ralplan.md']);
+const ZERO_BASH_COMMANDS = new Set(['omj.md', 'deep-interview.md', 'ralplan.md']);
+const REPORT_ONLY_COMMANDS = new Set(['ff-review.md', 'omj-verify.md']);
+const READ_ONLY_COMMANDS = new Set([...ZERO_BASH_COMMANDS, ...REPORT_ONLY_COMMANDS]);
 
 /**
  * 무접두 네이밍이 허용된 "이름 있는 방법론·루브릭" 커맨드(2축 규칙 — CLAUDE.md).
@@ -49,8 +58,11 @@ describe('plugin.json', () => {
     assert.match(plugin.version, /^\d+\.\d+\.\d+$/);
   });
 
-  it('스키마를 선언해 에디터 검증이 걸린다', () => {
-    assert.ok(plugin.$schema, 'plugin.json에 $schema가 없습니다');
+  it('$schema가 실재하는 SchemaStore 등재본을 가리킨다', () => {
+    // 존재 검사만으로는 죽은 URL이 통과해 "에디터 검증" 효과가 공허해진다 —
+    // 종전 anthropic.com URL은 404였다. 정본 URL 리터럴을 고정해 드리프트를 드러낸다.
+    assert.equal(plugin.$schema, 'https://json.schemastore.org/claude-code-plugin-manifest.json');
+    assert.equal(marketplace.$schema, 'https://json.schemastore.org/claude-code-marketplace.json');
   });
 
   it('선언한 라이선스가 LICENSE 파일과 일치한다', () => {
@@ -104,6 +116,16 @@ describe('플러그인 구조 불변식', () => {
       assert.ok(existsSync(repoPath('templates', 'hooks', script)));
     }
   });
+
+  // 소비 프로젝트 cwd에는 templates/가 없다 — 소스가 플러그인 루트 기준이 아니면
+  // 훅 opt-in 설치가 절차대로 실행 불가다(dogfood에선 cwd==플러그인 루트라 은폐되는 결함 클래스).
+  it('omj-setup의 훅 복사 절차는 플러그인 루트 기준 소스 경로를 쓴다', () => {
+    const body = readRepoFile('commands', 'omj-setup.md');
+    assert.ok(
+      body.includes('${CLAUDE_PLUGIN_ROOT}/templates/hooks/'),
+      'omj-setup.md: 훅 복사 소스에 ${CLAUDE_PLUGIN_ROOT}/templates/hooks/ 표기가 필요합니다',
+    );
+  });
 });
 
 describe('commands/*.md frontmatter', () => {
@@ -127,6 +149,8 @@ describe('commands/*.md frontmatter', () => {
 
       it('allowed-tools를 명시한다', () => {
         assert.ok(fm['allowed-tools']?.length > 0, `${file}에 allowed-tools 선언이 없습니다`);
+        // YAML 리스트로 쓰면 아래 doesNotMatch류가 알아보기 힘든 타입 에러로 죽는다 — 여기서 명시적으로 막는다.
+        assert.equal(typeof fm['allowed-tools'], 'string', `${file}: allowed-tools는 쉼표 구분 한 줄 문자열이어야 합니다`);
       });
 
       // "권한을 빼는 것이 곧 안전 게이트를 강제하는 것"(PRINCIPLES ③)이 이 레포의 핵심 주장이다.
@@ -139,6 +163,30 @@ describe('commands/*.md frontmatter', () => {
         );
       });
 
+      // Bash(command:*)·Bash(sh -c:*)·Bash(npx:*)처럼 prefix 전체가 실행 위임
+      // builtin·인터프리터·위임 플래그로만 이뤄지면 사실상 bare Bash 사전승인이다
+      // (스코프 문법을 쓰고도 임의 실행을 승인하는 세탁 경로). 알려진 세탁 형태를
+      // 리뷰 가시권으로 끌어내는 휴리스틱 게이트다 — `env FOO=1 sh` 같은 변형까지
+      // 막는 샌드박스가 아님을 알고 유지하라. 실제 대상 인자가 하나라도 있으면
+      // (Bash(command -v:*)·Bash(npx tsc:*)) 통과한다.
+      it('실행 위임 builtin·인터프리터를 사실상 bare로 스코프하지 않는다', () => {
+        const LAUNDER = new Set([
+          'command', 'eval', 'exec', 'source', 'sh', 'bash', 'zsh', 'env', 'xargs',
+          'sudo', 'nohup', 'time', 'node', 'npx', 'python', 'python3', 'perl', 'ruby', 'awk',
+        ]);
+        const DELEGATION_FLAGS = new Set(['-c', '-e', '-exec']);
+        for (const token of (fm['allowed-tools'] ?? '').split(',').map((t) => t.trim())) {
+          const m = /^Bash\((.+?)(?::\*)?\)$/.exec(token);
+          if (!m) continue;
+          const words = m[1].trim().split(/\s+/);
+          const launders = words.every((w) => LAUNDER.has(w) || DELEGATION_FLAGS.has(w));
+          assert.ok(
+            !launders,
+            `${file}: Bash(${m[1]})는 사실상 bare Bash다 — 실제 대상 인자까지 좁혀야 한다(예: Bash(command -v:*))`,
+          );
+        }
+      });
+
       if (READ_ONLY_COMMANDS.has(file)) {
         // Task/Agent를 함께 막는 이유: 서브에이전트는 부모의 allowed-tools를 상속하지
         // 않으므로, 소집 선언 하나로 read-only 계약이 매니페스트 수준에서 무의미해진다.
@@ -147,6 +195,18 @@ describe('commands/*.md frontmatter', () => {
             fm['allowed-tools'],
             /(^|,\s*)(Write|Edit|MultiEdit|NotebookEdit|Task|Agent)\b/,
             `${file}은 read-only 계약인데 쓰기 도구 또는 Task/Agent가 선언됐습니다`,
+          );
+        });
+      }
+
+      if (ZERO_BASH_COMMANDS.has(file)) {
+        // "read-only(Write/Edit/Bash 없음)" 주장의 Bash 절반 — 이 단언이 없으면
+        // 스코프 Bash 하나로 계약이 조용히 무너져도 어떤 테스트도 실패하지 않는다.
+        it('zero-bash 커맨드는 어떤 Bash 스코프도 선언하지 않는다', () => {
+          assert.doesNotMatch(
+            fm['allowed-tools'],
+            /(^|,\s*)Bash\b/,
+            `${file}은 zero-bash 계약인데 Bash 토큰이 선언됐습니다`,
           );
         });
       }
@@ -162,6 +222,11 @@ describe('commands/*.md frontmatter', () => {
 });
 
 describe('agents/*.md frontmatter', () => {
+  // 루프 기반 검사는 디렉터리가 비면 전부 공허 통과한다 — 존재 단언이 그 구멍을 막는다.
+  it('번들 에이전트 3종이 실재한다', () => {
+    assert.ok(listAgentFiles().length >= 3, 'agents/에 번들 3종(figma-implementer·design-qa·plan-critic)이 있어야 합니다');
+  });
+
   for (const file of listAgentFiles()) {
     describe(file, () => {
       const fm = parseFrontmatter(readRepoFile('agents', file));
@@ -174,9 +239,33 @@ describe('agents/*.md frontmatter', () => {
       it('description과 tools를 갖는다', () => {
         assert.ok(fm.description?.length > 0);
         assert.ok(fm.tools?.length > 0);
+        assert.equal(typeof fm.tools, 'string', `${file}: tools는 쉼표 구분 한 줄 문자열이어야 합니다`);
       });
     });
   }
+
+  // 에이전트 도구 계약 — ralplan.md·CHANGELOG의 "도구 표면이 테스트로 고정된다" 주장을
+  // 실제로 참으로 만드는 단언. 이 단언이 없으면 계약은 선언 전용이고 회귀해도 침묵한다.
+  it('plan-critic의 도구 표면은 정확히 Read, Grep, Glob이다 (read-only 적대 리뷰어)', () => {
+    const fm = parseFrontmatter(readRepoFile('agents', 'plan-critic.md'));
+    assert.deepEqual(
+      fm.tools.split(',').map((t) => t.trim()).sort(),
+      ['Glob', 'Grep', 'Read'],
+      'plan-critic은 read-only 계약 — 도구 추가는 ralplan의 합의 신뢰 모델을 바꾸는 결정이다',
+    );
+  });
+
+  // 잔존 구멍: tools의 bare Bash는 이 단언이 못 본다(에이전트 tools에는 스코프 문법이
+  // 없다). "소스 비수정"은 쓰기 도구 부재 + 본문 규율이 담보하는 계약이지 샌드박스가
+  // 아니다 — README의 design-qa 서술도 같은 정확도로 유지할 것.
+  it('design-qa는 쓰기 도구를 선언하지 않는다 (검사만, 소스 비수정)', () => {
+    const fm = parseFrontmatter(readRepoFile('agents', 'design-qa.md'));
+    assert.doesNotMatch(
+      fm.tools,
+      /(^|,\s*)(Write|Edit|MultiEdit|NotebookEdit)\b/,
+      'design-qa는 검사 전용 — 쓰기 도구가 생기면 "검사만" 계약이 무너진다',
+    );
+  });
 });
 
 /**
@@ -184,8 +273,9 @@ describe('agents/*.md frontmatter', () => {
  * (a) MCP 이중 프리픽스: v0.4.0이 playwright에서 "설치 출처에 따라 도구명이 달라진다"를
  *     고쳤지만 figma·context7로 전파되지 않았다 — 테스트가 없어서였다.
  * (b) 호출 지점 없는 권한 선언: v0.4.0에서 3건 제거 후에도 재유입됐다.
- *     이 검사는 **언급 기반**이다(본문 어디든 명령 문자열이 있으면 통과) — 구조적 단언이
- *     아니라 성실성 의존 게이트임을 알고 유지하라.
+ *     이 검사는 **언급 기반**이다(본문 어디든 명령 문자열이 단어 경계로 등장하면 통과) —
+ *     구조적 단언이 아니라 성실성 의존 게이트임을 알고 유지하라. substring 매칭은
+ *     한국어 산문의 우연 일치("command" 등)로 공허해져 단어 경계 정규식으로 강화했다.
  */
 describe('도구 선언 불변식 (commands allowed-tools · agents tools)', () => {
   const surfaces = [
@@ -240,6 +330,36 @@ describe('도구 선언 불변식 (commands allowed-tools · agents tools)', () 
     );
   });
 
+  it('bare MCP 선언은 플러그인 프리픽스 변형을 병기한다 (역방향)', () => {
+    // 순방향(플러그인→bare)만 검사하면 bare 토큰만 선언한 파일이 통과한다 —
+    // 플러그인 마켓플레이스 설치 사용자는 플러그인 프리픽스 도구명만 가지므로 사전승인을 잃는다.
+    // 서버 집합은 "레포 어딘가에서 플러그인 프리픽스로 선언된 서버" ∪ 알려진 목록으로
+    // 동적 구성한다. 한계: 어떤 파일에서도 플러그인 변형이 없는 새 서버를 bare로만
+    // 선언하면 이 검사가 침묵한다 — 새 MCP 서버 추가 시 알려진 목록도 함께 갱신할 것.
+    const KNOWN_SERVERS = new Set(['figma', 'context7', 'playwright']);
+    for (const { tokens } of parsed) {
+      for (const token of tokens) {
+        const pm = /^mcp__plugin_(.+)__/.exec(token);
+        if (pm) KNOWN_SERVERS.add(pm[1].split('_').pop());
+      }
+    }
+    const violations = [];
+    for (const { file, tokens } of parsed) {
+      for (const token of tokens) {
+        const m = /^mcp__([A-Za-z0-9-]+)__([A-Za-z0-9_*-]+)$/.exec(token);
+        if (!m || !KNOWN_SERVERS.has(m[1])) continue;
+        const [, server, tool] = m;
+        const ok = tokens.some((t) => {
+          const pm = /^mcp__plugin_(.+)__([A-Za-z0-9_*-]+)$/.exec(t);
+          if (!pm || pm[1].split('_').pop() !== server) return false;
+          return pm[2] === '*' || pm[2] === tool;
+        });
+        if (!ok) violations.push(`${file}: ${token} → mcp__plugin_*_${server}__ 변형 병기 필요`);
+      }
+    }
+    assert.deepEqual(violations, [], `이중 프리픽스 병기는 양방향이어야 한다:\n${violations.join('\n')}`);
+  });
+
   it('Bash 선언은 frontmatter 제외 본문에 호출 지점이 있다', () => {
     const violations = [];
     for (const { file, tokens, body } of parsed) {
@@ -247,7 +367,13 @@ describe('도구 선언 불변식 (commands allowed-tools · agents tools)', () 
         const m = /^Bash\((.+)\)$/.exec(token);
         if (!m) continue;
         const cmd = m[1].replace(/:\*$/, '');
-        if (!body.includes(cmd)) violations.push(`${file}: Bash(${m[1]}) — 본문에 "${cmd}" 없음`);
+        // 단어 경계 매칭 — `command` 선언이 산문 속 "command" 조각으로 통과하는 공허를 막는다.
+        // 뒤 경계는 cmd가 단어 문자로 끝날 때만 요구한다(`git add` vs `git addendum`) —
+        // 경로 prefix처럼 비단어 문자로 끝나면 이어지는 파일명이 정당한 연속이다.
+        const escaped = cmd.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const boundaryAfter = /[\w-]$/.test(cmd) ? '(?![\\w-])' : '';
+        const callSite = new RegExp(`(^|[^\\w-])${escaped}${boundaryAfter}`);
+        if (!callSite.test(body)) violations.push(`${file}: Bash(${m[1]}) — 본문에 호출 지점 "${cmd}" 없음`);
       }
     }
     assert.deepEqual(

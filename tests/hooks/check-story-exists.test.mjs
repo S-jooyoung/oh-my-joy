@@ -31,6 +31,16 @@ describe('check-story-exists — 게이트', () => {
     assert.equal(checkFile('src/Button.tsx', {}, { feContext: null }).stdout, '');
   });
 
+  it('fe-context.md가 판독 불가(디렉터리)여도 no-op — fail-open (자매 훅과 같은 계약)', () => {
+    const project = makeProject({ '.omj/fe-context.md/placeholder': '', 'src/Button.tsx': COMPONENT });
+    projects.push(project);
+    const result = runHook(
+      'check-story-exists.mjs',
+      postToolUsePayload({ cwd: project.root, filePath: project.file('src/Button.tsx') }),
+    );
+    assert.equal(result.stdout, '');
+  });
+
   it('storybook: true 선언이 없으면 no-op', () => {
     assert.equal(checkFile('src/Button.tsx', {}, { feContext: 'tokensPath: src/t.css\n' }).stdout, '');
   });

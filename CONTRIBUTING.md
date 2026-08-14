@@ -49,5 +49,7 @@ node --test          # 의존성 설치 단계가 없다 — Node 20.11+ 만 있
 ## 릴리스
 
 1. `CHANGELOG.md`의 `[Unreleased]`를 새 버전 절로 확정하고 링크 정의를 추가한다.
-2. `.claude-plugin/plugin.json`과 `marketplace.json`의 버전을 올린다(테스트가 두 값의 일치를 검사한다).
+2. 버전 4표면을 함께 올린다 — `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`의 `plugins[].version`과 최상위 `version`, `package.json`. 테스트(`tests/plugin-manifest.test.mjs`)가 4곳 일치를 강제하므로 하나라도 빠지면 `npm test`가 실패한다.
 3. `chore(release): vX.Y.Z` 커밋 후 `git tag -a vX.Y.Z`.
+
+번들 스킬(`skills/*/SKILL.md`)의 `metadata.version`은 플러그인 버전과 무관한 독립 semver다 — 스킬 내용(SKILL.md·`references/`) 변경이 있는 릴리스에서만 함께 올린다.

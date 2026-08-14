@@ -14,4 +14,5 @@
 - [ ] 커맨드/동작을 바꿨다면 **README.md와 README.ko.md를 함께** 갱신했다
 - [ ] `CHANGELOG.md`에 항목을 추가했다
 - [ ] 원리·설계 결정이 바뀌었다면 `docs/PRINCIPLES.md`를 갱신했다
+- [ ] `docs/PRINCIPLES.md`를 갱신했다면 `docs/PRINCIPLES.en.md` 해당 행도 **같은 커밋에서** 갱신했다
 - [ ] 커밋 메시지에 AI 서명(`Co-Authored-By` 등)이 없다
