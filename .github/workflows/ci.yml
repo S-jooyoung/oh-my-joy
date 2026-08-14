@@ -36,3 +36,20 @@ jobs:
       # scripts.test (the repo's canonical verification command).
       - name: Verify suite
         run: npm test
+
+      # Manifest and frontmatter conformance. Without the claude CLI on PATH this
+      # runs the built-in schema check; the script reports which layers it ran.
+      - name: Validate plugin spec
+        run: npm run validate-plugin
+
+      # EXPERIMENT (temporary): does `claude plugin validate` work on a runner with
+      # no credentials? If it does, the official validator becomes a real CI gate
+      # instead of a local-only one. Non-blocking until measured.
+      - name: Probe official validator availability
+        if: matrix.node == '22'
+        continue-on-error: true
+        run: |
+          npm i -g @anthropic-ai/claude-code >/dev/null 2>&1 || { echo "install failed"; exit 1; }
+          claude --version
+          claude plugin validate ./.claude-plugin/marketplace.json --strict
+          echo "PROBE_RESULT: official validator ran unauthenticated"

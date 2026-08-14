@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/S-jooyoung/oh-my-joy/security/advisories/new
+    about: Report privately. Never in a public issue — see SECURITY.md for what is in scope.
+  - name: How a command behaves
+    url: https://github.com/S-jooyoung/oh-my-joy/tree/main/commands
+    about: Each commands/*.md body is the source of truth for that command. Read it before filing a bug.
+  - name: Why a design decision was made
+    url: https://github.com/S-jooyoung/oh-my-joy/blob/main/docs/PRINCIPLES.md
+    about: Problem → decision → rationale → outcome, including the alternatives that were rejected.

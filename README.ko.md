@@ -184,3 +184,26 @@ OMJ는 oh-my-claudecode(OMC), oh-my-codex(OMX)와 **별개의 독립 플러그�
 - **`/oh-my-joy:goal-loop`이 검증 명령마다 권한을 물음** — 의도된 동작입니다. 검증 명령을 일부러 사전승인하지 않아, 그 권한 프롬프트가 기록된 증거의 신뢰 근거가 됩니다. `.omj/goals/`는 gitignore하세요(명령 요약·경로가 누적되는 운영 상태).
 - **MCP 도구명이 다름** — Figma/Context7 도구명은 환경마다 다를 수 있습니다. `/mcp`로 실제 등록된 도구명을 확인하세요.
 - **커밋된 스킬 사본과 중복** — 어떤 프로젝트가 `frontend-fundamentals`를 자기 `.claude/skills/`에 커밋해 뒀다면 OMJ 번들과 동시 로드될 수 있습니다(무해). 그 사본은 삭제하지 마세요(삭제하면 OMJ 미설치로 클론한 동료의 환경이 깨집니다) — 편집(SoT)은 한쪽에서만 하면 됩니다.
+
+---
+
+## 기여
+
+이슈와 PR 환영합니다. 이 레포는 Markdown 우선이라 빌드 단계도, 설치할 것도 없습니다:
+
+```bash
+git clone https://github.com/S-jooyoung/oh-my-joy.git
+cd oh-my-joy
+npm test                 # Node 20+ 내장 모듈만 사용, npm install 불필요
+npm run validate-plugin  # 매니페스트 + frontmatter 규격 검증
+```
+
+변경분을 실제 플러그인으로 시험하려면 `/plugin marketplace add <클론 경로>` 후 `/plugin install oh-my-joy@omj`.
+
+첫 PR 전에 알아둘 두 가지 — 기능은 **README(양 언어), CHANGELOG, 그리고 원칙이 바뀌었다면 `docs/PRINCIPLES.md`** 가 같은 커밋에서 함께 바뀌어야 완성이고, `allowed-tools`에는 커맨드 본문이 실제로 호출하지 않는 도구를 절대 선언하지 않습니다. 둘 다 테스트로 강제됩니다. 전체 가이드는 [CONTRIBUTING.md](CONTRIBUTING.md).
+
+보안 문제를 발견했다면 이슈로 열지 마세요 — [SECURITY.md](SECURITY.md) 참고.
+
+## 라이선스
+
+[MIT](LICENSE). 다른 프로젝트에서 빌려온 방법론의 출처는 [NOTICE.md](NOTICE.md)에 있습니다.
