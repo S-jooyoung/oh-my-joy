@@ -12,7 +12,7 @@ When adding or changing a feature, update all three of the following **together*
 
 1. **README** (usage; **EN `README.md` + KO `README.ko.md` in sync**) — reflect command/flag/behavior changes. The execution-routing canon is `docs/EXECUTION-HANDOFF.md`; deeper flows in `docs/OMC-INTEGRATION.md`.
 2. **CHANGELOG** (entry) — 1 change = 1 entry.
-3. **docs/PRINCIPLES.md** (how it works, canonical) **+ the matching row in docs/PRINCIPLES.en.md** — when a principle, design decision, or mental model changes, update both in the same commit (the English file is a summary table, hence row-level).
+3. **docs/PRINCIPLES.md** (how it works — English, canonical) — update whenever a principle, design decision, or mental model changes, including its opening decision table.
 
 Canonical facts (command names, the install string `/plugin install oh-my-joy@omj`) must **match across every doc and both README languages**. For narrative content such as the mental model, **README (EN/KO in sync) is canonical**; other docs only summarize/link (verbatim duplication is not required — prevents drift). README.md (EN) and README.ko.md (KO) always keep the same structure and the same canonical facts.
 

@@ -13,6 +13,5 @@
 - [ ] `allowed-tools` declares only tools the body's procedure actually calls (least privilege)
 - [ ] If commands/behavior changed, **README.md and README.ko.md** were updated together
 - [ ] A `CHANGELOG.md` entry was added
-- [ ] If a principle or design decision changed, `docs/PRINCIPLES.md` was updated
-- [ ] If `docs/PRINCIPLES.md` was updated, the matching row in `docs/PRINCIPLES.en.md` was updated **in the same commit**
+- [ ] If a principle or design decision changed, `docs/PRINCIPLES.md` was updated (including its opening decision table)
 - [ ] No AI signatures (`Co-Authored-By` etc.) in commit messages

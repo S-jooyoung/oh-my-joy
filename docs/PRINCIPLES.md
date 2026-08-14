@@ -1,170 +1,199 @@
-# oh-my-joy 설계 원리 (PRINCIPLES)
+# oh-my-joy design principles (PRINCIPLES)
 
-> 이 문서가 **정본**이다. 영문 요약표는 [`PRINCIPLES.en.md`](PRINCIPLES.en.md) — 요약이 정본과 어긋나면 이 문서를 따른다. 원리를 바꾸면 요약표의 해당 행도 같은 커밋에서 갱신한다.
+> This document is the **canonical source** for design rationale. It explains **why** each oh-my-joy (OMJ) design decision was made. Canonical facts (README/SoT) define the "what"; this document defines the "why". Each principle is written as `problem → decision → rationale → outcome`, and where possible records the rejected alternatives and the reasons. The actual behavior of each command is canonical in `commands/omj.md`, `commands/omj-start.md`, `commands/ff-review.md`, `commands/omj-verify.md`, `commands/omj-fix.md`, `commands/omj-sync.md`, `commands/omj-setup.md`, `commands/deep-interview.md`, `commands/goal-loop.md`, and `commands/ralplan.md`; this document stays consistent with that behavior.
 
-이 문서는 oh-my-joy(OMJ)의 각 설계 결정이 **왜** 그렇게 내려졌는지를 설명한다. 정본 사실(README/SoT)이 "무엇을"을 정의한다면, 이 문서는 "왜"를 정의한다. 각 원리는 `문제 → 결정 → 근거 → 결과` 구조로 서술하며, 가능한 경우 버린 대안과 그 이유도 함께 남긴다. 커맨드의 실제 동작은 `commands/omj.md`, `commands/omj-start.md`, `commands/ff-review.md`, `commands/omj-verify.md`, `commands/omj-fix.md`, `commands/omj-sync.md`, `commands/omj-setup.md`, `commands/deep-interview.md`, `commands/goal-loop.md`, `commands/ralplan.md`가 정본이며, 이 문서는 그 동작과 정합한다.
+The through-line of this plugin is a single idea: **treat the tool's constraints as the design axis instead of working around them.** Claude Code's Plan mode blocks writes, so the entry-point command was built to have no write path at all — and that turned a limitation into the review gate the workflow needed.
 
----
+## Overview
 
-## ① Plan 네이티브 프라이머 — 도구의 제약을 설계 축으로 삼는다
+| # | Principle | Problem it solves | Decision | Rejected alternative |
+| --- | --- | --- | --- | --- |
+| ① | **Plan-native primer** | Plan mode blocks `Write`/`Edit`, yet that is the mode users live in — a one-shot implement command half-works where it is invoked most | `/omj` collects the design spec, authors an implementation spec, and stops. That spec *is* the native Plan | A full-auto "Figma → code in one command": demos well, but forces implementation without review |
+| ② | **Plan-first over convenience** | Convenience and review-before-write cannot both be satisfied in one turn | Split into two halves — primer drafts, you approve, execution implements. Convenience survives as continuity *after* the gate | Immediate implementation: saves little, and bad frontend abstractions are expensive to undo |
+| ③ | **Read-only command + least privilege** | A command with write access both violates least privilege and opens a path around the plan gate | Remove `Write`/`Edit`/`Bash` from `/omj` entirely. `allowed-tools` is a *pre-approval* list, so an unlisted tool surfaces a permission prompt rather than acting silently; Plan mode supplies the hard block on `Write`/`Edit`. The official figma skill's mandatory pre-load before `get_design_context` is knowingly **not** followed during priming — that skill presumes implementation, which would erode the read-only plan gate; upstream guidance applies at the post-approval implementation stage instead (a decision, not a bug) | Keeping the tools and instructing the model not to use them — prose is not an enforcement layer |
+| ④ | **Two-track Figma strategy** | "Reading Figma" is two different jobs: screen → code, and design-system spec/token extraction | Official Dev Mode MCP for screens today; a console-based MCP + uSpec for design-system extraction is the planned second track (v1.1+, not yet shipped) | One tool for both — neither job gets done well |
+| ⑤ | **uSpec skeleton × quality rubric** | Free-form specs omit a different thing every time; a rigid skeleton with no rubric is empty formalism | Borrow uSpec's section taxonomy for structure, score each section with the FF four criteria + a11y. The same rubric is *prescriptive* at authoring time (`/omj`) and *descriptive* at verification time (`/oh-my-joy:ff-review`, `/omj-verify`) — one source, two stages | Prose specs, or a rubric with no fixed shape |
+| ⑥ | **Interactive token sync** | Drift between code tokens and Figma variables is inevitable; picking the winner automatically breaks design systems silently | Code is the *default* source of truth, but on conflict the user picks the direction per drift class. Option 1 always follows code authority, so pressing enter stays safe | Automatic bidirectional merge — that is where the permanent conflict-resolution debt comes from |
+| ⑦ | **Independent of, and composable with, other orchestrators** | Depending on a general orchestrator makes this plugin break without it and blurs responsibility | Fully standalone, `/omj*` namespace owned. The approved spec is the handoff artifact that other execution tools consume — the default whenever a runtime is installed. With no runtime present, the plugin's own lane (`/oh-my-joy:goal-loop` for durable execution, `/oh-my-joy:ralplan` for consensus review — absorbed rewrites per ⑧) is the fallback. The two gates are orthogonal — this plugin uses Claude Code's native Plan mode (a *read* gate), orchestrators use their own goal ledgers (an *execution* gate) — so they meet only at handoff | Reimplementing durable goals, parallel workers, and QA loops *as defaults* when an orchestrator runtime already does them well — the native lane is the runtime-absent default, and stays an explicit opt-in even with a runtime when evidence-gated completion is the goal (routing canon: the OMJ-native-lane section of EXECUTION-HANDOFF) |
+| ⑧ | **Bundle only what you own** | Duplicated knowledge drifts from its upstream and doubles maintenance | Bundle the self-authored quality skill; *reference* externally maintained skills instead of vendoring them. External *methodologies* (not tools) may be absorbed as self-authored rewrites — source credited in `NOTICE.md`, no sentence copying, no runtime porting; re-porting on upstream updates is a manual owner decision. `/oh-my-joy:deep-interview` was the first case; `/oh-my-joy:goal-loop` (durable goal loop whose only pre-approved write path is the `goal-state.mjs` validator) and `/oh-my-joy:ralplan` (consensus review via the bundled read-only `plan-critic` agent) followed | Vendoring third-party skills — stale within one upstream release |
+| ⑨ | **Graceful degradation** | Optional dependencies (Figma MCP, playwright, Context7) turn into hard blockers if their absence is an error | Every dependency is optional: absence means "skip + explain", never a crash | Hard requirements — turns a plugin into a setup project and kills day-one value |
+| ⑩ | **Mechanism in the plugin, axes in the project** | The most common cause of rework is a *project-specific* omission (locales, theme modes, currency), and no plugin can know which | The plugin owns only the mechanism; each project declares what to check in `.omj/fe-context.md`. No axis is built in. Purely perceptual defects that no static rule can catch (colour, z-index, alignment) get an active loop instead — `/omj-fix` observes, edits, re-captures | (a) An always-on hook firing in every repo; (b) baking specific axes into the shared rubric. Both break portability |
+| ⑪ | **Ask rarely, and only by rule** | Scattering prompts causes prompt fatigue; asking nothing makes the tool decide unilaterally | Prompt only when all four hold: genuinely ambiguous, no safe default, expensive to reverse, *and* dependent on data discovered at runtime. Otherwise use a flag, print advice, or just do it. Two bounded interaction classes: (a) after the spec is written `/omj` may ask exactly once to pick the execution lane — skipped when the recommendation is `Wrapper=none; Sublane=inline/manual`; (b) the interview class — `/oh-my-joy:deep-interview` asks one question per round because each round re-satisfies all four conditions on data the previous answer just produced, bounded by a 20-round hard cap, early exit from round 3, and a suitability gate that refuses interviews for already-clear inputs | Per-item confirmation prompts, or silent unilateral decisions |
 
-**문제.** Claude Code의 Plan 모드는 의도적으로 `Write`/`Edit`와 부작용 있는(mutating) `Bash`를 차단한다(읽기 전용 Bash — 예: `git diff` — 는 대체로 허용). 그래서 Plan 모드에 있는 동안에는 어떤 커맨드도 코드를 직접 쓸 수 없다. 그런데 이 프로젝트의 사용자는 "거의 항상 Plan 모드"로 작업하는 습관이 있다. 만약 `/omj`를 "Figma를 읽고 곧바로 코드를 구현하는 단일 커맨드"로 설계했다면, 사용자가 실제로 호출하는 대부분의 상황(Plan 모드)에서 커맨드는 절반만 동작하거나, Plan 게이트를 우회하려고 모드를 강제 해제하는 부자연스러운 흐름을 만들었을 것이다.
-
-**결정.** `/omj`를 "구현 커맨드"가 아니라 **Plan 네이티브 프라이머**로 설계했다. `/omj`는 명세를 수집(Figma/코드 읽기)하고 FF·vercel을 적용한 **구현 스펙**을 author한 뒤 **멈춘다**. 이 스펙이 곧 사용자가 검토할 네이티브 Plan이 된다. 사용자가 `ExitPlanMode`로 승인하면 그때부터 정상 실행이 구현을 담당한다. `commands/omj.md`의 `allowed-tools`가 `Read, Grep, Glob, Skill, AskUserQuestion, figma MCP, context7 MCP`로 한정되어 있고 Write/Edit/Bash가 빠져 있는 것이 이 결정의 직접적 표현이다. `AskUserQuestion`은 소스 쓰기가 아니라 스펙 완료 후 실행 레인 handoff를 **최대 한 번** 정하는 bounded 예외다(⑪ — 추천이 inline/manual이면 질문 없이 `(auto)` 기록만 한다, 규칙 정본은 `docs/EXECUTION-HANDOFF.md`).
-
-**근거.** "약점을 설계 축으로." Plan 모드의 쓰기 차단은 극복해야 할 장애물이 아니라, 사람이 코드를 만들기 전에 한 번 멈춰 스펙을 검토하게 하는 자연스러운 게이트다. 커맨드가 그 게이트를 거스르는 대신 게이트의 입력(=좋은 Plan)을 만들어 주면, 도구의 제약과 커맨드의 역할이 정확히 같은 방향을 향한다.
-
-**결과.** `/omj`는 사용자가 어떤 모드에 있든 안전하게 호출된다. Plan 모드에서는 스펙이 곧 네이티브 Plan으로 제시되고, 일반 모드에서도 동일하게 "스펙 author 후 멈춤"으로 동작해 일관적이다. 사용자는 모드를 바꿀 필요 없이 자기 습관 그대로 쓰면 된다.
-
-**버린 대안.** "Figma→코드까지 한 번에 끝내는 풀 오토 커맨드"는 데모로는 화려하지만, 사용자의 실제 작업 모드와 충돌하고 검토 없는 구현을 강제한다. 이는 ②의 트레이드오프와 직결되어 기각했다.
-
----
-
-## ② plan-first 우선 — 편의 vs 안전 트레이드오프의 재정의
-
-**문제.** 두 가지 가치가 충돌한다. (a) "단일 커맨드 한 방으로 구현까지" 끝내는 **편의**, (b) 코드를 쓰기 전에 사람이 스펙을 검토하는 **plan-first 안전**. 한 턴에서 순차적으로 "스펙도 만들고 구현도 한다"를 동시에 만족시키는 것은 Plan 모드 제약(①) 때문에 애초에 불가능하다. 둘 중 하나를 우선해야 한다.
-
-**결정.** **plan-first를 우선**한다. 편의는 포기하는 것이 아니라 **재정의**한다 — "프라이머가 스펙을 만들고(½) → 사용자가 승인하면 → 구현이 실행된다(½)"는 2단계로 분해해서, 편의를 "승인 후 자연스러운 연속 실행"으로 재구성한다.
-
-**근거.** 프론트엔드 구현은 한 번 코드를 쏟아내면 되돌리는 비용이 크고(잘못된 추상화, 토큰 미사용, a11y 누락), 검토 한 번이 그 비용을 크게 줄인다. 반대로 "검토 없는 즉시 구현"이 절약하는 시간은 작다. 비대칭적 손익이므로 안전을 기본값으로 두는 것이 합리적이다.
-
-**결과.** 사용자는 항상 "무엇을 어떻게 구현할지"를 먼저 보고 승인한다. 승인 후 메인 세션이 스펙대로 구현하고, 대규모면 OMC/OMX 실행 레인(`/goal`/`$ultragoal`, `/team`/`$team`, `/ralph`/`$ralph`)으로 opt-in handoff할 수 있다(이는 자율 플래너가 아니라 *승인된 스펙의 핸드오프*, ⑦ 참고). 편의는 사라지지 않고 "승인 게이트 뒤의 연속성"으로 살아남는다.
+> The "Rejected alternative" column compresses each principle's problem and reasoning from the full sections below; only ①⑥⑩ state a rejected alternative as an explicit paragraph there.
 
 ---
 
-## ③ read-only 커맨드 + 승인 후 실행 — 최소권한과 plan-gate 우회 차단을 동시에
+## ① Plan-native primer — make the tool's constraint the design axis
 
-**문제.** 커맨드가 강력할수록(Write/Edit/Bash 보유) 편하지만, 동시에 두 가지 위험이 커진다. (a) 최소권한 원칙 위반 — 명세 수집 단계가 굳이 파일을 쓰거나 셸을 실행할 권한을 가질 이유가 없다. (b) plan-gate 우회 — 커맨드가 쓰기 권한을 가지면 Plan 모드의 검토 게이트를 사실상 건너뛰는 경로가 생긴다.
+**Problem.** Claude Code's Plan mode deliberately blocks `Write`/`Edit` and mutating `Bash` (read-only Bash — e.g. `git diff` — is generally allowed). So while in Plan mode, no command can write code directly. Yet this project's user habitually works "almost always in Plan mode". Had `/omj` been designed as a "single command that reads Figma and immediately implements code", it would only half-work in the situation where it is actually invoked most (Plan mode), or it would force an unnatural flow of dropping out of the mode to bypass the plan gate.
 
-**결정.** `/omj`를 **소스 코드 read-only**로 못 박는다. `allowed-tools`에서 Write/Edit/Bash를 제거하고 `Read, Grep, Glob, Skill`, 읽기성 MCP(figma, context7), 실행 레인 handoff용 `AskUserQuestion` 1회만 허용한다. `commands/omj.md`는 명시적으로 "코드 파일을 만들거나 수정하지 않고, 빌드/테스트/검증을 실행하지 않으며, 서브에이전트에 구현을 위임하지 않는다"고 선언한다.
+**Decision.** `/omj` is designed not as an "implementation command" but as a **Plan-native primer**. `/omj` collects the spec (reading Figma/code), authors an **implementation spec** with FF and vercel guidance applied, then **stops**. That spec becomes the native Plan the user reviews. Once the user approves via `ExitPlanMode`, normal execution takes over the implementation. The direct expression of this decision is that `allowed-tools` in `commands/omj.md` is limited to `Read, Grep, Glob, Skill, AskUserQuestion, figma MCP, context7 MCP` with Write/Edit/Bash absent. `AskUserQuestion` is not a source-writing tool but a bounded exception used **at most once** to settle the execution-lane handoff after the spec is complete (⑪ — if the recommendation is inline/manual, skip the question and record `(auto)`; the rule's canon is `docs/EXECUTION-HANDOFF.md`).
 
-**근거.** read-only로 만들면 두 목표가 한 번에 달성된다. 권한 표면이 최소화되어(최소권한) 커맨드가 의도치 않게 파일을 건드릴 수 없고, plan-gate를 조용히 우회하는 경로가 사라진다. 즉 "권한을 빼는 것"이 곧 "안전 게이트를 강제하는 것"과 같아진다.
+**Rationale.** "Make the weakness the design axis." Plan mode's write block is not an obstacle to overcome but a natural gate that makes a human pause once to review the spec before code is produced. If the command feeds the gate its input (= a good Plan) instead of fighting it, the tool's constraint and the command's role point in exactly the same direction.
 
-**강제 수준의 정확한 서술.** `allowed-tools`는 *사전승인 목록*이지 하드 차단이 아니다 — 목록에 없는 도구를 쓰려 하면 **사용자에게 권한 프롬프트가 뜬다**(그래서 `/omj-start`가 `Bash(omx ultragoal create-goals:*)`를 뺀 것이 곧 확인 게이트가 된다). 하드 차단은 Plan 모드가 담당한다(`Write`/`Edit`). 두 층이 겹쳐 "조용한 쓰기"가 불가능해지는 것이지, 매니페스트 하나가 물리적으로 막는 것이 아니다. README(EN/KO)와 `PRINCIPLES.en.md` ③도 이 서술을 따른다.
+**Outcome.** `/omj` is safe to invoke whatever mode the user is in. In Plan mode the spec is presented as the native Plan; in normal mode it behaves identically — "author the spec, then stop" — so it is consistent. Users keep their habits; no mode switching required.
 
-**결과.** `/omj`는 어떤 상황에서도 소스 코드 부작용 없는 호출이 보장된다. 구현은 반드시 사용자 승인 뒤 별도 실행 경로(메인 세션/executor)에서만 일어난다. 검증(`/omj-verify`)이 Bash에 의존하므로 별도 커맨드로 분리된 것도 같은 철학의 연장이다 — read-only 프라이머와 부작용 있는 검증을 한 커맨드에 섞지 않는다.
-
-**상류 스킬과의 경계(같은 원칙의 적용).** 공식 figma 플러그인의 `figma-design-to-code` 스킬은 `get_design_context` 호출 전 자기 로드를 MANDATORY로 규정하지만, `/omj` 프라이밍은 **알고도 따르지 않는다** — 그 스킬은 구현을 전제하고, 구현 유도 지침을 read-only 프라이머에 로드하면 plan-gate 정체성이 침식된다. 상류 지침 준수는 승인 후 구현 단계의 몫이다(`commands/omj.md` Phase 1에 명문화 — 버그가 아니라 결정이므로 되돌리지 말 것).
+**Rejected alternative.** A "full-auto command that goes Figma → code in one shot" demos brilliantly but collides with the user's actual working mode and forces implementation without review. This ties directly into ②'s trade-off and was rejected.
 
 ---
 
-## ④ 2-트랙 Figma 전략 — 용도별로 다른 Figma 도구를 쓴다
+## ② Plan-first over convenience — redefining the trade-off
 
-**문제.** "Figma를 읽는다"는 작업은 사실 두 종류다. (a) **앱 화면을 코드로 옮기는 design→code** — 특정 프레임의 레이아웃/치수/구조를 정확히 코드 명세로 변환해야 한다. (b) **디자인 시스템 컴포넌트의 스펙·토큰을 문서화** — 변수 정의, 컴포넌트 변형(variant) 구조, 토큰 체계를 추출해야 한다. 두 작업은 필요한 데이터와 도구 표면이 다른데, 하나의 도구로 억지로 다 처리하면 어느 쪽도 잘 안 된다.
+**Problem.** Two values collide: (a) the **convenience** of "one command, one shot, straight to implementation", and (b) the **plan-first safety** of a human reviewing the spec before code is written. Satisfying both sequentially in a single turn is impossible in the first place because of the Plan-mode constraint (①). One must take priority.
 
-**결정.** **2-트랙**으로 분리한다. (a) 앱 화면 design→code는 **공식 Figma Dev Mode MCP**(`mcp__plugin_figma_figma__get_design_context`/`get_screenshot`/`get_variable_defs`)를 쓴다. (b) 디자인 시스템 스펙·토큰 추출은 **figma-console-mcp(Southleft) + uSpec(Uber)** 조합을 쓴다(v1.1+ 로드맵).
+**Decision.** **Plan-first wins.** Convenience is not abandoned but **redefined** — decomposed into two halves: "the primer authors the spec (½) → the user approves → implementation executes (½)", reframing convenience as "natural continued execution after approval".
 
-**근거.** 공식 Dev Mode MCP는 Figma가 직접 제공/보증하므로 화면→코드 변환의 정확도와 안정성이 가장 높고, baseline 스크린샷·변수 정의를 1급으로 제공한다. 반면 컴포넌트 단위의 깊은 스펙 추출과 콘솔 기반 조작은 공식 MCP의 범위를 넘어서므로, 그 영역에 특화된 figma-console-mcp(https://github.com/southleft/figma-console-mcp)와 스펙 포맷 표준(uSpec)을 쓰는 것이 적합하다.
+**Rationale.** Frontend implementation is expensive to unwind once code is poured out (wrong abstractions, unused tokens, missing a11y), and a single review sharply reduces that cost. Conversely, the time saved by "immediate implementation without review" is small. With such asymmetric payoff, defaulting to safety is rational.
 
-**결과.** 각 트랙이 자기 강점에 집중한다. v1의 `/omj`는 트랙 (a)에 의존해 앱 화면 프라이밍을 안정적으로 하고, 트랙 (b)는 `/omj-spec`(v1.1+)에서 컴포넌트 스펙 자동 생성으로 확장된다. 두 트랙을 섞지 않음으로써 각각을 독립적으로 발전시킬 수 있다.
-
-**graceful 보강.** 공식 Figma MCP가 미설치이거나 데스크톱 미연결이면 **에러로 취급하지 않고** "Figma 미연결 — 수동 명세로 진행"으로 안내한다(⑨ 참고).
+**Outcome.** The user always sees and approves "what will be built, and how" first. After approval the main session implements the spec, and for large work it can opt into an OMC/OMX execution-lane handoff (`/goal`/`$ultragoal`, `/team`/`$team`, `/ralph`/`$ralph`) — a *handoff of an approved spec*, not an autonomous planner (see ⑦). Convenience survives as "continuity behind the approval gate".
 
 ---
 
-## ⑤ uSpec 섹션 분류 차용 + FF 통합 — 검증된 스펙 골격에 품질 루브릭을 입힌다
+## ③ Read-only command + post-approval execution — least privilege and no plan-gate bypass, at once
 
-**문제.** "구현 스펙"을 자유 서술로 쓰면 매번 누락 항목이 달라진다(어떤 날은 a11y를 빼먹고, 어떤 날은 반응형 분기를 빠뜨린다). 스펙에는 **재현 가능한 골격**이 필요하다. 동시에 그 골격을 채우는 내용이 **품질 기준**으로 평가되지 않으면 형식만 갖춘 빈 스펙이 된다.
+**Problem.** The more powerful a command (holding Write/Edit/Bash), the more convenient — and the greater two risks: (a) least-privilege violation — a spec-collection stage has no reason to hold file-writing or shell-execution rights; (b) plan-gate bypass — if the command can write, a path exists that effectively skips Plan mode's review gate.
 
-**결정.** 스펙 골격으로 **uSpec의 섹션 분류**를 차용한다 — Anatomy / Structure / Color·Tokens / Props·Variants / A11y / Motion(`commands/omj.md` Phase 2). 그리고 각 섹션을 **frontend-fundamentals 4기준(가독성·예측가능성·응집도·결합도) + 접근성**으로 평가한다. FF 스킬의 `references/`를 루브릭으로 사용한다.
+**Decision.** `/omj` is pinned **read-only with respect to source code**. `allowed-tools` drops Write/Edit/Bash and allows only `Read, Grep, Glob, Skill`, read-oriented MCPs (figma, context7), and one `AskUserQuestion` for the execution-lane handoff. `commands/omj.md` declares explicitly that it "does not create or modify code files, does not run builds/tests/verification, and does not delegate implementation to subagents".
 
-**근거.** uSpec(Uber, https://docs.uspec.design/ · https://www.uber.com/ca/en/blog/automate-design-specs/)은 디자인 스펙 자동화를 위해 실무에서 검증된 섹션 체계로, **무의존**으로 차용 가능하다(특정 도구를 강제하지 않음). 섹션 분류만 빌려오면 스펙의 완결성이 보장되고, 거기에 FF 4기준을 얹으면 각 섹션이 "예측가능성=이름≠동작 금지", "결합도=props drilling 회피", "토큰=raw hex 금지" 같은 구체적 품질 게이트를 통과한다. 골격(uSpec)과 평가(FF)를 분리·결합한 것이 핵심이다.
+**Rationale.** Making it read-only achieves both goals at once. The permission surface is minimized (least privilege) so the command cannot touch files unintentionally, and the quiet path around the plan gate disappears. "Removing the permission" becomes identical to "enforcing the safety gate".
 
-**결과.** 모든 `/omj` 스펙이 같은 6섹션을 갖고, 각 섹션이 동일한 품질 잣대로 검토된다. 사용자가 승인하는 Plan은 항상 같은 구조여서 검토 부담이 낮고, 구현자(사람/executor)는 빈칸 없는 명세를 받는다. **과설계 금지** 규칙("함께 바뀔 게 확실할 때만 추상화")도 이 단계에서 명시되어, 스펙이 불필요한 계층을 부추기지 않는다.
+**The precise strength of the enforcement.** `allowed-tools` is a *pre-approval list*, not a hard block — attempting a tool not on the list **surfaces a permission prompt to the user** (which is why `/omj-start` omitting `Bash(omx ultragoal create-goals:*)` is itself a confirmation gate). The hard block is Plan mode's job (`Write`/`Edit`). The two layers overlap so that "silent writes" become impossible; no single manifest physically blocks anything. The README (EN/KO) and row ③ of the overview table above follow this wording.
 
-**처방 vs 검증 경계.** 같은 FF SoT를 *단계*에 따라 다르게 쓴다 — `/omj`는 스펙 author 시점에 "무엇을 만들지"를 FF 기준으로 **처방(prescriptive)** 하고, `/oh-my-joy:ff-review`(코드 diff)·`/omj-verify`(시각)는 구현이 그 기준을 지켰는지 **검증(descriptive)** 한다. FF 스킬(`references/`)은 단일 SoT이고 처방/검증이 그것을 단계만 달리 호출하므로, 품질 지식을 `/omj` 본문에 잠그지 않으면서도(드리프트 없이) 한 곳에서 관리된다. 이것이 "디자인 수집 + FE 지식 적용을 `/omj`가 함께 처방하는 것이 결합 스멜이 아니라 올바른 레이어링"인 이유다 — 다운스트림 OMC 실행 도구는 도메인 중립이라 FE 지식을 담지 않으므로, 처방은 업스트림 `/omj`가 맡아야 한다.
+**Outcome.** `/omj` is guaranteed side-effect-free on source code in every situation. Implementation happens only after user approval, on a separate execution path (main session/executor). Verification (`/omj-verify`) depending on Bash is split into its own command for the same philosophy — a read-only primer and side-effectful verification are never mixed in one command.
 
----
-
-## ⑥ 토큰 sync — 코드가 기본 SoT, 충돌은 사용자가 방향을 고른다 (대화형 해소)
-
-**문제.** 토큰이 코드(`tokens.json`)와 Figma Variables 양쪽에 살면 드리프트는 불가피하고 충돌 해소는 비싸다 — "누가 진실인가"가 자동으로 잘못 정해지면 디자인 시스템이 소리 없이 어긋난다. 그렇다고 방향을 플러그인이 한쪽으로 못박으면(코드만 이김), 디자이너가 Figma에서 시작한 정당한 변경을 코드로 되돌릴 길이 사라져 범용 도구로서의 실효를 깎는다.
-
-**결정.** **코드를 "기본" SoT로 두되, 충돌 시 방향은 사용자가 고른다.** `/omj-sync check`는 읽기 전용 드리프트 리포트로 남고, 새 기본 모드 `/omj-sync`(sync)는 드리프트를 **클래스별(값 불일치 / 코드에만 / Figma에만)로 묶어** `AskUserQuestion`으로 방향(코드→Figma / Figma→코드 / 건너뛰기)을 한 번에 묻고 적용한다. `/omj-sync push`는 "코드가 이김"을 명시적으로 택한 비대화형 빠른 경로로 유지한다.
-
-**근거.** 충돌이 비싼 진짜 이유는 *방향이 있다는 것*이 아니라 *방향을 자동으로 잘못 고르는 것*이다. 사람이 클래스 단위로 한 번 고르면 모호함은 그 자리에서 사라지고, 각 질문의 1번(기본) 선택지를 코드 권위(값 불일치·코드에만은 "코드→Figma", Figma에만은 보수적 "건너뛰기")로 둬 무심코 엔터만 쳐도 옛 단방향과 같은 안전한 결과가 나온다 — 부채는 *자동 머지*가 지던 것이지 방향의 존재가 아니다.
-
-**결과.** 코드는 여전히 기본 진실이지만 Figma발 변경도 사용자 승인 하에 코드로 흡수된다. Figma→코드 pull은 DTCG **참조 구조를 보존**하고(semantic alias를 raw hex로 납작하게 만들지 않으며, 참조가 깨질 위험이면 기본 건너뛰기로 막는다), W3C DTCG 표준을 유지해 상호운용성도 그대로다.
-
-**버린 대안.** *사람 선택 없는 자동 양방향 머지*는 여전히 기각한다 — 충돌 해결 UX의 영구 부채는 거기서 온다. 대화형 선택 + "코드가 기본" 기본값이 그 부채 없이 양방향의 실효를 준다.
+**Boundary with upstream skills (the same principle applied).** The official figma plugin's `figma-design-to-code` skill mandates loading itself before any `get_design_context` call, but `/omj` priming **knowingly does not follow it** — that skill presumes implementation, and loading implementation-steering guidance into a read-only primer erodes the plan-gate identity. Upstream compliance belongs to the post-approval implementation stage (codified in `commands/omj.md` Phase 1 — a decision, not a bug; do not revert).
 
 ---
 
-## ⑦ OMC/OMX와 독립·graceful 공존 + 실행 레인 핸드오프 — 경계를 분명히 한다
+## ④ Two-track Figma strategy — different Figma tools for different jobs
 
-**문제.** 사용자는 이미 oh-my-claudecode(OMC), oh-my-codex(OMX) 같은 범용 오케스트레이션을 쓴다. OMJ가 여기에 의존하거나 기능을 복제하면 (a) OMC/OMX 미설치 시 OMJ가 깨지고, (b) 프론트엔드 스펙 생성과 실행 오케스트레이션의 책임 경계가 흐려져 사용자가 "언제 무엇을 쓸지" 혼란스러워진다.
+**Problem.** "Reading Figma" is really two different jobs. (a) **design→code for app screens** — the layout/dimensions/structure of a specific frame must be converted into a precise code spec. (b) **Documenting design-system component specs and tokens** — variable definitions, component variant structures, and token systems must be extracted. The two jobs need different data and different tool surfaces; forcing one tool to do both does neither well.
 
-**결정.** OMJ를 **OMC/OMX와 완전히 독립**된 플러그인으로 만들고, 네임스페이스를 분리한다(`/omj*`는 OMJ 소유). 둘의 관계는 한 문장 멘탈 모델로 고정한다 — **"FE는 무조건 /omj로 시작 — 스펙을 승인한 뒤 특별한 이유가 없으면 1번 `(recommended)` 실행 레인으로 간다."** `/omj`는 스펙 끝에 실행 레인 selector를 남기되, 라우팅 규칙은 [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md)를 SoT로 위임한다.
+**Decision.** Split into **two tracks**. (a) App-screen design→code uses the **official Figma Dev Mode MCP** (`mcp__plugin_figma_figma__get_design_context`/`get_screenshot`/`get_variable_defs`). (b) Design-system spec/token extraction uses the **figma-console-mcp (Southleft) + uSpec (Uber)** combination (v1.1+ roadmap).
 
-**근거.** OMJ의 미션은 좁고 깊다(코드↔Figma 프론트엔드 루프). 이 좁은 미션은 OMC/OMX 없이도 완결되어야 설치 장벽이 낮고 독립적으로 가치를 준다. 동시에 durable goal, 병렬 worker, persistent owner, adversarial QA처럼 OMC/OMX가 잘하는 영역은 **런타임이 있으면** 복제하지 않고 **승인된 스펙의 handoff**로 넘긴다 — 이것이 기본값이다. 장기·다단계 작업은 `/goal`/`$ultragoal` 같은 goal-mode wrapper를 기본 후보로 두고, 병렬 가능하면 `/team`/`$team`을 sublane으로, 순차 완료 압박이면 `/ralph`/`$ralph`를 sublane으로 둔다. 런타임 부재 시에는 ⑧의 흡수 규칙으로 재작성한 **OMJ native 레인**(`/oh-my-joy:goal-loop` durable·`/oh-my-joy:ralplan` 합의)이 기본값으로 같은 역할을 맡고, 런타임이 있어도 증거 강제 완료·단일 owner 순차가 목적이면 명시 선택지로 남는다(상시 축 — 우선순위 정본: [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md) "OMJ native 레인" 절. 복제가 아니라 자작 재작성이라 ⑧과 충돌하지 않는다).
+**Rationale.** The official Dev Mode MCP is provided and backed by Figma itself, so it has the highest accuracy and stability for screen→code conversion, and provides baseline screenshots and variable definitions first-class. Deep component-level spec extraction and console-driven manipulation exceed the official MCP's scope, so tools specialized for that area — figma-console-mcp (https://github.com/southleft/figma-console-mcp) and the uSpec format standard — fit better.
 
-**결과.** OMC/OMX가 없어도 OMJ의 프라이머·검증·토큰 sync는 그대로 동작하고(graceful), durable 실행·합의 리뷰도 OMJ native 레인(`/oh-my-joy:goal-loop`·`/oh-my-joy:ralplan`)이 fallback으로 커버한다. OMC/OMX가 있으면 승인된 스펙을 실행 도구가 소비한다 — `/goal`/`$ultragoal`(durable), `/team`/`$team`(병렬), `/ralph`/`$ralph`(순차), `$ultraqa`(adversarial QA), `/oh-my-claudecode:ralplan`/`$ralplan`(합의 fallback — OMC는 승인 후 실행 연결, OMX는 현재 plan-only로 계획 산출 후 정지). 즉 **"무엇을 만들지"(FE 스펙)는 `/omj`가, "어떻게 굴릴지"(실행)는 OMC/OMX 도구가** 맡고 스펙이 그 둘을 잇는다.
+**Outcome.** Each track plays to its strength. v1's `/omj` relies on track (a) for stable app-screen priming; track (b) expands into automatic component spec generation in `/omj-spec` (v1.1+). Keeping the tracks unmixed lets each evolve independently.
 
-**게이트 공존 규칙 — 두 계획/목표 시스템은 막지 않고 직교한다.** `/omj`만 Claude Code 네이티브 Plan 모드(`ExitPlanMode`)를 쓰는 *읽기 게이트*이고, OMC/OMX 계획·실행 도구는 각자의 workflow/goal ledger를 쓰는 *실행 게이트*다. 두 게이트는 직교하므로 하드 충돌이 없고 핸드오프 순간에만 시간순으로 만난다. 기본 흐름은 **승인 후 선택된 레인으로 실행 직행**이고, `/oh-my-claudecode:ralplan`/`$ralplan` 합의는 *진짜 모호하거나 합의가 필요할 때만* 명시적으로 거친다. `/omj`는 read-only라 소스 아티팩트를 스스로 못 쓰므로 파일 materialize는 승인 *후* 실행 레인이 한다. (wrapper/sublane 분리, `/goal clear` 안전, `/omj-start` fallback은 [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md) 참고.)
-
----
-
-## ⑧ 번들 최소화(FF만) · SoT 단일화 — 가져오지 말고 참조하라
-
-**문제.** 품질 스킬을 많이 번들할수록 플러그인은 무거워지고, 같은 지식이 여러 곳에 복제되면 갱신할 때 어디를 고쳐야 하는지 모호해진다(드리프트). vercel 계열 스킬(`vercel-react-best-practices`, `vercel-composition-patterns` 등)은 유용하지만 외부(vercel-labs/agent-skills)에서 활발히 갱신된다.
-
-**결정.** OMJ가 **자작 frontend-fundamentals 1개만 번들**한다(OMJ 정본 SoT). vercel 계열은 번들하지 않고 **참조**한다 — 필요 시 아래 명령으로 가져온다: `npx skills add vercel-labs/agent-skills/vercel-react-best-practices` · `npx skills add vercel-labs/agent-skills/vercel-composition-patterns` · `npx skills update`. 즉 "내가 소유한 지식(FF)"만 안고, "남이 더 잘 관리하는 지식(vercel)"은 링크로 둔다.
-
-**근거.** SoT 단일화 원칙이다. FF는 OMJ의 핵심 품질 철학이므로 직접 소유·버전 고정해야 하지만, vercel 스킬을 복제해 번들하면 상류(upstream) 갱신과 어긋나 곧 stale해진다. 참조 방식이면 항상 최신을 `update`로 받을 수 있고, 번들 크기와 유지보수 부담이 모두 줄어든다.
-
-**결과.** OMJ는 가볍게 유지되고, FF는 한 곳에서만 관리되어 드리프트가 없다. 사용자는 vercel 스킬이 필요할 때 명시적으로 추가하므로, 무엇이 OMJ 정본이고 무엇이 외부 참조인지 항상 분명하다. (프로젝트 레포에서 vercel 스킬을 lock/update로 관리하는 패턴과 같은 철학이다.)
-
-**경계 명확화 — "번들 최소화"가 금지하는 것과 안 하는 것.** 이 원칙의 근거는 *외부에서 관리되는 지식의 stale 복제 방지*다. 따라서 OMJ가 **직접 소유·관리하는 자작물** — FF `references/`(figma-fidelity 포함), 번들 에이전트(`figma-implementer`·`design-qa`), 훅 스크립트 템플릿(`templates/hooks/`) — 의 추가는 이 원칙의 위반이 아니다(upstream 드리프트가 없다). 기준은 "FE 루프 안의 자작 도구, **또는 FE 루프를 감싸는 범용 워크플로우의 자작 재작성물**인가"이며, 외부가 더 잘 관리하는 지식(vercel 등)은 계속 참조만 한다.
-
-**외부 방법론의 흡수 규칙(v0.6.0).** 참조만으로는 안 되는 대상이 하나 있다 — 도구가 아니라 *방법론*(단계 구조·게이트·산출물 계약)인 경우다. 이때는 복제가 아니라 **자작 재작성**으로 흡수한다. 조건 셋: ① 출처·라이선스를 `NOTICE.md`에 명시, ② 원문 문장을 복제하지 않고 새로 쓴다, ③ 원본의 런타임(CLI·tmux·상태 파일 규약)은 이식하지 않는다. 재작성물은 자작물이므로 upstream 드리프트 문제가 없고, 업스트림이 갱신되면 재이식 여부는 소유자가 수동으로 판단한다(자동 동기화 없음 — 의도적 결정). `/oh-my-joy:deep-interview`(gajae-code·oh-my-claudecode 방법론 차용)가 첫 사례다.
+**Graceful reinforcement.** If the official Figma MCP is not installed or the desktop is not connected, this is **not treated as an error** — the user is guided with "Figma not connected — proceeding with a manual spec" (see ⑨).
 
 ---
 
-## ⑨ graceful degradation — 의존성 부재는 에러가 아니라 스킵+안내
+## ⑤ Borrowed uSpec sections + FF integration — a proven spec skeleton wearing a quality rubric
 
-**문제.** OMJ는 여러 선택적 의존성에 기댄다 — 공식 Figma Dev Mode MCP, playwright-cli, Context7, OMC/OMX. 이들 중 하나라도 없을 때 커맨드가 예외를 던지고 죽으면, 사용자는 "전부 갖추기 전엔 아무것도 못 쓰는" 플러그인을 만나게 된다. 이는 채택 장벽을 크게 높인다.
+**Problem.** Writing an "implementation spec" as free prose omits a different item every time (a11y one day, responsive breakpoints the next). Specs need a **reproducible skeleton**. At the same time, if the content filling that skeleton is not judged against a **quality standard**, the result is an empty spec with good formatting.
 
-**결정.** 모든 의존성을 **선택적(optional)** 으로 두고, 부재 시 **에러 대신 스킵 + 안내**로 처리한다(graceful degradation). 예: Figma MCP 미연결이면 "URL 내용 없이 진행하거나 수동 명세를 받겠다"고 안내하고 계속한다. Context7 부재면 Next.js 최신 문서 조회 단계만 생략한다. playwright-cli/OMC/OMX 부재도 마찬가지로 해당 기능만 비활성화하고 나머지는 동작한다.
+**Decision.** Borrow **uSpec's section taxonomy** as the spec skeleton — Anatomy / Structure / Color·Tokens / Props·Variants / A11y / Motion (`commands/omj.md` Phase 2). Then evaluate each section with the **frontend-fundamentals four criteria (readability, predictability, cohesion, coupling) + accessibility**. The FF skill's `references/` serve as the rubric.
 
-**근거.** 핵심 가치(스펙 author, 토큰 sync 구조)는 선택적 도구 없이도 성립한다. "있으면 더 좋지만 없어도 동작"하게 만들면, 사용자는 자기 환경에서 가능한 만큼 즉시 가치를 얻고 점진적으로 도구를 추가하면 된다. 의존성을 hard requirement로 두는 것은 개발자 편의일 뿐 사용자 가치를 깎는다.
+**Rationale.** uSpec (Uber, https://docs.uspec.design/ · https://www.uber.com/ca/en/blog/automate-design-specs/) is a section system proven in practice for design-spec automation, and it can be borrowed **dependency-free** (it mandates no specific tool). Borrowing just the section taxonomy guarantees spec completeness, and layering the FF criteria on top makes each section pass concrete quality gates like "predictability = no name≠behavior", "coupling = avoid props drilling", "tokens = no raw hex". The key move is separating and then combining skeleton (uSpec) and evaluation (FF).
 
-**결과.** OMJ는 최소 환경(읽기 도구만)에서도 의미 있게 동작하고, 도구가 갖춰질수록 기능이 점증한다. `/omj-verify`의 프리플라이트(`command -v`, `JOY_BASE_URL` 기본값 3000, `curl` 체크)도 이 철학의 구현으로, 없는 것을 친절히 알리고 가능한 경로로 안내한다. 부재를 실패가 아니라 "현재 가능한 범위"로 재해석하는 것이 OMJ 전반의 태도다.
+**Outcome.** Every `/omj` spec has the same six sections, each reviewed against the same quality yardstick. The Plan the user approves always has the same shape, keeping review cost low, and the implementer (human/executor) receives a spec with no blanks. The **no-overdesign** rule ("abstract only when things will certainly change together") is also stated at this stage, so specs do not encourage unnecessary layers.
 
----
-
-## ⑩ acceptance는 메커니즘만 플러그인에, 축은 프로젝트가 선언 — 범용성을 설계로 보장 + 검증 능동 op(`/omj-fix`)
-
-**문제.** 실측 로그에서 가장 잦은 재작업 원인은 *체계적 누락*이었는데, 그 누락은 거의 항상 **프로젝트마다 다른 특수 조건**에서 나왔다(예: 다국어 병행, 테마/브랜드 모드, 통화·포맷 규칙). 이를 스펙 단계에서 강제하면 재작업이 줄지만, "무엇을 강제할지"가 레포마다 다르다. OMJ는 회사 레포·개인 프로젝트는 물론 **제3자의 오픈소스 사용까지** 노리므로, 특정 축(다국어·모드 등)을 플러그인 본문에 박으면 다른 사용자에겐 거짓이 되어 범용성을 깬다.
-
-**결정.** acceptance를 **메커니즘(플러그인)과 축·값(프로젝트)으로 분리**하고, **플러그인은 어떤 축도 빌트인으로 강제하지 않는다**(예시로 들 수는 있되 기본값으로 탑재하지 않는다). (a) `references/fe-acceptance.md`는 "프로젝트가 `.omj/fe-context.md`에 선언한 acceptance를 읽어 스펙·`/omj-fix` 진단에 반영"하는 *메커니즘만* 소유한다. `/omj`·`/oh-my-joy:ff-review`가 이미 FF를 invoke하므로 **신규 메커니즘 0**. (b) **무엇을 점검할지**(다국어? 모드? 통화?)는 100% 프로젝트가 자기 `.omj/fe-context.md`에 적는다 — 없으면 보편 FF 기준만(graceful, ⑨). 보편 축(반응형·토큰·a11y)은 omj.md Phase 2/FF `references/`가 이미 다룬다(⑧ SoT 단일화).
-
-**근거 — 버린 대안 둘.** (1) "FE 편집마다 체크리스트를 주입하는 **상시(always-on) 훅**"은 OMJ의 zero-hook·side-effect-free 설계(①③)를 깨고, 설치된 모든 레포에서 발화해 비포터블하며, 사용자의 글로벌 FE-visual-verify PostToolUse 훅과 충돌(.tsx/.jsx/.css 이중 발화)한다. (2) "i18n·모드 같은 축을 FF에 기본 탑재"는 그 축이 특정 도메인(다국어·다중 브랜드) 한정이라 단일 로케일 개인 프로젝트나 남의 레포엔 노이즈가 된다. 둘 다 *범용성*을 깬다. **"구조는 플러그인, 축·답은 프로젝트"** 가 포터빌리티와 정확성을 동시에 만족시키는 분해다.
-
-**opt-in 훅과의 양립(⑩ 유지, 반전 아님).** `templates/hooks/`의 토큰 가드 훅은 위 기각을 뒤집지 않는다 — 플러그인은 hooks.json을 두지 않아 **스스로는 어떤 레포에서도 발화하지 않고**(zero-hook 유지, 스크립트 *소유*만 한다), 활성화는 `/omj-setup`이 소비 프로젝트에 **복사-설치**할 때만 일어난다(진짜 opt-in — 기각 사유였던 전 레포 상시 발화·강제 이중발화가 원천 부재). 훅 로직도 fe-context 선언 없으면 no-op이라 축 강제가 없다. 스크립트를 번들한다는 점에서 "zero-hook" 표어의 문자적 완화이며, 이는 v0.3.0에서 소유자 승인으로 결정됐다.
-
-**결과.** 어느 레포에 설치하든 메커니즘은 동일하고, 각 레포가 자기 `.omj/fe-context.md`로 점검할 축을 정한다 — 회사 레포는 다국어·모드를 선언하고, 단일 로케일 개인 프로젝트는 아무것도 선언 안 하면 그만이다. 플러그인엔 회사·프로젝트 고유명사가 0이라 오픈소스로 그대로 재사용된다(⑦·⑧의 연장).
-
-**검증 능동 op로의 연장 — `/omj-fix`.** 스크린샷으로만 보이는 *지각적* 결함(색·z-index·정렬·rounding)은 정적 acceptance로 못 잡는다. 이를 위해 `/omj-fix`를 둔다 — `/omj`(프라이머)와 달리 **능동 op**지만 ③의 read-only 프라이머 분리를 깨지 않는다(프라이머는 여전히 `/omj` 하나뿐, `/omj-fix`는 `/omj-verify`·`/omj-sync`(sync·push)와 같은 능동 op 계열). 캡처는 `/omj-verify`의 `-s=omj` 프로토콜을 **재사용**(⑧ SoT — 두 번째 사본 금지)하고, 순수 신규는 관찰과 재확인 *사이*의 수정뿐이다 — "본다(`/omj-verify`) → 고친다(`Edit`) → 다시 본다(`/omj-verify`)"의 얇은 합성. Plan 모드가 Edit와 부작용 있는 Bash(playwright-cli 등)를 막으므로 plan-gate(②)도 그대로 유지된다.
+**Prescribe-vs-verify boundary.** The same FF SoT is used differently by *stage* — `/omj` **prescribes** "what to build" against FF criteria at spec-authoring time, while `/oh-my-joy:ff-review` (code diff) and `/omj-verify` (visual) **verify** that the implementation honored those criteria. The FF skill (`references/`) is a single SoT and prescribe/verify simply invoke it at different stages, so quality knowledge is managed in one place without being locked into the `/omj` body (no drift). This is why "collecting design input and applying FE knowledge together in `/omj` is correct layering, not a coupling smell" — downstream OMC execution tools are domain-neutral and carry no FE knowledge, so prescription must live upstream in `/omj`.
 
 ---
 
-## ⑪ 물어보나 vs 그냥 한다 — AskUserQuestion을 남발하지 않는다
+## ⑥ Token sync — code is the default SoT; conflicts get a user-chosen direction (interactive resolution)
 
-**문제.** "사용자에게 선택권을 준다"를 잘못 적용하면 커맨드마다 모달이 튀어 프롬프트 피로를 낳는다. 반대로 아무것도 안 물으면 도구가 방향을 독단한다. 어디서 묻고 어디서 그냥 실행할지의 경계가 필요하다.
+**Problem.** When tokens live in both code (`tokens.json`) and Figma Variables, drift is inevitable and conflict resolution is expensive — if "who is the truth" gets decided automatically and wrongly, the design system silently diverges. But if the plugin pins the direction one way (code always wins), a designer's legitimate change starting in Figma has no path back into code, gutting the tool's usefulness as a general-purpose plugin.
 
-**결정.** OMJ는 **네 조건이 모두** 성립할 때만 `AskUserQuestion`으로 묻는다 — (a) 방향/해소가 진짜 모호하고, (b) 안전한 기본값으로 추론할 수 없고, (c) 틀리면 되돌리기 비싸고, (d) 그 선택이 **실행 중 발견된 데이터**에 의존한다. 아니면 권고(advisory)로 인쇄하거나, 사전에 알 수 있는 의도면 **플래그**로 받거나(예: `--commit`), read-only/가역이면 그냥 실행한다. **한 결정 = 최대 1개 배치 모달, 기본 건별 금지.**
+**Decision.** **Code is the "default" SoT, but on conflict the user picks the direction.** `/omj-sync check` remains a read-only drift report; the new default mode `/omj-sync` (sync) groups drift **by class (value mismatch / code-only / Figma-only)** and asks the direction (code→Figma / Figma→code / skip) in a single batched `AskUserQuestion`, then applies it. `/omj-sync push` stays as the non-interactive fast path that explicitly chooses "code wins".
 
-**근거.** 사전에 말할 수 있는 의도(커밋 여부)는 플래그가 맞고, 실행 중에야 드러나는 상태(어떤 드리프트가 어느 방향인지)는 프롬프트가 맞다. 이 구분이 "선택권"과 "피로"를 가른다.
+**Rationale.** The real reason conflicts are expensive is not *that a direction exists* but *that the direction gets chosen automatically and wrongly*. Once a human picks per class, the ambiguity dies on the spot; and option 1 (the default) of each question is set to code authority (value-mismatch and code-only default to "code→Figma", Figma-only defaults to a conservative "skip"), so absent-mindedly pressing enter yields the same safe result as the old one-way sync — the debt came from *auto-merging*, not from having directions.
 
-**결과.** 기본 원칙상 새 프롬프트는 `/omj-sync`(sync)가 대표 사례다 — 방향 충돌이 위 네 조건을 모두 만족한다(⑥). 여기에 **bounded 상호작용 클래스 둘**이 있다. 첫째, `/omj`는 스펙 author가 끝난 뒤 실행 레인 선택을 위해 `AskUserQuestion`을 **최대 한 번** 쓸 수 있다. 이 선택은 구현 전 handoff 결정이며, goal-mode wrapper·team 병렬성·ralph 순차성·ultraqa 검증 같은 비용/조율 tradeoff가 사용자 의도에 영향을 받기 때문이다. 단, **추천이 `Wrapper=none; Sublane=inline/manual`이면 이 질문마저 생략**한다 — 답이 자명해 (a)모호·(b)추론불가 조건을 충족하지 못하고, Plan 승인이 곧 동의 지점이 되기 때문이다(`(auto)` 기록, 규칙 정본 `docs/EXECUTION-HANDOFF.md`). 무거운 레인 추천일 때만 1회 질문하고, 1번은 결정적 추천값이고 `(recommended)`를 붙이며, 선택값은 스펙에 기록되어 `/omj-start`가 다시 묻지 않는다. `/omj-sync extract`의 기존 파일 덮어쓰기 확인도 네 조건(비가역+추론불가)을 충족하는 정당한 프롬프트다. `/omj-fix`(결함은 이미 스크린샷+불만이 스코프, 커밋은 `--commit` 플래그)·`/omj-verify`(순수 read-only, 방향 내재)는 계속 규칙상 배제된다. `/omj-setup`의 기존 "지금 설치할까요?"는 이 규칙에 부합한다. 둘째, **인터뷰 클래스**(v0.6.0): `/oh-my-joy:deep-interview`는 라운드당 1문항의 연속 질문을 정본으로 허용받는다 — 각 질문이 직전 답변이라는 *실행 중 발견 데이터*에 의존해 네 조건을 라운드마다 새로 충족하고, "한 결정 = 최대 1개 배치 모달"의 결정 단위가 라운드이기 때문이다. 무한하지 않도록 세 경계가 붙는다: 총 20라운드 하드 캡, 3라운드 이후 조기 종료 허용, 이미 명확한 입력은 적합성 게이트가 인터뷰 자체를 거부. "선택권을 준다"는 프롬프트를 흩뿌리는 게 아니라 **규칙을 성문화**해 얻는다.
+**Outcome.** Code remains the default truth, yet Figma-originated changes are absorbed into code under user approval. Figma→code pulls **preserve the DTCG reference structure** (semantic aliases are not flattened into raw hex, and if a reference would break, the default "skip" prevents it), keeping the W3C DTCG standard and its interoperability intact.
+
+**Rejected alternative.** *Automatic bidirectional merge with no human choice* stays rejected — the permanent debt of conflict-resolution UX comes from there. Interactive choice + "code by default" delivers bidirectional usefulness without that debt.
 
 ---
 
-## 출처
+## ⑦ Independent, graceful coexistence with OMC/OMX + execution-lane handoff — keep the boundary sharp
+
+**Problem.** Users already run general-purpose orchestration like oh-my-claudecode (OMC) and oh-my-codex (OMX). If OMJ depended on them or duplicated their features, (a) OMJ breaks when OMC/OMX is absent, and (b) the responsibility boundary between frontend spec authoring and execution orchestration blurs, confusing users about "when to use what".
+
+**Decision.** Make OMJ a plugin **fully independent of OMC/OMX**, with a separated namespace (`/omj*` belongs to OMJ). The relationship is fixed in a one-sentence mental model — **"FE work always starts with /omj — after the spec is approved, take execution lane option 1 `(recommended)` unless there is a specific reason not to."** `/omj` leaves an execution-lane selector at the end of the spec, but delegates the routing rules to [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md) as the SoT.
+
+**Rationale.** OMJ's mission is narrow and deep (the code↔Figma frontend loop). That narrow mission must be complete without OMC/OMX so the install barrier stays low and the plugin delivers value independently. At the same time, the areas OMC/OMX excel at — durable goals, parallel workers, persistent owners, adversarial QA — are not duplicated **when a runtime exists**; they are reached by **handing off the approved spec**, which is the default. Long/multi-stage work defaults to a goal-mode wrapper (`/goal`/`$ultragoal`); parallelizable work takes `/team`/`$team` as the sublane; sequential completion pressure takes `/ralph`/`$ralph`. When no runtime is present, the **OMJ native lane** rewritten under ⑧'s absorption rule (`/oh-my-joy:goal-loop` durable · `/oh-my-joy:ralplan` consensus) becomes the default and fills the same role — and even with a runtime present it remains an explicit choice when evidence-enforced completion or single-owner sequencing is the goal (an always-available axis — priority canon: the "OMJ native lane" section of [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md); it is a self-authored rewrite, not duplication, so it does not conflict with ⑧).
+
+**Outcome.** Without OMC/OMX, OMJ's primer, verification, and token sync all still work (graceful), and durable execution and consensus review are covered by the OMJ native lane (`/oh-my-joy:goal-loop` · `/oh-my-joy:ralplan`) as the fallback. With OMC/OMX present, execution tools consume the approved spec — `/goal`/`$ultragoal` (durable), `/team`/`$team` (parallel), `/ralph`/`$ralph` (sequential), `$ultraqa` (adversarial QA), `/oh-my-claudecode:ralplan`/`$ralplan` (consensus fallback — OMC connects execution after approval; OMX is currently plan-only, stopping after the plan is produced). In short, **"what to build" (the FE spec) is `/omj`'s job, "how to run it" (execution) belongs to OMC/OMX tools**, and the spec is the bridge between them.
+
+**Gate-coexistence rule — the two planning/goal systems do not block each other; they are orthogonal.** Only `/omj` uses Claude Code's native Plan mode (`ExitPlanMode`) as a *read* gate; OMC/OMX planning/execution tools use their own workflow/goal ledgers as *execution* gates. The gates are orthogonal, so there is no hard conflict — they meet only chronologically at the handoff moment. The default flow is **straight to the selected lane after approval**; `/oh-my-claudecode:ralplan`/`$ralplan` consensus is taken explicitly *only when things are genuinely ambiguous or consensus is needed*. Since `/omj` is read-only and cannot write source artifacts itself, file materialization happens *after* approval, in the execution lane. (For wrapper/sublane separation, `/goal clear` safety, and the `/omj-start` fallback, see [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md).)
+
+---
+
+## ⑧ Minimal bundling (FF only) · single SoT — reference, don't vendor
+
+**Problem.** The more quality skills a plugin bundles, the heavier it gets; and when the same knowledge is copied to several places, it becomes ambiguous where to apply an update (drift). The vercel-family skills (`vercel-react-best-practices`, `vercel-composition-patterns`, etc.) are useful but actively maintained upstream (vercel-labs/agent-skills).
+
+**Decision.** OMJ bundles **only one self-authored skill, frontend-fundamentals** (OMJ's canonical SoT). The vercel family is not bundled but **referenced** — fetched on demand with: `npx skills add vercel-labs/agent-skills/vercel-react-best-practices` · `npx skills add vercel-labs/agent-skills/vercel-composition-patterns` · `npx skills update`. In short: own only the knowledge that is yours (FF); link to the knowledge others maintain better (vercel).
+
+**Rationale.** This is the single-SoT principle. FF is OMJ's core quality philosophy, so it must be directly owned and version-pinned; but vendoring the vercel skills would drift from upstream and go stale quickly. Referencing means `update` always fetches the latest, and both bundle size and maintenance burden shrink.
+
+**Outcome.** OMJ stays light, FF is managed in exactly one place with no drift. Users add vercel skills explicitly when needed, so what is OMJ-canonical versus externally referenced is always clear. (Same philosophy as managing vercel skills with lock/update in a project repo.)
+
+**Boundary clarification — what "minimal bundling" forbids and what it does not.** The rationale of this principle is *preventing stale copies of externally maintained knowledge*. Therefore adding **self-authored artifacts OMJ directly owns and maintains** — FF `references/` (including figma-fidelity), the bundled agents (`figma-implementer` · `design-qa`), the hook script templates (`templates/hooks/`) — does not violate it (there is no upstream to drift from). The criterion is "is it a self-authored tool inside the FE loop, **or a self-authored rewrite of a general-purpose workflow that wraps the FE loop**"; knowledge that outsiders maintain better (vercel etc.) stays reference-only.
+
+**The absorption rule for external methodologies (v0.6.0).** One target cannot be handled by referencing alone — when the subject is not a tool but a *methodology* (stage structure, gates, output contracts). Those are absorbed by **self-authored rewrite**, not by copying. Three conditions: ① credit the source and license in `NOTICE.md`; ② write new sentences, never copy the original's; ③ do not port the original's runtime (CLI, tmux, state-file conventions). A rewrite is self-authored, so there is no upstream-drift problem; when upstream updates, re-porting is a manual owner decision (no auto-sync — deliberate). `/oh-my-joy:deep-interview` (methodology borrowed from gajae-code · oh-my-claudecode) was the first case.
+
+---
+
+## ⑨ Graceful degradation — a missing dependency is a skip + guidance, not an error
+
+**Problem.** OMJ leans on several optional dependencies — the official Figma Dev Mode MCP, playwright-cli, Context7, OMC/OMX. If a command throws and dies when any one is missing, users face a plugin where "nothing works until everything is installed". That raises the adoption barrier steeply.
+
+**Decision.** Every dependency is **optional**; absence is handled as **skip + guidance instead of an error** (graceful degradation). Example: if the Figma MCP is not connected, announce "proceeding without URL contents, or accepting a manual spec" and continue. Without Context7, only the Next.js latest-docs lookup step is skipped. Missing playwright-cli/OMC/OMX likewise disables just that feature while the rest keeps working.
+
+**Rationale.** The core value (spec authoring, token-sync structure) stands without the optional tools. Built as "better with, functional without", users get immediate value from whatever their environment allows and add tools incrementally. Making dependencies hard requirements is developer convenience that subtracts user value.
+
+**Outcome.** OMJ works meaningfully in a minimal environment (read tools only), and capability grows as tools are added. The `/omj-verify` preflight (`command -v`, `JOY_BASE_URL` defaulting to 3000, `curl` check) implements the same philosophy — kindly report what is missing and route through what is possible. Reinterpreting absence not as failure but as "the currently possible scope" is OMJ's posture throughout.
+
+---
+
+## ⑩ Acceptance: mechanism in the plugin, axes declared by the project — portability by design + an active verification op (`/omj-fix`)
+
+**Problem.** In measured logs the most frequent cause of rework was *systematic omission*, and those omissions almost always came from **project-specific conditions** (e.g. multi-locale, theme/brand modes, currency/format rules). Enforcing them at spec time reduces rework, but "what to enforce" differs per repo. OMJ targets company repos, personal projects, and **third-party open-source use**, so baking any axis (locales, modes, …) into the plugin body would make it false for other users and break portability.
+
+**Decision.** Split acceptance into **mechanism (plugin) and axes·values (project)**, and **the plugin hard-codes no axis as built-in** (examples may be given, defaults may not). (a) `references/fe-acceptance.md` owns only the *mechanism*: "read the acceptance the project declared in `.omj/fe-context.md` and reflect it in specs and `/omj-fix` diagnosis". Since `/omj` and `/oh-my-joy:ff-review` already invoke FF, this adds **zero new mechanisms**. (b) **What to check** (locales? modes? currency?) is 100% written by the project in its own `.omj/fe-context.md` — if absent, only universal FF criteria apply (graceful, ⑨). Universal axes (responsive, tokens, a11y) are already covered by omj.md Phase 2 / FF `references/` (⑧ single SoT).
+
+**Rationale — two rejected alternatives.** (1) An "**always-on hook** injecting a checklist into every FE edit" breaks OMJ's zero-hook, side-effect-free design (①③), fires in every repo where installed (non-portable), and collides with the user's global FE-visual-verify PostToolUse hook (double-firing on .tsx/.jsx/.css). (2) "Baking axes like i18n/modes into FF" makes those axes noise for single-locale personal projects or other people's repos, since they are domain-specific. Both break *portability*. **"Structure in the plugin, axes and answers in the project"** is the decomposition that satisfies portability and correctness at once.
+
+**Compatibility with the opt-in hooks (⑩ upheld, not reversed).** The token-guard hooks in `templates/hooks/` do not overturn the rejection above — the plugin ships no hooks.json, so **it never fires anywhere by itself** (zero-hook preserved; it merely *owns* the scripts), and activation happens only when `/omj-setup` **copy-installs** them into a consuming project (true opt-in — the rejected always-on firing and forced double-firing cannot occur). The hook logic itself no-ops without an fe-context declaration, so no axis is enforced. Bundling the scripts is a literal softening of the "zero-hook" slogan, decided with owner approval in v0.3.0.
+
+**Outcome.** The mechanism is identical wherever installed, and each repo decides its own axes via `.omj/fe-context.md` — a company repo declares locales and modes; a single-locale personal project declares nothing and that's fine. The plugin contains zero company/project proper nouns, so it is reusable as open source unchanged (an extension of ⑦·⑧).
+
+**Extension into an active verification op — `/omj-fix`.** *Perceptual* defects visible only in screenshots (color, z-index, alignment, rounding) cannot be caught by static acceptance. `/omj-fix` exists for this — unlike `/omj` (primer) it is an **active op**, yet it does not break ③'s read-only-primer separation (the primer is still only `/omj`; `/omj-fix` joins `/omj-verify` · `/omj-sync` (sync·push) in the active-op family). Capture **reuses** `/omj-verify`'s `-s=omj` protocol (⑧ SoT — no second copy); the only genuinely new part is the edit *between* observation and re-verification — a thin composition of "look (`/omj-verify`) → fix (`Edit`) → look again (`/omj-verify`)". Plan mode blocks Edit and side-effectful Bash (playwright-cli etc.), so the plan gate (②) also stays intact.
+
+---
+
+## ⑪ Ask vs just do — don't spray AskUserQuestion
+
+**Problem.** Misapplying "give the user choices" makes every command pop a modal, breeding prompt fatigue. Asking nothing makes the tool unilateral. A boundary is needed between where to ask and where to just act.
+
+**Decision.** OMJ asks via `AskUserQuestion` only when **all four conditions** hold — (a) the direction/resolution is genuinely ambiguous, (b) no safe default can be inferred, (c) being wrong is expensive to reverse, and (d) the choice depends on **data discovered during execution**. Otherwise: print an advisory, take intent known in advance as a **flag** (e.g. `--commit`), or just execute if read-only/reversible. **One decision = at most one batched modal; per-item prompts are forbidden by default.**
+
+**Rationale.** Intent expressible in advance (whether to commit) belongs in a flag; state that only emerges during execution (which drift, which direction) belongs in a prompt. That distinction is what separates "choice" from "fatigue".
+
+**Outcome.** Under the base rule, the representative new prompt is `/omj-sync` (sync) — direction conflicts satisfy all four conditions (⑥). On top of that there are **two bounded interaction classes**. First, `/omj` may use `AskUserQuestion` **at most once** after spec authoring to pick the execution lane. That choice is a pre-implementation handoff decision, and cost/coordination trade-offs like goal-mode wrappers, team parallelism, ralph sequencing, and ultraqa verification depend on user intent. However, **if the recommendation is `Wrapper=none; Sublane=inline/manual`, even this question is skipped** — the answer is self-evident, failing conditions (a) ambiguity and (b) non-inferability, and Plan approval itself becomes the consent point (`(auto)` recorded; rule canon `docs/EXECUTION-HANDOFF.md`). Only when a heavy lane is recommended is the single question asked; option 1 is the deterministic recommendation labeled `(recommended)`, and the chosen value is recorded in the spec so `/omj-start` never re-asks. The overwrite confirmation in `/omj-sync extract` also legitimately satisfies the four conditions (irreversible + non-inferable). `/omj-fix` (the defect is already scoped by screenshot+complaint; committing is the `--commit` flag) and `/omj-verify` (purely read-only, direction inherent) remain excluded by rule. `/omj-setup`'s existing "install now?" conforms. Second, the **interview class** (v0.6.0): `/oh-my-joy:deep-interview` is canonically allowed one-question-per-round sequential prompting — each question depends on the previous answer, i.e. *data discovered during execution*, re-satisfying the four conditions every round, and the decision unit of "one decision = one batched modal" is the round. Three bounds keep it finite: a hard cap of 20 rounds, early exit allowed after round 3, and a suitability gate that refuses the interview outright for already-clear inputs. "Giving choice" is earned by **codifying the rule**, not by scattering prompts.
+
+---
+
+## What each principle looks like in the repo
+
+- ① ③ — [`commands/omj.md`](../commands/omj.md) frontmatter: no `Write`, no `Edit`, no `Bash`.
+- ⑥ — [`commands/omj-sync.md`](../commands/omj-sync.md): drift grouped into three classes, one batched question, reference-preserving guardrails on pull.
+- ⑦ — [`EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md) is the single routing source of truth; commands link to it and never restate its thresholds (only a threshold-free fallback for when it cannot be read).
+- ⑦ ⑧ — [`commands/goal-loop.md`](../commands/goal-loop.md) + [`scripts/goal-state.mjs`](../scripts/goal-state.mjs): the runtime-absent durable lane — state changes only through the pre-approved validator script; [`commands/ralplan.md`](../commands/ralplan.md) + [`agents/plan-critic.md`](../agents/plan-critic.md): consensus review whose read-only tool surface is fixed by invariant tests.
+- ⑨ — every command's preflight section ends in "skip + guide", never an error path.
+- ⑩ — [`templates/hooks/`](../templates/hooks) scripts no-op unless the consuming project declares the relevant key; the plugin ships no `hooks.json`.
+
+---
+
+## Sources
 
 - uSpec (Uber): https://www.uber.com/ca/en/blog/automate-design-specs/ · https://docs.uspec.design/
 - figma-console-mcp (Southleft): https://github.com/southleft/figma-console-mcp
-- frontend-fundamentals: 토스 FF 4기준(가독성·예측가능성·응집도·결합도) — OMJ 자작 번들 정본
-- 공식 Figma Dev Mode MCP / Context7(`/vercel/next.js`) / playwright-cli — 모두 선택적 의존성
+- frontend-fundamentals: Toss FF four criteria (readability, predictability, cohesion, coupling) — OMJ's self-authored bundled canon
+- Official Figma Dev Mode MCP / Context7 (`/vercel/next.js`) / playwright-cli — all optional dependencies
 
-> 규칙: 이 문서는 한국어로 작성하며 AI 서명을 남기지 않는다. 커맨드명·설치 문자열은 `commands/*.md`/README(SoT)와 일치시키되, 멘탈 모델 등 서술은 **README를 정본**으로 두고 여기서는 요약/링크한다(verbatim 복제를 강제하지 않음).
+> Rule: this document is the canonical source. Write it in English; do not add AI signatures. Keep command names and install strings consistent with `commands/*.md`/README (SoT); for narrative content such as the mental model, the **README is canonical** and this document summarizes/links (verbatim duplication is not required).
