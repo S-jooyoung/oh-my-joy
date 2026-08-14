@@ -131,6 +131,37 @@ describe('CHANGELOG 링크 무결성', () => {
   });
 });
 
+describe('CHANGELOG keep-a-changelog 골격', () => {
+  // scripts/release.mjs cut의 골격 재생성 계약을 CI에서 봉인한다 — 이 검사가 없으면
+  // 자동화나 편집이 빈 섹션을 지우거나 섹션 어휘를 바꿔도 어떤 테스트도 실패하지 않는다.
+  const SECTIONS = ['Added', 'Changed', 'Deprecated', 'Removed', 'Fixed', 'Security'];
+
+  it('[Unreleased]는 6섹션 전부를 정본 순서로 갖는다', () => {
+    const start = changelog.indexOf('## [Unreleased]');
+    assert.ok(start !== -1, '## [Unreleased] 절이 없습니다');
+    const rest = changelog.slice(start);
+    const next = rest.search(/\n## \[/);
+    const section = next === -1 ? rest : rest.slice(0, next);
+    const headings = [...section.matchAll(/^### (.+)$/gm)].map((m) => m[1]);
+    assert.deepEqual(headings, SECTIONS);
+  });
+
+  it('모든 절의 ### 헤딩이 keep-a-changelog 어휘·정본 순서를 지킨다 (릴리스 절은 부분집합 허용)', () => {
+    const offenders = [];
+    for (const chunk of changelog.split(/^## /m).slice(1)) {
+      const label = chunk.slice(0, chunk.indexOf('\n'));
+      let last = -1;
+      for (const [, heading] of chunk.matchAll(/^### (.+)$/gm)) {
+        const index = SECTIONS.indexOf(heading);
+        if (index === -1) offenders.push(`${label}: 비표준 섹션 "${heading}"`);
+        else if (index < last) offenders.push(`${label}: "${heading}" 순서 위반`);
+        else last = index;
+      }
+    }
+    assert.deepEqual(offenders, [], offenders.join('\n'));
+  });
+});
+
 describe('내부 링크 무결성', () => {
   it('마크다운의 상대 링크가 모두 실재하는 파일을 가리킨다', () => {
     const broken = [];
