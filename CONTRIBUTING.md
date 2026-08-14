@@ -55,6 +55,6 @@ node --test          # 의존성 설치 단계가 없다 — Node 20.11+ 만 있
 1. 평소처럼 `[Unreleased]`에 변경 항목을 서술한다 — 산문은 사람이 쓴다(자동 생성 없음).
 2. `node scripts/release.mjs cut --version X.Y.Z` → CHANGELOG 절 확정·링크 정의·버전 4표면(plugin.json / marketplace.json 2곳 / package.json)이 한 번에 변환된다. diff를 검토하고 산문을 다듬는다.
 3. `release/vX.Y.Z` 브랜치에서 `chore(release): vX.Y.Z` 커밋 → 동일 제목 PR → CI green 확인 후 머지.
-4. **태깅·GitHub Release는 자동이다** — 머지 push에서 `.github/workflows/release-tag.yml`이 plugin.json 버전의 태그를 방금 머지된 main 커밋에 부착하고, CHANGELOG 해당 절을 본문으로 Release를 발행한다. **수동 `git tag`는 금지** — v0.4.0 태그가 main 밖 고아 커밋에 붙었던 사고가 이 규칙의 근거다(부분 실패는 워크플로우 수동 재실행으로 치유, 로직이 멱등).
+4. **태깅·GitHub Release는 자동이다** — 머지 push에서 `.github/workflows/release-tag.yml`이 plugin.json 버전의 태그를 방금 머지된 main 커밋에 부착하고, CHANGELOG 해당 절을 본문으로 Release를 발행한다. **수동 `git tag`는 금지** — v0.4.0 태그가 main 밖 고아 커밋에 붙었던 사고가 이 규칙의 근거다(부분 실패는 워크플로우 수동 재실행으로 치유, 로직이 멱등·main ref 전용). 현재 버전의 태그는 있는데 GitHub Release가 없는 상태(자동화 도입 이전 릴리스)도 다음 main push에서 소급 백필된다 — 의도된 동작이다.
 
 번들 스킬(`skills/*/SKILL.md`)의 `metadata.version`은 플러그인 버전과 무관한 독립 semver다 — 스킬 내용(SKILL.md·`references/`) 변경이 있는 릴리스에서만 함께 올린다.

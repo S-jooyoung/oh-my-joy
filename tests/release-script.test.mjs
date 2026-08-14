@@ -134,11 +134,33 @@ describe('release cut — 거부 가드', () => {
     assert.match(result.stderr, /빈 골격/);
   });
 
-  it('버전 표면 파일이 없으면 거부한다', () => {
+  it('버전 표면 파일이 없으면 정상 거부하고 아무 파일도 쓰지 않는다', () => {
     const root = makeFixture();
     rmSync(path.join(root, 'package.json'));
     const result = run(root, ['cut', '--version', '0.2.0']);
     assert.equal(result.code, 1);
+    // 크래시(스택 트레이스)가 아니라 fail() 경로여야 한다 — 종료 코드 1은 미처리 예외와 겹친다.
+    assert.match(result.stderr, /없습니다/);
+    assert.doesNotMatch(result.stderr, /at cut/);
+    assert.equal(readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8'), FIXTURE_CHANGELOG, '거부 경로에서 CHANGELOG가 쓰였습니다');
+    const plugin = JSON.parse(readFileSync(path.join(root, '.claude-plugin/plugin.json'), 'utf8'));
+    assert.equal(plugin.version, '0.1.0', '거부 경로에서 표면이 변경됐습니다');
+  });
+
+  it('표면의 버전 발생 횟수가 기대와 어긋나면 아무 파일도 쓰지 않고 거부한다', () => {
+    const root = makeFixture();
+    const marketplaceFile = path.join(root, '.claude-plugin/marketplace.json');
+    // "version": "0.1.0"이 3곳이 되게 만들어 count 가드를 발화시킨다.
+    writeFileSync(
+      marketplaceFile,
+      `${JSON.stringify({ name: 'm', version: '0.1.0', plugins: [{ name: 't', version: '0.1.0' }, { name: 'u', version: '0.1.0' }] }, null, 2)}\n`,
+    );
+    const result = run(root, ['cut', '--version', '0.2.0']);
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /2곳을 기대했으나 3곳/);
+    assert.equal(readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8'), FIXTURE_CHANGELOG, '거부 경로에서 CHANGELOG가 쓰였습니다');
+    const plugin = JSON.parse(readFileSync(path.join(root, '.claude-plugin/plugin.json'), 'utf8'));
+    assert.equal(plugin.version, '0.1.0', '거부 경로에서 표면이 변경됐습니다');
   });
 
   it('[Unreleased] 링크 정의가 현재 버전과 어긋나면 아무것도 쓰지 않고 거부한다', () => {
@@ -159,6 +181,16 @@ describe('release notes — 절 추출', () => {
     assert.equal(result.code, 0);
     assert.match(result.stdout, /- 최초 릴리스\./);
     assert.match(result.stdout, /releases\/tag\/v0\.1\.0/);
+  });
+
+  it('컷 직후 절의 빈 섹션 헤딩은 노트에서 걷어낸다', () => {
+    const root = makeFixture();
+    assert.equal(run(root, ['cut', '--version', '0.2.0', '--date', '2026-02-02']).code, 0);
+    const result = run(root, ['notes', '--version', '0.2.0']);
+    assert.equal(result.code, 0);
+    assert.match(result.stdout, /### Added/);
+    assert.match(result.stdout, /- 새 기능 하나\./);
+    assert.doesNotMatch(result.stdout, /### Deprecated/, '항목 없는 섹션 헤딩이 Release 본문에 샙니다');
   });
 
   it('없는 버전은 non-zero로 거부한다', () => {

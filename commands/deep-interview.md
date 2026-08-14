@@ -89,9 +89,10 @@ allowed-tools: Read, Grep, Glob, AskUserQuestion
 - FE 구현 스펙이 됐다면: 승인 후 `/omj`에 이 스펙을 붙여넣어 uSpec 구현 스펙으로
   발전시킨다(스펙 paste가 1급 입력).
 - OMC/OMX가 설치돼 있다면: 기존 실행 레인(`docs/EXECUTION-HANDOFF.md`)을 병기한다.
-- 런타임이 없고 다단계·중단 내성이 필요하면: 승인 후 `/oh-my-joy:goal-loop`에 이
+- 런타임이 없거나, 완료를 증거로 증명해야 하면: 승인 후 `/oh-my-joy:goal-loop`에 이
   스펙을 붙여넣어 durable 골 루프로 완주한다(paste가 1급 입력 — 런타임 부재 시
-  durable 기본값, `docs/EXECUTION-HANDOFF.md` "OMJ native 레인" 절).
+  durable 기본값이고 런타임이 있어도 명시 선택 가능, `docs/EXECUTION-HANDOFF.md`
+  "OMJ native 레인" 절).
 - 그 외: 승인 후 현재 세션이 스펙대로 인라인 구현한다.
 
 스펙을 파일로 남기고 싶으면 승인 후 실행 단계가 저장한다 — 이 커맨드는 쓰지 않는다.

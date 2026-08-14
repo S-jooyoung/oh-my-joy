@@ -80,7 +80,10 @@ function cut(args) {
   const version = args.version;
   const target = parseSemver(version);
   if (!target) fail('--version X.Y.Z 형식이 필요합니다');
-  const date = args.date ?? new Date().toISOString().slice(0, 10);
+  // 로컬 날짜 — toISOString()은 UTC라 KST 저녁 컷에 전날이 찍힌다.
+  const now = new Date();
+  const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const date = args.date ?? localDate;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) fail('--date는 YYYY-MM-DD 형식이어야 합니다');
 
   const plugin = readJson(SURFACES[0].file);
@@ -104,6 +107,19 @@ function cut(args) {
   if (!linkMatch) fail(`[Unreleased] 링크 정의가 compare/v${prev}...HEAD를 가리키지 않습니다 — 수동 정리 필요`);
   const base = linkMatch[1];
 
+  // pre-flight: 4표면을 전부 메모리에서 읽고 검증한다 — **모든 거부 경로는 무쓰기**여야
+  // 재실행 가능하다(부분 쓰기가 남으면 "버전이 이미 올랐다"로 재실행이 막혀 git checkout이 유일한 출구가 된다).
+  const surfaces = SURFACES.map(({ file, occurrences }) => {
+    if (!existsSync(file)) fail(`${file}이 없습니다 — 레포 루트에서 실행해야 합니다`);
+    const source = readFileSync(file, 'utf8');
+    const needle = `"version": "${prev}"`;
+    const count = source.split(needle).length - 1;
+    if (count !== occurrences) {
+      fail(`${file}: "version": "${prev}" ${occurrences}곳을 기대했으나 ${count}곳 — 수동 확인 필요`);
+    }
+    return { file, source, needle };
+  });
+
   const skeleton = `\n\n${SKELETON_SECTIONS.map((s) => `### ${s}`).join('\n\n')}\n\n`;
   let out =
     src.slice(0, unreleased.start) +
@@ -112,19 +128,14 @@ function cut(args) {
     src.slice(unreleased.end);
   out = out.replace(
     unrelLink,
-    `[Unreleased]: ${base}/compare/v${version}...HEAD\n[${version}]: ${base}/compare/v${prev}...v${version}`,
+    () => `[Unreleased]: ${base}/compare/v${version}...HEAD\n[${version}]: ${base}/compare/v${prev}...v${version}`,
   );
-  writeFileSync(CHANGELOG, out);
 
-  for (const { file, occurrences } of SURFACES) {
-    const before = readFileSync(file, 'utf8');
-    const needle = `"version": "${prev}"`;
-    const count = before.split(needle).length - 1;
-    if (count !== occurrences) {
-      fail(`${file}: "version": "${prev}" ${occurrences}곳을 기대했으나 ${count}곳 — 수동 확인 필요`);
-    }
+  // 여기서부터가 유일한 쓰기 구간 — 위 검증을 전부 통과한 뒤에만 도달한다.
+  writeFileSync(CHANGELOG, out);
+  for (const { file, source, needle } of surfaces) {
     // JSON.stringify 재직렬화는 쓰지 않는다 — 인라인 배열 등 사람 포맷이 깨진다.
-    writeFileSync(file, before.split(needle).join(`"version": "${version}"`));
+    writeFileSync(file, source.split(needle).join(`"version": "${version}"`));
   }
   const [pluginAfter, marketplaceAfter, packageAfter] = SURFACES.map(({ file }) => readJson(file));
   if (
@@ -140,6 +151,7 @@ function cut(args) {
   try {
     const changed = execFileSync('git', ['diff', '--name-only', `v${prev}..HEAD`, '--', 'skills/'], {
       encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'], // git 부재·태그 부재의 stderr가 성공 출력에 새지 않게
     }).trim();
     if (changed) {
       process.stderr.write(
@@ -172,12 +184,24 @@ function notes(args) {
   const section = sliceSection(src, version);
   if (!section) fail(`## [${version}] 절이 ${CHANGELOG}에 없습니다`);
   const linkDef = new RegExp(`^\\[${escapeRegExp(version)}\\]: (\\S+)$`, 'm').exec(src);
-  const body = section.body.trim();
+  // 항목 없는 빈 섹션 헤딩(### Deprecated 등)은 Release 본문에서 걷어낸다 —
+  // 컷이 골격을 보존하는 것과 별개로, 사람이 읽는 노트에 빈 헤딩은 소음이다.
+  const body = section.body
+    .trim()
+    .split(/\n(?=### )/)
+    .filter((block) => !block.startsWith('### ') || /^- /m.test(block))
+    .map((block) => block.trim())
+    .join('\n\n');
   if (!body) fail(`## [${version}] 절이 비어 있습니다`);
   process.stdout.write(`${body}\n${linkDef ? `\n${linkDef[1]}\n` : ''}`);
 }
 
 function main() {
+  // `notes ... | head` 같은 파이프 조기 종료가 스택 트레이스로 죽지 않게 한다.
+  process.stdout.on('error', (error) => {
+    if (error.code === 'EPIPE') process.exit(0);
+    throw error;
+  });
   const [verb, ...rest] = process.argv.slice(2);
   const args = parseArgs(rest);
   if (verb === 'cut') return cut(args);
