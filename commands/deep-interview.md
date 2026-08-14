@@ -1,108 +1,119 @@
 ---
-description: 모호한 아이디어·요구를 소크라테스식 1문항 인터뷰와 모호도 점수로 명세화하는 범용 딥 인터뷰 — "인터뷰해줘", "요구사항부터 정리하자", "뭘 만들지 아직 흐릿해", "deep interview" 요청이면 이 커맨드. 파일 경로·수용 기준이 이미 구체적인 요청에는 발동하지 않고 즉시 종료를 안내하며, Figma 링크·FE 구현 요청은 /omj가 먼저다. 정규 호출은 /oh-my-joy:deep-interview
-argument-hint: "[아이디어 서술 [--threshold N]]"
+description: General-purpose deep interview that turns vague ideas/requirements into a spec via Socratic one-question rounds and an ambiguity score — for "interview me" ("인터뷰해줘"), "let's sort the requirements first" ("요구사항부터 정리하자"), "still fuzzy about what to build", "deep interview" requests. Does not fire on requests that already carry file paths/acceptance criteria (announces immediate exit), and Figma links/FE implementation requests go to /omj first. Canonical invocation is /oh-my-joy:deep-interview
+argument-hint: "[idea description [--threshold N]]"
 allowed-tools: Read, Grep, Glob, AskUserQuestion
 ---
 
-# /oh-my-joy:deep-interview — 범용 요구 명료화 인터뷰
+# /oh-my-joy:deep-interview — General-purpose requirement-clarification interview
 
-모호한 아이디어를 라운드당 하나의 질문으로 파고들어, 모호도가 임계값 아래로 떨어지면
-**구현 스펙을 네이티브 Plan 본문으로 제시하고 멈춘다**. 코드를 쓰지 않고 파일도 만들지
-않는다 — 스펙의 파일화(materialize)는 승인 후 실행 단계의 몫이다.
+Digs into a vague idea with one question per round, and once ambiguity drops below the threshold,
+**presents the implementation spec as a native Plan body and stops**. It writes no code and creates
+no files — materializing the spec is the post-approval execution stage's job.
 
-> ✅ **read-only.** allowed-tools에 Write/Edit/Bash/Task가 없다. 브라운필드 사실 수집은
-> `Read`/`Grep`/`Glob`으로 직접 하고, 질문은 `AskUserQuestion`으로만 한다.
+> ✅ **read-only.** allowed-tools has no Write/Edit/Bash/Task. Brownfield fact-gathering is done
+> directly with `Read`/`Grep`/`Glob`, and questions go through `AskUserQuestion` only.
 >
-> **다회 질문의 근거(PRINCIPLES ⑪ 인터뷰 클래스).** 인터뷰의 각 질문은 ⑪의 네 조건을
-> 라운드마다 새로 충족한다 — 직전 답변이라는 *실행 중 발견 데이터*에 의존하는, 기본값
-> 없는 모호성이다. 그래서 이 커맨드는 ⑪이 정본으로 승인한 별도 상호작용 클래스로
-> 동작한다: 총 20라운드 상한, 3라운드 이후 조기 종료 허용, 언제든 "그만"으로 중단.
+> **Justification for multi-round questioning (PRINCIPLES ⑪ interview class).** Every interview
+> question re-satisfies ⑪'s four conditions each round — it is default-free ambiguity that depends
+> on the previous answer, *data discovered during execution*. This command therefore operates as
+> the separate interaction class that ⑪ canonically approves: a hard cap of 20 rounds, early exit
+> allowed after round 3, and "stop" honored at any time.
 
-## 인자
+## Arguments
 
-- 아이디어 서술(자유 텍스트). 비어 있으면 사용법을 출력하고 종료한다.
-- `--threshold N` — 종료 임계 모호도(%). 기본 20.
+- The idea description (free text). If empty, print usage and stop.
+- `--threshold N` — exit-threshold ambiguity (%). Default 20.
 
-## Phase 0 — 적합성 게이트
+## Phase 0 — Suitability gate
 
-인터뷰는 모호함이 있을 때만 가치가 있다. 시작 전에 판정한다:
+An interview is only valuable where ambiguity exists. Judge before starting:
 
-1. 입력에 figma.com URL이 있거나 FE 화면·컴포넌트 구현 요청이면 → 이 커맨드가 아니라
-   `/omj`가 진입점이다. 안내 후 종료.
-2. 입력이 이미 구체적이면(파일 경로·심볼명·번호 매긴 단계·수용 기준·에러 메시지 중
-   둘 이상) → "이미 충분히 명확합니다 — 인터뷰 없이 바로 진행하세요"를 판단 근거와
-   함께 출력하고 종료. 작은 확인 욕구는 인터뷰 가치를 만들지 않는다.
-3. 그 외 → 첫 줄에 `딥 인터뷰 임계값: N%`를 공지하고 시작한다.
+1. If the input has a figma.com URL or is an FE screen/component implementation request → the
+   entry point is `/omj`, not this command. Announce and stop.
+2. If the input is already concrete (two or more of: file paths, symbol names, numbered steps,
+   acceptance criteria, error messages) → print "Already clear enough — proceed without an
+   interview" with the judgment rationale and stop. A small desire for confirmation does not
+   create interview value.
+3. Otherwise → announce `Deep interview threshold: N%` on the first line and begin.
 
-**브라운필드 감지**: cwd에 소스·패키지 파일이 있고 입력이 기존 것의 수정·확장을
-가리키면 브라운필드다. 관련 코드를 먼저 탐색해 사실을 확보한다 — **코드가 이미 답하는
-것을 사용자에게 묻지 않고**, 확인 질문에는 근거(파일 경로·심볼)를 인용한다.
+**Brownfield detection**: if the cwd has source/package files and the input points to modifying or
+extending something existing, it is brownfield. Explore the relevant code first to secure facts —
+**never ask the user what the code already answers**, and cite evidence (file paths, symbols) in
+confirmation questions.
 
-## Round 0 — 토폴로지 확인
+## Round 0 — Topology confirmation
 
-점수를 매기기 전에 스코프의 **모양**부터 한 번 고정한다. 입력에서 독립적으로 성공/실패할
-수 있는 최상위 컴포넌트 1~6개를 추려 한 번의 질문으로 확인받는다(추가·제거·병합·유예).
-이 게이트가 없으면 깊이 우선 질문이 가장 자세히 서술된 컴포넌트에 과적합돼 형제
-컴포넌트의 모호함을 가린다. 확정된 토폴로지는 이후 모든 라운드의 채점 단위가 된다.
+Before scoring anything, pin down the **shape** of the scope once. Extract 1–6 top-level components
+that can succeed/fail independently from the input and confirm them in a single question
+(add/remove/merge/defer). Without this gate, depth-first questioning overfits the most verbosely
+described component and hides sibling components' ambiguity. The confirmed topology becomes the
+scoring unit for every subsequent round.
 
-## 인터뷰 루프
+## Interview loop
 
-라운드마다:
+Each round:
 
-1. **타겟 선정** — 활성 컴포넌트 × 차원(목표/제약/성공 기준/브라운필드면 맥락) 중
-   점수가 가장 낮은 쌍을 고른다. 여러 컴포넌트가 비슷하게 약하면 로테이션한다.
-2. **질문 1개** — 왜 이 지점이 지금 병목인지 한 문장으로 밝히고, 가정을 드러내는 질문을
-   `AskUserQuestion`으로 한다(선택지 + 자유 입력). 질문을 배치로 묶지 않는다.
-3. **채점** — 답변을 반영해 차원별 0.0~1.0 점수와 갭을 갱신하고 모호도를 계산한다:
-   - greenfield: `1 − (목표×0.40 + 제약×0.30 + 성공기준×0.30)`
-   - brownfield: `1 − (목표×0.35 + 제약×0.25 + 성공기준×0.25 + 맥락×0.15)`
-   - 답변이 이전 진술과 모순되거나 스코프를 넓히면 해당 차원 점수는 **내려갈 수 있다**
-     (모호도는 단조 감소가 아니다).
-4. **온톨로지 추적** — 라운드마다 핵심 엔티티(명사)를 추출해 이전 라운드와 비교한다.
-   안정 비율 = (유지+개명)/전체 — 개명은 수렴으로 센다. 엔티티가 계속 흔들리면 세부
-   질문을 멈추고 "이것의 본질이 무엇인가"형 질문으로 전환한다.
-5. **보고** — 점수 표(차원·점수·갭)와 모호도, 다음 타겟을 매 라운드 보여준다.
+1. **Target selection** — among active components × dimensions (goal/constraints/success criteria/
+   context if brownfield), pick the lowest-scoring pair. Rotate when several components are
+   similarly weak.
+2. **One question** — state in one sentence why this point is the current bottleneck, then ask an
+   assumption-exposing question via `AskUserQuestion` (choices + free input). Never batch questions.
+3. **Scoring** — update per-dimension 0.0–1.0 scores and gaps from the answer and compute ambiguity:
+   - greenfield: `1 − (goal×0.40 + constraints×0.30 + success criteria×0.30)`
+   - brownfield: `1 − (goal×0.35 + constraints×0.25 + success criteria×0.25 + context×0.15)`
+   - If an answer contradicts earlier statements or widens the scope, that dimension's score **may
+     go down** (ambiguity is not monotonically decreasing).
+4. **Ontology tracking** — extract the key entities (nouns) each round and compare with the previous
+   round. Stability ratio = (kept+renamed)/total — renames count as convergence. If entities keep
+   shifting, stop detail questions and switch to "what is this thing essentially?" questions.
+5. **Report** — show the score table (dimension·score·gap), the ambiguity, and the next target every
+   round.
 
-**케이던스**: 3라운드 이후 사용자가 "됐어, 진행해"라면 잔여 갭을 경고와 함께 보여주고
-조기 종료를 허용한다. 10라운드에 계속할지 확인하고, 20라운드가 하드 캡이다.
+**Cadence**: after round 3, if the user says "good enough, proceed", show the residual gaps with a
+warning and allow early exit. At round 10, confirm whether to continue; round 20 is the hard cap.
 
-## 종료 게이트 (이중)
+## Exit gates (double)
 
-모호도 ≤ 임계값이 되면 바로 스펙으로 가지 않고 두 게이트를 통과한다:
+When ambiguity ≤ threshold, do not jump straight to the spec — pass two gates:
 
-1. **Restate** — 한 문장으로 재서술한 목표를 질문 본문에 **그대로 보여주고** 맞는지
-   확인받는다(보여주지 않고 "맞나요?"만 묻는 것은 금지, 최대 2회).
-2. **Closure 감사** — 수학이 통과해도 스스로 점검한다: 활성 컴포넌트마다 검증 가능한
-   성공 기준이 있는가, 유예 항목에 사유가 붙어 있는가. 미비하면 "점수는 통과지만 {갭}
-   때문에 아직 닫지 않는다"를 밝히고 루프로 돌아간다.
+1. **Restate** — show the one-sentence restated goal **verbatim in the question body** and get it
+   confirmed (asking "is this right?" without showing it is forbidden; at most twice).
+2. **Closure audit** — even when the math passes, self-check: does every active component have a
+   verifiable success criterion; does every deferred item carry a reason. If deficient, state
+   "the score passes but {gap} keeps this open" and return to the loop.
 
-## 산출 — 스펙 = 네이티브 Plan
+## Output — spec = native Plan
 
-스펙 전문을 응답 본문(Plan 모드라면 플랜 파일)으로 제시하고 **멈춘다**:
+Present the full spec as the response body (the plan file if in Plan mode) and **stop**:
 
-- 목표(한 문장) / 토폴로지(활성·유예와 사유) / 제약 / Non-Goals / 검증 가능한 수용 기준
-- 노출·해소된 가정 표 / 핵심 엔티티(온톨로지) / 최종 모호도와 차원별 점수
-- 브라운필드면 탐색으로 확보한 기술 맥락(파일·패턴 인용)
+- Goal (one sentence) / topology (active·deferred with reasons) / constraints / non-goals /
+  verifiable acceptance criteria
+- Table of exposed·resolved assumptions / key entities (ontology) / final ambiguity and
+  per-dimension scores
+- For brownfield, the technical context secured by exploration (files·patterns cited)
 
-**실행 브리지** — 스펙 말미에 다음 중 해당하는 경로를 안내한다:
+**Execution bridge** — at the end of the spec, point to whichever paths apply:
 
-- FE 구현 스펙이 됐다면: 승인 후 `/omj`에 이 스펙을 붙여넣어 uSpec 구현 스펙으로
-  발전시킨다(스펙 paste가 1급 입력).
-- OMC/OMX가 설치돼 있다면: 기존 실행 레인(`docs/EXECUTION-HANDOFF.md`)을 병기한다.
-- 런타임이 없거나, 완료를 증거로 증명해야 하면: 승인 후 `/oh-my-joy:goal-loop`에 이
-  스펙을 붙여넣어 durable 골 루프로 완주한다(paste가 1급 입력 — 런타임 부재 시
-  durable 기본값이고 런타임이 있어도 명시 선택 가능, `docs/EXECUTION-HANDOFF.md`
-  "OMJ native 레인" 절).
-- 그 외: 승인 후 현재 세션이 스펙대로 인라인 구현한다.
+- If it became an FE implementation spec: after approval, paste this spec into `/omj` to develop it
+  into a uSpec implementation spec (spec paste is a first-class input).
+- If OMC/OMX is installed: also list the existing execution lanes (`docs/EXECUTION-HANDOFF.md`).
+- If there is no runtime, or completion must be proven with evidence: after approval, paste this
+  spec into `/oh-my-joy:goal-loop` to see it through as a durable goal loop (paste is a first-class
+  input — the durable default when no runtime exists, and explicitly selectable even when one does;
+  see the "OMJ native lane" section of `docs/EXECUTION-HANDOFF.md`).
+- Otherwise: after approval, the current session implements inline per the spec.
 
-스펙을 파일로 남기고 싶으면 승인 후 실행 단계가 저장한다 — 이 커맨드는 쓰지 않는다.
+If the user wants the spec saved as a file, the post-approval execution stage saves it — this
+command never writes.
 
-## 사용법
+## Usage
 
 ```
-/oh-my-joy:deep-interview 팀 위키를 대체할 지식 베이스를 만들고 싶은데 아직 흐릿함
-/oh-my-joy:deep-interview 알림 시스템 개편 --threshold 15
+/oh-my-joy:deep-interview I want a knowledge base to replace the team wiki but it's still fuzzy
+/oh-my-joy:deep-interview notification system overhaul --threshold 15
 ```
 
-> 방법론 출처: gajae-code·oh-my-claudecode(MIT, Yeachan Heo)의 딥 인터뷰 방법론을
-> 차용해 재작성했다 — [NOTICE.md](../NOTICE.md)(런타임 경로 `${CLAUDE_PLUGIN_ROOT}/NOTICE.md`). 런타임·상태 파일 규약은 이식하지 않았다.
+> Methodology source: adapted and rewritten from the deep-interview methodology of
+> gajae-code·oh-my-claudecode (MIT, Yeachan Heo) —
+> [NOTICE.md](../NOTICE.md) (runtime path `${CLAUDE_PLUGIN_ROOT}/NOTICE.md`). The runtime and
+> state-file conventions were not ported.
