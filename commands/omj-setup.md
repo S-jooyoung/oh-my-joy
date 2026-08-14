@@ -1,68 +1,68 @@
 ---
-description: OMJ 의존성 점검 + 스캐폴딩 — playwright-cli/MCP·Figma MCP·Context7 점검, .omj/fe-context.md·토큰 가드 훅(opt-in) 설치 제안
-argument-hint: "[--check] (점검만) | [--help]"
+description: OMJ dependency check + scaffolding — inspects playwright-cli/MCP, Figma MCP, Context7, and proposes installing .omj/fe-context.md and the token-guard hooks (opt-in)
+argument-hint: "[--check] (inspect only) | [--help]"
 allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(command -v:*), Bash(claude plugin list:*), Bash(claude plugin install figma@claude-plugins-official:*), Bash(claude plugin install context7-plugin@context7-marketplace:*), Bash(npm i -g playwright-cli:*), Bash(test:*), Bash(grep:*), Bash(cp "${CLAUDE_PLUGIN_ROOT}/templates/hooks/":*), Bash(mkdir -p .claude/hooks:*), Bash(gh auth status:*), Bash(gh api user/starred/S-jooyoung/oh-my-joy), Bash(gh api user/starred/S-jooyoung/oh-my-joy -X PUT)
 ---
 
-# /omj-setup — 의존성 닥터 + 설치·스캐폴딩 가이드
+# /omj-setup — Dependency doctor + install/scaffolding guide
 
-OMJ가 기대는 **선택적 의존성**을 점검하고, 없으면 설치를 안내한다. **이미 설치된 항목은 건드리지 않고 ✓만 보고**한다. 첫 사용 전에 한 번 실행하면 좋다. 프로젝트 선언(`.omj/fe-context.md`)과 토큰 가드 훅은 **여기서만** 스캐폴딩한다(진짜 opt-in — 플러그인은 소비 프로젝트에 아무것도 자동 설치하지 않는다).
+Inspects the **optional dependencies** OMJ leans on and guides installation for anything missing. **Already-installed items are left untouched and reported with a ✓ only.** Running it once before first use is a good idea. Project declarations (`.omj/fe-context.md`) and the token-guard hooks are scaffolded **only here** (true opt-in — the plugin auto-installs nothing into consuming projects).
 
-> **진입 경로**: 이 커맨드는 사용자가 직접 부르기도 하지만, `/omj`가 셋업 흔적 없음(레포에 `.omj/` 없음 + `~/.claude/.omj-setup.json` 마커 없음)을 감지하면 스펙 말미에 한 줄로 제안한다 — dogfood 실측에서 setup 미실행이 fe-context·훅 미설치의 연쇄 원인이었다.
+> **Entry paths**: users invoke this command directly, but `/omj` also suggests it in one line at the end of a spec when it detects no setup trace (no `.omj/` in the repo + no `~/.claude/.omj-setup.json` marker) — in dogfood measurements, skipped setup was the root cause of the missing fe-context/hook chain.
 
-## 플래그
+## Flags
 
-- `--help` → 아래 사용법을 출력하고 종료.
-- `--check` → 점검 표만 출력하고 종료(read-only, 설치·스캐폴딩 제안 없음).
-- (없음) → 점검 후, 누락 항목에 대해 설치/생성 여부를 묻고 안내.
+- `--help` → print the usage below and stop.
+- `--check` → print the inspection table only and stop (read-only, no install/scaffolding proposals).
+- (none) → after inspection, ask about installing/creating the missing items and guide.
 
-## 1단계 — 점검 (read-only 탐지)
+## Step 1 — Inspection (read-only detection)
 
-각 항목을 탐지해 ✓(있음)/✗(없음)/➖(선택·없어도 됨) 표로 보고한다:
+Detect each item and report a ✓(present)/✗(missing)/➖(optional, fine without) table:
 
-| 의존성 | 쓰임 | 탐지 |
+| Dependency | Used for | Detection |
 | --- | --- | --- |
-| `playwright-cli` **또는** playwright MCP | `/omj-verify`·`/omj-fix` 시각 검증(cli 우선, MCP 폴백) | `command -v playwright-cli`; 없으면 세션 도구에서 `mcp__playwright__*` 확인 |
-| 공식 Figma Dev Mode MCP | `/omj` figma 프라이머·`/omj-sync` | `claude plugin list \| grep -i figma` |
-| Context7 | `/omj` Next.js 최신 문서(선택) | `claude plugin list \| grep -i context7` |
-| `oh-my-joy:frontend-fundamentals` | 구현 스펙 루브릭(번들) | OMJ 설치 시 항상 present |
-| OMC (oh-my-claudecode) | 대규모 구현 escalation(선택) | `claude plugin list \| grep -i oh-my-claudecode` |
-| `.omj/fe-context.md` | 프로젝트 acceptance·토큰·검증 선언 | `test -f .omj/fe-context.md` (➖ — 없으면 아래 스캐폴딩 제안) |
-| 토큰 스토어 | `/omj-sync`(sync·push·extract) 대상 | fe-context `tokensPath` → `shared/tokens/tokens.json` → **CSS 기반 시스템**(Tailwind `@utility`/`@theme`·`:root --*`) 순으로 탐지(`references/fe-acceptance.md` SoT). 파일 스토어가 없어도 `/omj`는 동작 — **`/omj-sync`만 파일 스토어 필수**(`extract`로 부트스트랩 가능) |
-| 토큰 가드 훅(opt-in) | 저장 즉시 하드코딩/Story 경고 | 소비 프로젝트 `.claude/hooks/check-design-tokens.mjs` 존재 여부 |
+| `playwright-cli` **or** playwright MCP | `/omj-verify`·`/omj-fix` visual verification (cli first, MCP fallback) | `command -v playwright-cli`; otherwise check session tools for `mcp__playwright__*` |
+| Official Figma Dev Mode MCP | `/omj` figma primer·`/omj-sync` | `claude plugin list \| grep -i figma` |
+| Context7 | `/omj` latest Next.js docs (optional) | `claude plugin list \| grep -i context7` |
+| `oh-my-joy:frontend-fundamentals` | implementation-spec rubric (bundled) | always present when OMJ is installed |
+| OMC (oh-my-claudecode) | large-implementation escalation (optional) | `claude plugin list \| grep -i oh-my-claudecode` |
+| `.omj/fe-context.md` | project acceptance/token/verification declarations | `test -f .omj/fe-context.md` (➖ — if missing, scaffolding proposed below) |
+| Token store | target of `/omj-sync` (sync·push·extract) | detect in order: fe-context `tokensPath` → `shared/tokens/tokens.json` → **CSS-based systems** (Tailwind `@utility`/`@theme`·`:root --*`) (`references/fe-acceptance.md` is the SoT). `/omj` works without a file store — **only `/omj-sync` requires one** (bootstrap via `extract`) |
+| Token-guard hooks (opt-in) | on-save hardcoding/Story warnings | existence of `.claude/hooks/check-design-tokens.mjs` in the consuming project |
 
-> Figma는 플러그인 설치와 별개로 **Figma 데스크톱 앱에서 Dev Mode MCP가 켜져 있어야** `/omj` figma 프라이머·`/omj-sync`가 동작하고, **뷰어 권한 파일은 접근이 거부**되므로 사본(Duplicate)이 필요하다 — 점검 시 사용자에게 안내한다.
-> `claude` CLI를 쓸 수 없으면 탐지를 건너뛰고 수동 확인 방법(`/mcp`, `/plugin`)을 안내한다(graceful).
+> Figma requires more than plugin installation: **Dev Mode MCP must be enabled in the Figma desktop app** for the `/omj` figma primer·`/omj-sync` to work, and **viewer-permission files are denied access**, so a Duplicate is needed — tell the user during inspection.
+> If the `claude` CLI is unavailable, skip detection and point to manual checks (`/mcp`, `/plugin`) (graceful).
 
-## 2단계 — 설치·스캐폴딩 가이드 (누락 항목, `--check` 아닐 때만)
+## Step 2 — Install/scaffolding guide (missing items; only when not `--check`)
 
-누락 항목을 모아 **한 번의 `AskUserQuestion`(multiSelect)** 으로 "지금 설치/생성할 항목을 고르세요"를 묻는다 — 의존성(Figma MCP·Context7·캡처 백엔드·OMC)과 스캐폴딩(fe-context·DESIGN.md·훅)을 질문 최대 2개로 묶고, **항목별 개별 프롬프트를 반복하지 않는다**(프롬프트 피로 방지, PRINCIPLES ⑪). 선택된 항목만 아래 절차로 실행하고, 선택되지 않은 항목은 수동 명령만 안내:
+Gather the missing items into **one `AskUserQuestion` (multiSelect)** asking "pick the items to install/create now" — bundle dependencies (Figma MCP·Context7·capture backend·OMC) and scaffolding (fe-context·DESIGN.md·hooks) into at most 2 questions, and **never repeat per-item prompts** (prompt-fatigue prevention, PRINCIPLES ⑪). Execute only the selected items via the procedures below; for unselected items, print the manual commands only:
 
-- **Figma MCP 미설치** → `claude plugin install figma@claude-plugins-official` + "Figma 데스크톱 앱에서 Dev Mode MCP 활성화 필요" 안내.
-- **Context7 미설치** → `claude plugin install context7-plugin@context7-marketplace`.
-- **캡처 백엔드 없음** → playwright-cli 설치 안내(`npm i -g playwright-cli`) 또는 playwright MCP 활성 안내(둘 중 하나면 충분 — verify가 폴백 지원).
-- **OMC 미설치** → 필수 아님. 원하면 `/plugin marketplace add Yeachan-Heo/oh-my-claudecode` → `install` 안내만(escalation 시너지용).
-- **`.omj/fe-context.md` 부재** → **먼저 기존 규칙 문서를 탐지**한다: `AGENTS.md`, `.claude/rules/*.md`, `.github/copilot-instructions.md`, CLAUDE.md의 FE 절. **있으면 새 내용을 짓지 않고 참조-채택을 우선 제안**한다 — fe-context에 `contextDocs:` 목록으로 그 문서들을 가리키게만 생성(내용 복제 금지 — 중복 SoT는 드리프트 원천이고, 실측에서 fe-context가 겨냥한 정보는 이미 이런 파일들로 존재했다). 없으면 기존대로 프로젝트를 스캔(i18n 메시지 디렉터리·토큰 시스템 형태·테마 클래스·Storybook 설정)해 초안을 `Write`한다. **규칙(원칙 ⑩)**: `tokensPath`는 파일 기반 토큰이 실제로 감지될 때만 채우고, `acceptance:`는 **빈 리스트**로 두며, 감지 후보는 **주석으로만** 적는다 — 예: `# 감지됨: src/messages/{ko,en}.json — 로케일 동시 갱신을 축으로 넣을지 프로젝트가 결정`. 축·규칙을 플러그인이 자동 선언하지 않는다. `decisions:`(재발 방지 결정/ADR 한 줄씩) 필드도 빈 틀+주석으로 안내한다 — 리뷰 정확도를 실제로 올리는 건 토큰 경로보다 과거 결정 목록이다. 포맷 정본: `references/fe-acceptance.md`.
-- **`.gitignore` 등급 안내** → fe-context 스캐폴딩과 함께 소비 프로젝트 `.gitignore`에 `.omj/baselines/`(인증 후 스크린샷 — PII 가능)와 `.omj/goals/`(`/oh-my-joy:goal-loop`의 operational state — 명령 요약·경로 누적)를 추가하도록 안내한다. **`.omj/` 통째 ignore는 금지 안내** — 커밋 대상인 `.omj/fe-context.md`(프로젝트 선언)까지 잃는다. 두 하위 디렉터리만 지정한다.
-- **(선택) `docs/DESIGN.md` 초안** → fe-context 생성에 동의한 경우에만 이어서 제안: 브랜드 성격·색상/스페이싱 사용 맥락·컴포넌트 조합 규칙·Figma 레이어 네이밍 컨벤션의 **빈 틀 + 주석 가이드**만 생성(내용은 프로젝트가 채움). 생성 시 fe-context에 `designDocPath: docs/DESIGN.md` 연결.
-- **토큰 가드 훅 미설치** → 설치 제안은 **감지 기반으로 구성**한다: `check-design-tokens.mjs`는 기본 제안, `check-story-exists.mjs`는 **Storybook 신호가 감지될 때만**(`.storybook/` 디렉터리·`@storybook/*` 의존성·`*.stories.*` 파일) 선택지에 넣는다 — 신호가 없으면 목록에서 빼고 존재만 언급한다(훅 자체는 fe-context 미선언 시 no-op이라 이중 안전이지만, 대상 관행이 없는 프로젝트에 제안하는 것 자체가 노이즈다). 동의 시:
-  1. 플러그인 훅 정본 `${CLAUDE_PLUGIN_ROOT}/templates/hooks/`(레포 기준 `templates/hooks/`)의 선택된 스크립트를 소비 프로젝트 **`.claude/hooks/`로 복사**한다 — `mkdir -p .claude/hooks && cp "${CLAUDE_PLUGIN_ROOT}/templates/hooks/"check-design-tokens.mjs .claude/hooks/` 형태(선택된 스크립트만, 디렉터리를 먼저 보장해야 복사가 실패하지 않는다). 소스는 반드시 플러그인 루트 기준이어야 한다 — 소비 프로젝트 cwd에는 `templates/`가 없다. 참조-등록이 아니라 **복사**인 이유: 소비 프로젝트 settings.json은 `${CLAUDE_PLUGIN_ROOT}`를 해석하지 못하고 플러그인 캐시 절대경로는 버전 업데이트마다 깨진다.
-  2. 소비 프로젝트 `.claude/settings.json`의 `hooks.PostToolUse`에 matcher `Edit|Write|MultiEdit|NotebookEdit`로 두 스크립트를 상대경로(`node .claude/hooks/check-design-tokens.mjs`)로 등록한다 — 스크립트 내부 `MUTATING_TOOLS` 4종과 동일 집합(matcher가 좁으면 MultiEdit 저장이 훅을 조용히 우회한다).
-  3. 훅은 fe-context 선언(`tokensPath`/`storybook: true`)이 없으면 no-op이므로, fe-context 스캐폴딩과 함께 설치할 것을 권장한다.
-  4. 재실행 시 `${CLAUDE_PLUGIN_ROOT}/templates/hooks/`의 정본과 `.claude/hooks/` 복사본이 다르면 "훅 스크립트 갱신 가능" 안내(덮어쓰기는 동의 시만).
+- **Figma MCP missing** → `claude plugin install figma@claude-plugins-official` + note "Dev Mode MCP must be enabled in the Figma desktop app".
+- **Context7 missing** → `claude plugin install context7-plugin@context7-marketplace`.
+- **No capture backend** → guide playwright-cli installation (`npm i -g playwright-cli`) or enabling the playwright MCP (either one suffices — verify supports the fallback).
+- **OMC missing** → not required. If wanted, only point to `/plugin marketplace add Yeachan-Heo/oh-my-claudecode` → `install` (escalation synergy).
+- **`.omj/fe-context.md` missing** → **first detect existing rule documents**: `AGENTS.md`, `.claude/rules/*.md`, `.github/copilot-instructions.md`, the FE section of CLAUDE.md. **If any exist, prefer reference-adoption over authoring new content** — generate fe-context that merely points at those documents via a `contextDocs:` list (no content duplication — duplicate SoT is a drift source, and in measurements the information fe-context targets already existed in such files). If none exist, scan the project as before (i18n message directories, token-system shape, theme classes, Storybook config) and `Write` a draft. **Rule (principle ⑩)**: fill `tokensPath` only when a file-based token store is actually detected, leave `acceptance:` an **empty list**, and record detected candidates **as comments only** — e.g. `# detected: src/messages/{ko,en}.json — the project decides whether simultaneous locale updates become an axis`. The plugin never auto-declares axes/rules. Also present the `decisions:` field (one line per recurrence-prevention decision/ADR) as an empty scaffold + comments — what actually improves review accuracy is the list of past decisions more than the token path. Format canon: `references/fe-acceptance.md`.
+- **`.gitignore` tier guidance** → along with fe-context scaffolding, guide adding `.omj/baselines/` (post-auth screenshots — possible PII) and `.omj/goals/` (operational state of `/oh-my-joy:goal-loop` — accumulating command summaries/paths) to the consuming project's `.gitignore`. **Warn against ignoring `.omj/` wholesale** — that would also lose the committed `.omj/fe-context.md` (the project declaration). Specify only the two subdirectories.
+- **(optional) `docs/DESIGN.md` draft** → propose only after fe-context creation was agreed: generate an **empty scaffold + comment guide** for brand personality, color/spacing usage context, component composition rules, and Figma layer naming conventions (the project fills the content). On creation, link it in fe-context as `designDocPath: docs/DESIGN.md`.
+- **Token-guard hooks missing** → build the proposal **detection-based**: `check-design-tokens.mjs` is the default proposal; include `check-story-exists.mjs` **only when Storybook signals are detected** (a `.storybook/` directory, `@storybook/*` dependencies, `*.stories.*` files) — without signals, drop it from the list and only mention its existence (the hook itself is a no-op without fe-context declarations, a double safety, but proposing it to a project without the practice is noise in itself). On consent:
+  1. Copy the selected scripts from the plugin hook canon `${CLAUDE_PLUGIN_ROOT}/templates/hooks/` (repo-relative `templates/hooks/`) into the consuming project's **`.claude/hooks/`** — in the shape `mkdir -p .claude/hooks && cp "${CLAUDE_PLUGIN_ROOT}/templates/hooks/"check-design-tokens.mjs .claude/hooks/` (selected scripts only; ensure the directory first so the copy cannot fail). The source must be plugin-root-relative — the consuming project's cwd has no `templates/`. Why **copy** instead of reference-registration: the consuming project's settings.json cannot resolve `${CLAUDE_PLUGIN_ROOT}`, and plugin-cache absolute paths break on every version update.
+  2. Register both scripts in the consuming project's `.claude/settings.json` under `hooks.PostToolUse` with matcher `Edit|Write|MultiEdit|NotebookEdit`, using relative paths (`node .claude/hooks/check-design-tokens.mjs`) — the same set as the scripts' internal `MUTATING_TOOLS` four (a narrower matcher lets MultiEdit saves silently bypass the hook).
+  3. The hooks are no-ops without fe-context declarations (`tokensPath`/`storybook: true`), so recommend installing them together with fe-context scaffolding.
+  4. On rerun, if the canon in `${CLAUDE_PLUGIN_ROOT}/templates/hooks/` differs from the `.claude/hooks/` copies, announce "hook script update available" (overwrite only on consent).
 
-> 플러그인 설치는 **다음 세션부터** 커맨드/도구가 로드된다 — 설치 후 "새 세션에서 적용됨" 안내. 훅 등록도 다음 세션부터 발화한다.
+> Plugin installs load commands/tools **from the next session** — after installing, announce "takes effect in a new session". Hook registration also fires from the next session.
 
-## 3단계 — 마무리
+## Step 3 — Wrap-up
 
-- 점검 요약(✓/✗)과 "이제 `/omj <figma-url|작업>`으로 시작" 안내.
-- (선택) `~/.claude/.omj-setup.json`에 `{"setupCompleted": "<오늘>"}` 기록 → 재실행 시 "이미 점검됨, 다시 점검할까요?"로 빠르게 처리.
-- **(선택) GitHub star 제안** — `gh auth status`가 성공하면 `gh api user/starred/S-jooyoung/oh-my-joy`로 이미 star했는지 확인한다. **이미 starred(exit 0)면 아무것도 묻지 않고 조용히 넘어간다.** 미스타일 때만 `AskUserQuestion`으로 "OMJ가 도움이 되면 GitHub star로 응원해 주시겠어요?"를 1회 묻고(스타하기 / 괜찮아요 / 나중에), "스타하기"일 때만 `gh api user/starred/S-jooyoung/oh-my-joy -X PUT`을 실행한다. **API가 실패해도 조용히 넘어간다 — star는 어떤 경우에도 셋업 완료를 막지 않는다.** gh가 없거나 미인증이면 프롬프트 없이 `https://github.com/S-jooyoung/oh-my-joy` 한 줄만 안내한다.
+- Inspection summary (✓/✗) and "now start with `/omj <figma-url|task>`".
+- (optional) Record `{"setupCompleted": "<today>"}` in `~/.claude/.omj-setup.json` → reruns fast-path with "already inspected; inspect again?".
+- **(optional) GitHub star suggestion** — if `gh auth status` succeeds, check whether already starred via `gh api user/starred/S-jooyoung/oh-my-joy`. **If already starred (exit 0), ask nothing and move on quietly.** Only when unstarred, ask once via `AskUserQuestion` "If OMJ helps you, would you support it with a GitHub star?" (star it / no thanks / later), and run `gh api user/starred/S-jooyoung/oh-my-joy -X PUT` only on "star it". **Move on quietly even if the API fails — a star never blocks setup completion in any case.** If gh is missing or unauthenticated, print the single line `https://github.com/S-jooyoung/oh-my-joy` without prompting.
 
-## 사용법
+## Usage
 
 ```
-/omj-setup            의존성 점검 + 누락 시 설치·스캐폴딩 가이드
-/omj-setup --check    점검 표만(read-only)
-/omj-setup --help     이 도움말
+/omj-setup            dependency check + install/scaffolding guide for anything missing
+/omj-setup --check    inspection table only (read-only)
+/omj-setup --help     this help
 ```
