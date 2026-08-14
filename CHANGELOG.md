@@ -9,9 +9,13 @@
 ### Added
 
 - **범용 딥 인터뷰 커맨드 `/oh-my-joy:deep-interview`** — 모호한 아이디어를 라운드당 1문항 소크라테스식 인터뷰로 명세화하는 read-only 프라이머. 토폴로지 고정(Round 0)·최약 (컴포넌트×차원) 타겟팅·가중 모호도 공식(greenfield/brownfield)·온톨로지 수렴 추적·Restate/Closure 이중 종료 게이트를 갖추고, 산출 스펙은 파일이 아니라 **네이티브 Plan 본문**으로 제시한다(파일화는 승인 후 실행 단계 소유 — read-only 계약 유지). 방법론은 gajae-code·oh-my-claudecode(MIT)에서 차용해 재작성했고 런타임(CLI·tmux·상태 규약)은 이식하지 않았다(`NOTICE.md` 신설). PRINCIPLES ⑧(방법론 흡수 규칙)·⑪(인터뷰 상호작용 클래스) 정본 개정 동반. **풀 사이클 확장 1단계 — 도입 2026-08-13, 도달률 재측정 창(~09-03) 진행 중 시점 기록.**
-- **커맨드 네이밍 2축 규칙** — FE 루프 커맨드는 기존 `/omj-*` 접두, 범용 워크플로우 커맨드는 무접두 basename + 테스트 화이트리스트(`WORKFLOW_COMMANDS`) + 문서 표기는 항상 `/oh-my-joy:<name>` 정규 호출. bare 표기(`/deep-interview` 류)는 docs-consistency 테스트가 전 문서 표면에서 차단한다 — 동명의 OMC 스킬·Claude Code 네이티브 커맨드와의 호출 모호성을 문서 수준에서 봉쇄(2-워커 교차 리뷰 수렴안). read-only 커맨드 검사는 Write/Edit에 더해 `Task`/`Agent` 선언도 차단하도록 확장(서브에이전트는 부모 allowed-tools를 상속하지 않으므로).
+- **커맨드 네이밍 2축 규칙** — OMJ 고유 FE 루프 동사는 기존 `/omj-*` 접두, 이름 있는 방법론·루브릭 커맨드는 무접두 basename + 테스트 화이트리스트(`WORKFLOW_COMMANDS`) + 문서 표기는 항상 `/oh-my-joy:<name>` 정규 호출. bare 표기(`/deep-interview` 류)는 docs-consistency 테스트가 전 문서 표면에서 차단한다 — 동명의 OMC 스킬·Claude Code 네이티브 커맨드와의 호출 모호성을 문서 수준에서 봉쇄(2-워커 교차 리뷰 수렴안). read-only 커맨드 검사는 Write/Edit에 더해 `Task`/`Agent` 선언도 차단하도록 확장(서브에이전트는 부모 allowed-tools를 상속하지 않으므로).
+
+- **durable 실행 루프 `/oh-my-joy:goal-loop` + `scripts/goal-state.mjs` validator** — 승인된 스펙을 골 단위로 `.omj/goals/<slug>/{brief.md, goals.json, ledger.jsonl}`에 영속시켜 단일 owner가 순차 완주하는 능동 op. 핵심은 강제력의 위치다: 커맨드 allowed-tools에 Write/Edit 없이 validator 스크립트 호출만 사전승인해 **상태 변경 경로를 하나로 좁혔다** — 유효 전이표·단일 active·증거 객체 없는 complete 거부·append-only ledger(잘림 감지)·단조 event_seq·원자적 스냅샷 교체를 스크립트가 검사하고 위반은 non-zero다(2-워커 교차 리뷰 blocker 반영: "프롬프트만 옮기면 형태는 남고 강제력은 사라진다"). 검증 명령은 사전승인하지 않는다 — 매 실행의 권한 프롬프트가 증거의 신뢰 근거(세탁 방지). 동작 테스트(temp dir 정상/불법 전이·truncate·reconcile)와 문서↔스크립트 어휘 드리프트 가드 동반. EXECUTION-HANDOFF에 "OMJ native 레인" 절(우선순위: 런타임 있으면 기존 레인 기본, 없으면 durable 기본값 / auto-select 1회 질문 경계 / 풀 사이클 결합), `/omj-start`에 copyable action 경로, `/omj-setup`에 `.omj/goals/` gitignore 등급 안내 추가. **풀 사이클 확장 2단계 — 도입 2026-08-13(재측정 창 진행 중 기록).**
 
 ### Changed
+
+- **BREAKING: `/omj-review` → `/oh-my-joy:ff-review` 개명 (2026-08-13)** — 사용자 결정으로 "이름 있는 방법론·루브릭 커맨드" 축(무접두 basename + 정규 호출)으로 이동. 기존 호출 `/omj-review [--base <ref>]`는 `/oh-my-joy:ff-review [--base <ref>]`로 바꾸면 된다(인자·동작 동일, 파일만 `commands/ff-review.md`로 이동). ⚠️ 도달률 재측정 창(~09-03) 진행 중의 표면 개명 — 실사용이 확인된 유일한 커맨드였으므로 재측정 리포트 해석 시 이 시점 전후를 분리 집계할 것.
 
 ### Deprecated
 

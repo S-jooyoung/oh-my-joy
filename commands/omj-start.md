@@ -23,7 +23,7 @@ allowed-tools: Read, Grep, AskUserQuestion
 2. `selectedLane`, `선택된 레인`, 또는 `## 실행 레인 선택` 아래의 선택값이 있으면 **다시 묻지 않는다**.
 3. 선택값이 없을 때만 `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md`(레포 기준 `docs/EXECUTION-HANDOFF.md`)를 기준으로 `AskUserQuestion`을 정확히 한 번 사용한다. 1번 옵션은 항상 추천값이며 라벨에 `(추천)`을 붙인다. (스펙의 `선택된 레인`이 `(auto)`면 실행할 별도 레인이 없다는 뜻 — "인라인 구현 대상, /omj-start 불필요"를 안내하고 종료한다.)
 4. 선택 결과를 `Wrapper`와 `Sublane`으로 분리한다.
-   - Wrapper: `none` · `/goal` · `$ultragoal`
+   - Wrapper: `none` · `/goal` · `$ultragoal` · `/oh-my-joy:goal-loop`(OMJ native — 런타임 불요, 정본: `docs/EXECUTION-HANDOFF.md`의 "OMJ native 레인")
    - Sublane: `inline/manual` · `$ralph` · `$team`
    - QA follow-up: `$ultraqa`
    - Consensus fallback: `/ralplan`(OMC — 합의 승인 시 실행 연결) · `$ralplan`(OMX — plan-only: 계획 산출 후 정지, 합의 뒤 실행 레인 별도 시작. 정본: `docs/EXECUTION-HANDOFF.md`)
@@ -31,6 +31,7 @@ allowed-tools: Read, Grep, AskUserQuestion
    - shell availability probe는 쓰지 않는다. 현재 세션 문맥과 스펙의 선택 lane만으로 안전하게 판단한다.
    - 현재 세션이 명시적 OMX/Codex 문맥이고 입력이 파일 경로이며 `Wrapper=$ultragoal`이면 `omx ultragoal create-goals --brief-file '<safe-approved-spec-path>'`만 직접 실행할 수 있다. 단 create-goals는 durable goal을 **생성만** 한다 — 생성 성공 후 최종 출력의 copyable action은 시작/재개 담당인 `omx ultragoal complete-goals`로 한다(2단계 CLI, 정본: `docs/EXECUTION-HANDOFF.md`).
    - Claude/OMC 문맥이면 `/goal`/`/team`/`/ralph`/`/ultraqa` 형식의 copyable command를 출력한다.
+   - `Wrapper=/oh-my-joy:goal-loop`(OMJ native)면 런타임 probe가 필요 없다 — `/oh-my-joy:goal-loop <approved-spec-path> --slug <slug>` 한 줄을 copyable action으로 출력한다.
    - 둘 다 불명확하면 manual checklist 하나만 출력한다.
 6. 직접 launch가 안전하고 명시적인 경우에만 실행한다. `$team`/`$ralph`/`$ultraqa` direct shell dispatch, pasted spec direct shell dispatch, 또는 런타임 semantics가 불확실한 경우에는 실행하지 말고 **정확히 하나의 copyable command/action**만 출력한다.
 

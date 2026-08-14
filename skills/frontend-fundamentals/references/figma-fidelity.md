@@ -1,6 +1,6 @@
 # Figma 충실도 (figma-fidelity) — design→code 변환의 보편 규칙
 
-Figma 디자인을 코드로 옮길 때 **디자이너의 결정을 임의로 바꾸지 않는 것**이 기본값이다. 이 규칙은 프로젝트 무관 보편 규칙으로, `/omj` Phase 2가 스펙 author 시 **처방**하고 `/omj-review`·`design-qa`가 구현 후 **검증**한다(처방↔검증 same-SoT).
+Figma 디자인을 코드로 옮길 때 **디자이너의 결정을 임의로 바꾸지 않는 것**이 기본값이다. 이 규칙은 프로젝트 무관 보편 규칙으로, `/omj` Phase 2가 스펙 author 시 **처방**하고 `/oh-my-joy:ff-review`·`design-qa`가 구현 후 **검증**한다(처방↔검증 same-SoT).
 
 ## 규칙
 

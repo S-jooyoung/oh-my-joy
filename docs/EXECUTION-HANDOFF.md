@@ -9,6 +9,9 @@
 - **Wrapper**: durable state/checkpoint owner.
   - `none`: 아주 작은 단발 작업.
   - `/goal` 또는 `$ultragoal`: 여러 단계·여러 턴·checkpoint가 필요한 작업.
+  - `/oh-my-joy:goal-loop`: OMJ 자체 durable wrapper — **런타임(OMC/OMX)이 없어도 항상
+    존재하는 선택지**다(런타임 행이 아니라 상시 축). 골 상태를 `.omj/goals/`에 영속하고
+    완료를 validator 증거 객체로만 인정한다.
 - **Sublane**: 실제 실행 방식.
   - `inline/manual`: OMC/OMX가 없거나 매우 작은 작업.
   - `$ralph`/`/ralph`: 한 명의 persistent owner가 끝까지 밀고 검증해야 할 때.
@@ -32,12 +35,29 @@
 ## 추천 규칙
 
 1. **작고 구체적**: 파일 1-2개, route 1개, 새 추상화 없음 → `Wrapper: none`, `Sublane: inline/manual` 또는 `ralph`.
-2. **지속 목표**: 파일 3개 이상, 여러 단계, 재시작/체크포인트 필요 → `Wrapper: $ultragoal` 또는 `/goal`.
+2. **지속 목표**: 파일 3개 이상, 여러 단계, 재시작/체크포인트 필요 → `Wrapper: $ultragoal` 또는 `/goal`. **둘 다 없으면 `/oh-my-joy:goal-loop`** — 완료 증거 강제가 특히 중요하면 런타임이 있어도 이 레인을 선택할 수 있다(우선순위 규칙은 아래 "OMJ native 레인" 절).
 3. **병렬 가능**: 화면/문서/검증 등 독립 lane 2개 이상 → `Sublane: $team` 또는 `/team`.
 4. **순차 압박**: 병렬성은 낮지만 완료/검증 루프가 중요 → `Sublane: $ralph` 또는 `/ralph`.
 5. **QA-only**: 구현이 끝났고 hostile 시나리오·시각/상호작용 결함 탐지가 목표 → `$ultraqa`/`/ultraqa`를 1번으로 추천.
 6. **모호/고위험**: 요구·경계·아키텍처가 불명확 → `/ralplan`/`$ralplan`을 먼저 추천(OMX면 plan-only 안내 포함 — 위 Consensus fallback 참조).
-7. **런타임 없음**: OMC/OMX 없음 → copyable manual command/action만 출력하고 실패하지 않는다.
+7. **런타임 없음**: OMC/OMX 없음 → durable 필요면 `/oh-my-joy:goal-loop`, 아니면 copyable manual command/action을 출력하고 실패하지 않는다.
+
+## OMJ native 레인 (`/oh-my-joy:goal-loop`)
+
+런타임 표의 **행이 아니라 항상 존재하는 durable 선택지**다(OMC/OMX 유무 무관). 규칙:
+
+- **우선순위**: OMC `/goal`·OMX `$ultragoal`이 가용하면 기본 추천은 여전히 그 레인이다
+  (오케스트레이션 폭이 넓다). `/oh-my-joy:goal-loop`는 ① 런타임이 없을 때의 durable
+  기본값이고 ② 런타임이 있어도 "증거 강제 완료·단일 owner 순차"가 목적이면 명시
+  선택지로 병기한다. selector 표기는 반드시 정규 호출로 구분한다 —
+  `Wrapper: /goal`(OMC)과 `Wrapper: /oh-my-joy:goal-loop`(OMJ)는 다른 레인이다.
+- **auto-select 경계**: `/oh-my-joy:goal-loop`도 무거운 레인이다 — 추천되면 다른 무거운
+  레인과 똑같이 **정확히 1회 질문**한다(침묵 진행 금지).
+- **풀 사이클 결합**: 흐릿한 아이디어는 `/oh-my-joy:deep-interview`가 스펙으로,
+  FE 신호는 `/omj`가 uSpec으로 만들고, 승인된 스펙을 이 레인이 소비한다 — FE 골의
+  실행자는 `figma-implementer`, 검증 층(design-qa·`/omj-verify`·`/omj-fix`·`/omj-sync`·
+  `/oh-my-joy:ff-review`)은 기존 그대로 공용이다. 기존 `/omj` 단독 사용은 아무것도
+  달라지지 않는다.
 
 ## Auto-select 규칙 (inline/manual 한정 질문 생략)
 
@@ -79,7 +99,7 @@
 | --- | --- | --- | --- | --- | --- |
 | Codex/OMX | `$ultragoal` + Codex `/goal` | `$team` / `omx team`¹ | `$ralph` | `$ultraqa` | `$ralplan`(plan-only) |
 | Claude/OMC | `/goal` | `/team` | `/ralph` | `/ultraqa` | `/ralplan` |
-| No runtime | manual/copyable action | manual | manual | manual QA checklist | manual plan review |
+| No runtime | `/oh-my-joy:goal-loop` | manual | manual | manual QA checklist | manual plan review |
 
 ¹ Codex App·tmux 밖 세션에서는 `$team`/`omx team`을 직접 제시하지 않는다 — shell에서 OMX CLI를 먼저 기동해야 한다(OMX README).
 

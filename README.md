@@ -30,7 +30,7 @@ flowchart TD
     A["/omj<br/>Figma + code → spec"]:::readonly --> B["implementation spec<br/>uSpec sections × FF criteria × a11y"]:::readonly
     B --> C{{"ExitPlanMode<br/>you review and approve"}}
     C --> D["execution lane<br/>inline · /goal · /team · /ralph"]
-    D --> E["/omj-review<br/>code diff vs criteria"]:::readonly
+    D --> E["/oh-my-joy:ff-review<br/>code diff vs criteria"]:::readonly
     D --> F["/omj-verify<br/>rendered route vs baseline"]
     F -->|defects found| G["/omj-fix<br/>edit → re-capture"]
     G --> F
@@ -81,14 +81,15 @@ The reasoning behind each decision — problem → decision → rationale → ou
 | --- | --- | --- | --- |
 | **`/omj`** | Gather specs + author an implementation spec (Plan) + recommend one execution lane, then stop (read-only primer). Infers the verify route when omitted; supports multiple Figma nodes mixed with text tasks | The starting point for every FE task | `/omj https://figma.com/design/abc?node-id=1-2 /settings/profile` |
 | **`/omj-start`** | Handoff an approved OMJ spec to the selected OMC/OMX execution lane | After approving a spec when auto-start is unavailable (not needed for `(auto)` inline specs) | `/omj-start ./omj-search-spec.md` |
-| **`/omj-review`** | Review the changed FE diff against FF 4-criteria + a11y · Figma fidelity · vercel · Next.js (report only) | Right after implementing, before a PR | `/omj-review --base main` |
+| **`/oh-my-joy:ff-review`** | Review the changed FE diff against FF 4-criteria + a11y · Figma fidelity · vercel · Next.js (report only) | Right after implementing, before a PR | `/oh-my-joy:ff-review --base main` |
 | **`/omj-verify`** | Open a route in a real browser (playwright-cli, falls back to playwright MCP) and check visuals/structure against the Figma baseline (`.omj/baselines/`); always asserts the captured page actually reached the requested route (auth redirects are reported as failures, never compared) | Visual-regression check before a PR | `/omj-verify /settings/profile` |
 | **`/omj-fix`** | Fix defects from a pasted screenshot + route, then re-capture to confirm (active loop) | Quick fixes for pixel/visual defects | `/omj-fix /pricing "banner z-index too low"` |
 | **`/omj-sync`** | Reconcile drift between the token store (`tokens.json` **or CSS custom properties**) ↔ Figma by **asking you the direction**; `extract` bootstraps CSS tokens from Figma variables | Aligning code/Figma tokens · first extraction | `/omj-sync` · `check` · `push` · `extract <figma-url>` |
 | **`/omj-setup`** | Dependency doctor + batch multi-select install + scaffolding for `.omj/fe-context.md` (adopts existing rule docs like `AGENTS.md`/`.claude/rules/` via `contextDocs:` instead of duplicating them) and opt-in token-guard hooks (the Story hook is offered only when Storybook is detected); optionally offers a GitHub star at the end (skipped silently if already starred, never blocks setup) | Before first use — `/omj` also suggests it once when no setup trace exists | `/omj-setup` |
 | **`/oh-my-joy:deep-interview`** | Socratic one-question-per-round interview that turns a vague idea into a spec (native Plan) gated by a weighted ambiguity score — topology lock, weakest-dimension targeting, ontology-convergence tracking, restate/closure double gate (read-only) | When the goal itself is still fuzzy — before `/omj` or any implementation | `/oh-my-joy:deep-interview "internal knowledge base — still fuzzy"` |
+| **`/oh-my-joy:goal-loop`** | Durable single-owner execution loop: splits an approved spec into goals persisted in `.omj/goals/`, works them one at a time, and can only mark completion through a validator script that demands an evidence object — invalid transitions, truncated ledgers, and evidence-free completes exit non-zero (run outside Plan mode) | Multi-turn work that must survive interruption and prove its completion — with or without OMC/OMX installed | `/oh-my-joy:goal-loop ./approved-spec.md --slug search-form` |
 
-> **read-only vs active op.** `/omj`, `/omj-review`, and `/oh-my-joy:deep-interview` are read-only (report/spec only) — `/omj` may ask **at most one** post-spec execution-lane question (skipped with an `(auto)` record when inline/manual is recommended — Plan approval doubles as lane consent), the interview asks one question per round under its own round cap, and none of them can Write/Edit/build/test. `/omj-start` is a handoff command: it launches only when the runtime surface is explicit and safe, otherwise it prints one copyable action. `/omj-verify`, `/omj-fix`, and `/omj-sync` (sync/push/extract) are active ops using Figma write / `Edit`/`Write` / Bash; if your environment blocks those in Plan mode, exit Plan mode first. Each command's syntax, arguments, and steps live in its `commands/<name>.md` (the source of truth).
+> **read-only vs active op.** `/omj`, `/oh-my-joy:ff-review`, and `/oh-my-joy:deep-interview` are read-only (report/spec only) — `/omj` may ask **at most one** post-spec execution-lane question (skipped with an `(auto)` record when inline/manual is recommended — Plan approval doubles as lane consent), the interview asks one question per round under its own round cap, and none of them can Write/Edit/build/test. `/omj-start` is a handoff command: it launches only when the runtime surface is explicit and safe, otherwise it prints one copyable action. `/omj-verify`, `/omj-fix`, and `/omj-sync` (sync/push/extract) are active ops using Figma write / `Edit`/`Write` / Bash; if your environment blocks those in Plan mode, exit Plan mode first. Each command's syntax, arguments, and steps live in its `commands/<name>.md` (the source of truth).
 >
 > **Auto-trigger.** The command descriptions are written to match the two most frequent real-world patterns, so the agent can route to them without you typing the slash command: pasting a Figma Dev Mode link ("implement this design…") routes to `/omj`, and pasting a screenshot with a visual complaint ("misaligned", "clipped", "wrong spacing/color") routes to `/omj-fix`.
 
@@ -119,7 +120,7 @@ Missing ones never crash — OMJ **skips + guides** instead.
 | --- | --- | --- |
 | Official Figma Dev Mode MCP | `/omj` (read design), `/omj-sync` (read/write Variables) | "Figma not connected — proceed with a manual spec", then continue |
 | `playwright-cli` **or** playwright MCP | `/omj-verify` · `/omj-fix` (cli first, MCP fallback) | with neither: "no capture backend — skipping verify", then exit |
-| Context7 | `/omj` · `/omj-review` · `/omj-fix` (fetch latest Next.js docs) | that step is skipped |
+| Context7 | `/omj` · `/oh-my-joy:ff-review` · `/omj-fix` (fetch latest Next.js docs) | that step is skipped |
 
 > Figma writes (`/omj-sync` push/pull, reading a design) require the **Figma desktop app running with the target file as the active tab**. MCP tool names vary by environment — check `/mcp`.
 
@@ -135,8 +136,8 @@ OMJ is a **standalone plugin independent of** oh-my-claudecode (OMC) and oh-my-c
 | --- | --- | --- |
 | Clarify | `/oh-my-joy:deep-interview` (vague idea → spec) | `/oh-my-claudecode:deep-interview` (OMC skill) |
 | Plan | `/omj` (FE spec, native Plan + execution selector) | `/oh-my-claudecode:plan` · `/ralplan` · `$ralplan` (OMX: plan-only) |
-| Execute | `/omj-start` fallback handoff | `/goal` · `$ultragoal` · `/team`/`$team` · `/ralph`/`$ralph` |
-| Verify | `/omj-review` · `/omj-verify` | `/verify` · `$ultraqa` |
+| Execute | `/omj-start` fallback handoff · `/oh-my-joy:goal-loop` (durable, evidence-gated — works without OMC/OMX) | `/goal` · `$ultragoal` · `/team`/`$team` · `/ralph`/`$ralph` |
+| Verify | `/oh-my-joy:ff-review` · `/omj-verify` | `/verify` · `$ultraqa` |
 
 The implementation spec `/omj` produces is exactly the input OMC/OMX execution tools consume. The routing source of truth is **[docs/EXECUTION-HANDOFF.md](docs/EXECUTION-HANDOFF.md)** (Korean); see **[docs/OMC-INTEGRATION.md](docs/OMC-INTEGRATION.md)** (Korean) for A/B/C flows, gate rules, and handoff constraints.
 

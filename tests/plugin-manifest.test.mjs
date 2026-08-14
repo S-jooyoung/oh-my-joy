@@ -28,15 +28,15 @@ const marketplace = readJson('.claude-plugin', 'marketplace.json');
  * `/omj-review`·`/omj-verify`는 리포트만 내는 검증 커맨드,
  * `deep-interview`는 네이티브 Plan만 산출하는 인터뷰 프라이머다.
  */
-const READ_ONLY_COMMANDS = new Set(['omj.md', 'omj-review.md', 'omj-verify.md', 'deep-interview.md']);
+const READ_ONLY_COMMANDS = new Set(['omj.md', 'ff-review.md', 'omj-verify.md', 'deep-interview.md']);
 
 /**
- * 무접두 네이밍이 허용된 범용 워크플로우 커맨드(2축 규칙 — CLAUDE.md).
- * FE 루프 커맨드는 `/omj-*` 정규식이, 워크플로우 커맨드는 이 화이트리스트가 담당한다.
+ * 무접두 네이밍이 허용된 "이름 있는 방법론·루브릭" 커맨드(2축 규칙 — CLAUDE.md).
+ * FE 루프 동사는 `/omj-*` 정규식이, 이 축은 화이트리스트가 담당한다.
  * 이 목록은 새 커맨드를 추가하는 PR에서 함께 편집되므로 하드 차단이 아니라
  * 속도 방지턱이다 — 우발적 무접두 파일 추가를 리뷰 가시권으로 끌어낸다.
  */
-const WORKFLOW_COMMANDS = new Set(['deep-interview.md']);
+const WORKFLOW_COMMANDS = new Set(['deep-interview.md', 'ff-review.md', 'goal-loop.md']);
 
 describe('plugin.json', () => {
   it('필수 필드를 갖는다', () => {

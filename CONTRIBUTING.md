@@ -41,7 +41,7 @@ node --test          # 의존성 설치 단계가 없다 — Node 20.11+ 만 있
 
 ## 새 커맨드를 추가할 때
 
-- 파일: `commands/<name>.md`. 네이밍은 2축 — FE 루프 커맨드는 `/omj-*` 접두(루트 `/omj` 제외), 범용 워크플로우 커맨드는 무접두 basename + `tests/plugin-manifest.test.mjs`의 `WORKFLOW_COMMANDS` 등재. 워크플로우 커맨드는 문서에서 항상 `/oh-my-joy:<name>` 정규 호출로 표기한다(bare 표기는 테스트가 차단).
+- 파일: `commands/<name>.md`. 네이밍은 2축 — OMJ 고유 FE 루프 동사는 `/omj-*` 접두(루트 `/omj` 제외), 이름 있는 방법론·루브릭 커맨드(`deep-interview`·`ff-review` 류)는 무접두 basename + `tests/plugin-manifest.test.mjs`의 `WORKFLOW_COMMANDS` 등재. 무접두 커맨드는 문서에서 항상 `/oh-my-joy:<name>` 정규 호출로 표기한다(bare 표기는 테스트가 차단).
 - frontmatter: `description`, `argument-hint`, `allowed-tools`(**최소 권한** — read-only면 `Write`/`Edit`/`Bash`를 넣지 않는다).
 - 동작의 SoT는 그 파일 본문이다. 다른 문서는 요약·링크만 하고 임계값·규칙을 재정의하지 않는다.
 - README(EN/KO) 커맨드 표에 추가한다 — 빠지면 테스트가 실패한다.

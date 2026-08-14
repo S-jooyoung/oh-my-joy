@@ -23,4 +23,4 @@ tools: Read, Grep, Glob, Edit, Write, Bash, Skill, mcp__plugin_figma_figma__get_
 
 ## 완료 보고
 
-변경 파일 목록, 스펙 대비 이행/미이행 항목, 타입체크·린트 결과, 남은 후속(`/omj-review`·`/omj-verify <route>` 권장)을 요약해 반환한다. 커밋은 하지 않는다(호출자 소유).
+변경 파일 목록, 스펙 대비 이행/미이행 항목, 타입체크·린트 결과, 남은 후속(`/oh-my-joy:ff-review`·`/omj-verify <route>` 권장)을 요약해 반환한다. 커밋은 하지 않는다(호출자 소유).
