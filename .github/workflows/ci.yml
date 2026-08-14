@@ -31,6 +31,19 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
+      # Stands in for a linter. Adding ESLint/TypeScript would mean adding the first
+      # dependency to a repo whose whole premise is having none (and would fail
+      # tests/standalone.test.mjs), so the dependency-free equivalent is a parse of
+      # every committed script and a parse of every committed JSON file. It catches
+      # the class a linter would catch here: a syntax error in a file no test imports.
+      - name: Syntax check
+        run: |
+          set -euo pipefail
+          git ls-files '*.mjs' | while read -r f; do node --check "$f"; done
+          git ls-files '*.json' | while read -r f; do
+            node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))' "$f"
+          done
+
       # No dependency install step. Both the plugin and the verification harness use
       # only Node built-ins. Run via npm test to stay coupled to package.json
       # scripts.test (the repo's canonical verification command).

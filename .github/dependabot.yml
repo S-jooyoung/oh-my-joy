@@ -1,0 +1,27 @@
+# Dependabot for a repo with no dependencies.
+#
+# The plugin ships nothing at runtime and package.json declares no dependencies of
+# any kind (enforced by tests/standalone.test.mjs), so there is no npm ecosystem to
+# watch. What *does* silently rot is the pinned action versions in .github/workflows
+# — actions/checkout@v4 and friends — which nothing else in this repo tracks.
+#
+# Weekly, capped at 2 open PRs: this is a single-maintainer project, and a queue of
+# update PRs nobody reviews is worse than no updates at all.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 2
+    labels: ['chore']
+    assignees: ['S-jooyoung']
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      # One PR for all action bumps rather than one per action — they are reviewed
+      # together anyway, and CI either goes green as a set or it does not.
+      actions:
+        patterns: ['*']

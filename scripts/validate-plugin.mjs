@@ -22,7 +22,21 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+/**
+ * `--root <dir>` points the checks at another plugin tree, and `--skip-cli`
+ * suppresses layer 1. Both exist so the test suite can validate purpose-built
+ * fixtures — a check that is never shown a broken manifest is indistinguishable
+ * from one that always passes. Neither flag is used in normal operation.
+ */
+const args = process.argv.slice(2);
+const rootFlag = args.indexOf('--root');
+const SKIP_CLI = args.includes('--skip-cli');
+
+const REPO_ROOT =
+  rootFlag !== -1 && args[rootFlag + 1]
+    ? path.resolve(args[rootFlag + 1])
+    : path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
 const repoPath = (...segments) => path.join(REPO_ROOT, ...segments);
 const readJson = (...segments) => JSON.parse(readFileSync(repoPath(...segments), 'utf8'));
 
@@ -197,6 +211,7 @@ function checkComponentFrontmatter() {
   ];
 
   for (const { dir, allowed, forbidden } of surfaces) {
+    if (!existsSync(repoPath(dir))) continue; // an absent component directory is legal
     for (const file of readdirSync(repoPath(dir)).filter((f) => f.endsWith('.md'))) {
       const keys = parseFrontmatterKeys(readFileSync(repoPath(dir, file), 'utf8'));
       if (!keys) {
@@ -252,7 +267,9 @@ checkComponentFrontmatter();
 checkNoShippedHooks();
 notes.push('built-in schema check: manifests, command/agent/skill frontmatter, hooks invariant');
 
-if (cliAvailable()) {
+if (SKIP_CLI) {
+  notes.push('--skip-cli — ran the built-in check only');
+} else if (cliAvailable()) {
   runCli(repoPath('.claude-plugin', 'marketplace.json'));
   runCli(repoPath('.claude-plugin', 'plugin.json'));
 } else {
