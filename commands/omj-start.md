@@ -1,111 +1,111 @@
 ---
-description: 승인된 OMJ 스펙을 OMC/OMX 실행 레인으로 넘기는 canonical fallback handoff command
-argument-hint: "<approved-spec-path 또는 pasted approved spec>"
+description: Canonical fallback handoff command that passes an approved OMJ spec to an OMC/OMX execution lane
+argument-hint: "<approved-spec-path or pasted approved spec>"
 allowed-tools: Read, AskUserQuestion
 ---
 
-# /omj-start — 승인 후 실행 레인 fallback
+# /omj-start — Post-approval execution lane fallback
 
-`/omj`가 Plan/spec을 만들고 사용자가 승인했지만 선택한 실행 레인을 자동 시작할 수 없을 때 사용하는 **단 하나의 fallback surface**다.
+The **single fallback surface** used when `/omj` produced a Plan/spec, the user approved it, but the selected execution lane could not be auto-started.
 
-## 입력
+## Input
 
-`$ARGUMENTS`는 아래 둘 중 하나다.
+`$ARGUMENTS` is one of the following.
 
-1. 승인된 OMJ spec/plan 파일 경로
-2. 승인된 OMJ spec 본문 paste
+1. The path of an approved OMJ spec/plan file
+2. A pasted approved OMJ spec body
 
-입력이 없으면 사용법만 출력하고 멈춘다. 새 스펙을 만들거나 소스 코드를 수정하지 않는다.
+With no input, print usage only and stop. Never author a new spec or modify source code.
 
-## 절차
+## Procedure
 
-1. 입력이 경로면 `Read`로 읽고, 본문이면 그대로 분석한다.
-2. `selectedLane`, `선택된 레인`, 또는 `## 실행 레인 선택` 아래의 선택값이 있으면 **다시 묻지 않는다**.
-3. 선택값이 없을 때만 `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md`(레포 기준 `docs/EXECUTION-HANDOFF.md`)를 기준으로 `AskUserQuestion`을 정확히 한 번 사용한다. 1번 옵션은 항상 추천값이며 라벨에 `(추천)`을 붙인다. (스펙의 `선택된 레인`이 `(auto)`면 실행할 별도 레인이 없다는 뜻 — "인라인 구현 대상, /omj-start 불필요"를 안내하고 종료한다.)
-4. 선택 결과를 `Wrapper`와 `Sublane`으로 분리한다.
-   - Wrapper: `none` · `/goal` · `$ultragoal` · `/oh-my-joy:goal-loop`(OMJ native — 런타임 불요, 정본: `docs/EXECUTION-HANDOFF.md`의 "OMJ native 레인")
+1. If the input is a path, read it with `Read`; if it is a body, analyze it as is.
+2. If a selection exists under `selectedLane`, `Selected lane`, or `## Execution lane selection`, **do not ask again**. Legacy Korean labels (`선택된 레인`, `## 실행 레인 선택`, `(추천)`) are recognized as selections just the same — read both label sets, write only the English labels in new specs.
+3. Only when no selection exists, use `AskUserQuestion` exactly once, based on `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md` (repo-relative `docs/EXECUTION-HANDOFF.md`). Option 1 is always the recommendation, labeled `(recommended)`. (If the spec's `Selected lane` is `(auto)`, there is no separate lane to run — announce "inline implementation target, /omj-start not needed" and stop.)
+4. Split the selection into `Wrapper` and `Sublane`.
+   - Wrapper: `none` · `/goal` · `$ultragoal` · `/oh-my-joy:goal-loop` (OMJ native — no runtime needed; canon: the "OMJ native lane" section of `docs/EXECUTION-HANDOFF.md`)
    - Sublane: `inline/manual` · `$ralph` · `$team`
    - QA follow-up: `$ultraqa`
-   - Consensus fallback: `/oh-my-claudecode:ralplan`(OMC — 합의 승인 시 실행 연결) · `$ralplan`(OMX — plan-only: 계획 산출 후 정지, 합의 뒤 실행 레인 별도 시작) · `/oh-my-joy:ralplan`(OMJ native — 런타임 불요. 정본: `docs/EXECUTION-HANDOFF.md`)
-5. 런타임을 감지한다.
-   - shell availability probe는 쓰지 않는다. 현재 세션 문맥과 스펙의 선택 lane만으로 안전하게 판단한다.
-   - 현재 세션이 명시적 OMX/Codex 문맥이고 입력이 파일 경로이며 `Wrapper=$ultragoal`이면 `omx ultragoal create-goals --brief-file '<safe-approved-spec-path>'`만 직접 실행할 수 있다. 단 create-goals는 durable goal을 **생성만** 한다 — 생성 성공 후 최종 출력의 copyable action은 시작/재개 담당인 `omx ultragoal complete-goals`로 한다(2단계 CLI, 정본: `docs/EXECUTION-HANDOFF.md`).
-   - Claude/OMC 문맥이면 `/goal`/`/team`/`/ralph`/`/ultraqa` 형식의 copyable command를 출력한다.
-   - `Wrapper=/oh-my-joy:goal-loop`(OMJ native)면 런타임 probe가 필요 없다 — `/oh-my-joy:goal-loop <approved-spec-path> --slug <slug>` 한 줄을 copyable action으로 출력한다.
-   - 둘 다 불명확하면 manual checklist 하나만 출력한다.
-6. 직접 launch가 안전하고 명시적인 경우에만 실행한다. `$team`/`$ralph`/`$ultraqa` direct shell dispatch, pasted spec direct shell dispatch, 또는 런타임 semantics가 불확실한 경우에는 실행하지 말고 **정확히 하나의 copyable command/action**만 출력한다.
+   - Consensus fallback: `/oh-my-claudecode:ralplan` (OMC — connects execution upon consensus approval) · `$ralplan` (OMX — plan-only: stops after producing a plan; start an execution lane separately after consensus) · `/oh-my-joy:ralplan` (OMJ native — no runtime needed. Canon: `docs/EXECUTION-HANDOFF.md`)
+5. Detect the runtime.
+   - Never use shell availability probes. Judge safely from the current session context and the spec's selected lane only.
+   - If the current session is an explicit OMX/Codex context, the input is a file path, and `Wrapper=$ultragoal`, you may directly run only `omx ultragoal create-goals --brief-file '<safe-approved-spec-path>'`. Note create-goals only **creates** the durable goal — after successful creation, the copyable action in the final output must be `omx ultragoal complete-goals`, which owns start/resume (two-stage CLI; canon: `docs/EXECUTION-HANDOFF.md`).
+   - In a Claude/OMC context, print a copyable command in the `/goal`/`/team`/`/ralph`/`/ultraqa` shape.
+   - If `Wrapper=/oh-my-joy:goal-loop` (OMJ native), no runtime probe is needed — print the single line `/oh-my-joy:goal-loop <approved-spec-path> --slug <slug>` as the copyable action.
+   - If both are unclear, print a single manual checklist.
+6. Execute directly only when a direct launch is safe and explicit. For `$team`/`$ralph`/`$ultraqa` direct shell dispatch, pasted-spec direct shell dispatch, or uncertain runtime semantics, do not execute — print **exactly one copyable command/action**.
 
-## 직접 Bash 실행 안전 조건
+## Direct Bash execution safety conditions
 
-> **강제층은 권한이지 산문이 아니다.** 아래 조건은 모델이 지켜야 할 규율이고, 실제 게이트는
-> `allowed-tools`가 `omx ultragoal create-goals`를 **사전승인하지 않는다**는 사실이다 —
-> 직접 launch를 시도하면 사용자에게 권한 프롬프트가 뜨고, 거기서 실행될 명령 전문을 보고
-> 승인/거부한다. 즉 "권한을 빼는 것이 곧 안전 게이트를 강제하는 것"(PRINCIPLES ③)을
-> 이 커맨드에도 동일하게 적용한다.
+> **The enforcement layer is permissions, not prose.** The conditions below are discipline for the model; the actual gate is the fact that
+> `allowed-tools` does **not pre-approve** `omx ultragoal create-goals` —
+> attempting a direct launch raises a permission prompt where the user sees the full
+> command to be executed and approves/denies. That is, "removing the permission is itself
+> the safety gate" (PRINCIPLES ③), applied to this command as well.
 
-직접 Bash 실행은 path 입력을 raw로 interpolation하지 않는다. 아래 조건을 모두 만족할 때만 실행한다.
+Direct Bash execution never interpolates path input raw. Execute only when all conditions below hold.
 
-**주입 차단 (문자 수준)**
+**Injection blocking (character level)**
 
-- 입력이 `Read`로 확인 가능한 기존 파일 경로다.
-- 경로가 `-`로 시작하지 않는다.
-- 경로가 보수적 safe-path 패턴 `^[A-Za-z0-9._/+=:@-]+$`에 맞는다.
-- 공백, newline, quote, backtick, `$`, `;`, `&`, `|`, `<`, `>`, `(`, `)` 같은 shell metacharacter가 없다.
-- 실행 예시는 항상 single-quoted literal 형태로만 만든다: `omx ultragoal create-goals --brief-file '<safe-approved-spec-path>'`.
+- The input is an existing file path confirmable via `Read`.
+- The path does not start with `-`.
+- The path matches the conservative safe-path pattern `^[A-Za-z0-9._/+=:@-]+$`.
+- No shell metacharacters: whitespace, newline, quote, backtick, `$`, `;`, `&`, `|`, `<`, `>`, `(`, `)`.
+- Execution examples are always built in single-quoted literal form only: `omx ultragoal create-goals --brief-file '<safe-approved-spec-path>'`.
 
-**봉쇄 (경로 수준)** — 위 패턴은 metacharacter만 막고 *어떤 파일을 가리키는지*는 통제하지 않는다. 다음도 함께 만족해야 한다.
+**Containment (path level)** — the pattern above only blocks metacharacters and does not control *which file* is pointed at. The following must also hold.
 
-- 경로가 `/`로 시작하지 않는다(절대경로로 레포 밖을 가리키지 않는다).
-- 경로 세그먼트에 `..`가 없다(traversal 금지).
-- 확장자가 `.md`다(승인된 spec/plan 문서만 넘긴다).
+- The path does not start with `/` (no absolute paths pointing outside the repo).
+- No path segment is `..` (no traversal).
+- The extension is `.md` (only approved spec/plan documents are handed off).
 
-하나라도 실패하면 Bash를 실행하지 말고 copyable action 하나만 출력한다.
+If any check fails, do not run Bash — print exactly one copyable action.
 
-## 출력 계약
+## Output contract
 
-항상 최종 출력은 하나의 action으로 끝난다.
+The final output always ends with a single action.
 
 ```md
-선택된 실행 레인: Wrapper=<...>; Sublane=<...>
-실행:
+Selected execution lane: Wrapper=<...>; Sublane=<...>
+Run:
 <one copyable command/action>
 ```
 
-예:
+Example:
 
 ```md
-선택된 실행 레인: Wrapper=$ultragoal; Sublane=$team
-실행:
+Selected execution lane: Wrapper=$ultragoal; Sublane=$team
+Run:
 $ultragoal "Implement <approved-spec-path>; selected lane: Wrapper=$ultragoal, Sublane=$team"
 ```
 
-OMX/Codex에서 파일 경로 입력 + `Wrapper=$ultragoal` direct launch가 안전한 경우 — create-goals(생성)는 직접 실행하고, 시작 명령이 최종 action이 된다:
+When a file-path input + `Wrapper=$ultragoal` direct launch is safe on OMX/Codex — create-goals (creation) runs directly, and the start command becomes the final action:
 
 ```md
-선택된 실행 레인: Wrapper=$ultragoal; Sublane=$team
-(goal 생성 완료: omx ultragoal create-goals --brief-file '<safe-approved-spec-path>')
-실행:
+Selected execution lane: Wrapper=$ultragoal; Sublane=$team
+(goal created: omx ultragoal create-goals --brief-file '<safe-approved-spec-path>')
+Run:
 omx ultragoal complete-goals
 ```
 
-붙여넣은 spec이라 파일 경로가 없는 경우:
+When the spec was pasted and there is no file path:
 
 ```md
-선택된 실행 레인: Wrapper=$ultragoal; Sublane=$team
-실행:
-$ultragoal "Implement approved OMJ spec; selected lane: Wrapper=$ultragoal, Sublane=$team; summary: <approved-spec 핵심 요약>"
+Selected execution lane: Wrapper=$ultragoal; Sublane=$team
+Run:
+$ultragoal "Implement approved OMJ spec; selected lane: Wrapper=$ultragoal, Sublane=$team; summary: <key summary of the approved spec>"
 ```
 
-## `/goal clear` 안전
+## `/goal clear` safety
 
-- `/goal clear`는 절대 자동 실행하지 않는다.
-- 이전 completed goal이 새 same-thread goal 생성을 막는 경우에만 “먼저 사용자가 `/goal clear` 실행”을 명시적 action으로 출력한다.
-- active unrelated goal이나 OMC/OMX workflow state를 몰래 clear하지 않는다.
+- Never auto-run `/goal clear`.
+- Only when a previously completed goal blocks creating a new same-thread goal, print "user runs `/goal clear` first" as an explicit action.
+- Never silently clear an active unrelated goal or OMC/OMX workflow state.
 
-## 금지
+## Forbidden
 
-- 선택 lane이 이미 있는데 다시 질문하기.
-- 두 개 이상의 command를 뿌려 사용자가 다시 판단하게 만들기.
-- source code를 직접 수정하기.
-- 빌드/테스트/검증을 실행하기.
-- active `/goal` 또는 workflow state를 숨은 방식으로 clear하기.
+- Asking again when a selected lane already exists.
+- Scattering two or more commands and making the user decide again.
+- Modifying source code directly.
+- Running builds/tests/verification.
+- Clearing an active `/goal` or workflow state in a hidden way.

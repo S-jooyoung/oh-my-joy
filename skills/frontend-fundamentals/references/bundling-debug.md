@@ -1,71 +1,71 @@
-# 번들링 & 디버그 (Bundling & Debug)
+# Bundling & Debug
 
-> 토스 frontend-fundamentals 기반. 출처: https://github.com/toss/frontend-fundamentals
+> Based on Toss frontend-fundamentals. Source: https://github.com/toss/frontend-fundamentals
 
-## 번들링
+## Bundling
 
-**원칙**: 사용자가 처음 받는 자바스크립트를 줄인다. 모바일에서 빠르게 열려야 하는 서비스는 초기 번들 크기에 민감하다.
+**Principle**: shrink the JavaScript users receive first. Services that must open fast on mobile are sensitive to initial bundle size.
 
-### 1. dev/prod 번들은 다르다
+### 1. dev and prod bundles differ
 
-개발 모드는 HMR·소스맵·검증 코드를 포함해 느리고 크다. **성능 판단은 항상 프로젝트의 프로덕션 빌드(`npm run build` 등 레포 스크립트) 후 번들 기준**으로 한다.
+Dev mode includes HMR, sourcemaps, and validation code — slow and large. **Always judge performance against the production build** (`npm run build` or the repo script).
 
-### 2. 무거운 컴포넌트는 코드 스플리팅
+### 2. Code-split heavy components
 
 ```tsx
 'use client';
 
 import dynamic from 'next/dynamic';
 
-// 이미지 라이트박스, 지도 등 초기 화면에 불필요한 무거운 모듈
-// ssr: false는 Server Component에서 쓸 수 없다 — 그래서 이 파일이 'use client'다.
+// heavy modules unneeded on the initial screen: image lightboxes, maps, …
+// ssr: false cannot be used in a Server Component — which is why this file is 'use client'.
 const MapView = dynamic(() => import('@/components/map/map-view'), {
   ssr: false,
   loading: () => <MapSkeleton />,
 });
 ```
 
-> Server Component는 이미 자동으로 code split되므로 `next/dynamic`으로 실제 지연 로드되는 대상은 Client Component다. Server Component 안에서 `dynamic()`을 부르는 것 자체는 가능하지만 `ssr: false`는 못 쓴다.
+> Server Components are already auto code-split, so what `next/dynamic` actually lazy-loads is Client Components. Calling `dynamic()` inside a Server Component is possible per se, but `ssr: false` is not.
 
-### 3. barrel import 주의
+### 3. Beware barrel imports
 
-`import { X } from '@/components'` 같은 barrel은 트리셰이킹을 방해해 번들을 키울 수 있다. 구체 경로로 import한다.
+Barrels like `import { X } from '@/components'` can defeat tree-shaking and grow the bundle. Import from concrete paths.
 
-> **상세 위임**: waterfall 제거, 동적 import 세부 전략, 서드파티 deferring, preloading, Suspense/스트리밍 경계는 **`vercel-react-best-practices` 스킬**의 규칙 세트를 참조한다. 이 문서는 진입점 요약만 둔다(규칙 수는 상류에서 바뀌므로 여기 적지 않는다 — SoT 단일화).
+> **Detail delegation**: waterfall elimination, dynamic-import strategies, third-party deferring, preloading, and Suspense/streaming boundaries refer to the **`vercel-react-best-practices` skill** rule set. This document keeps only the entry-point summary (rule contents change upstream, so they are not written here — single SoT).
 
-### 번들 smell → remedy
+### Bundle smell → remedy
 
-| Smell                               | Remedy                          |
-| ----------------------------------- | ------------------------------- |
-| 초기 화면에 무거운 모듈 정적 import | `next/dynamic`로 분할           |
-| barrel 파일로 대량 import           | 구체 경로 import                |
-| dev 기준 성능 판단                  | 프로덕션 빌드 기준 측정         |
+| Smell                                        | Remedy                          |
+| -------------------------------------------- | ------------------------------- |
+| Heavy module statically imported on first screen | Split with `next/dynamic`   |
+| Bulk imports through barrel files            | Concrete-path imports           |
+| Judging performance on dev builds            | Measure against production builds |
 
-## 디버그
+## Debug
 
-**원칙**: 추측이 아니라 증거로 좁힌다. 체계적 절차를 따른다.
+**Principle**: narrow down by evidence, not guesses. Follow a systematic procedure.
 
-### 디버깅 절차
+### Debugging procedure
 
-1. **재현**: 가장 작은 재현 경로를 확보한다(어떤 입력/상태에서 발생하는가).
-2. **격리**: 변경 지점을 이분 탐색한다. 최근 커밋·브랜치 전환이 원인인지 확인.
-3. **가설-검증**: "무엇이 참이면 이 버그가 설명되는가"를 세우고 로그/관찰로 검증. 경합하는 가설을 동시에 둔다.
-4. **근본 원인**: 증상이 아니라 원인을 고친다.
+1. **Reproduce**: secure the smallest reproduction path (which input/state triggers it).
+2. **Isolate**: bisect the change surface. Check whether a recent commit or branch switch caused it.
+3. **Hypothesize–verify**: form "what being true would explain this bug" and verify with logs/observation. Keep competing hypotheses alive simultaneously.
+4. **Root cause**: fix the cause, not the symptom.
 
-### 자주 겪는 함정 (디버깅 시 먼저 의심)
+### Common traps (suspect these first while debugging)
 
-- **브랜치 전환 후 유령 typecheck 에러**: 빌드 캐시(Next.js면 `.next/types/`)가 stale → 캐시 디렉터리를 지우고 재실행.
-- **에러 없는 빈 결과**: 인가·필터 계층이 권한 부족을 *에러가 아니라 0행*으로 돌려주면 `catch`에 걸리지 않는다. "실패했는데 조용한" 증상은 예외가 아니라 **인증 세션 만료**를 먼저 의심한다.
-- **낙관적 UI가 서버 상태를 덮어씀**: 휘발성 클라이언트 상태를 기준으로 영속 데이터를 삭제·갱신하지 않는다 — 서버 응답 기준(diff)으로만 반영한다.
+- **Ghost typecheck errors after a branch switch**: a stale build cache (`.next/types/` for Next.js) → delete the cache directory and rerun.
+- **Empty results without errors**: when an authorization/filter layer returns insufficient permission as *0 rows instead of an error*, `catch` never fires. For "failed but silent" symptoms, suspect **auth session expiry** before exceptions.
+- **Optimistic UI overwriting server state**: never delete/update persistent data based on volatile client state — apply only server-response-based diffs.
 
-### 디버그 smell → remedy
+### Debug smell → remedy
 
-| Smell                      | Remedy                        |
-| -------------------------- | ----------------------------- |
-| 추측으로 여러 곳 동시 수정 | 한 번에 한 가설만 검증        |
-| 재현 경로 불명확           | 최소 재현 케이스 확보 후 착수 |
-| 증상만 덮는 패치           | 근본 원인 수정                |
+| Smell                                | Remedy                                  |
+| ------------------------------------ | --------------------------------------- |
+| Editing several places at once on guesses | Verify one hypothesis at a time    |
+| Unclear reproduction path            | Secure a minimal repro before starting  |
+| Patches that only cover symptoms     | Fix the root cause                      |
 
-## 과설계 경고
+## Overengineering warning
 
-- 측정 없이 "느릴 것 같아서" 미리 코드 스플리팅·메모이제이션하지 않는다. **프로파일/번들 분석 후** 큰 것부터.
+- Never pre-emptively code-split/memoize because "it feels slow" without measuring. **Profile/analyze the bundle first**, biggest first.

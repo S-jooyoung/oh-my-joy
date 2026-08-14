@@ -1,44 +1,44 @@
-# 가독성 (Readability)
+# Readability
 
-> 토스 frontend-fundamentals 기반. 출처: https://github.com/toss/frontend-fundamentals
+> Based on Toss frontend-fundamentals. Source: https://github.com/toss/frontend-fundamentals
 
-**원칙**: 코드가 한 번에 담는 맥락(context)을 줄인다. 읽는 사람이 동시에 머릿속에 올려야 할 정보가 적을수록 읽기 쉽다.
+**Principle**: reduce the context code carries at once. The less information a reader must hold in their head simultaneously, the easier the code reads.
 
-## 1. 비동시(non-concurrent) 코드 분리
+## 1. Separate non-concurrent code
 
-서로 다른 상황에서만 실행되는 분기를 한 컴포넌트에 섞지 않는다.
+Never mix branches that only ever run in different situations into one component.
 
-**Before** — 한 컴포넌트가 viewer/admin 두 맥락을 동시에 안고 있다.
+**Before** — one component carries the viewer/admin contexts at the same time.
 
 ```tsx
 function PostActions({ post, role }: Props) {
   return (
     <div>
       {role === 'admin' ? (
-        <button onClick={() => deletePost(post.id)}>삭제</button>
+        <button onClick={() => deletePost(post.id)}>Delete</button>
       ) : (
-        <button onClick={() => sharePost(post.id)}>공유</button>
+        <button onClick={() => sharePost(post.id)}>Share</button>
       )}
     </div>
   );
 }
 ```
 
-**After** — 분기별로 컴포넌트를 나눠 각자 하나의 맥락만 갖는다.
+**After** — split components per branch so each holds a single context.
 
 ```tsx
 function AdminPostActions({ post }: { post: Post }) {
-  return <button onClick={() => deletePost(post.id)}>삭제</button>;
+  return <button onClick={() => deletePost(post.id)}>Delete</button>;
 }
 
 function ViewerPostActions({ post }: { post: Post }) {
-  return <button onClick={() => sharePost(post.id)}>공유</button>;
+  return <button onClick={() => sharePost(post.id)}>Share</button>;
 }
 ```
 
-## 2. 복잡한 조건에 이름 붙이기
+## 2. Name complex conditions
 
-이름 없는 boolean 식은 "무엇을 의미하는지"를 읽는 사람이 매번 해석해야 한다.
+An unnamed boolean expression forces every reader to re-derive "what does this mean".
 
 **Before**
 
@@ -57,32 +57,32 @@ if (canPurchase) {
 }
 ```
 
-## 3. 중첩 삼항 제거
+## 3. Eliminate nested ternaries
 
 **Before**
 
 ```tsx
 const label = isLoading
-  ? '불러오는 중'
+  ? 'Loading'
   : error
-    ? '오류'
+    ? 'Error'
     : data
-      ? '완료'
-      : '대기';
+      ? 'Done'
+      : 'Idle';
 ```
 
-**After** — early return 또는 `if`/매핑 객체로 평탄화.
+**After** — flatten with early returns or `if`/a mapping object.
 
 ```tsx
 function getLabel({ isLoading, error, data }: Status) {
-  if (isLoading) return '불러오는 중';
-  if (error) return '오류';
-  if (data) return '완료';
-  return '대기';
+  if (isLoading) return 'Loading';
+  if (error) return 'Error';
+  if (data) return 'Done';
+  return 'Idle';
 }
 ```
 
-## 4. 매직 넘버 명명
+## 4. Name magic numbers
 
 ```tsx
 // Before
@@ -95,15 +95,15 @@ setTimeout(refetch, ONE_HOUR_MS);
 
 ## smell → remedy
 
-| Smell                          | Remedy                            |
-| ------------------------------ | --------------------------------- |
-| 중첩 삼항                      | `if`/early return/매핑 객체       |
-| 이름 없는 복잡 boolean         | 의미 있는 변수로 추출             |
-| 한 컴포넌트에 비동시 분기 혼재 | 분기별 컴포넌트 분리              |
-| 매직 넘버                      | 명명된 상수                       |
-| 비선형 흐름(여기저기 점프)     | 조건 객체/함수로 묶어 한 흐름으로 |
+| Smell                                        | Remedy                                        |
+| -------------------------------------------- | --------------------------------------------- |
+| Nested ternaries                             | `if`/early return/mapping object              |
+| Unnamed complex boolean                      | Extract into a meaningful variable            |
+| Non-concurrent branches in one component     | Split components per branch                   |
+| Magic numbers                                | Named constants                               |
+| Non-linear flow (jumping around)             | Bundle into condition objects/functions, one flow |
 
-## 과설계 경고
+## Overengineering warning
 
-- 한두 줄짜리 단순 로직까지 함수로 추출하면 오히려 맥락이 늘어난다.
-- 조건 추출은 "이름이 의미를 더할 때"만. `const isTrue = flag;` 같은 동어반복은 금지.
+- Extracting even one-or-two-line trivial logic into functions increases context instead.
+- Extract conditions only "when the name adds meaning". Tautologies like `const isTrue = flag;` are forbidden.

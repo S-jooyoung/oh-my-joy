@@ -29,7 +29,7 @@ When you add or change a feature, put all three of the following in **the same c
 
 1. **README** — `README.md` (EN) and `README.ko.md` (KO) **at the same time**. The two files keep the same structure and the same canonical facts.
 2. **CHANGELOG** — 1 change = 1 entry.
-3. **`docs/PRINCIPLES.md`** — only when a principle, design decision, or mental model changes. If you update it, update the matching row in `docs/PRINCIPLES.en.md` in the same commit.
+3. **`docs/PRINCIPLES.md`** — only when a principle, design decision, or mental model changes. Keep its opening decision table in sync with the principle sections in the same commit.
 
 `tests/docs-consistency.test.mjs` checks the mechanically verifiable part of this discipline (README parity, link reachability, release links, command-list consistency).
 

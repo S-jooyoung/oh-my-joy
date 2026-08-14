@@ -1,10 +1,11 @@
 /**
- * 플러그인 매니페스트·커맨드·에이전트·스킬의 구조 검증.
+ * Structural checks for the plugin manifest, commands, agents, and skills.
  *
- * 이 레포는 "동작이 마크다운 frontmatter로 선언되는" 플러그인이라, 오타 하나가
- * 런타임에서야 권한 실패로 드러난다. 여기서 검증하는 것은 전부 정적으로 확인 가능한
- * 사실들 — 스키마 필드, 버전 일치, 파일명↔선언 일치, 그리고 이 레포의 최우선 불변식인
- * "플러그인은 hooks.json을 두지 않는다"이다.
+ * This repo is a plugin whose "behavior is declared in markdown frontmatter", so
+ * a single typo only surfaces at runtime as a permission failure. Everything
+ * verified here is statically checkable fact — schema fields, version agreement,
+ * filename↔declaration agreement, and this repo's top invariant:
+ * "the plugin ships no hooks.json".
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -23,107 +24,117 @@ const plugin = readJson('.claude-plugin', 'plugin.json');
 const marketplace = readJson('.claude-plugin', 'marketplace.json');
 
 /**
- * 소스 코드에 부작용을 낼 수 없다고 문서가 선언한 커맨드들 — 권한 등급 2단.
+ * Commands whose docs declare they cannot side-effect source code — two
+ * permission tiers.
  *
- * ZERO_BASH: 셸 실행 경로가 아예 없다(쓰기 도구·Task/Agent에 더해 Bash 토큰 0).
- *   `/omj`는 plan-gate를 우회할 쓰기 경로가 없어야 하고(PRINCIPLES ①③),
- *   `deep-interview`·`ralplan`은 네이티브 Plan만 산출하는 프라이머·리뷰 커맨드다.
- * REPORT_ONLY: **소스**는 절대 수정하지 않지만 관찰·리포트용 스코프 Bash는 쓴다 —
- *   `ff-review`(git diff 판독)·`omj-verify`(브라우저 기동·캡처. curl은 `.omj/baselines/`
- *   다운로드 쓰기를 포함하므로 무쓰기가 아니라 "소스 비수정"이며 쓰기 범위는 본문이 강제).
- *   bare Bash는 전 커맨드 공통 검사가 이미 차단하므로 여기선 쓰기 도구만 본다.
- * `omj-start`(Read·AskUserQuestion뿐)는 의도적 미분류다 — 본문 "직접 Bash 실행 안전
- *   조건"이 권한 프롬프트 게이트를 설계에 포함하므로 zero-bash 단언과 의미가 어긋난다.
+ * ZERO_BASH: no shell execution path at all (no write tools, no Task/Agent, and
+ *   zero Bash tokens). `/omj` must have no write path that bypasses the
+ *   plan-gate (PRINCIPLES ①③); `deep-interview` and `ralplan` are primer/review
+ *   commands that only produce a native Plan.
+ * REPORT_ONLY: never modifies **source** but uses scoped Bash for observation
+ *   and reporting — `ff-review` (reads git diffs), `omj-verify` (launches a
+ *   browser, captures; curl includes `.omj/baselines/` download writes, so it is
+ *   "source-untouched" rather than write-free, with the write scope enforced by
+ *   the body). Bare Bash is already blocked by the all-commands check, so only
+ *   write tools are asserted here.
+ * `omj-start` (Read and AskUserQuestion only) is deliberately unclassified — its
+ *   body's "safe conditions for direct Bash execution" makes the permission
+ *   prompt gate part of the design, which contradicts a zero-bash assertion.
  */
 const ZERO_BASH_COMMANDS = new Set(['omj.md', 'deep-interview.md', 'ralplan.md']);
 const REPORT_ONLY_COMMANDS = new Set(['ff-review.md', 'omj-verify.md']);
 const READ_ONLY_COMMANDS = new Set([...ZERO_BASH_COMMANDS, ...REPORT_ONLY_COMMANDS]);
 
 /**
- * 무접두 네이밍이 허용된 "이름 있는 방법론·루브릭" 커맨드(2축 규칙 — CLAUDE.md).
- * FE 루프 동사는 `/omj-*` 정규식이, 이 축은 화이트리스트가 담당한다.
- * 이 목록은 새 커맨드를 추가하는 PR에서 함께 편집되므로 하드 차단이 아니라
- * 속도 방지턱이다 — 우발적 무접두 파일 추가를 리뷰 가시권으로 끌어낸다.
+ * "Named methodology/rubric" commands allowed to use unprefixed basenames (the
+ * two-axis rule — CLAUDE.md). FE-loop verbs are covered by the `/omj-*` regex;
+ * this axis is covered by an allowlist. The list is edited in the same PR that
+ * adds a new command, so it is a speed bump rather than a hard block — it pulls
+ * accidental unprefixed files into review visibility.
  */
 const WORKFLOW_COMMANDS = new Set(['deep-interview.md', 'ff-review.md', 'goal-loop.md', 'ralplan.md']);
 
 describe('plugin.json', () => {
-  it('필수 필드를 갖는다', () => {
+  it('has the required fields', () => {
     for (const field of ['name', 'version', 'description', 'author', 'license']) {
-      assert.ok(plugin[field], `plugin.json에 ${field}가 없습니다`);
+      assert.ok(plugin[field], `plugin.json is missing ${field}`);
     }
   });
 
-  it('버전이 semver다', () => {
+  it('version is semver', () => {
     assert.match(plugin.version, /^\d+\.\d+\.\d+$/);
   });
 
-  it('$schema가 실재하는 SchemaStore 등재본을 가리킨다', () => {
-    // 존재 검사만으로는 죽은 URL이 통과해 "에디터 검증" 효과가 공허해진다 —
-    // 종전 anthropic.com URL은 404였다. 정본 URL 리터럴을 고정해 드리프트를 드러낸다.
+  it('$schema points at a live SchemaStore entry', () => {
+    // Existence checks alone let a dead URL pass, hollowing out the "editor
+    // validation" benefit — the previous anthropic.com URL was a 404. Pinning
+    // the canonical URL literal exposes drift.
     assert.equal(plugin.$schema, 'https://json.schemastore.org/claude-code-plugin-manifest.json');
     assert.equal(marketplace.$schema, 'https://json.schemastore.org/claude-code-marketplace.json');
   });
 
-  it('선언한 라이선스가 LICENSE 파일과 일치한다', () => {
+  it('the declared license matches the LICENSE file', () => {
     assert.equal(plugin.license, 'MIT');
     assert.match(readRepoFile('LICENSE'), /MIT License/);
   });
 });
 
 describe('marketplace.json', () => {
-  it('필수 필드를 갖는다', () => {
+  it('has the required fields', () => {
     assert.ok(marketplace.name);
     assert.ok(marketplace.owner?.name);
     assert.ok(Array.isArray(marketplace.plugins) && marketplace.plugins.length > 0);
   });
 
-  it('등재된 플러그인이 실재하는 source를 가리킨다', () => {
+  it('listed plugins point at an existing source', () => {
     for (const entry of marketplace.plugins) {
-      assert.ok(entry.name, 'plugins[].name 누락');
-      assert.ok(entry.source, 'plugins[].source 누락');
-      assert.ok(existsSync(repoPath(entry.source)), `source 경로가 없습니다: ${entry.source}`);
+      assert.ok(entry.name, 'plugins[].name missing');
+      assert.ok(entry.source, 'plugins[].source missing');
+      assert.ok(existsSync(repoPath(entry.source)), `source path does not exist: ${entry.source}`);
     }
   });
 
-  it('버전 표면 전체가 plugin.json과 일치한다 — 드리프트가 조용히 남지 않게', () => {
+  it('every version surface matches plugin.json — so drift cannot linger silently', () => {
     const entry = marketplace.plugins.find((p) => p.name === plugin.name);
-    assert.ok(entry, `marketplace.json에 ${plugin.name} 항목이 없습니다`);
+    assert.ok(entry, `marketplace.json has no entry for ${plugin.name}`);
 
-    // 버전은 네 곳에 산다. 하나만 검사하면 나머지 셋이 조용히 어긋난다.
+    // The version lives in four places. Checking one lets the other three
+    // quietly diverge.
     const surfaces = [
       ['marketplace.plugins[].version', entry.version],
-      ['marketplace 최상위 version', marketplace.version],
+      ['marketplace top-level version', marketplace.version],
       ['package.json version', readJson('package.json').version],
     ];
     for (const [label, actual] of surfaces) {
-      assert.equal(actual, plugin.version, `${label}이 plugin.json(${plugin.version})과 다릅니다`);
+      assert.equal(actual, plugin.version, `${label} differs from plugin.json (${plugin.version})`);
     }
   });
 });
 
-describe('플러그인 구조 불변식', () => {
-  // CLAUDE.md의 최우선 규칙이자 PRINCIPLES ⑩의 명시적 기각 대안.
-  // hooks.json이 존재하면 플러그인 enable만으로 모든 소비 레포에서 훅이 자동 발화한다.
-  it('플러그인은 hooks.json을 두지 않는다 (zero-hook)', () => {
+describe('Plugin structure invariants', () => {
+  // CLAUDE.md's top rule and the explicitly rejected alternative of PRINCIPLES ⑩.
+  // If hooks.json exists, merely enabling the plugin auto-fires hooks in every
+  // consuming repo.
+  it('the plugin ships no hooks.json (zero-hook)', () => {
     for (const candidate of ['hooks/hooks.json', '.claude-plugin/hooks.json', 'hooks.json']) {
-      assert.ok(!existsSync(repoPath(candidate)), `${candidate}가 존재하면 전 레포 자동 발화가 일어납니다`);
+      assert.ok(!existsSync(repoPath(candidate)), `${candidate} existing means repo-wide auto-firing`);
     }
   });
 
-  it('훅 스크립트 정본은 templates/hooks/에만 있다', () => {
+  it('hook script canon lives only in templates/hooks/', () => {
     for (const script of ['check-design-tokens.mjs', 'check-story-exists.mjs']) {
       assert.ok(existsSync(repoPath('templates', 'hooks', script)));
     }
   });
 
-  // 소비 프로젝트 cwd에는 templates/가 없다 — 소스가 플러그인 루트 기준이 아니면
-  // 훅 opt-in 설치가 절차대로 실행 불가다(dogfood에선 cwd==플러그인 루트라 은폐되는 결함 클래스).
-  it('omj-setup의 훅 복사 절차는 플러그인 루트 기준 소스 경로를 쓴다', () => {
+  // A consuming project's cwd has no templates/ — unless the copy source is
+  // plugin-root-relative, the opt-in hook install cannot run as written (a defect
+  // class hidden in dogfooding, where cwd == plugin root).
+  it('omj-setup\'s hook copy step uses a plugin-root-relative source path', () => {
     const body = readRepoFile('commands', 'omj-setup.md');
     assert.ok(
       body.includes('${CLAUDE_PLUGIN_ROOT}/templates/hooks/'),
-      'omj-setup.md: 훅 복사 소스에 ${CLAUDE_PLUGIN_ROOT}/templates/hooks/ 표기가 필요합니다',
+      'omj-setup.md: the hook copy source needs the ${CLAUDE_PLUGIN_ROOT}/templates/hooks/ form',
     );
   });
 });
@@ -131,7 +142,7 @@ describe('플러그인 구조 불변식', () => {
 describe('commands/*.md frontmatter', () => {
   const commands = listCommandFiles();
 
-  it('커맨드가 존재한다', () => {
+  it('commands exist', () => {
     assert.ok(commands.length > 0);
   });
 
@@ -139,37 +150,41 @@ describe('commands/*.md frontmatter', () => {
     describe(file, () => {
       const fm = parseFrontmatter(readRepoFile('commands', file));
 
-      it('frontmatter를 갖는다', () => {
-        assert.ok(fm, `${file}에 frontmatter가 없습니다`);
+      it('has frontmatter', () => {
+        assert.ok(fm, `${file} has no frontmatter`);
       });
 
-      it('description을 갖는다', () => {
+      it('has a description', () => {
         assert.ok(fm.description?.length > 0);
       });
 
-      it('allowed-tools를 명시한다', () => {
-        assert.ok(fm['allowed-tools']?.length > 0, `${file}에 allowed-tools 선언이 없습니다`);
-        // YAML 리스트로 쓰면 아래 doesNotMatch류가 알아보기 힘든 타입 에러로 죽는다 — 여기서 명시적으로 막는다.
-        assert.equal(typeof fm['allowed-tools'], 'string', `${file}: allowed-tools는 쉼표 구분 한 줄 문자열이어야 합니다`);
+      it('declares allowed-tools', () => {
+        assert.ok(fm['allowed-tools']?.length > 0, `${file} has no allowed-tools declaration`);
+        // Written as a YAML list, the doesNotMatch checks below die with an
+        // unreadable type error — block it explicitly here.
+        assert.equal(typeof fm['allowed-tools'], 'string', `${file}: allowed-tools must be a single comma-separated string`);
       });
 
-      // "권한을 빼는 것이 곧 안전 게이트를 강제하는 것"(PRINCIPLES ③)이 이 레포의 핵심 주장이다.
-      // 주장만 문서에 적어 두면 다음 편집자가 조용히 깰 수 있으므로 여기서 못 박는다.
-      it('스코프 없는 bare Bash를 선언하지 않는다', () => {
+      // "Removing a permission IS enforcing a safety gate" (PRINCIPLES ③) is this
+      // repo's central claim. Stating it only in docs lets the next editor break
+      // it silently, so it is nailed down here.
+      it('declares no unscoped bare Bash', () => {
         assert.doesNotMatch(
           fm['allowed-tools'],
           /(^|,\s*)Bash\s*(,|$)/,
-          `${file}: bare Bash는 임의 셸 실행 사전승인이다 — Bash(cmd:*)로 좁혀야 한다`,
+          `${file}: bare Bash pre-approves arbitrary shell execution — narrow it to Bash(cmd:*)`,
         );
       });
 
-      // Bash(command:*)·Bash(sh -c:*)·Bash(npx:*)처럼 prefix 전체가 실행 위임
-      // builtin·인터프리터·위임 플래그로만 이뤄지면 사실상 bare Bash 사전승인이다
-      // (스코프 문법을 쓰고도 임의 실행을 승인하는 세탁 경로). 알려진 세탁 형태를
-      // 리뷰 가시권으로 끌어내는 휴리스틱 게이트다 — `env FOO=1 sh` 같은 변형까지
-      // 막는 샌드박스가 아님을 알고 유지하라. 실제 대상 인자가 하나라도 있으면
-      // (Bash(command -v:*)·Bash(npx tsc:*)) 통과한다.
-      it('실행 위임 builtin·인터프리터를 사실상 bare로 스코프하지 않는다', () => {
+      // Bash(command:*), Bash(sh -c:*), Bash(npx:*) — when the whole prefix
+      // consists of execution-delegating builtins, interpreters, or delegation
+      // flags, it is effectively bare-Bash pre-approval (a laundering path that
+      // uses scope syntax while approving arbitrary execution). This is a
+      // heuristic gate pulling known laundering shapes into review visibility —
+      // maintain it knowing it is not a sandbox against variants like
+      // `env FOO=1 sh`. Any real target argument (Bash(command -v:*),
+      // Bash(npx tsc:*)) passes.
+      it('does not scope execution-delegating builtins/interpreters as effectively bare', () => {
         const LAUNDER = new Set([
           'command', 'eval', 'exec', 'source', 'sh', 'bash', 'zsh', 'env', 'xargs',
           'sudo', 'nohup', 'time', 'node', 'npx', 'python', 'python3', 'perl', 'ruby', 'awk',
@@ -182,39 +197,41 @@ describe('commands/*.md frontmatter', () => {
           const launders = words.every((w) => LAUNDER.has(w) || DELEGATION_FLAGS.has(w));
           assert.ok(
             !launders,
-            `${file}: Bash(${m[1]})는 사실상 bare Bash다 — 실제 대상 인자까지 좁혀야 한다(예: Bash(command -v:*))`,
+            `${file}: Bash(${m[1]}) is effectively bare Bash — narrow to a real target argument (e.g. Bash(command -v:*))`,
           );
         }
       });
 
       if (READ_ONLY_COMMANDS.has(file)) {
-        // Task/Agent를 함께 막는 이유: 서브에이전트는 부모의 allowed-tools를 상속하지
-        // 않으므로, 소집 선언 하나로 read-only 계약이 매니페스트 수준에서 무의미해진다.
-        it('read-only 커맨드는 쓰기 도구·서브에이전트 소집을 선언하지 않는다', () => {
+        // Task/Agent are blocked alongside write tools because subagents do not
+        // inherit the parent's allowed-tools — one summoning declaration voids
+        // the read-only contract at the manifest level.
+        it('read-only commands declare no write tools or subagent summoning', () => {
           assert.doesNotMatch(
             fm['allowed-tools'],
             /(^|,\s*)(Write|Edit|MultiEdit|NotebookEdit|Task|Agent)\b/,
-            `${file}은 read-only 계약인데 쓰기 도구 또는 Task/Agent가 선언됐습니다`,
+            `${file} is a read-only contract but declares write tools or Task/Agent`,
           );
         });
       }
 
       if (ZERO_BASH_COMMANDS.has(file)) {
-        // "read-only(Write/Edit/Bash 없음)" 주장의 Bash 절반 — 이 단언이 없으면
-        // 스코프 Bash 하나로 계약이 조용히 무너져도 어떤 테스트도 실패하지 않는다.
-        it('zero-bash 커맨드는 어떤 Bash 스코프도 선언하지 않는다', () => {
+        // The Bash half of the "read-only (no Write/Edit/Bash)" claim — without
+        // this assertion, a single scoped Bash could quietly break the contract
+        // and no test would fail.
+        it('zero-bash commands declare no Bash scope of any kind', () => {
           assert.doesNotMatch(
             fm['allowed-tools'],
             /(^|,\s*)Bash\b/,
-            `${file}은 zero-bash 계약인데 Bash 토큰이 선언됐습니다`,
+            `${file} is a zero-bash contract but declares a Bash token`,
           );
         });
       }
 
-      it('네임스페이스 2축 규칙을 지킨다 (/omj·/omj-* 또는 워크플로우 화이트리스트)', () => {
+      it('honors the two-axis namespace rule (/omj·/omj-* or the workflow allowlist)', () => {
         assert.ok(
           /^omj(-[a-z-]+)?\.md$/.test(file) || WORKFLOW_COMMANDS.has(file),
-          `${file}: FE 커맨드는 omj-* 접두, 워크플로우 커맨드는 WORKFLOW_COMMANDS 등재가 필요합니다`,
+          `${file}: FE commands need the omj-* prefix; workflow commands must be listed in WORKFLOW_COMMANDS`,
         );
       });
     });
@@ -222,70 +239,79 @@ describe('commands/*.md frontmatter', () => {
 });
 
 describe('agents/*.md frontmatter', () => {
-  // 루프 기반 검사는 디렉터리가 비면 전부 공허 통과한다 — 존재 단언이 그 구멍을 막는다.
-  it('번들 에이전트 3종이 실재한다', () => {
-    assert.ok(listAgentFiles().length >= 3, 'agents/에 번들 3종(figma-implementer·design-qa·plan-critic)이 있어야 합니다');
+  // Loop-based checks all pass vacuously when the directory is empty — the
+  // existence assertion closes that hole.
+  it('the three bundled agents exist', () => {
+    assert.ok(listAgentFiles().length >= 3, 'agents/ must carry the bundled trio (figma-implementer, design-qa, plan-critic)');
   });
 
   for (const file of listAgentFiles()) {
     describe(file, () => {
       const fm = parseFrontmatter(readRepoFile('agents', file));
 
-      it('name이 파일명과 일치한다', () => {
-        assert.ok(fm, `${file}에 frontmatter가 없습니다`);
+      it('name matches the filename', () => {
+        assert.ok(fm, `${file} has no frontmatter`);
         assert.equal(fm.name, file.replace(/\.md$/, ''));
       });
 
-      it('description과 tools를 갖는다', () => {
+      it('has description and tools', () => {
         assert.ok(fm.description?.length > 0);
         assert.ok(fm.tools?.length > 0);
-        assert.equal(typeof fm.tools, 'string', `${file}: tools는 쉼표 구분 한 줄 문자열이어야 합니다`);
+        assert.equal(typeof fm.tools, 'string', `${file}: tools must be a single comma-separated string`);
       });
     });
   }
 
-  // 에이전트 도구 계약 — ralplan.md·CHANGELOG의 "도구 표면이 테스트로 고정된다" 주장을
-  // 실제로 참으로 만드는 단언. 이 단언이 없으면 계약은 선언 전용이고 회귀해도 침묵한다.
-  it('plan-critic의 도구 표면은 정확히 Read, Grep, Glob이다 (read-only 적대 리뷰어)', () => {
+  // Agent tool contracts — the assertion that makes the "tool surface is pinned
+  // by tests" claim of ralplan.md and the CHANGELOG actually true. Without it the
+  // contract is declaration-only and regressions are silent.
+  it('plan-critic\'s tool surface is exactly Read, Grep, Glob (read-only adversarial reviewer)', () => {
     const fm = parseFrontmatter(readRepoFile('agents', 'plan-critic.md'));
     assert.deepEqual(
       fm.tools.split(',').map((t) => t.trim()).sort(),
       ['Glob', 'Grep', 'Read'],
-      'plan-critic은 read-only 계약 — 도구 추가는 ralplan의 합의 신뢰 모델을 바꾸는 결정이다',
+      'plan-critic is a read-only contract — adding a tool is a decision that changes ralplan\'s consensus trust model',
     );
   });
 
-  // 잔존 구멍: tools의 bare Bash는 이 단언이 못 본다(에이전트 tools에는 스코프 문법이
-  // 없다). "소스 비수정"은 쓰기 도구 부재 + 본문 규율이 담보하는 계약이지 샌드박스가
-  // 아니다 — README의 design-qa 서술도 같은 정확도로 유지할 것.
-  it('design-qa는 쓰기 도구를 선언하지 않는다 (검사만, 소스 비수정)', () => {
+  // Residual hole: this assertion cannot see bare Bash in tools (agent tools have
+  // no scope syntax). "Source-untouched" is a contract upheld by the absence of
+  // write tools plus body discipline, not a sandbox — keep the README's design-qa
+  // description at the same level of precision.
+  it('design-qa declares no write tools (inspection only, source untouched)', () => {
     const fm = parseFrontmatter(readRepoFile('agents', 'design-qa.md'));
     assert.doesNotMatch(
       fm.tools,
       /(^|,\s*)(Write|Edit|MultiEdit|NotebookEdit)\b/,
-      'design-qa는 검사 전용 — 쓰기 도구가 생기면 "검사만" 계약이 무너진다',
+      'design-qa is inspection-only — a write tool would break the "inspects only" contract',
     );
   });
 });
 
 /**
- * 도구 선언 불변식 — 같은 결함 클래스가 3회 재발한 뒤 도입(ralplan 2026-08).
- * (a) MCP 이중 프리픽스: v0.4.0이 playwright에서 "설치 출처에 따라 도구명이 달라진다"를
- *     고쳤지만 figma·context7로 전파되지 않았다 — 테스트가 없어서였다.
- * (b) 호출 지점 없는 권한 선언: v0.4.0에서 3건 제거 후에도 재유입됐다.
- *     이 검사는 **언급 기반**이다(본문 어디든 명령 문자열이 단어 경계로 등장하면 통과) —
- *     구조적 단언이 아니라 성실성 의존 게이트임을 알고 유지하라. substring 매칭은
- *     한국어 산문의 우연 일치("command" 등)로 공허해져 단어 경계 정규식으로 강화했다.
+ * Tool declaration invariants — introduced after the same defect class recurred
+ * three times (ralplan 2026-08).
+ * (a) MCP double prefix: v0.4.0 fixed "the tool name differs by install source"
+ *     for playwright but the fix never propagated to figma/context7 — because no
+ *     test existed.
+ * (b) Permission declarations without a call site: three were removed in v0.4.0
+ *     and they crept back in.
+ *     This check is **mention-based** (any word-boundary occurrence of the
+ *     command string in the body passes) — maintain it knowing it is a
+ *     diligence-dependent gate, not a structural assertion. Substring matching
+ *     went vacuous via coincidental hits in prose ("command" etc.), so it was
+ *     hardened to a word-boundary regex.
  */
-describe('도구 선언 불변식 (commands allowed-tools · agents tools)', () => {
+describe('Tool declaration invariants (commands allowed-tools · agents tools)', () => {
   const surfaces = [
     ...listCommandFiles().map((f) => ({
       file: `commands/${f}`,
       source: readRepoFile('commands', f),
       field: 'allowed-tools',
     })),
-    // 에이전트는 tools: 필드를 쓴다. 현재 에이전트는 bare Bash만 선언해 (b) 매칭 0건이
-    // 정상이다(에이전트 tools는 scoped Bash 문법이 없다) — 공허 통과를 회귀로 오인하지 말 것.
+    // Agents use the tools: field. Current agents declare only bare Bash, so (b)
+    // matching 0 entries is normal (agent tools have no scoped-Bash syntax) — do
+    // not mistake the vacuous pass for a regression.
     ...listAgentFiles().map((f) => ({
       file: `agents/${f}`,
       source: readRepoFile('agents', f),
@@ -306,36 +332,39 @@ describe('도구 선언 불변식 (commands allowed-tools · agents tools)', () 
     })
     .filter(Boolean);
 
-  it('플러그인 경유 MCP 선언은 bare 서버 변형을 병기한다', () => {
+  it('plugin-prefixed MCP declarations also carry the bare server variant', () => {
     const violations = [];
     for (const { file, tokens } of parsed) {
       for (const token of tokens) {
         const m = /^mcp__plugin_(.+)__([A-Za-z0-9_*-]+)$/.exec(token);
         if (!m) continue;
-        // bare 이름은 플러그인이 아니라 **MCP 서버** 이름에서 온다 —
-        // `mcp__plugin_<plugin>_<server>__`의 마지막 `_` 세그먼트가 서버다.
-        // 전제: 서버명에 `_`가 없다(현 서버 figma·context7·playwright 전부 안전).
+        // The bare name comes from the **MCP server**, not the plugin — the last
+        // `_` segment of `mcp__plugin_<plugin>_<server>__` is the server.
+        // Assumption: server names contain no `_` (all current servers — figma,
+        // context7, playwright — are safe).
         const server = m[1].split('_').pop();
         const tool = m[2];
         const ok =
           tokens.includes(`mcp__${server}__*`) ||
           (tool !== '*' && tokens.includes(`mcp__${server}__${tool}`));
-        if (!ok) violations.push(`${file}: ${token} → bare mcp__${server}__${tool === '*' ? '*' : tool} 병기 필요`);
+        if (!ok) violations.push(`${file}: ${token} → needs the bare mcp__${server}__${tool === '*' ? '*' : tool} variant alongside`);
       }
     }
     assert.deepEqual(
       violations,
       [],
-      `raw MCP 등록(claude mcp add) 사용자는 플러그인 프리픽스 도구명이 없어 사전승인을 잃는다:\n${violations.join('\n')}`,
+      `raw MCP registration (claude mcp add) users have no plugin-prefixed tool names and lose pre-approval:\n${violations.join('\n')}`,
     );
   });
 
-  it('bare MCP 선언은 플러그인 프리픽스 변형을 병기한다 (역방향)', () => {
-    // 순방향(플러그인→bare)만 검사하면 bare 토큰만 선언한 파일이 통과한다 —
-    // 플러그인 마켓플레이스 설치 사용자는 플러그인 프리픽스 도구명만 가지므로 사전승인을 잃는다.
-    // 서버 집합은 "레포 어딘가에서 플러그인 프리픽스로 선언된 서버" ∪ 알려진 목록으로
-    // 동적 구성한다. 한계: 어떤 파일에서도 플러그인 변형이 없는 새 서버를 bare로만
-    // 선언하면 이 검사가 침묵한다 — 새 MCP 서버 추가 시 알려진 목록도 함께 갱신할 것.
+  it('bare MCP declarations also carry the plugin-prefixed variant (reverse direction)', () => {
+    // Checking only the forward direction (plugin→bare) lets a file that declares
+    // only bare tokens pass — plugin-marketplace installs only have
+    // plugin-prefixed tool names, so those users lose pre-approval.
+    // The server set is built dynamically as "servers declared plugin-prefixed
+    // anywhere in the repo" ∪ a known list. Limitation: a new server declared
+    // bare-only, with no plugin variant in any file, silences this check — update
+    // the known list when adding a new MCP server.
     const KNOWN_SERVERS = new Set(['figma', 'context7', 'playwright']);
     for (const { tokens } of parsed) {
       for (const token of tokens) {
@@ -354,32 +383,34 @@ describe('도구 선언 불변식 (commands allowed-tools · agents tools)', () 
           if (!pm || pm[1].split('_').pop() !== server) return false;
           return pm[2] === '*' || pm[2] === tool;
         });
-        if (!ok) violations.push(`${file}: ${token} → mcp__plugin_*_${server}__ 변형 병기 필요`);
+        if (!ok) violations.push(`${file}: ${token} → needs the mcp__plugin_*_${server}__ variant alongside`);
       }
     }
-    assert.deepEqual(violations, [], `이중 프리픽스 병기는 양방향이어야 한다:\n${violations.join('\n')}`);
+    assert.deepEqual(violations, [], `double-prefix pairing must go both ways:\n${violations.join('\n')}`);
   });
 
-  it('Bash 선언은 frontmatter 제외 본문에 호출 지점이 있다', () => {
+  it('Bash declarations have a call site in the body (frontmatter excluded)', () => {
     const violations = [];
     for (const { file, tokens, body } of parsed) {
       for (const token of tokens) {
         const m = /^Bash\((.+)\)$/.exec(token);
         if (!m) continue;
         const cmd = m[1].replace(/:\*$/, '');
-        // 단어 경계 매칭 — `command` 선언이 산문 속 "command" 조각으로 통과하는 공허를 막는다.
-        // 뒤 경계는 cmd가 단어 문자로 끝날 때만 요구한다(`git add` vs `git addendum`) —
-        // 경로 prefix처럼 비단어 문자로 끝나면 이어지는 파일명이 정당한 연속이다.
+        // Word-boundary matching — stops a `command` declaration passing via the
+        // "command" fragment in prose. The trailing boundary is required only
+        // when cmd ends in a word character (`git add` vs `git addendum`) — a
+        // prefix ending in a non-word character is legitimately continued by a
+        // filename.
         const escaped = cmd.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const boundaryAfter = /[\w-]$/.test(cmd) ? '(?![\\w-])' : '';
         const callSite = new RegExp(`(^|[^\\w-])${escaped}${boundaryAfter}`);
-        if (!callSite.test(body)) violations.push(`${file}: Bash(${m[1]}) — 본문에 호출 지점 "${cmd}" 없음`);
+        if (!callSite.test(body)) violations.push(`${file}: Bash(${m[1]}) — no call site "${cmd}" in the body`);
       }
     }
     assert.deepEqual(
       violations,
       [],
-      `본문 절차에 호출 지점이 없는 도구는 선언하지 않는다(CLAUDE.md):\n${violations.join('\n')}`,
+      `tools without a call site in the body's procedure must not be declared (CLAUDE.md):\n${violations.join('\n')}`,
     );
   });
 });
@@ -387,27 +418,27 @@ describe('도구 선언 불변식 (commands allowed-tools · agents tools)', () 
 describe('skills/frontend-fundamentals', () => {
   const fm = parseFrontmatter(readRepoFile('skills', 'frontend-fundamentals', 'SKILL.md'));
 
-  it('name·description·license를 갖는다', () => {
+  it('has name, description, and license', () => {
     assert.equal(fm.name, 'frontend-fundamentals');
     assert.ok(fm.description?.length > 0);
     assert.equal(fm.license, 'MIT');
   });
 
-  it('중첩 metadata가 온전히 파싱된다', () => {
+  it('nested metadata parses intact', () => {
     assert.equal(typeof fm.metadata, 'object');
     assert.match(fm.metadata.version, /^\d+\.\d+\.\d+$/);
     assert.ok(fm.metadata.author?.length > 0);
   });
 
-  it('SKILL.md가 참조하는 references/ 파일이 모두 실재한다', () => {
+  it('every references/ file SKILL.md links to exists', () => {
     const source = readRepoFile('skills', 'frontend-fundamentals', 'SKILL.md');
     const referenced = [...source.matchAll(/\(references\/([\w-]+\.md)\)/g)].map((m) => m[1]);
-    assert.ok(referenced.length > 0, 'references 링크를 찾지 못했습니다');
+    assert.ok(referenced.length > 0, 'no references links found');
 
     for (const name of new Set(referenced)) {
       assert.ok(
         existsSync(repoPath('skills', 'frontend-fundamentals', 'references', name)),
-        `references/${name}가 없습니다`,
+        `references/${name} does not exist`,
       );
     }
   });

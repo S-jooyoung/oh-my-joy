@@ -1,12 +1,12 @@
-# 결합도 (Coupling)
+# Coupling
 
-> 토스 frontend-fundamentals 기반. 출처: https://github.com/toss/frontend-fundamentals
+> Based on Toss frontend-fundamentals. Source: https://github.com/toss/frontend-fundamentals
 
-**원칙**: 모듈 간 의존을 낮춰, 한 곳을 바꿔도 다른 곳이 깨지지 않게 한다. 낮은 결합도는 곧 **확장성**이다.
+**Principle**: lower inter-module dependencies so changing one place cannot break another. Low coupling is **extensibility**.
 
-## 1. props drilling 줄이기
+## 1. Reduce props drilling
 
-props를 3단계 이상 그냥 통과시키면 중간 컴포넌트가 불필요하게 결합된다.
+Passing props through 3+ levels needlessly couples the intermediate components.
 
 **Before**
 
@@ -14,58 +14,58 @@ props를 3단계 이상 그냥 통과시키면 중간 컴포넌트가 불필요�
 <Page post={post}>
   <Section post={post}>
     <Card post={post}>
-      <Actions post={post} /> {/* 4단계 drilling */}
+      <Actions post={post} /> {/* 4-level drilling */}
 ```
 
-**After** — composition 또는 context로 중간 단계의 결합을 끊는다. **상세 패턴은 `vercel-composition-patterns` 스킬을 참조한다** (compound component, context provider, render props 등 — 이 스킬에서 중복 설명하지 않는다).
+**After** — cut the intermediate coupling with composition or context. **For detailed patterns refer to the `vercel-composition-patterns` skill** (compound components, context providers, render props, … — not re-explained in this skill).
 
 ```tsx
-// 핵심 아이디어: 중간 컴포넌트가 post를 몰라도 되게 한다
+// core idea: intermediate components need not know about post
 <PostProvider value={post}>
   <Page>
     <Section>
       <Card>
-        <Actions /> {/* usePost()으로 직접 소비 */}
+        <Actions /> {/* consumes directly via usePost() */}
 ```
 
-## 2. 책임 과다 훅 분리
+## 2. Split over-responsible hooks
 
-한 훅이 여러 관심사를 가지면, 한 관심사 변경이 무관한 사용처까지 리렌더/재실행시킨다.
+When one hook holds several concerns, changing one concern re-renders/re-runs unrelated call sites too.
 
 **Before**
 
 ```ts
 function usePostPage(id: string) {
-  // 데이터 페칭 + 폼 상태 + 이미지 업로드 + 공유 로직 전부
+  // data fetching + form state + image upload + share logic, all of it
 }
 ```
 
-**After** — 관심사별로 분리해 의존을 좁힌다.
+**After** — split per concern to narrow dependencies.
 
 ```ts
-function usePost(id: string) { ... }            // 데이터
-function usePostForm(data) { ... }               // 폼
-function useImageUpload(id: string) { ... }      // 업로드
+function usePost(id: string) { ... }            // data
+function usePostForm(data) { ... }               // form
+function useImageUpload(id: string) { ... }      // upload
 ```
 
-## 3. 중복 제거 vs 성급한 추상화
+## 3. Deduplication vs premature abstraction
 
-> 결합도의 가장 큰 함정: **잘못된 추상화는 중복보다 나쁘다.**
+> Coupling's biggest trap: **the wrong abstraction is worse than duplication.**
 
-두 코드가 "지금 우연히 같아 보인다"고 묶으면, 한쪽 요구사항이 바뀔 때 추상화가 깨지며 양쪽이 결합된다. **함께 바뀔 것이 확실할 때만** 추상화한다.
+Merging two pieces of code because "they happen to look alike now" means the abstraction shatters when one side's requirements change, coupling both. Abstract **only when they are certain to change together**.
 
 ## smell → remedy
 
-| Smell                       | Remedy                                                   |
-| --------------------------- | -------------------------------------------------------- |
-| props 3단계+ drilling       | composition/context (`vercel-composition-patterns` 참조) |
-| 한 훅이 여러 관심사         | 관심사별 훅 분리                                         |
-| boolean prop 난립           | 합성 패턴 (`vercel-composition-patterns` 참조)           |
-| 우연한 중복을 성급히 추상화 | 함께 바뀔 것이 확실할 때까지 중복 허용                   |
+| Smell                                | Remedy                                                     |
+| ------------------------------------ | ---------------------------------------------------------- |
+| Props drilling 3+ levels             | composition/context (see `vercel-composition-patterns`)    |
+| One hook, many concerns              | Split hooks per concern                                    |
+| Boolean prop proliferation           | Composition patterns (see `vercel-composition-patterns`)   |
+| Premature abstraction of coincidence | Tolerate duplication until co-change is certain            |
 
-## 과설계 경고
+## Overengineering warning
 
-- 결합도를 낮추려 모든 것을 context로 빼면 추적이 어려워진다. 2단계 이하 props 전달은 그대로 두는 게 낫다.
-- "재사용할지도 모른다"는 가정만으로 공통 모듈을 만들지 않는다.
+- Pulling everything into context to lower coupling hurts traceability. Leave ≤2-level props passing as is.
+- Never create shared modules on the mere assumption "it might be reused".
 
-> 성능 관점(리렌더 최소화, 메모이제이션)은 `vercel-react-best-practices` 스킬로 위임한다.
+> The performance view (re-render minimization, memoization) is delegated to the `vercel-react-best-practices` skill.

@@ -1,52 +1,52 @@
 ---
-description: 브랜치/스테이징 diff를 FF 4기준+a11y · vercel(성능/합성) · Next.js(Context7) 기준으로 통합 리뷰 (read-only). 정규 호출은 /oh-my-joy:ff-review (구 /omj-review — v0.6.0에서 개명)
+description: Integrated review of a branch/staged diff against the FF 4 criteria + a11y · vercel (performance/composition) · Next.js (Context7) (read-only). Canonical invocation is /oh-my-joy:ff-review (formerly /omj-review — renamed in v0.6.0)
 argument-hint: "[--base <ref>]"
 allowed-tools: Read, Grep, Glob, Skill, Bash(git diff:*), Bash(git rev-parse:*), mcp__plugin_context7-plugin_context7__*, mcp__context7__*
 ---
 
-# /oh-my-joy:ff-review — FF 통합 코드 리뷰 (검증, read-only)
+# /oh-my-joy:ff-review — FF integrated code review (verification, read-only)
 
-변경된 프론트엔드 코드(diff)를 **frontend-fundamentals 4기준 + 접근성**, **vercel 성능/합성**, **Next.js(Context7) 최신 권장**으로 한 번에 검토하고 **심각도별 리포트만** 낸다. **수정하지 않는다.**
+Reviews changed frontend code (the diff) in one pass against the **frontend-fundamentals 4 criteria + accessibility**, **vercel performance/composition**, and **Next.js (Context7) latest recommendations**, and produces a **severity-graded report only**. **It fixes nothing.**
 
-> ✅ **read-only 검증 — 수정하지 않는다(기능).** allowed-tools에 `Write`/`Edit`이 없어 코드를 건드리지 않고 린터처럼 **리포트만** 낸다. 발견을 고치려면 `/omj-fix`(능동 루프)나 수동 수정으로 넘긴다.
+> ✅ **Read-only verification — it does not modify (by capability).** With no `Write`/`Edit` in allowed-tools, it never touches code and, like a linter, **only reports**. To fix findings, hand off to `/omj-fix` (the active loop) or manual edits.
 >
-> ⚠️ **Bash(git)로 diff를 읽는다.** `git diff`/`git rev-parse`는 **read-only**라 현재 Claude Code Plan 모드에서도 대체로 그대로 동작한다(Plan 모드는 `Write`/`Edit`와 부작용 있는 Bash만 차단, 읽기 전용 Bash는 허용). 다만 사용하는 환경의 Plan 모드가 Bash를 전면 차단한다면 Plan 모드를 해제한 뒤 실행한다.
+> ⚠️ **Reads the diff via Bash(git).** `git diff`/`git rev-parse` are **read-only** and generally work as is even in current Claude Code Plan mode (Plan mode blocks `Write`/`Edit` and side-effect Bash only; read-only Bash is allowed). If your environment's Plan mode blocks Bash entirely, exit Plan mode before running.
 >
-> **처방 vs 검증**: `/omj`(author)가 "무엇을 만들지"를 FF 기준으로 **처방(prescriptive)** 한다면, `/oh-my-joy:ff-review`는 구현된 diff가 그 기준을 지켰는지 **검증(descriptive)** 한다. 같은 FF SoT(`frontend-fundamentals` 스킬)를 단계만 달리 쓴다. 시각 회귀는 `/omj-verify`가 담당.
+> **Prescriptive vs descriptive**: `/omj` (author) **prescribes** what to build against the FF criteria, while `/oh-my-joy:ff-review` **verifies (descriptive)** that the implemented diff honored them. Same FF SoT (the `frontend-fundamentals` skill), different stage. Visual regression is owned by `/omj-verify`.
 
-## 인자
+## Arguments
 
-- (없음) — 작업 트리의 미커밋 + staged 변경(`git diff HEAD`)을 리뷰한다.
-- `--base <ref>` — 기준 ref 대비 브랜치 전체 diff(`git diff <ref>...HEAD`)를 리뷰한다. 예: `--base main`, `--base origin/main`.
+- (none) — review the working tree's uncommitted + staged changes (`git diff HEAD`).
+- `--base <ref>` — review the whole branch diff against a base ref (`git diff <ref>...HEAD`). e.g. `--base main`, `--base origin/main`.
 
-## 프리플라이트 (실패 시 graceful 종료)
+## Preflight (exit gracefully on failure)
 
-1. **git 저장소**: `git rev-parse --is-inside-work-tree` 가 실패하면 → "git 저장소가 아님 — 리뷰 건너뜀" 후 종료.
-2. **변경 수집**: 인자에 따라 diff를 얻는다.
-   - 기본: `git diff HEAD` (+ staged 포함은 `git diff HEAD`가 커버) → 비어 있으면 `git diff --cached`도 확인.
+1. **Git repository**: if `git rev-parse --is-inside-work-tree` fails → "not a git repository — skipping review" and stop.
+2. **Change collection**: obtain the diff per the arguments.
+   - Default: `git diff HEAD` (staged changes are covered by `git diff HEAD`) → if empty, also check `git diff --cached`.
    - `--base <ref>`: `git diff <ref>...HEAD`.
-   - diff가 비어 있으면 → "변경 없음 — 리뷰할 diff가 없습니다" 후 종료.
-3. **대상 필터**: 변경 파일 중 FE 관련(`.tsx`/`.jsx`/`.ts`/`.css`/`.scss` 및 컴포넌트·훅·스타일)만 추린다. FE 변경이 없으면 → "FE 변경 없음 — 리뷰 대상 아님" 안내 후 종료.
+   - If the diff is empty → "no changes — nothing to review" and stop.
+3. **Target filter**: keep only FE-related changed files (`.tsx`/`.jsx`/`.ts`/`.css`/`.scss` plus components/hooks/styles). If there are no FE changes → "no FE changes — not a review target" and stop.
 
-## 리뷰 절차
+## Review procedure
 
-1. **루브릭 로드**: `Skill`로 **`frontend-fundamentals` 스킬을 invoke**해 `references/`(가독성·예측가능성·응집도·결합도·a11y) + 라우팅 규칙을 기준으로 삼는다. 스킬을 로드할 수 없으면 → 4기준을 이름만으로 수동 적용하고 "FF 스킬 미로드 — 루브릭 축약 적용" 안내(graceful, 에러 아님).
-2. **변경별 평가**: 각 변경 파일/헝크를 다음으로 본다 — 헝크만으로 응집도·결합도를 판단할 수 없으면 변경 파일 원문을 `Read`로, 관련 심볼·사용처를 `Grep`/`Glob`으로 확인해 diff 조각만 보고 오판하지 않는다.
-   - **FF 4기준 + a11y** — 가독성(맥락 과다·중첩 삼항), 예측가능성(이름≠동작·숨은 사이드이펙트), 응집도(흩어진 변경), 결합도(props drilling 3단계↑), 접근성(alt·시맨틱·키보드·터치 타깃), 토큰 일탈(raw hex/Primitive 직접 사용).
-   - **Figma 충실도** — FF 스킬 `references/figma-fidelity.md` 기준: 원본 텍스트 무단 변경, Figma에 없는 variant 임의 생성, 고정 px 너비, 토큰 하드코딩을 위반으로 본다(처방은 `/omj` Phase 2 — 같은 SoT의 검증 단계).
-   - **성능·번들·리렌더·데이터 페칭** → `vercel-react-best-practices` 스킬 기준 참조.
-   - **props 비대화·확장 컴포넌트 API** → `vercel-composition-patterns` 스킬 기준 참조.
-   - **Next.js 버전민감 주제**(App Router·Server/Client 경계·`fetch` 캐싱·`metadata`·`Image`·middleware·`next/dynamic`) → Context7로 `/vercel/next.js` 최신 문서 조회 후 권장안 대비.
-   - 위임 레이어(vercel 2종·Context7)의 부재 처리 정본은 FF 스킬 "통합 라우팅 규칙" 절 — 미설치·부재는 해당 레이어 생략이다(graceful, 에러 아님. 여기 반복 서술하지 않는다).
-3. **출력**: 발견을 심각도로 그룹화한다 — 🔴 blocker(동작/접근성 결함) · 🟡 major(원칙 위반·성능) · 🟢 minor·nit(스타일). 각 항목은 `파일:라인 + 위반 원칙 + 권장 수정`으로 적는다. **코드를 고치지 않는다** — 리포트만 낸다.
-4. **요약**: 심각도별 건수 + "blocker/major부터 수정 권장. minor/nit은 후속 PR로 분리 가능" 안내.
+1. **Load the rubric**: invoke the **`frontend-fundamentals` skill** via `Skill` and use its `references/` (readability, predictability, cohesion, coupling, a11y) + routing rules as the standard. If the skill cannot be loaded → apply the 4 criteria by name only and note "FF skill not loaded — abridged rubric applied" (graceful, not an error).
+2. **Per-change evaluation**: examine each changed file/hunk for the following — when cohesion/coupling cannot be judged from a hunk alone, `Read` the changed file's full source and check related symbols/usages with `Grep`/`Glob` so a diff fragment alone never causes a misjudgment.
+   - **FF 4 criteria + a11y** — readability (context overload, nested ternaries), predictability (name≠behavior, hidden side effects), cohesion (scattered changes), coupling (props drilling 3+ levels), accessibility (alt, semantics, keyboard, touch targets), token deviations (raw hex / direct Primitive use).
+   - **Figma fidelity** — per the FF skill's `references/figma-fidelity.md`: unauthorized changes to original text, invented variants absent from Figma, fixed px widths, and hardcoded tokens are violations (prescription happens in `/omj` Phase 2 — this is the verification stage of the same SoT).
+   - **Performance, bundle, re-renders, data fetching** → refer to the `vercel-react-best-practices` skill criteria.
+   - **Props bloat, extensible component APIs** → refer to the `vercel-composition-patterns` skill criteria.
+   - **Next.js version-sensitive topics** (App Router, Server/Client boundary, `fetch` caching, `metadata`, `Image`, middleware, `next/dynamic`) → query the latest `/vercel/next.js` docs via Context7 and compare against recommendations.
+   - The absence handling for the delegated layers (the two vercel skills, Context7) is canonized in the FF skill's "integrated routing rules" section — a missing layer is simply skipped (graceful, not an error; not restated here).
+3. **Output**: group findings by severity — 🔴 blocker (behavioral/accessibility defects) · 🟡 major (principle violations, performance) · 🟢 minor·nit (style). Each item reads `file:line + violated principle + recommended fix`. **Never fix code** — report only.
+4. **Summary**: counts per severity + "fix blockers/majors first; minors/nits can split into a follow-up PR".
 
-## 사용법
+## Usage
 
 ```
-/oh-my-joy:ff-review                  작업 트리 미커밋+staged 변경 리뷰
-/oh-my-joy:ff-review --base main      main 대비 브랜치 전체 diff 리뷰
+/oh-my-joy:ff-review                  review working-tree uncommitted+staged changes
+/oh-my-joy:ff-review --base main      review the whole branch diff against main
 /oh-my-joy:ff-review --base origin/main
 ```
 
-> 구현 직후 PR 전에 한 번 돌려 FF/a11y/vercel/nextjs 위반을 차단한다. 시각 회귀가 목적이면 `/omj-verify <route>`를 쓴다.
+> Run once right after implementation, before the PR, to block FF/a11y/vercel/nextjs violations. For visual regression, use `/omj-verify <route>`.

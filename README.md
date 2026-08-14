@@ -56,7 +56,7 @@ Each claim below is checkable in this repo — the artifact is named, and so is 
 - **The plugin never fires hooks on its own.** Shipping `hooks/hooks.json` would make every repo with the plugin enabled run these checks; instead the scripts are templates that `/omj-setup` copies into a project that opts in, and they no-op without an explicit declaration. This invariant is pinned by a test, not a comment ([`tests/plugin-manifest.test.mjs`](tests/plugin-manifest.test.mjs)).
 - **Behaviour is tested even though it is written in Markdown.** The two hook scripts are exercised as real subprocesses against the PostToolUse contract, including the false-positive cases that made an earlier version report noise instead of signal ([`tests/hooks/`](tests/hooks)).
 
-The reasoning behind each decision — problem → decision → rationale → outcome, plus the alternatives that were rejected and why — is in [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md) (Korean), summarized as an eleven-row decision table in [`docs/PRINCIPLES.en.md`](docs/PRINCIPLES.en.md) (English).
+The reasoning behind each decision — problem → decision → rationale → outcome, plus the alternatives that were rejected and why — is in [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md), which opens with an eleven-row decision table.
 
 ---
 
@@ -74,7 +74,7 @@ The reasoning behind each decision — problem → decision → rationale → ou
 /omj "Search input form — React Hook Form + Zod, mobile-first" /search
 ```
 
-> `/omj` is a read-only primer — it never writes code directly; it drafts a spec, recommends an execution lane by marking option 1 with the literal label `(추천)` ("recommended"), and stops. Not sure where to start? Run `/omj-setup` first.
+> `/omj` is a read-only primer — it never writes code directly; it drafts a spec, recommends an execution lane by marking option 1 with the literal label `(recommended)`, and stops. Not sure where to start? Run `/omj-setup` first.
 >
 > **Updates** ship when a release (version bump) lands on `main` — merged features don't reach existing installs until the version string changes. Pull the latest with `/plugin update oh-my-joy@omj`, then `/reload-plugins` (or a new session) to load it.
 
@@ -87,7 +87,7 @@ The full cycle as branches — routing canon is [docs/EXECUTION-HANDOFF.md](docs
 1. **Idea still fuzzy?** `/oh-my-joy:deep-interview` — one question per round until the weighted ambiguity score drops under the threshold. The spec it produces is a **native Plan, not a file**. It deliberately refuses to fire on FE-implementation signals (a Figma URL goes straight to `/omj`) and exits immediately when the input is already concrete — that is the suitability gate, not a bug.
 2. **FE work?** `/omj <figma-url|task> [route]` — or **paste the interview spec into `/omj`** (paste is first-class input). It authors the uSpec implementation spec and stops.
 3. **Design decisions carry disagreement risk?** Run a consensus pass on the existing spec/plan — with OMC/OMX installed their `ralplan` comes first (`/oh-my-claudecode:ralplan`/`$ralplan`), otherwise `/oh-my-joy:ralplan`. Small unambiguous plans are told to skip review and proceed — that early exit is intended.
-4. **Approve** (ExitPlanMode), then execute on the selected lane: option 1 `(추천)` ("recommended") is inline for small concrete work, or `/goal` · `/team` · `/ralph` when OMC/OMX is installed. **No runtime — or completion must be evidence-gated?** → `/oh-my-joy:goal-loop` (interrupted work resumes with `/oh-my-joy:goal-loop --slug <name>` alone).
+4. **Approve** (ExitPlanMode), then execute on the selected lane: option 1 `(recommended)` is inline for small concrete work, or `/goal` · `/team` · `/ralph` when OMC/OMX is installed. **No runtime — or completion must be evidence-gated?** → `/oh-my-joy:goal-loop` (interrupted work resumes with `/oh-my-joy:goal-loop --slug <name>` alone).
 5. **Verify**: `/oh-my-joy:ff-review` (diff vs criteria) · `/omj-verify <route>` (rendered page) → visual defects go to `/omj-fix`, token drift goes to `/omj-sync`.
 
 ---
@@ -149,7 +149,7 @@ Missing ones never crash — OMJ **skips + guides** instead.
 
 OMJ is a **standalone plugin independent of** oh-my-claudecode (OMC) and oh-my-codex (OMX). Installing them together never conflicts: FE commands stay under the OMJ-owned `/omj*` prefix, and generic workflow commands are always addressed through the `/oh-my-joy:` namespace (e.g. `/oh-my-joy:deep-interview`), so same-named OMC skills or Claude Code native commands cannot be confused with them.
 
-- **Mental model (one sentence)**: "Start every FE task with `/omj` — approve the spec, then take option 1 (labeled `(추천)`, i.e. the recommended lane) unless you intentionally choose another OMC/OMX execution lane."
+- **Mental model (one sentence)**: "Start every FE task with `/omj` — approve the spec, then take option 1 (labeled `(recommended)`) unless you intentionally choose another OMC/OMX execution lane."
 
 | Stage | OMJ | OMC/OMX |
 | --- | --- | --- |

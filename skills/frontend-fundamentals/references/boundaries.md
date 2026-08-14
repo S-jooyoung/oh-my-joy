@@ -1,21 +1,21 @@
-# 경계 (Boundaries) — Server/Client · 에러 · 테스트 가능성
+# Boundaries — Server/Client · errors · testability
 
-> React 19 / Next.js App Router에서 **경계를 어디에 긋는가**가 번들 크기·렌더 모델·장애 반경을 함께 결정한다.
-> 직렬화 규칙·Suspense 스트리밍 전략처럼 상류가 더 잘 관리하는 지식은 `vercel-react-best-practices` 스킬에 위임하고, 이 문서는 **어디에 선을 긋는가**만 다룬다.
+> In React 19 / Next.js App Router, **where you draw the boundary** decides bundle size, render model, and failure blast radius together.
+> Knowledge upstream manages better — serialization rules, Suspense streaming strategy — is delegated to the `vercel-react-best-practices` skill; this document covers **where to draw the line** only.
 
-## 1. `'use client'`는 트리의 잎에 둔다
+## 1. Put `'use client'` at the leaves of the tree
 
-`'use client'`는 그 파일 하나가 아니라 **거기서부터 아래 전체**를 클라이언트 번들로 끌어간다. 상위에 선언하면 정적으로 렌더될 수 있었던 하위 트리까지 전부 따라온다.
+`'use client'` pulls not just that one file but **everything below it** into the client bundle. Declared high up, it drags along subtrees that could have rendered statically.
 
 ```tsx
-// Before — 페이지 최상단에 선언. 아래 모든 컴포넌트가 클라이언트 번들에 들어간다.
+// Before — declared at the top of the page. Every component below enters the client bundle.
 'use client';
 export default function ProductPage() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <ProductDescription />  {/* 상호작용이 없는데 함께 끌려온다 */}
-      <ReviewList />          {/* 데이터만 렌더하는데 함께 끌려온다 */}
+      <ProductDescription />  {/* no interactivity, dragged along anyway */}
+      <ReviewList />          {/* renders data only, dragged along anyway */}
       <BuyButton onClick={() => setOpen(true)} />
     </>
   );
@@ -23,52 +23,52 @@ export default function ProductPage() {
 ```
 
 ```tsx
-// After — 상태를 쓰는 잎만 클라이언트로. 나머지는 서버에 남는다.
+// After — only the state-using leaf goes client. The rest stays on the server.
 export default function ProductPage() {
   return (
     <>
       <ProductDescription />
       <ReviewList />
-      <BuyDialog />  {/* 이 파일 안에만 'use client' */}
+      <BuyDialog />  {/* 'use client' only inside this file */}
     </>
   );
 }
 ```
 
-**판단 기준**: 그 컴포넌트가 상태·이펙트·브라우저 API·이벤트 핸들러를 쓰는가? 아니면 서버에 남긴다.
+**Decision rule**: does the component use state, effects, browser APIs, or event handlers? If not, keep it on the server.
 
-**흔한 함정** — 서버 컴포넌트를 클라이언트 컴포넌트의 *자식으로 넘기는 것*은 괜찮지만(`children` prop), *import해서 렌더하면* 클라이언트가 된다. 상호작용 껍데기 + `children` 슬롯 조합이 경계를 잎에 유지하는 표준 패턴이다.
+**Common trap** — passing a server component *as a child* of a client component is fine (the `children` prop), but *importing and rendering it* makes it client. The interactive-shell + `children`-slot combination is the standard pattern for keeping the boundary at the leaves.
 
-## 2. 에러 경계 — 장애 반경을 컴포넌트 단위로 좁힌다
+## 2. Error boundaries — narrow the blast radius to component units
 
-경계가 없으면 하위 컴포넌트 하나의 예외가 화면 전체를 날린다.
+Without boundaries, one child component's exception wipes the whole screen.
 
-- App Router는 세그먼트별 `error.tsx`가 그 세그먼트의 경계다. 루트 하나만 두면 모든 실패가 전체 페이지 폴백으로 떨어진다 — **독립적으로 실패해도 되는 영역마다** 경계를 둔다(예: 추천 위젯이 죽어도 상품 정보는 살아 있어야 한다).
-- 단 `error.tsx`는 **같은 세그먼트의 `layout.tsx`/`template.tsx`가 던진 에러는 잡지 않는다** — 그건 상위 세그먼트의 `error.tsx`(루트 레이아웃이면 `global-error.tsx`)가 받는다. 레이아웃에서 데이터를 페칭한다면 경계를 한 단계 위에 둬야 한다.
-- `error.tsx`는 클라이언트 컴포넌트이고 재시도 prop을 받는다. **재페치까지 하는 재시도**가 기본이다 — Next 16.2+는 `unstable_retry()`, 그 이전 버전이거나 재페치 없이 에러 상태만 비울 때는 `reset()`이다(버전 민감 주제라 정확한 prop 이름은 Context7 `/vercel/next.js`로 확인한다). **재시도 경로 없이 메시지만 띄우지 않는다.**
-- 예상 가능한 실패(빈 결과, 권한 없음, 404)는 에러 경계가 아니라 **정상 렌더 분기**로 다룬다. 에러 경계는 *예상하지 못한* 예외용이다.
+- In App Router, each segment's `error.tsx` is that segment's boundary. A single root boundary drops every failure to a full-page fallback — put a boundary on **every area allowed to fail independently** (e.g. product info must survive the recommendation widget dying).
+- Note `error.tsx` **does not catch errors thrown by the same segment's `layout.tsx`/`template.tsx`** — those are received by the parent segment's `error.tsx` (or `global-error.tsx` at the root layout). If you fetch data in a layout, the boundary must sit one level up.
+- `error.tsx` is a client component and receives a retry prop. **A retry that refetches** is the default — Next 16.2+ has `unstable_retry()`; on earlier versions, or when only clearing the error state without refetching, use `reset()` (a version-sensitive topic — confirm the exact prop name via Context7 `/vercel/next.js`). **Never show only a message without a retry path.**
+- Expected failures (empty results, no permission, 404) are handled as **normal render branches**, not error boundaries. Error boundaries are for *unexpected* exceptions.
 
-## 3. 테스트 가능성 — 경계가 곧 테스트 지점이다
+## 3. Testability — the boundary is the test point
 
-FF 4기준 중 **결합도**가 낮으면 테스트가 쉬워지는 게 아니라, *테스트가 쉬운 구조가 곧 결합도가 낮은 구조*다.
+Among the FF 4 criteria, low **coupling** does not merely make testing easier — *a structure easy to test is itself a low-coupling structure*.
 
-- **순수 로직을 컴포넌트 밖으로**: 조건 계산·포맷·정렬을 렌더 트리 안에 두면 검증하려고 매번 DOM을 띄워야 한다. 순수 함수로 빼면 그 자리에서 테스트된다.
-- **주입 가능한 경계**: 컴포넌트가 모듈 최상단에서 직접 fetch·`Date.now()`·`localStorage`를 부르면 대역을 끼울 자리가 없다. props나 상위 서버 컴포넌트에서 값을 받도록 뒤집는다.
-- **접근성 있는 쿼리로 테스트 가능한가**를 설계 신호로 읽는다 — `getByRole('button', { name: '저장' })`으로 못 찾는다면 스크린리더도 못 찾는다(`references/a11y.md`).
+- **Pure logic out of components**: keeping condition math/formatting/sorting inside the render tree means spinning up a DOM to verify them each time. Extracted as pure functions, they test in place.
+- **Injectable boundaries**: a component calling fetch, `Date.now()`, or `localStorage` directly at module top leaves no seam for a double. Flip it so values arrive via props or from a parent server component.
+- Read **"can it be tested with accessible queries"** as a design signal — if `getByRole('button', { name: 'Save' })` cannot find it, neither can a screen reader (`references/a11y.md`).
 
 ## smell → remedy
 
-| Smell                                        | Remedy                                              |
-| -------------------------------------------- | --------------------------------------------------- |
-| 페이지·레이아웃 최상단 `'use client'`         | 상태를 쓰는 잎으로 내리고 `children` 슬롯으로 합성   |
-| 에러 경계가 루트에 하나뿐                     | 독립적으로 실패해도 되는 영역마다 `error.tsx`        |
-| `error.tsx`에 재시도 경로 없음                | 재페치까지 하는 재시도 액션 제공(`unstable_retry()` ≥16.2, 그 외 `reset()`) |
-| 레이아웃 데이터 페칭 실패를 같은 세그먼트 `error.tsx`로 잡으려 함 | 경계를 상위 세그먼트로(루트면 `global-error.tsx`) |
-| 빈 결과·권한 없음을 예외로 던짐               | 정상 렌더 분기로 처리                                |
-| 컴포넌트 안에서 직접 fetch·시간·스토리지 접근 | 경계 밖으로 올려 주입 가능하게                       |
-| 테스트가 구현 세부(클래스명·인덱스)에 의존    | role·label 기반 쿼리로 전환(a11y와 같은 축)          |
+| Smell                                                          | Remedy                                                    |
+| -------------------------------------------------------------- | --------------------------------------------------------- |
+| `'use client'` at the top of a page/layout                     | Push into state-using leaves, compose via `children` slots |
+| A single error boundary at the root                            | `error.tsx` per independently failable area               |
+| `error.tsx` without a retry path                               | Provide a refetching retry action (`unstable_retry()` ≥16.2, else `reset()`) |
+| Catching layout fetch failures with the same segment's `error.tsx` | Move the boundary up a segment (root → `global-error.tsx`) |
+| Throwing empty results / no-permission as exceptions           | Handle as normal render branches                          |
+| Direct fetch/time/storage access inside a component            | Lift outside the boundary, make injectable                |
+| Tests depending on implementation details (class names, indices) | Switch to role/label-based queries (the a11y axis)       |
 
-## 과설계 경고
+## Overengineering warning
 
-- 경계를 "많이" 긋는 게 목적이 아니다. 클라이언트 컴포넌트를 억지로 쪼개 prop drilling을 만들면 결합도만 올라간다.
-- 실패를 독립적으로 처리할 이유가 없는 영역에 에러 경계를 두지 않는다 — 폴백 UI만 늘고 사용자는 더 혼란스럽다.
+- The goal is not drawing "many" boundaries. Force-splitting client components creates prop drilling and only raises coupling.
+- Put no error boundary where failures have no reason to be handled independently — you gain fallback UI and user confusion.
