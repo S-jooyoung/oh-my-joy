@@ -9,6 +9,6 @@
 node_modules/
 *.log
 
-# OMJ operational state — 자기적용(dogfood) 산출물, 커밋 금지
+# OMJ operational state — self-application (dogfood) artifacts, never commit
 .omj/goals/
 .omj/baselines/
