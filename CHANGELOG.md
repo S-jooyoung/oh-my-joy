@@ -10,6 +10,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.6.0] - 2026-08-15
+
+### Added
+
 - **`npm run validate-plugin` (`scripts/validate-plugin.mjs`)** — manifest and frontmatter conformance against the official plugin spec, in two layers: a built-in schema check that always runs (field whitelists taken from the official reference, unknown keys are errors because the runtime silently ignores them), plus `claude plugin validate --strict` when the CLI is on PATH. Catches what the existing suite could not: unknown manifest fields, a marketplace entry whose version disagrees with plugin.json, `permissionMode`/`hooks`/`mcpServers` on a plugin-shipped agent (a spec-level security restriction), a skill directory without SKILL.md, and a mistyped frontmatter key. Exactly one warning is accepted — root `CLAUDE.md` is contributor documentation, not shipped plugin context — and it is matched on its exact text so any other warning still fails. Wired into CI; mutation-verified against five reintroduced defects.
 - **Behavioral tests for the validator (`tests/validate-plugin.test.mjs`, 18 cases)** — a validator never shown a broken manifest is indistinguishable from one that always exits 0, so each check is now exercised against a fixture violating exactly it (unknown fields on all three manifest levels, non-kebab-case name, missing owner, version disagreement, unresolvable install pair, missing source path, mistyped/absent command frontmatter, `permissionMode`/`mcpServers` on a plugin-shipped agent, a skill directory without SKILL.md, a shipped hooks.json). `validate-plugin.mjs` gains `--root` and `--skip-cli` to make fixture validation possible; neither is used in normal operation.
 - **CI syntax check + `.github/dependabot.yml`** — CI parses every committed `.mjs` (`node --check`) and every committed `.json`, catching the class a linter would catch here: a syntax error in a file no test imports. ESLint/TypeScript were rejected — they would add the first dependency to a repo whose premise is having none, and would fail `tests/standalone.test.mjs`. Dependabot watches only `github-actions` (there is no npm ecosystem to watch), weekly, grouped into one PR, capped at 2 open — a queue of unreviewed update PRs is worse for a single maintainer than no updates.
@@ -33,6 +47,7 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Changed
 
+- **`frontend-fundamentals` skill `metadata.version` 1.1.0 → 1.2.0** — the skill's own semver, independent of the plugin version, bumped because this release changed its content: SKILL.md and all nine `references/` files were rewritten in English (342 lines changed).
 - **Language policy: the repository is now English-first** — commit messages, PR/CI surfaces, marketplace metadata (`plugin.json`/`marketplace.json` descriptions), and policy docs (CLAUDE.md, CONTRIBUTING, NOTICE, PR template) are written in English from now on; README stays bilingual (EN/KO). CHANGELOG history prior to 0.6.0 is preserved in Korean.
 - **Runtime script output switched to English** — every user-facing message of `scripts/release.mjs` (rejection guards, the advisory, the follow-up guide including the auto-generated `gh pr create` PR body) and `scripts/goal-state.mjs` (all validator rejections), plus `release-tag.yml` step names and Actions annotations, are now English. Behavior, CLI interfaces, the ledger event vocabulary, and ASCII output contracts are unchanged; the behavioral test suites were updated in lockstep.
 - **Selector output contract switched to English literals** — the execution-lane selector (SoT: `docs/EXECUTION-HANDOFF.md`) now emits `## Execution lane selection`, `(recommended)`, and `Selected lane:` in place of the former Korean literals. **Behavior change**: newly authored specs use the English labels only; `/omj-start` additionally keeps recognizing the legacy Korean labels (`선택된 레인`, `## 실행 레인 선택`, `(추천)`) when reading specs approved before this change.
@@ -242,7 +257,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.2.0...v0.3.0
