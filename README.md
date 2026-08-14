@@ -158,7 +158,7 @@ OMJ is a **standalone plugin independent of** oh-my-claudecode (OMC) and oh-my-c
 | Execute | `/omj-start` fallback handoff · `/oh-my-joy:goal-loop` (durable, evidence-gated — works without OMC/OMX) | `/goal` · `$ultragoal` · `/team`/`$team` · `/ralph`/`$ralph` |
 | Verify | `/oh-my-joy:ff-review` · `/omj-verify` | `/verify` · `$ultraqa` |
 
-The implementation spec `/omj` produces is exactly the input OMC/OMX execution tools consume. The routing source of truth is **[docs/EXECUTION-HANDOFF.md](docs/EXECUTION-HANDOFF.md)** (Korean); see **[docs/OMC-INTEGRATION.md](docs/OMC-INTEGRATION.md)** (Korean) for A/B/C flows, gate rules, and handoff constraints.
+The implementation spec `/omj` produces is exactly the input OMC/OMX execution tools consume. The routing source of truth is **[docs/EXECUTION-HANDOFF.md](docs/EXECUTION-HANDOFF.md)**; see **[docs/OMC-INTEGRATION.md](docs/OMC-INTEGRATION.md)** for A/B/C flows, gate rules, and handoff constraints.
 
 ---
 
@@ -170,7 +170,7 @@ The implementation spec `/omj` produces is exactly the input OMC/OMX execution t
 - **Figma 2-track**: (A) app-screen design→code = official Dev Mode MCP; (B) design-system spec/tokens = figma-console-mcp + uSpec (v1.1+).
 - **Minimal bundle**: externally-maintained knowledge is referenced only (vercel skills — `npx skills add/update`); OMJ bundles only what it owns (FF skill, 3 agents, hook templates). The plugin itself stays zero-hook — hooks fire only via opt-in copy-install.
 
-The "why" behind each decision lives in **[docs/PRINCIPLES.md](docs/PRINCIPLES.md)** (Korean).
+The "why" behind each decision lives in **[docs/PRINCIPLES.md](docs/PRINCIPLES.md)**.
 
 ---
 
