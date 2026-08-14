@@ -1,10 +1,10 @@
 ---
 name: frontend-fundamentals
-description: 토스 frontend-fundamentals 기반 프론트엔드 코드 품질 가이드. React 컴포넌트/훅을 작성·수정·리팩터링하거나 코드 리뷰할 때 가독성·예측가능성·응집도·결합도·접근성 원칙을 적용한다. 성능/번들은 vercel-react-best-practices, 컴포넌트 합성/확장성은 vercel-composition-patterns, Next.js 최신 API는 Context7로 라우팅한다. "컴포넌트 작성", "훅 작성", "리팩터링", "코드 리뷰", "가독성" 등에서 활성화.
+description: 토스 frontend-fundamentals 기반 프론트엔드 코드 품질 가이드. React 컴포넌트/훅을 작성·수정·리팩터링하거나 코드 리뷰할 때 가독성·예측가능성·응집도·결합도·접근성 원칙을 적용한다. 성능/번들은 vercel-react-best-practices, 컴포넌트 합성/확장성은 vercel-composition-patterns, Next.js 최신 API는 Context7로 라우팅한다. "컴포넌트 작성", "훅 작성", "컴포넌트/훅 리팩터링", "프론트엔드 코드 리뷰", "가독성" 등 FE 맥락에서 활성화(백엔드·비프론트 코드 리뷰는 대상 아님).
 license: MIT
 metadata:
   author: Jooyoung Shin
-  version: '1.0.0'
+  version: '1.1.0'
   source: https://github.com/toss/frontend-fundamentals
 ---
 
@@ -51,12 +51,12 @@ metadata:
 
 이 스킬은 **품질 4기준 + 접근성**만 소유한다. 아래 영역은 기존 스킬/도구로 위임한다:
 
-- **성능·번들·리렌더·데이터 페칭·직렬화·Suspense 경계** → `vercel-react-best-practices` 스킬을 참조한다. (waterfall 제거, `next/dynamic`, 메모이제이션 등. **규칙 수는 적지 않는다** — 상류에서 바뀌면 곧바로 드리프트가 된다.)
-- **props 비대화·확장 가능한 컴포넌트 API·compound component** → `vercel-composition-patterns` 스킬을 참조한다.
+- **성능·번들·리렌더·데이터 페칭·직렬화·Suspense 경계** → `vercel-react-best-practices` 스킬을 참조한다. (waterfall 제거, `next/dynamic`, 메모이제이션 등. **규칙 수는 적지 않는다** — 상류에서 바뀌면 곧바로 드리프트가 된다.) 스킬 미설치 환경이면 이 레이어는 생략한다(graceful, 에러 아님).
+- **props 비대화·확장 가능한 컴포넌트 API·compound component** → `vercel-composition-patterns` 스킬을 참조한다. 미설치면 이 레이어 생략(graceful, 에러 아님).
 - **버전 게이팅** — 위임한 스킬에는 React 19 전용 절이 있다. 프로젝트 `package.json`의 `react`/`next` 버전을 읽어 **어느 절을 적용하고 어느 절을 생략할지**만 결정한다(규칙 내용을 이 스킬에 복제하지 않는다). `package.json`을 못 읽으면 게이팅을 생략한다(graceful).
 - **Next.js App Router·Server Component·`fetch` 캐싱·metadata 등 버전 민감 주제** → **Context7 MCP로 `/vercel/next.js` 최신 공식 문서를 조회**한 뒤 권장안을 적용한다. (training data가 아닌 런타임 문서 기준)
   - Context7 MCP를 쓸 수 없는 환경(`context7` 플러그인 미설치·CI)이면 이 레이어는 생략하고 training-data 기반 일반 권장으로 대체한다(에러 아님).
-- **심화 a11y/UX 감사** → `web-design-guidelines` 스킬의 동적 fetch 리뷰를 활용한다.
+- **심화 a11y/UX 감사** → `web-design-guidelines` 스킬의 동적 fetch 리뷰를 활용한다. 미설치면 이 레이어 생략(graceful, 에러 아님).
 
 ## 과설계 경고
 
