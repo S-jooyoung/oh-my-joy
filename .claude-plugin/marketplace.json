@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "omj",
-  "description": "oh-my-joy — 프론트엔드 원스톱 (Figma 명세 → FF 구현 스펙 → 시각 검증 → code↔Figma 토큰 sync)",
+  "description": "oh-my-joy — frontend one-stop (Figma spec → FF implementation spec → visual verification → code↔Figma token sync)",
   "owner": {
     "name": "Jooyoung Shin",
     "email": "jooyoung.dev@gmail.com"
@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "oh-my-joy",
-      "description": "Figma 디자인 명세를 수집해 FF·vercel 적용 구현 스펙을 Plan으로 제시하고, 승인 후 구현·시각검증·토큰 sync를 잇는 프론트엔드 워크플로 플러그인",
+      "description": "Frontend workflow plugin that gathers Figma design specs, presents an FF- and vercel-informed implementation spec as a Plan, and after approval chains implementation, visual verification, and token sync",
       "version": "0.5.0",
       "author": {
         "name": "Jooyoung Shin",

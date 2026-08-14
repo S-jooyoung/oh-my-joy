@@ -1,48 +1,48 @@
-# CLAUDE.md — oh-my-joy(OMJ) 레포 운영 규칙
+# CLAUDE.md — oh-my-joy (OMJ) repository operating rules
 
-이 저장소에서 작업하는 Claude 세션이 지킬 규칙. 매 턴 가볍게 유지(<120줄).
+Rules for Claude sessions working in this repository. Keep it light every turn (<120 lines).
 
-## OMJ란
+## What OMJ is
 
-oh-my-joy(마켓플레이스 `omj`)는 **코드↔Figma 프론트엔드 루프 전체 + 이를 감싸는 범용 워크플로우**를 다루는 독립 Claude Code 플러그인이다 — ① design→code(퍼블리싱) ② 시각검증 ③ code↔Figma 토큰 sync(대화형) ④ 요구 명료화(딥 인터뷰) ⑤ durable 실행(goal-loop) ⑥ 합의 리뷰(ralplan). OMC(oh-my-claudecode)/OMX(oh-my-codex)와 별개이며 같이 써도 무충돌이다 — FE 커맨드는 `/omj*`를 OMJ가 소유하고, 범용 워크플로우 커맨드는 `/oh-my-joy:<name>` 정규 호출로 구분한다. 멘탈 모델: **"FE는 무조건 /omj로 시작 — 스펙을 승인한 뒤 특별한 이유가 없으면 1번 `(추천)` 실행 레인으로 간다."** `/omj` 스펙은 OMC/OMX 실행 도구(`/goal`/`$ultragoal` durable, `/team`/`$team` 병렬, `/ralph`/`$ralph` 순차, `$ultraqa` QA)가 소비하는 입력이 된다 — 라우팅 정본은 `docs/EXECUTION-HANDOFF.md`, 플로우 상세는 `docs/OMC-INTEGRATION.md`.
+oh-my-joy (marketplace `omj`) is a standalone Claude Code plugin covering **the entire code↔Figma frontend loop plus the general-purpose workflows that wrap it** — ① design→code (publishing) ② visual verification ③ code↔Figma token sync (interactive) ④ requirement clarification (deep interview) ⑤ durable execution (goal-loop) ⑥ consensus review (ralplan). It is independent of OMC (oh-my-claudecode)/OMX (oh-my-codex) and coexists with both without conflict — OMJ owns the FE commands under `/omj*`, while general-purpose workflow commands are invoked canonically as `/oh-my-joy:<name>`. Mental model: **"FE work always starts with /omj — after the spec is approved, take execution lane option 1 `(추천)` unless there is a specific reason not to."** An `/omj` spec becomes the input consumed by OMC/OMX execution tools (`/goal`/`$ultragoal` durable, `/team`/`$team` parallel, `/ralph`/`$ralph` sequential, `$ultraqa` QA) — the routing canon is `docs/EXECUTION-HANDOFF.md`; flow details live in `docs/OMC-INTEGRATION.md`.
 
-## 문서화 규율 (최우선)
+## Documentation discipline (top priority)
 
-기능 추가/변경 시 아래 셋을 **반드시 함께 갱신**한다(코드만 바꾸고 문서를 안 고치면 미완료):
+When adding or changing a feature, update all three of the following **together** (changing only code without the docs is incomplete):
 
-1. **README**(사용법, **EN `README.md` + KO `README.ko.md` 동기화**) — 커맨드/플래그/동작 변경 반영. 실행 라우팅 정본은 `docs/EXECUTION-HANDOFF.md`, 심화 플로우는 `docs/OMC-INTEGRATION.md`.
-2. **CHANGELOG**(항목) — 변경 1건 = 1항목.
-3. **docs/PRINCIPLES.md**(동작 원리, 정본) **+ docs/PRINCIPLES.en.md 해당 행** — 원리·설계 결정·멘탈 모델이 바뀌면 둘 다 같은 커밋에서 갱신(영문은 요약표라 행 단위).
+1. **README** (usage; **EN `README.md` + KO `README.ko.md` in sync**) — reflect command/flag/behavior changes. The execution-routing canon is `docs/EXECUTION-HANDOFF.md`; deeper flows in `docs/OMC-INTEGRATION.md`.
+2. **CHANGELOG** (entry) — 1 change = 1 entry.
+3. **docs/PRINCIPLES.md** (how it works, canonical) **+ the matching row in docs/PRINCIPLES.en.md** — when a principle, design decision, or mental model changes, update both in the same commit (the English file is a summary table, hence row-level).
 
-정본 사실(커맨드명·설치 문자열 `/plugin install oh-my-joy@omj`)은 **모든 문서·양 언어 README에서 일치**시킨다. 멘탈 모델 등 **서술형은 README(EN/KO 동기화)를 정본**으로 두고 다른 문서는 요약/링크만 한다(verbatim 복제를 강제하지 않음 — 드리프트 방지). README.md(EN)와 README.ko.md(KO)는 항상 같은 구조·같은 정본 사실을 유지한다.
+Canonical facts (command names, the install string `/plugin install oh-my-joy@omj`) must **match across every doc and both README languages**. For narrative content such as the mental model, **README (EN/KO in sync) is canonical**; other docs only summarize/link (verbatim duplication is not required — prevents drift). README.md (EN) and README.ko.md (KO) always keep the same structure and the same canonical facts.
 
-## 커맨드·에이전트·훅 규칙
+## Command / agent / hook rules
 
-- 네이밍 2축: OMJ 고유 FE 루프 동사는 `/omj-*` 접두(루트 `/omj` 제외), **이름 있는 방법론·루브릭 커맨드**(deep-interview·ff-review·goal-loop·ralplan)는 무접두 basename + 테스트의 `WORKFLOW_COMMANDS` 등재. 무접두 커맨드의 문서·selector 표기는 **항상 `/oh-my-joy:<name>` 정규 호출**(bare 슬래시 표기 금지 — 테스트 강제).
-- v1 커맨드: `/omj`(Plan 프라이머 + 실행 레인 selector, auto-select 시 질문 생략)·`/omj-start`(승인 후 OMC/OMX handoff fallback)·`/oh-my-joy:ff-review`(FF 코드 diff 리뷰)·`/omj-verify`(playwright-cli 우선·MCP 폴백, baseline 3단계 비교)·`/omj-fix`(시각 결함 수정 루프, 능동)·`/omj-sync`(토큰 code↔Figma sync + extract, 대화형·능동)·`/omj-setup`(의존성 닥터 + fe-context/훅 스캐폴딩)·`/oh-my-joy:deep-interview`(범용 딥 인터뷰 — 네이티브 Plan 산출)·`/oh-my-joy:goal-loop`(durable 골 루프 — validator 증거 게이트, 능동)·`/oh-my-joy:ralplan`(합의 리뷰 — critic 1패스, read-only). (v1.1: `/omj-push`·`/omj-spec`.)
-- 새 커맨드 = `commands/<name>.md` + frontmatter: `description`, `argument-hint`, `allowed-tools`(**최소 권한** — 등급 2단: **zero-bash read-only**(omj·deep-interview·ralplan — 쓰기 도구·Bash·Task 전부 없음) / **report-only**(ff-review·omj-verify — 소스 비수정, 관찰용 스코프 Bash만). 두 집합 다 테스트가 강제. 모드별 권한 차등은 본문이 강제 — 예: omj-sync의 "Write는 extract 전용").
-- **본문 절차에 호출 지점이 없는 도구는 선언하지 않는다.** Bash는 실행 가능한 최소 prefix까지 좁힌다(`Bash(npm:*)`가 아니라 `Bash(npm i -g playwright-cli:*)`). MCP 도구는 플러그인 프리픽스와 bare 서버 변형(`mcp__figma__*` 등)을 **병기**한다 — 설치 출처에 따라 도구명이 달라진다. 둘 다 불변식 테스트가 강제(`tests/plugin-manifest.test.mjs`). 위험한 실행을 굳이 사전승인하지 않는 것 자체가 안전 게이트다 — 권한 프롬프트가 사용자 확인 지점이 된다(PRINCIPLES ③).
-- **에이전트**(`agents/*.md`): 번들 3종 — `figma-implementer`(승인된 스펙 필수 입력 — bare Figma URL 구현 거부, plan-gate 우회 금지)·`design-qa`(검사만, 소스 비수정)·`plan-critic`(ralplan 전용 플랜 적대 리뷰어, read-only). 새 에이전트의 description은 자동위임 오발동을 막게 좁게 쓴다. `model` 필드는 두지 않는다(호출 세션 모델 상속 — 의도적 생략). plan-critic·design-qa의 도구 계약은 불변식 테스트가 고정. EXECUTION-HANDOFF(레인 SoT)·selector에 에이전트를 올리지 않는다(레인이 아니라 실행자).
-- **훅**: 플러그인에 `hooks/hooks.json`을 **절대 두지 않는다**(존재=플러그인 enable 시 전 레포 자동 발화 = PRINCIPLES ⑩ 기각 대안). 훅 스크립트 정본은 `templates/hooks/*.mjs`이며 `/omj-setup`이 소비 프로젝트에 **복사-설치**한다(opt-in). 스크립트는 fe-context 선언 없으면 no-op.
-- 동작의 SoT는 각 `commands/*.md` 본문. 코드/문서 작성 전 해당 파일을 Read해 확인.
+- Two naming axes: OMJ-specific FE loop verbs take the `/omj-*` prefix (root `/omj` excepted); **named methodology/rubric commands** (deep-interview, ff-review, goal-loop, ralplan) use an unprefixed basename + registration in the tests' `WORKFLOW_COMMANDS`. In docs and the selector, unprefixed commands are **always written as the canonical `/oh-my-joy:<name>` invocation** (bare slash notation is forbidden — test-enforced).
+- v1 commands: `/omj` (Plan primer + execution lane selector; skips the question on auto-select) · `/omj-start` (post-approval OMC/OMX handoff fallback) · `/oh-my-joy:ff-review` (FF code diff review) · `/omj-verify` (playwright-cli first, MCP fallback; 3-stage baseline comparison) · `/omj-fix` (visual defect fix loop, active) · `/omj-sync` (token code↔Figma sync + extract; interactive, active) · `/omj-setup` (dependency doctor + fe-context/hook scaffolding) · `/oh-my-joy:deep-interview` (general-purpose deep interview — produces a native Plan) · `/oh-my-joy:goal-loop` (durable goal loop — validator evidence gate, active) · `/oh-my-joy:ralplan` (consensus review — one critic pass, read-only). (v1.1: `/omj-push` · `/omj-spec`.)
+- New command = `commands/<name>.md` + frontmatter: `description`, `argument-hint`, `allowed-tools` (**least privilege** — two tiers: **zero-bash read-only** (omj, deep-interview, ralplan — no write tools, no Bash, no Task) / **report-only** (ff-review, omj-verify — source-non-mutating, observation-scoped Bash only). Both sets are test-enforced. Per-mode privilege differences are enforced by the body — e.g. omj-sync's "Write is extract-only").
+- **Never declare a tool the body's procedure does not call.** Narrow Bash to the smallest runnable prefix (`Bash(npm i -g playwright-cli:*)`, not `Bash(npm:*)`). Declare MCP tools with the plugin prefix **and** the bare server variant (`mcp__figma__*` etc.) side by side — tool names differ by install source. Both rules are pinned by invariant tests (`tests/plugin-manifest.test.mjs`). Deliberately not pre-approving dangerous execution is itself a safety gate — the permission prompt becomes the user's confirmation point (PRINCIPLES ③).
+- **Agents** (`agents/*.md`): 3 bundled — `figma-implementer` (an approved spec is a required input — refuses to implement a bare Figma URL, no plan-gate bypass) · `design-qa` (inspect-only, never modifies sources) · `plan-critic` (ralplan-only adversarial plan reviewer, read-only). Write a new agent's description narrowly to prevent auto-delegation misfires. Do not set a `model` field (inherits the calling session's model — intentional omission). plan-critic/design-qa tool contracts are pinned by invariant tests. Never list agents in EXECUTION-HANDOFF (the lane SoT) or the selector (they are executors, not lanes).
+- **Hooks**: never ship `hooks/hooks.json` in the plugin (its existence = auto-firing across every repo the moment the plugin is enabled = the alternative PRINCIPLES ⑩ rejected). Canonical hook scripts live in `templates/hooks/*.mjs`; `/omj-setup` **copy-installs** them into consuming projects (opt-in). The scripts no-op without an fe-context declaration.
+- The SoT for behavior is each `commands/*.md` body. Read that file before writing code or docs about it.
 
-## 핵심 설계 원칙 (요약 — 정본은 docs/PRINCIPLES.md)
+## Core design principles (summary — canonical: docs/PRINCIPLES.md)
 
-- **Plan 네이티브 프라이머**: `/omj`는 read-only(Write/Edit/Bash 없음). 명세 수집 + 구현 스펙 author 후 **멈춤** — 코드를 직접 쓰지 않는다. 사용자의 ExitPlanMode 승인 후 구현이 실행된다.
-- **스펙 포맷**: uSpec 섹션 분류(Anatomy/Structure/Color-토큰/Props·Variants/A11y/Motion) + 각 항목 **토스 FF 4기준(가독성·예측가능성·응집도·결합도) + 접근성** 적용.
-- **code↔Figma 토큰 sync**: 코드가 기본 SoT, 충돌 시 사용자가 방향 선택(대화형 `sync`). `check`는 드리프트만 보고, `push`는 명시적 code-wins.
-- **번들 최소화**: 자작 `frontend-fundamentals` 1개만 번들. vercel 스킬은 참조(`npx skills add/update`).
-- **graceful degradation**: figma/context7/playwright-cli/OMC/OMX 부재는 에러가 아니라 스킵 + 안내.
-- **처방 vs 검증 / 게이트 공존**: FF 지식은 `/omj`가 처방(prescriptive), `/oh-my-joy:ff-review`·`/omj-verify`가 검증(descriptive) — 같은 FF SoT를 단계만 달리. `/omj`(네이티브 plan 읽기 게이트)와 OMC/OMX 실행/goal 게이트는 직교 — 기본은 승인 후 선택된 레인 직행, `/oh-my-claudecode:ralplan`/`$ralplan` 합의는 모호·고위험만(OMX `$ralplan`은 현재 plan-only — 합의 뒤 실행 레인 별도 시작). 정본은 README/PRINCIPLES/EXECUTION-HANDOFF.
+- **Plan-native primer**: `/omj` is read-only (no Write/Edit/Bash). It gathers the spec, authors the implementation spec, then **stops** — it never writes code itself. Implementation runs after the user's ExitPlanMode approval.
+- **Spec format**: uSpec section taxonomy (Anatomy/Structure/Color-tokens/Props·Variants/A11y/Motion) + Toss FF's 4 criteria (readability, predictability, cohesion, coupling) + accessibility applied to every item.
+- **code↔Figma token sync**: code is the default SoT; on conflict the user picks the direction (interactive `sync`). `check` only reports drift; `push` is explicit code-wins.
+- **Minimal bundling**: only the in-house `frontend-fundamentals` skill is bundled. vercel skills are referenced (`npx skills add/update`).
+- **Graceful degradation**: missing figma/context7/playwright-cli/OMC/OMX is not an error — skip + guidance.
+- **Prescribe vs verify / coexisting gates**: `/omj` prescribes FF knowledge (prescriptive); `/oh-my-joy:ff-review` and `/omj-verify` verify it (descriptive) — the same FF SoT at different phases. The `/omj` gate (native plan read gate) and OMC/OMX execution/goal gates are orthogonal — the default is straight to the selected lane after approval; `/oh-my-claudecode:ralplan`/`$ralplan` consensus is for ambiguous or high-risk work only (OMX `$ralplan` is currently plan-only — after consensus, start the execution lane separately). Canon: README/PRINCIPLES/EXECUTION-HANDOFF.
 
-## Git / 커밋
+## Git / commits
 
-- **main 직접 커밋 금지** — 작업은 브랜치에서 커밋하고 main으로 PR을 올린다. 릴리스 태그는 머지 후 main 커밋에 부착.
-- conventional commit: `<type>(<scope>): <subject>`(feat/fix/chore/docs/refactor/test).
-- ❌ **AI 서명·`Co-Authored-By: Claude`·"Generated with Claude Code" 절대 금지**.
-- 한국어로 작성. 간결하게.
+- **No direct commits to main** — work on a branch and open a PR to main. Release tags attach to the main commit after merge.
+- Conventional commits: `<type>(<scope>): <subject>` (feat/fix/chore/docs/refactor/test).
+- ❌ **AI signatures, `Co-Authored-By: Claude`, "Generated with Claude Code" — never.**
+- Write in English. Keep it concise.
 
-## Meta: 이 파일 유지보수
+## Meta: maintaining this file
 
-- 새 커맨드/원리/통합 추가 시 반영. 한 개념 = 한 줄 지향, **<120줄 유지**.
-- 자명한 것·일반 개발 상식은 넣지 않음. 상세 원리는 docs/PRINCIPLES.md로 분리.
+- Update when commands/principles/integrations change. One concept = one line, **stay <120 lines**.
+- No self-evident or general dev knowledge. Detailed principles live in docs/PRINCIPLES.md.
