@@ -1,58 +1,58 @@
-# OMJ × OMC/OMX 통합 작업 플로우
+# OMJ × OMC/OMX integrated workflow
 
-> oh-my-joy(OMJ)를 oh-my-claudecode(OMC) 또는 oh-my-codex(OMX)와 함께 쓸 때의 심화 레퍼런스입니다. README "OMJ × OMC/OMX" 절에서 요약만 보고 이 문서로 넘어왔다면, 여기서 게이트가 왜 안 겹치는지·역할을 어떻게 나누는지·시나리오별(A/B/C) 구체 플로우를 확인할 수 있습니다. 실행 레인 라우팅의 유일한 SoT는 [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md)입니다.
+> An in-depth reference for using oh-my-joy (OMJ) together with oh-my-claudecode (OMC) or oh-my-codex (OMX). If you arrived here from the README's "OMJ × OMC/OMX" summary, this document explains why the gates do not overlap, how responsibilities are divided, and the concrete flows per scenario (A/B/C). The single SoT for execution-lane routing is [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md).
 
-평소 OMC/OMX로 계획하고 실행한다면, OMJ는 그 흐름의 **프론트엔드 전용 on-ramp(스펙 생성) + 실행 레인 선택 + 검증** 단계입니다. `/omj`로 계획해도 OMC/OMX 계획·실행 도구를 그대로 같이 씁니다 — `/omj`가 만든 구현 스펙이 곧 실행 도구가 소비하는 입력이 되기 때문입니다.
+If you normally plan and execute with OMC/OMX, OMJ is the **frontend-specific on-ramp (spec authoring) + execution-lane selection + verification** stage of that flow. Planning with `/omj` does not replace the OMC/OMX planning/execution tools — the implementation spec `/omj` produces is exactly the input those execution tools consume.
 
-## 멘탈 모델 (1문장)
+## Mental model (one sentence)
 
-"FE는 무조건 `/omj`로 시작 — 스펙을 승인한 뒤 특별한 이유가 없으면 1번 `(recommended)` 실행 레인으로 간다."
+"FE work always starts with `/omj` — after the spec is approved, take execution lane option 1 `(recommended)` unless there is a specific reason not to."
 
-## 한 줄 역할 분담
+## One-line division of roles
 
-- **계획**: `/omj`(FE 맥락 스펙, 네이티브 Plan + 실행 selector). 합의가 필요한 대규모만 승인 후 `/oh-my-claudecode:ralplan`/`$ralplan`에 시드로 넘김(런타임 비대칭 — OMC `/oh-my-claudecode:ralplan`은 승인 시 실행 연결, OMX `$ralplan`은 현재 plan-only로 계획 산출 후 정지. 정본: [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md)).
-- **실행**: `/goal`/`$ultragoal`(durable goal/checkpoint) · `/team`/`$team`(병렬 N에이전트) · `/ralph`/`$ralph`(순차 루프). `/omj-start`는 자동 시작이 안 될 때의 canonical fallback handoff. inline 레인(`(auto)` 포함)에서는 OMJ 번들 `figma-implementer` 에이전트가 승인된 스펙의 표준 실행자로 쓰일 수 있다 — 단 OMC/OMX 레인이 선택된 스펙은 항상 그 레인이 우선한다(레인이 아니라 레인이 쓰는 실행자).
-- **검증**: `/oh-my-joy:ff-review`(FE 코드 diff) · `/omj-verify`(FE 시각) · OMC/OMX 일반 검증 또는 `$ultraqa`(adversarial QA).
+- **Planning**: `/omj` (FE-context spec, native Plan + execution selector). Only large work that needs consensus is seeded into `/oh-my-claudecode:ralplan`/`$ralplan` after approval (runtime asymmetry — OMC `/oh-my-claudecode:ralplan` connects to execution on approval; OMX `$ralplan` is currently plan-only, stopping after the plan is produced. Canon: [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md)).
+- **Execution**: `/goal`/`$ultragoal` (durable goal/checkpoint) · `/team`/`$team` (parallel N agents) · `/ralph`/`$ralph` (sequential loop). `/omj-start` is the canonical fallback handoff when auto-start is not possible. On inline lanes (including `(auto)`), the bundled `figma-implementer` agent can serve as the standard executor of the approved spec — but a spec that selected an OMC/OMX lane always gives that lane priority (it is an executor a lane uses, not a lane).
+- **Verification**: `/oh-my-joy:ff-review` (FE code diff) · `/omj-verify` (FE visual) · general OMC/OMX verification or `$ultraqa` (adversarial QA).
 
-## 게이트 규칙 (왜 안 겹치나)
+## Gate rule (why they don't overlap)
 
-`/omj`만 Claude Code 네이티브 Plan 모드(`ExitPlanMode`)를 쓰는 **읽기 게이트**이고, OMC/OMX 계획·실행 도구는 각자의 workflow/goal ledger를 쓰는 **실행 게이트**입니다. 두 게이트는 **직교**하며 핸드오프 순간에만 시간순으로 만납니다.
+Only `/omj` uses Claude Code's native Plan mode (`ExitPlanMode`) as a **read gate**; OMC/OMX planning/execution tools use their own workflow/goal ledgers as **execution gates**. The two gates are **orthogonal** and meet only chronologically at the handoff moment.
 
-따라서 기본 흐름은:
+So the default flow is:
 
-1. `/omj`가 FE 스펙과 실행 레인 선택지를 만든다.
-2. 사용자가 Plan을 승인한다.
-3. 선택된 레인으로 바로 실행하거나, 자동 시작이 불가하면 `/omj-start <approved-spec>` 한 줄로 넘긴다.
+1. `/omj` produces the FE spec and the execution-lane options.
+2. The user approves the Plan.
+3. Execute directly on the selected lane, or hand off with the single line `/omj-start <approved-spec>` when auto-start is not possible.
 
-`/oh-my-claudecode:ralplan`/`$ralplan` 합의는 모호·고위험·아키텍처 합의가 필요할 때만 명시적으로 거칩니다. 단순히 "큰 작업"이라는 이유만으로 매번 두 번째 계획 게이트를 강제하지 않습니다. `/oh-my-joy:deep-interview`(요구 명료화)는 런타임과 무관한 상시 프라이머이고, durable 실행·합의 리뷰는 OMC/OMX 부재 시 OMJ native 2종이 같은 역할을 맡습니다 — `/oh-my-joy:goal-loop`(durable — 우선순위 정본: [EXECUTION-HANDOFF.md](EXECUTION-HANDOFF.md) "OMJ native 레인" 절)·`/oh-my-joy:ralplan`(합의 — 같은 문서의 Consensus fallback 서술).
+`/oh-my-claudecode:ralplan`/`$ralplan` consensus is taken explicitly only when work is ambiguous, high-risk, or needs architectural agreement. "It's big" alone never forces a second planning gate. `/oh-my-joy:deep-interview` (requirement clarification) is an always-available primer independent of any runtime, and when OMC/OMX is absent the two OMJ natives fill the durable-execution and consensus-review roles — `/oh-my-joy:goal-loop` (durable — priority canon: the "OMJ native lane" section of [EXECUTION-HANDOFF.md](EXECUTION-HANDOFF.md)) · `/oh-my-joy:ralplan` (consensus — the Consensus-fallback description in the same document).
 
-## A. 일반 FE 작업 (단순~중간)
+## A. Ordinary FE work (simple to medium)
 
-1. `/omj <figma-url|작업> [route]` → 구현 스펙(Plan) + 실행 레인 선택.
-2. 검토 후 승인(ExitPlanMode).
-3. 선택된 레인이 작으면 inline/manual 또는 `/ralph`/`$ralph`; 파일·검증 lane이 나뉘면 `/team`/`$team`.
-4. `/oh-my-joy:ff-review`로 diff 점검 → `/omj-verify <route>` 시각 점검. 어긋나면 `/omj-fix`로 수정·재확인. 토큰이 바뀌면 `/omj-sync`(대화형: 코드가 기본 SoT이되 충돌 시 사용자가 방향 선택 — 그대로 밀어넣으려면 `push`).
+1. `/omj <figma-url|task> [route]` → implementation spec (Plan) + execution-lane selection.
+2. Review and approve (ExitPlanMode).
+3. If the selected lane is small: inline/manual or `/ralph`/`$ralph`; if file/verification lanes split: `/team`/`$team`.
+4. Check the diff with `/oh-my-joy:ff-review` → visual check with `/omj-verify <route>`. On mismatch, fix and re-verify with `/omj-fix`. If tokens changed, `/omj-sync` (interactive: code is the default SoT but the user picks the direction on conflict — use `push` to force code through as-is).
 
-## B. 대규모/복잡 FE (여러 화면·리팩터링)
+## B. Large/complex FE (multiple screens · refactoring)
 
-1. `/omj`로 핵심 화면 스펙 author (figma + FF/vercel) — 대상 파일·번호 단계·acceptance·검증 route를 스펙에 박음.
-2. 승인(ExitPlanMode) 후 durable work면 `/goal` 또는 `$ultragoal` wrapper를 둔다.
-3. 병렬 가능한 구현·문서·검증 lane이 있으면 wrapper 안에서 `/team`/`$team`을 쓴다. 순차 완료 압박이 크면 `/ralph`/`$ralph`를 쓴다.
-4. 진짜 모호하거나 합의가 필요할 때만 승인 후 명시적 `/oh-my-claudecode:ralplan`/`$ralplan`에 스펙을 시드로 투입한다(OMX `$ralplan`은 plan-only — 합의 뒤 실행 레인은 별도로 시작. 런타임 부재 시 `/oh-my-joy:ralplan`이 같은 합의 역할).
-5. 화면별 `/oh-my-joy:ff-review`·`/omj-verify`, 잔여 diff 재실행.
+1. Author the core-screen spec with `/omj` (figma + FF/vercel) — pin target files, numbered stages, acceptance, and verification routes into the spec.
+2. After approval (ExitPlanMode), put a `/goal` or `$ultragoal` wrapper around durable work.
+3. If parallelizable implementation/doc/verification lanes exist, use `/team`/`$team` inside the wrapper. Under strong sequential-completion pressure, use `/ralph`/`$ralph`.
+4. Only when genuinely ambiguous or consensus is needed, seed the spec into an explicit `/oh-my-claudecode:ralplan`/`$ralplan` after approval (OMX `$ralplan` is plan-only — start the execution lane separately after consensus. Without a runtime, `/oh-my-joy:ralplan` plays the same consensus role).
+5. Per-screen `/oh-my-joy:ff-review` · `/omj-verify`, re-run on the remaining diff.
 
-## C. 풀스택 (FE+BE)
+## C. Full-stack (FE+BE)
 
-1. 전체 큰 그림은 OMC/OMX 계획 도구로 잡는다.
-2. FE 잎 = `/omj` 프라이밍 → 승인 → 선택된 실행 레인. BE = OMC/OMX 일반 executor/worker.
-3. 검증: FE `/oh-my-joy:ff-review`·`/omj-verify`, BE 일반 검증, 필요 시 `$ultraqa`.
+1. Shape the overall picture with OMC/OMX planning tools.
+2. FE leaves = `/omj` priming → approval → the selected execution lane. BE = general OMC/OMX executor/worker.
+3. Verification: FE `/oh-my-joy:ff-review` · `/omj-verify`, general BE verification, `$ultraqa` when needed.
 
-## 핸드오프 제약 (메커니즘 주의)
+## Handoff constraints (mechanism cautions)
 
-- `/omj`는 read-only라 소스 코드를 스스로 못 씁니다. 파일 materialize/수정은 `ExitPlanMode` 승인 **후** 실행 레인이 담당합니다.
-- `/omj`는 실행 레인 선택을 **최대 한 번만** 묻습니다 — 추천이 `Wrapper=none; Sublane=inline/manual`이면 묻지 않고 `(auto)`로 기록만 하며(Plan 승인=레인 동의), 그 외 레인 추천일 때만 1회 질문에 1번 옵션을 `(recommended)`로 둡니다. 선택값은 최종 스펙에 남깁니다(auto-select 규칙 정본: `EXECUTION-HANDOFF.md`).
-- 자동 시작이 불가하면 `/omj-start <approved-spec-or-plan-path>` 한 줄만 출력합니다. 사용자가 다시 판단해야 하는 여러 command를 동시에 뿌리지 않습니다.
-- `/goal clear`는 자동 실행하지 않습니다. 이전 completed goal이 새 same-thread goal을 막을 때만 명시적 사용자 action으로 안내합니다.
-- OMC/OMX syntax와 wrapper/sublane 분리는 [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md)가 정본입니다. 이 문서는 플로우 설명만 유지합니다.
+- `/omj` is read-only and cannot write source code itself. File materialization/modification happens **after** `ExitPlanMode` approval, in the execution lane.
+- `/omj` asks the execution-lane question **at most once** — if the recommendation is `Wrapper=none; Sublane=inline/manual` it does not ask and only records `(auto)` (Plan approval = lane consent); for any other recommended lane it asks exactly once with option 1 labeled `(recommended)`. The chosen value stays in the final spec (auto-select rule canon: `EXECUTION-HANDOFF.md`).
+- When auto-start is not possible, print exactly the one line `/omj-start <approved-spec-or-plan-path>`. Never scatter multiple commands the user must re-adjudicate.
+- Never run `/goal clear` automatically. Guide it as an explicit user action only when a previously completed goal blocks a new same-thread goal.
+- OMC/OMX syntax and the wrapper/sublane split are canonical in [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md). This document keeps only the flow narrative.
 
-> **요지**: "무엇을 만들지"는 FE면 `/omj`가 figma·FF 맥락으로 정확히 뽑아주고(처방), "어떻게 굴릴지"는 OMC/OMX 실행 도구가 가져갑니다. 기본은 승인 후 선택된 레인으로 실행 직행이고, 합의 루프는 모호·고위험일 때만 명시적으로 씁니다.
+> **Gist**: for FE, "what to build" is extracted precisely by `/omj` with figma·FF context (prescription), and "how to run it" belongs to the OMC/OMX execution tools. The default is straight to the selected lane after approval; the consensus loop is used explicitly only for ambiguous or high-risk work.
