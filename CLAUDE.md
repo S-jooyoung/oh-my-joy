@@ -41,6 +41,7 @@ Canonical facts (command names, the install string `/plugin install oh-my-joy@om
 - Conventional commits: `<type>(<scope>): <subject>` (feat/fix/chore/docs/refactor/test).
 - ❌ **AI signatures, `Co-Authored-By: Claude`, "Generated with Claude Code" — never.**
 - Write in English. Keep it concise.
+- PRs: `pr-triage.yml` auto-assigns the maintainer and syncs the type label from the title prefix; still pass `--assignee`/`--label` explicitly when creating PRs so they are set before the workflow runs.
 
 ## Meta: maintaining this file
 

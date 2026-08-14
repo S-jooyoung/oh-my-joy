@@ -1,0 +1,38 @@
+# PR triage: assign the maintainer and sync the type label from the PR title prefix.
+#
+# pull_request_target is required so fork PRs get a write-capable token. This is
+# safe here because the PR's code is never checked out or executed — only title
+# and number metadata are read, and the title reaches the shell via env (never
+# interpolated into the script text).
+name: PR triage
+
+on:
+  pull_request_target:
+    types: [opened, edited]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number }}
+      TITLE: ${{ github.event.pull_request.title }}
+    steps:
+      - name: Assign maintainer
+        run: gh pr edit "$PR" --repo "$REPO" --add-assignee S-jooyoung || true
+
+      - name: Sync type label from title prefix
+        run: |
+          type=$(printf '%s' "$TITLE" | sed -nE 's/^(feat|fix|docs|test|chore|ci|refactor)[(!:].*/\1/p')
+          for t in feat fix docs test chore ci refactor; do
+            if [ "$t" = "$type" ]; then
+              gh pr edit "$PR" --repo "$REPO" --add-label "$t" || true
+            else
+              gh pr edit "$PR" --repo "$REPO" --remove-label "$t" 2>/dev/null || true
+            fi
+          done
