@@ -119,6 +119,26 @@ describe('goal-state: 강제 규칙', () => {
   });
 });
 
+describe('goal-state: 경로 검증 (사전승인 아래로 숨는 우회 차단)', () => {
+  it('reconcile 진입로도 slug 정규식을 지난다 — traversal slug 거부', () => {
+    const root = makeRoot();
+    initDemo(root);
+    const result = run(root, ['reconcile', '--slug', '../../x']);
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /소문자·숫자·하이픈/);
+  });
+
+  it('init --brief-file은 절대경로·traversal을 거부한다', () => {
+    const root = makeRoot();
+    const absolute = run(root, ['init', '--slug', 'demo', '--brief-file', '/etc/hosts', '--goals-json', GOALS]);
+    assert.equal(absolute.code, 1);
+    assert.match(absolute.stderr, /상대경로만/);
+    const traversal = run(root, ['init', '--slug', 'demo', '--brief-file', '../outside.md', '--goals-json', GOALS]);
+    assert.equal(traversal.code, 1);
+    assert.match(traversal.stderr, /상대경로만/);
+  });
+});
+
 describe('goal-state: 손상 감지와 복구', () => {
   it('ledger 잘림은 전이·validate·reconcile 전부에서 거부된다 (append-only)', () => {
     const root = makeRoot();

@@ -2,7 +2,7 @@
 
 > 이 문서가 **정본**이다. 영문 요약표는 [`PRINCIPLES.en.md`](PRINCIPLES.en.md) — 요약이 정본과 어긋나면 이 문서를 따른다. 원리를 바꾸면 요약표의 해당 행도 같은 커밋에서 갱신한다.
 
-이 문서는 oh-my-joy(OMJ)의 각 설계 결정이 **왜** 그렇게 내려졌는지를 설명한다. 정본 사실(README/SoT)이 "무엇을"을 정의한다면, 이 문서는 "왜"를 정의한다. 각 원리는 `문제 → 결정 → 근거 → 결과` 구조로 서술하며, 가능한 경우 버린 대안과 그 이유도 함께 남긴다. 커맨드의 실제 동작은 `commands/omj.md`, `commands/omj-start.md`, `commands/ff-review.md`, `commands/omj-verify.md`, `commands/omj-fix.md`, `commands/omj-sync.md`, `commands/omj-setup.md`, `commands/deep-interview.md`가 정본이며, 이 문서는 그 동작과 정합한다.
+이 문서는 oh-my-joy(OMJ)의 각 설계 결정이 **왜** 그렇게 내려졌는지를 설명한다. 정본 사실(README/SoT)이 "무엇을"을 정의한다면, 이 문서는 "왜"를 정의한다. 각 원리는 `문제 → 결정 → 근거 → 결과` 구조로 서술하며, 가능한 경우 버린 대안과 그 이유도 함께 남긴다. 커맨드의 실제 동작은 `commands/omj.md`, `commands/omj-start.md`, `commands/ff-review.md`, `commands/omj-verify.md`, `commands/omj-fix.md`, `commands/omj-sync.md`, `commands/omj-setup.md`, `commands/deep-interview.md`, `commands/goal-loop.md`, `commands/ralplan.md`가 정본이며, 이 문서는 그 동작과 정합한다.
 
 ---
 
@@ -98,9 +98,9 @@
 
 **근거.** OMJ의 미션은 좁고 깊다(코드↔Figma 프론트엔드 루프). 이 좁은 미션은 OMC/OMX 없이도 완결되어야 설치 장벽이 낮고 독립적으로 가치를 준다. 동시에 durable goal, 병렬 worker, persistent owner, adversarial QA처럼 OMC/OMX가 잘하는 영역은 복제하지 않고 **승인된 스펙의 handoff**로 넘긴다. 장기·다단계 작업은 `/goal`/`$ultragoal` 같은 goal-mode wrapper를 기본 후보로 두고, 병렬 가능하면 `/team`/`$team`을 sublane으로, 순차 완료 압박이면 `/ralph`/`$ralph`를 sublane으로 둔다.
 
-**결과.** OMC/OMX가 없어도 OMJ의 프라이머·검증·토큰 sync는 그대로 동작한다(graceful). OMC/OMX가 있으면 승인된 스펙을 실행 도구가 소비한다 — `/goal`/`$ultragoal`(durable), `/team`/`$team`(병렬), `/ralph`/`$ralph`(순차), `$ultraqa`(adversarial QA), `/ralplan`/`$ralplan`(합의 fallback — OMC는 승인 후 실행 연결, OMX는 현재 plan-only로 계획 산출 후 정지). 즉 **"무엇을 만들지"(FE 스펙)는 `/omj`가, "어떻게 굴릴지"(실행)는 OMC/OMX 도구가** 맡고 스펙이 그 둘을 잇는다.
+**결과.** OMC/OMX가 없어도 OMJ의 프라이머·검증·토큰 sync는 그대로 동작한다(graceful). OMC/OMX가 있으면 승인된 스펙을 실행 도구가 소비한다 — `/goal`/`$ultragoal`(durable), `/team`/`$team`(병렬), `/ralph`/`$ralph`(순차), `$ultraqa`(adversarial QA), `/oh-my-claudecode:ralplan`/`$ralplan`(합의 fallback — OMC는 승인 후 실행 연결, OMX는 현재 plan-only로 계획 산출 후 정지). 즉 **"무엇을 만들지"(FE 스펙)는 `/omj`가, "어떻게 굴릴지"(실행)는 OMC/OMX 도구가** 맡고 스펙이 그 둘을 잇는다.
 
-**게이트 공존 규칙 — 두 계획/목표 시스템은 막지 않고 직교한다.** `/omj`만 Claude Code 네이티브 Plan 모드(`ExitPlanMode`)를 쓰는 *읽기 게이트*이고, OMC/OMX 계획·실행 도구는 각자의 workflow/goal ledger를 쓰는 *실행 게이트*다. 두 게이트는 직교하므로 하드 충돌이 없고 핸드오프 순간에만 시간순으로 만난다. 기본 흐름은 **승인 후 선택된 레인으로 실행 직행**이고, `/ralplan`/`$ralplan` 합의는 *진짜 모호하거나 합의가 필요할 때만* 명시적으로 거친다. `/omj`는 read-only라 소스 아티팩트를 스스로 못 쓰므로 파일 materialize는 승인 *후* 실행 레인이 한다. (wrapper/sublane 분리, `/goal clear` 안전, `/omj-start` fallback은 [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md) 참고.)
+**게이트 공존 규칙 — 두 계획/목표 시스템은 막지 않고 직교한다.** `/omj`만 Claude Code 네이티브 Plan 모드(`ExitPlanMode`)를 쓰는 *읽기 게이트*이고, OMC/OMX 계획·실행 도구는 각자의 workflow/goal ledger를 쓰는 *실행 게이트*다. 두 게이트는 직교하므로 하드 충돌이 없고 핸드오프 순간에만 시간순으로 만난다. 기본 흐름은 **승인 후 선택된 레인으로 실행 직행**이고, `/oh-my-claudecode:ralplan`/`$ralplan` 합의는 *진짜 모호하거나 합의가 필요할 때만* 명시적으로 거친다. `/omj`는 read-only라 소스 아티팩트를 스스로 못 쓰므로 파일 materialize는 승인 *후* 실행 레인이 한다. (wrapper/sublane 분리, `/goal clear` 안전, `/omj-start` fallback은 [`docs/EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md) 참고.)
 
 ---
 

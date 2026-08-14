@@ -85,7 +85,7 @@ const readLedger = (slug) => {
 };
 
 /** ledger에서 스냅샷 상태를 재유도한다 — reconcile과 validate의 공용 심장. */
-export function deriveFromLedger(events) {
+function deriveFromLedger(events) {
   const goals = new Map();
   let closed = false;
   for (const event of events) {
@@ -179,23 +179,39 @@ function parseArgs(argv) {
   return args;
 }
 
+// 값 없는 플래그(--reason 단독)는 parseArgs가 true를 넣는다 — 문자열 검사 전에
+// 좁혀야 스택 트레이스 대신 의도한 에러 메시지가 나간다.
+const str = (value) => (typeof value === 'string' ? value : '');
+
+// slug는 경로 세그먼트가 된다 — 모든 진입로(main·reconcile)가 같은 검증을 지나야
+// `../../x` 류 traversal이 사전승인된 Bash 규칙 아래로 숨지 못한다(PRINCIPLES ③).
+function requireSlug(args) {
+  const slug = str(args.slug);
+  if (!slug || !/^[a-z0-9][a-z0-9-]*$/.test(slug)) fail('--slug는 소문자·숫자·하이픈만 허용합니다');
+  return slug;
+}
+
 const normalizeGoals = (raw, startIndex = 0) =>
   raw.map((goal, index) => {
-    if (!goal.title?.trim() || !goal.objective?.trim()) fail('각 골은 title과 objective가 필요합니다');
+    if (!str(goal.title).trim() || !str(goal.objective).trim()) fail('각 골은 title과 objective가 필요합니다');
     return { id: goal.id ?? `G${String(startIndex + index + 1).padStart(3, '0')}`, title: goal.title, objective: goal.objective };
   });
 
 function main() {
   const [verb, ...rest] = process.argv.slice(2);
   const args = parseArgs(rest);
-  const slug = args.slug;
   if (!verb) fail('사용법: goal-state.mjs <init|transition|add-goal|close|status|validate|reconcile> --slug <slug> …');
-  if (!slug || !/^[a-z0-9][a-z0-9-]*$/.test(slug)) fail('--slug는 소문자·숫자·하이픈만 허용합니다');
+  const slug = requireSlug(args);
 
   if (verb === 'init') {
     if (existsSync(goalsRoot(slug))) fail(`.omj/goals/${slug}/가 이미 있습니다 — 재개는 status/reconcile, 새 계획은 다른 slug로`);
-    const brief = args['brief-file'] ? readFileSync(args['brief-file'], 'utf8') : args.brief;
-    if (!brief?.trim()) fail('--brief 또는 --brief-file이 필요합니다');
+    const briefFile = str(args['brief-file']);
+    // 레포 내 상대경로만 — 절대경로·traversal은 사전승인 규칙 아래의 임의 파일 읽기가 된다.
+    if (briefFile && (briefFile.startsWith('/') || briefFile.split(path.sep).includes('..') || briefFile.split('/').includes('..'))) {
+      fail('--brief-file은 레포 내 상대경로만 허용합니다(절대경로·.. 금지)');
+    }
+    const brief = briefFile ? readFileSync(briefFile, 'utf8') : str(args.brief);
+    if (!brief.trim()) fail('--brief 또는 --brief-file이 필요합니다');
     let goals;
     try {
       goals = normalizeGoals(JSON.parse(args['goals-json'] ?? '[]'));
@@ -255,17 +271,17 @@ function main() {
       const evidenceError = validateEvidence(evidence);
       if (evidenceError) fail(`증거 불충분 — ${evidenceError}. 증거 객체 없이는 완료가 성립하지 않습니다`);
     }
-    if ((to === 'blocked' || to === 'failed') && !args.reason?.trim()) fail(`${to} 전이에는 --reason이 필요합니다`);
+    if ((to === 'blocked' || to === 'failed') && !str(args.reason).trim()) fail(`${to} 전이에는 --reason이 필요합니다`);
 
     const event = appendEvent(slug, snapshot, {
       event: TRANSITION_EVENT[`${goal.status}>${to}`],
       goal_id: goal.id,
       ...(evidence ? { evidence } : {}),
-      ...(args.reason ? { reason: args.reason } : {}),
+      ...(str(args.reason) ? { reason: str(args.reason) } : {}),
     });
     goal.status = to;
     if (evidence) goal.evidence = evidence;
-    if (args.reason) goal.reason = args.reason;
+    if (str(args.reason)) goal.reason = str(args.reason);
     writeSnapshot(slug, snapshot);
     return ok({ transitioned: goal.id, to, seq: event.seq });
   }
@@ -320,9 +336,7 @@ function reconcileMain(slug) {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const [verb, ...rest] = process.argv.slice(2);
   if (verb === 'reconcile') {
-    const args = parseArgs(rest);
-    if (!args.slug) fail('--slug가 필요합니다');
-    reconcileMain(args.slug);
+    reconcileMain(requireSlug(parseArgs(rest)));
   } else {
     main();
   }
