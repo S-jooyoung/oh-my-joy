@@ -159,25 +159,68 @@ describe('내부 링크 무결성', () => {
 });
 
 describe('커맨드 목록 정합', () => {
-  const declared = listCommandFiles().map((f) => `/${f.replace(/\.md$/, '')}`);
+  // 네이밍 2축(CLAUDE.md): FE 루프 커맨드는 `/omj-*`, 범용 워크플로우 커맨드는
+  // 무접두 basename + 문서 표기는 항상 `/oh-my-joy:<name>` 정규 호출.
+  const commandFiles = listCommandFiles();
+  const feCommands = commandFiles
+    .filter((f) => /^omj(-[a-z-]+)?\.md$/.test(f))
+    .map((f) => `/${f.replace(/\.md$/, '')}`);
+  const workflowCommands = commandFiles
+    .filter((f) => !/^omj(-[a-z-]+)?\.md$/.test(f))
+    .map((f) => f.replace(/\.md$/, ''));
 
   it('README(EN/KO)가 실재하는 커맨드만 문서화한다', () => {
     for (const [label, source] of [['EN', readmeEn], ['KO', readmeKo]]) {
-      const documented = new Set(
+      const documentedFe = new Set(
         [...source.matchAll(/`(\/omj(?:-[a-z-]+)?)`/g)].map((m) => m[1]),
       );
-      for (const command of documented) {
-        assert.ok(declared.includes(command), `${label} README가 없는 커맨드를 문서화합니다: ${command}`);
+      for (const command of documentedFe) {
+        assert.ok(feCommands.includes(command), `${label} README가 없는 커맨드를 문서화합니다: ${command}`);
+      }
+      const documentedWorkflow = new Set(
+        [...source.matchAll(/`\/oh-my-joy:([a-z-]+)`/g)].map((m) => m[1]),
+      );
+      for (const name of documentedWorkflow) {
+        assert.ok(
+          workflowCommands.includes(name),
+          `${label} README가 없는 워크플로우 커맨드를 문서화합니다: /oh-my-joy:${name}`,
+        );
       }
     }
   });
 
   it('모든 커맨드가 README(EN/KO)에 문서화돼 있다', () => {
     for (const [label, source] of [['EN', readmeEn], ['KO', readmeKo]]) {
-      for (const command of declared) {
+      for (const command of feCommands) {
         assert.ok(source.includes(`\`${command}\``), `${label} README에 ${command} 문서가 없습니다`);
       }
+      for (const name of workflowCommands) {
+        assert.ok(
+          source.includes(`\`/oh-my-joy:${name}\``),
+          `${label} README에 /oh-my-joy:${name} 문서가 없습니다`,
+        );
+      }
     }
+  });
+
+  it('워크플로우 커맨드를 bare 슬래시로 표기하지 않는다 — 정규 호출만', () => {
+    // bare `/deep-interview` 류는 OMC 동명 스킬·Claude Code 네이티브 커맨드와 어느
+    // 구현이 뜨는지 모호하다. 문서·selector·copyable action 전 표면에서 차단한다.
+    const sources = [
+      ['README.md', readmeEn],
+      ['README.ko.md', readmeKo],
+      ...listMarkdownFiles()
+        .filter((f) => f.startsWith('docs/') || f.startsWith('commands/'))
+        .map((f) => [f, readRepoFile(f)]),
+    ];
+    const offenders = [];
+    for (const name of workflowCommands) {
+      const bare = `\`/${name}\``;
+      for (const [label, source] of sources) {
+        if (source.includes(bare)) offenders.push(`${label}: ${bare}`);
+      }
+    }
+    assert.deepEqual(offenders, [], `bare 표기는 /oh-my-joy:<name>으로 바꿔야 합니다:\n${offenders.join('\n')}`);
   });
 });
 
