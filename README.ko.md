@@ -74,7 +74,7 @@ _점선 = read-only, 소스 부작용 없음. 승인 게이트를 사용자 없�
 /omj "검색 입력 폼 — React Hook Form + Zod, 모바일 우선" /search
 ```
 
-> `/omj`는 read-only 프라이머라 코드를 직접 쓰지 않습니다 — 스펙을 만들고, 1번에 `(추천)`이 붙은 실행 레인을 제안한 뒤 멈춥니다. 어디서 시작할지 모르겠으면 `/omj-setup`부터 실행하세요.
+> `/omj`는 read-only 프라이머라 코드를 직접 쓰지 않습니다 — 스펙을 만들고, 1번에 `(recommended)`가 붙은 실행 레인을 제안한 뒤 멈춥니다. 어디서 시작할지 모르겠으면 `/omj-setup`부터 실행하세요.
 >
 > **업데이트**는 릴리스(버전 범프)가 `main`에 머지될 때 배포됩니다 — 기능이 머지돼도 버전 문자열이 바뀌기 전에는 기존 설치에 도달하지 않습니다. `/plugin update oh-my-joy@omj`로 최신을 받고, `/reload-plugins`(또는 새 세션)로 로드하세요.
 
@@ -87,7 +87,7 @@ _점선 = read-only, 소스 부작용 없음. 승인 게이트를 사용자 없�
 1. **아이디어가 아직 흐릿하다?** `/oh-my-joy:deep-interview` — 가중 모호도 점수가 임계 아래로 떨어질 때까지 라운드당 1문항. 산출 스펙은 **파일이 아니라 네이티브 Plan 본문**입니다. FE 구현 신호(Figma URL 등)에는 의도적으로 발동을 거부하고 `/omj`로 안내하며, 입력이 이미 구체적이면 즉시 종료합니다 — 버그가 아니라 적합성 게이트입니다.
 2. **FE 작업이다?** `/omj <figma-url|작업> [route]` — 또는 **인터뷰 스펙을 `/omj`에 붙여넣습니다**(paste가 1급 입력). uSpec 구현 스펙을 author하고 멈춥니다.
 3. **설계 결정에 이견 위험이 있다?** 이미 있는 스펙/플랜에 합의 패스를 겁니다 — OMC/OMX가 있으면 각 런타임의 ralplan이 먼저(`/oh-my-claudecode:ralplan`/`$ralplan`), 없으면 `/oh-my-joy:ralplan`. 작고 명확한 플랜은 "리뷰 없이 진행 권장"으로 조기 종료됩니다 — 의도된 동작입니다.
-4. **승인**(ExitPlanMode) 후 선택된 레인으로 실행: 1번 `(추천)`은 작고 구체적인 작업이면 inline이고, OMC/OMX가 있으면 `/goal` · `/team` · `/ralph`. **런타임이 없거나 완료를 증거로 증명해야 한다?** → `/oh-my-joy:goal-loop` (중단된 작업은 `/oh-my-joy:goal-loop --slug <name>` 하나로 재개).
+4. **승인**(ExitPlanMode) 후 선택된 레인으로 실행: 1번 `(recommended)`는 작고 구체적인 작업이면 inline이고, OMC/OMX가 있으면 `/goal` · `/team` · `/ralph`. **런타임이 없거나 완료를 증거로 증명해야 한다?** → `/oh-my-joy:goal-loop` (중단된 작업은 `/oh-my-joy:goal-loop --slug <name>` 하나로 재개).
 5. **검증**: `/oh-my-joy:ff-review`(diff 대비 기준) · `/omj-verify <route>`(렌더된 화면) → 시각 결함은 `/omj-fix`, 토큰 드리프트는 `/omj-sync`.
 
 ---
@@ -149,7 +149,7 @@ _점선 = read-only, 소스 부작용 없음. 승인 게이트를 사용자 없�
 
 OMJ는 oh-my-claudecode(OMC), oh-my-codex(OMX)와 **별개의 독립 플러그인**입니다. 같이 설치해도 충돌하지 않습니다 — FE 커맨드는 OMJ가 소유한 `/omj*` 접두를 쓰고, 범용 워크플로우 커맨드는 항상 `/oh-my-joy:` 네임스페이스(예: `/oh-my-joy:deep-interview`)로 호출하므로 동명의 OMC 스킬·Claude Code 네이티브 커맨드와 섞이지 않습니다.
 
-- **멘탈 모델 (1문장)**: "FE는 무조건 `/omj`로 시작 — 스펙을 승인한 뒤 특별한 이유가 없으면 1번 `(추천)` 실행 레인으로 간다."
+- **멘탈 모델 (1문장)**: "FE는 무조건 `/omj`로 시작 — 스펙을 승인한 뒤 특별한 이유가 없으면 1번 `(recommended)` 실행 레인으로 간다."
 
 | 단계 | OMJ | OMC/OMX |
 | --- | --- | --- |

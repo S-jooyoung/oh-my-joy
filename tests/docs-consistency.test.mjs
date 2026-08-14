@@ -58,9 +58,9 @@ describe('README EN/KO 패리티', () => {
 });
 
 describe('영문 산출물의 언어 순수성', () => {
-  // 예외는 둘뿐이다: 언어 스위처와, 런타임 출력 계약(docs/EXECUTION-HANDOFF.md)이
-  // 리터럴로 고정한 `(추천)` 라벨. 그 외 한국어가 남으면 영어 사용자에겐 해독 불가다.
-  const ALLOWED = ['한국어', '(추천)'];
+  // The only allowed exception is the language-switcher literal — any other
+  // Korean left in an English doc is unreadable to English users.
+  const ALLOWED = ['한국어'];
   // 완성형 한글만 보면 자모(ㅋㅋ)와 한자가 새어나간다.
   const CJK = /[가-힣ㄱ-ㅎㅏ-ㅣ㐀-鿿]/;
   const ENGLISH_DOCS = ['README.md', 'docs/PRINCIPLES.en.md', 'CLAUDE.md', 'CONTRIBUTING.md', 'NOTICE.md'];
@@ -78,12 +78,6 @@ describe('영문 산출물의 언어 순수성', () => {
       assert.deepEqual(offenders, [], `${file}에 번역되지 않은 텍스트가 있습니다:\n${offenders.join('\n')}`);
     });
   }
-
-  it('리터럴 (추천)에는 영어 설명이 붙어 있다', () => {
-    for (const line of readmeEn.split('\n').filter((l) => l.includes('(추천)'))) {
-      assert.match(line, /recommend/i, `영어 설명 없이 (추천)만 노출됩니다: ${line.trim()}`);
-    }
-  });
 });
 
 describe('CHANGELOG 링크 무결성', () => {
