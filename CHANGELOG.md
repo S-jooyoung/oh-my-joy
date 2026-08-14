@@ -8,6 +8,7 @@
 
 ### Added
 
+- **릴리스 자동화 도입 — `scripts/release.mjs` + `release-tag.yml`** — 컷은 로컬 스크립트(CHANGELOG [Unreleased]→버전 절 확정·빈 골격 재생성·링크 2줄·버전 4표면 리터럴 치환, git 무접촉·산문 무변형·거부 가드 5종·동작 테스트 12건), 태깅은 main 머지 push의 워크플로우("plugin.json 버전 vs 태그 존재" 상태 비교 — 커밋 제목 파싱 배제, 멱등, 태그는 항상 main 커밋에 부착돼 v0.4.0 고아 태그 실패 모드 원천 차단, GitHub Release 자동 발행). keep-a-changelog 6섹션 골격 불변식도 테스트로 봉인. contents:write는 release-tag.yml에만.
 - **README(EN/KO)에 "어떤 순서로 뭘 쓰나" 절 신설** — 풀 사이클 분기 서술(흐릿한 아이디어→deep-interview→스펙 paste→선택적 ralplan 합의→승인→실행 레인/goal-loop→검증)이 지금까지 docs/EXECUTION-HANDOFF.md에만 있어 "서술형은 README 정본" 규율과 어긋났다. mermaid 흐름도에도 deep-interview·ralplan·goal-loop을 반영(실행 레인 노드와 OMJ×OMC 표 간 자기모순 해소).
 
 - **범용 딥 인터뷰 커맨드 `/oh-my-joy:deep-interview`** — 모호한 아이디어를 라운드당 1문항 소크라테스식 인터뷰로 명세화하는 read-only 프라이머. 토폴로지 고정(Round 0)·최약 (컴포넌트×차원) 타겟팅·가중 모호도 공식(greenfield/brownfield)·온톨로지 수렴 추적·Restate/Closure 이중 종료 게이트를 갖추고, 산출 스펙은 파일이 아니라 **네이티브 Plan 본문**으로 제시한다(파일화는 승인 후 실행 단계 소유 — read-only 계약 유지). 방법론은 gajae-code·oh-my-claudecode(MIT)에서 차용해 재작성했고 런타임(CLI·tmux·상태 규약)은 이식하지 않았다(`NOTICE.md` 신설). PRINCIPLES ⑧(방법론 흡수 규칙)·⑪(인터뷰 상호작용 클래스) 정본 개정 동반. **풀 사이클 확장 1단계 — 도입 2026-08-13, 도달률 재측정 창(~09-03) 진행 중 시점 기록.**
@@ -22,6 +23,7 @@
 ### Changed
 
 - **BREAKING: `/omj-review` → `/oh-my-joy:ff-review` 개명 (2026-08-13)** — 사용자 결정으로 "이름 있는 방법론·루브릭 커맨드" 축(무접두 basename + 정규 호출)으로 이동. 기존 호출 `/omj-review [--base <ref>]`는 `/oh-my-joy:ff-review [--base <ref>]`로 바꾸면 된다(인자·동작 동일, 파일만 `commands/ff-review.md`로 이동). ⚠️ 도달률 재측정 창(~09-03) 진행 중의 표면 개명 — 실사용이 확인된 유일한 커맨드였으므로 재측정 리포트 해석 시 이 시점 전후를 분리 집계할 것.
+- **배포 모델 성문화** — 마켓플레이스는 태그를 받지 않고 main HEAD를 내려받되 plugin.json `version`이 배포 게이트라는 사실(공식 문서 교차 검증)이 어디에도 문서화돼 있지 않았다. CONTRIBUTING 릴리스 절을 배포 모델+새 자동화 절차(cut→PR→자동 태깅, 수동 git tag 금지)로 전면 개정하고, README(EN/KO) Quick Start에 업데이트 반영 경로(`/plugin update`→`/reload-plugins`) 2줄 추가.
 - **read-only 커맨드 검사를 권한 등급 2단으로 분리** — zero-bash(omj·deep-interview·ralplan: Bash 토큰 0 단언 신설)와 report-only(ff-review·omj-verify: 소스 비수정 + 관찰용 스코프 Bash). 기존 검사는 Bash를 아예 보지 않아 "read-only(Write/Edit/Bash 없음)" 주장의 절반이 미고정이었고, omj-verify의 "mutating 능동 op" 자기 선언·CLAUDE.md 정의·테스트 집합이 서로 다른 어휘를 쓰던 충돌도 함께 정합화.
 - **FF 스킬 위임 레이어 전부에 graceful 부재 처리 동형화** — 라우팅 SoT(SKILL.md "통합 라우팅 규칙")에서 Context7에만 있던 부재 처리 문구를 vercel 2종·web-design-guidelines에도 추가하고, ff-review의 레이어별 중복 서술은 SoT 위임 1줄로 축약(규칙 조각 분산 해소). ff-review 절차에 Read·Grep·Glob 호출 지점도 명시(헝크만으로 응집도·결합도 오판 방지).
 - **FF 스킬 트리거를 FE 한정어로 스코프** — description의 bare "리팩터링"·"코드 리뷰"가 백엔드 코드 리뷰에도 자동 활성될 오발동 여지를 제거. `metadata.version`은 내용 변경 릴리스에만 올리는 독립 semver 규칙을 CONTRIBUTING에 성문화하고 1.1.0으로 상향(1.0.0 고정 방치 해소).
