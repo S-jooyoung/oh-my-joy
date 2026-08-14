@@ -8,7 +8,7 @@ allowed-tools: Read, Bash(playwright-cli:*), Bash(curl:*), Bash(command -v:*), m
 
 구현된 화면을 실제 브라우저로 열어 디자인/명세 대비 어긋난 점을 점검한다.
 
-> ⚠️ 이 커맨드는 브라우저를 띄우는 **부작용 있는(mutating) 능동 op**다 — Plan 모드는 이런 부작용 Bash를 차단하므로(읽기 전용 Bash는 허용) 검증이 실행되지 않는다. Plan 모드를 해제한 뒤 실행한다. `Read`는 baseline PNG 로드·`.omj/fe-context.md` 판독 전용이다(소스 수정 없음).
+> ⚠️ 이 커맨드는 **소스를 수정하지 않는 report-only 관찰 op**다 — 단 브라우저 기동·스크린샷 저장이라는 부작용 Bash를 쓰므로 zero-bash read-only는 아니며, Plan 모드는 이런 부작용 Bash를 차단해(읽기 전용 Bash는 허용) 검증이 실행되지 않는다. Plan 모드를 해제한 뒤 실행한다. `Read`는 baseline PNG 로드·`.omj/fe-context.md` 판독 전용이다(소스 수정 없음).
 
 ## 인자
 

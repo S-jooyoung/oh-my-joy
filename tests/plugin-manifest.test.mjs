@@ -23,12 +23,18 @@ const plugin = readJson('.claude-plugin', 'plugin.json');
 const marketplace = readJson('.claude-plugin', 'marketplace.json');
 
 /**
- * 소스 코드에 부작용을 낼 수 없다고 문서가 선언한 커맨드들.
- * `/omj`는 plan-gate를 우회할 쓰기 경로가 없어야 하고(PRINCIPLES ①③),
- * `ff-review`·`/omj-verify`는 리포트만 내는 검증 커맨드,
- * `deep-interview`·`ralplan`은 네이티브 Plan만 산출하는 프라이머·리뷰 커맨드다.
+ * 소스 코드에 부작용을 낼 수 없다고 문서가 선언한 커맨드들 — 권한 등급 2단.
+ *
+ * ZERO_BASH: 셸 실행 경로가 아예 없다(쓰기 도구·Task/Agent에 더해 Bash 토큰 0).
+ *   `/omj`는 plan-gate를 우회할 쓰기 경로가 없어야 하고(PRINCIPLES ①③),
+ *   `deep-interview`·`ralplan`은 네이티브 Plan만 산출하는 프라이머·리뷰 커맨드다.
+ * REPORT_ONLY: 소스는 절대 수정하지 않지만 관찰용 스코프 Bash는 쓴다 —
+ *   `ff-review`(git diff 판독)·`omj-verify`(브라우저 기동·캡처).
+ *   bare Bash는 전 커맨드 공통 검사가 이미 차단하므로 여기선 쓰기 도구만 본다.
  */
-const READ_ONLY_COMMANDS = new Set(['omj.md', 'ff-review.md', 'omj-verify.md', 'deep-interview.md', 'ralplan.md']);
+const ZERO_BASH_COMMANDS = new Set(['omj.md', 'deep-interview.md', 'ralplan.md']);
+const REPORT_ONLY_COMMANDS = new Set(['ff-review.md', 'omj-verify.md']);
+const READ_ONLY_COMMANDS = new Set([...ZERO_BASH_COMMANDS, ...REPORT_ONLY_COMMANDS]);
 
 /**
  * 무접두 네이밍이 허용된 "이름 있는 방법론·루브릭" 커맨드(2축 규칙 — CLAUDE.md).
@@ -168,6 +174,18 @@ describe('commands/*.md frontmatter', () => {
             fm['allowed-tools'],
             /(^|,\s*)(Write|Edit|MultiEdit|NotebookEdit|Task|Agent)\b/,
             `${file}은 read-only 계약인데 쓰기 도구 또는 Task/Agent가 선언됐습니다`,
+          );
+        });
+      }
+
+      if (ZERO_BASH_COMMANDS.has(file)) {
+        // "read-only(Write/Edit/Bash 없음)" 주장의 Bash 절반 — 이 단언이 없으면
+        // 스코프 Bash 하나로 계약이 조용히 무너져도 어떤 테스트도 실패하지 않는다.
+        it('zero-bash 커맨드는 어떤 Bash 스코프도 선언하지 않는다', () => {
+          assert.doesNotMatch(
+            fm['allowed-tools'],
+            /(^|,\s*)Bash\b/,
+            `${file}은 zero-bash 계약인데 Bash 토큰이 선언됐습니다`,
           );
         });
       }

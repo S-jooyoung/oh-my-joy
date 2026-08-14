@@ -18,6 +18,7 @@
 ### Changed
 
 - **BREAKING: `/omj-review` → `/oh-my-joy:ff-review` 개명 (2026-08-13)** — 사용자 결정으로 "이름 있는 방법론·루브릭 커맨드" 축(무접두 basename + 정규 호출)으로 이동. 기존 호출 `/omj-review [--base <ref>]`는 `/oh-my-joy:ff-review [--base <ref>]`로 바꾸면 된다(인자·동작 동일, 파일만 `commands/ff-review.md`로 이동). ⚠️ 도달률 재측정 창(~09-03) 진행 중의 표면 개명 — 실사용이 확인된 유일한 커맨드였으므로 재측정 리포트 해석 시 이 시점 전후를 분리 집계할 것.
+- **read-only 커맨드 검사를 권한 등급 2단으로 분리** — zero-bash(omj·deep-interview·ralplan: Bash 토큰 0 단언 신설)와 report-only(ff-review·omj-verify: 소스 비수정 + 관찰용 스코프 Bash). 기존 검사는 Bash를 아예 보지 않아 "read-only(Write/Edit/Bash 없음)" 주장의 절반이 미고정이었고, omj-verify의 "mutating 능동 op" 자기 선언·CLAUDE.md 정의·테스트 집합이 서로 다른 어휘를 쓰던 충돌도 함께 정합화.
 
 ### Deprecated
 
