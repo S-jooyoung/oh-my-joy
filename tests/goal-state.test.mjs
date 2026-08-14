@@ -1,10 +1,11 @@
 /**
- * goal-state validator의 동작 증명 — 픽스처가 아니라 실제 자식 프로세스로.
+ * Behavioral proof of the goal-state validator — through real child processes, not fixtures.
  *
- * 이 스크립트는 `/oh-my-joy:goal-loop`의 유일한 상태 변경 경로라, 여기서 깨지는
- * 회귀는 곧 "증거 없는 완료가 통과하는" 회귀다. 훅 테스트와 같은 이유로 함수
- * import가 아니라 프로세스 경계(argv/exit code)를 검증하고, 문서에 적힌 이벤트
- * 어휘가 스크립트의 실제 어휘와 어긋나는 드리프트도 여기서 잡는다.
+ * The script is the only state-mutation path for `/oh-my-joy:goal-loop`, so a
+ * regression here IS the "completion without evidence passes" regression. For the
+ * same reason as the hook tests, this verifies the process boundary (argv/exit
+ * code) instead of importing functions, and it also catches drift between the
+ * event vocabulary written in the docs and the script's actual vocabulary.
  */
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -36,17 +37,17 @@ function run(cwd, args) {
   }
 }
 
-const GOALS = '[{"title":"골 하나","objective":"첫 목표"},{"title":"골 둘","objective":"둘째 목표"}]';
+const GOALS = '[{"title":"Goal one","objective":"First objective"},{"title":"Goal two","objective":"Second objective"}]';
 const EVIDENCE = JSON.stringify({
   verification: { status: 'passed', commands: ['node --test'], evidence: '157 passed' },
 });
 
-const initDemo = (root) => run(root, ['init', '--slug', 'demo', '--brief', '브리프', '--goals-json', GOALS]);
+const initDemo = (root) => run(root, ['init', '--slug', 'demo', '--brief', 'the brief', '--goals-json', GOALS]);
 
-describe('goal-state: 생성과 정상 전이', () => {
+describe('goal-state: creation and legal transitions', () => {
   const root = makeRoot();
 
-  it('init이 brief·스냅샷·ledger를 만들고 plan_created를 남긴다', () => {
+  it('init creates brief, snapshot, and ledger, and records plan_created', () => {
     assert.equal(initDemo(root).code, 0);
     const snapshot = JSON.parse(readFileSync(path.join(root, '.omj/goals/demo/goals.json'), 'utf8'));
     assert.equal(snapshot.schema_version, SCHEMA_VERSION);
@@ -55,7 +56,7 @@ describe('goal-state: 생성과 정상 전이', () => {
     assert.equal(JSON.parse(ledger[0]).event, 'plan_created');
   });
 
-  it('pending→active→complete(증거 포함)가 seq를 단조 증가시키며 통과한다', () => {
+  it('pending→active→complete (with evidence) passes with monotonically increasing seq', () => {
     assert.equal(run(root, ['transition', '--slug', 'demo', '--goal', 'G001', '--to', 'active']).code, 0);
     assert.equal(
       run(root, ['transition', '--slug', 'demo', '--goal', 'G001', '--to', 'complete', '--evidence-json', EVIDENCE]).code,
@@ -65,23 +66,23 @@ describe('goal-state: 생성과 정상 전이', () => {
     assert.deepEqual(events.map((e) => e.seq), [1, 2, 3]);
   });
 
-  it('미완 골이 남은 close는 거부되고, 전부 완료되면 close된다', () => {
-    assert.match(run(root, ['close', '--slug', 'demo']).stderr, /close 불가/);
+  it('close is rejected while goals remain incomplete, and succeeds once all are complete', () => {
+    assert.match(run(root, ['close', '--slug', 'demo']).stderr, /cannot close/);
     run(root, ['transition', '--slug', 'demo', '--goal', 'G002', '--to', 'active']);
     run(root, ['transition', '--slug', 'demo', '--goal', 'G002', '--to', 'complete', '--evidence-json', EVIDENCE]);
     assert.equal(run(root, ['close', '--slug', 'demo']).code, 0);
-    assert.match(run(root, ['transition', '--slug', 'demo', '--goal', 'G001', '--to', 'active']).stderr, /이미 close/);
+    assert.match(run(root, ['transition', '--slug', 'demo', '--goal', 'G001', '--to', 'active']).stderr, /already closed/);
   });
 });
 
-describe('goal-state: 강제 규칙', () => {
-  it('증거 객체 없는 complete는 완료로 성립하지 않는다', () => {
+describe('goal-state: enforced rules', () => {
+  it('complete without an evidence object does not count as completion', () => {
     const root = makeRoot();
     initDemo(root);
     run(root, ['transition', '--slug', 'demo', '--goal', 'G001', '--to', 'active']);
     const bare = run(root, ['transition', '--slug', 'demo', '--goal', 'G001', '--to', 'complete']);
     assert.equal(bare.code, 1);
-    assert.match(bare.stderr, /증거 불충분/);
+    assert.match(bare.stderr, /insufficient evidence/);
     const empty = run(root, [
       'transition', '--slug', 'demo', '--goal', 'G001', '--to', 'complete',
       '--evidence-json', '{"verification":{"status":"passed","commands":[],"evidence":"x"}}',
@@ -89,112 +90,112 @@ describe('goal-state: 강제 규칙', () => {
     assert.match(empty.stderr, /commands/);
   });
 
-  it('단일 owner — 두 번째 active 전이는 거부된다', () => {
+  it('single owner — a second active transition is rejected', () => {
     const root = makeRoot();
     initDemo(root);
     run(root, ['transition', '--slug', 'demo', '--goal', 'G001', '--to', 'active']);
     const second = run(root, ['transition', '--slug', 'demo', '--goal', 'G002', '--to', 'active']);
     assert.equal(second.code, 1);
-    assert.match(second.stderr, /단일 owner/);
+    assert.match(second.stderr, /single-owner/);
   });
 
-  it('전이표 밖 전이(pending→complete)와 사유 없는 blocked는 거부된다', () => {
+  it('transitions outside the table (pending→complete) and blocked without a reason are rejected', () => {
     const root = makeRoot();
     initDemo(root);
     assert.match(
       run(root, ['transition', '--slug', 'demo', '--goal', 'G001', '--to', 'complete', '--evidence-json', EVIDENCE]).stderr,
-      /유효하지 않은 전이/,
+      /invalid transition/,
     );
     run(root, ['transition', '--slug', 'demo', '--goal', 'G001', '--to', 'active']);
     assert.match(run(root, ['transition', '--slug', 'demo', '--goal', 'G001', '--to', 'blocked']).stderr, /--reason/);
   });
 
-  it('add-goal이 pending 골을 append한다 (리뷰 실패 → blocker 골 경로)', () => {
+  it('add-goal appends a pending goal (review failure → blocker-goal path)', () => {
     const root = makeRoot();
     initDemo(root);
-    assert.equal(run(root, ['add-goal', '--slug', 'demo', '--title', '후속', '--objective', '리뷰 지적 해소']).code, 0);
+    assert.equal(run(root, ['add-goal', '--slug', 'demo', '--title', 'Follow-up', '--objective', 'Resolve review findings']).code, 0);
     const snapshot = JSON.parse(readFileSync(path.join(root, '.omj/goals/demo/goals.json'), 'utf8'));
     assert.equal(snapshot.goals.length, 3);
     assert.equal(snapshot.goals[2].status, 'pending');
   });
 });
 
-describe('goal-state: 경로 검증 (사전승인 아래로 숨는 우회 차단)', () => {
-  it('reconcile 진입로도 slug 정규식을 지난다 — traversal slug 거부', () => {
+describe('goal-state: path validation (blocking bypasses that hide under pre-approval)', () => {
+  it('the reconcile entry point also passes the slug regex — traversal slugs rejected', () => {
     const root = makeRoot();
     initDemo(root);
     const result = run(root, ['reconcile', '--slug', '../../x']);
     assert.equal(result.code, 1);
-    assert.match(result.stderr, /소문자·숫자·하이픈/);
+    assert.match(result.stderr, /lowercase letters, digits, and hyphens/);
   });
 
-  it('init --brief-file은 절대경로·traversal을 거부한다', () => {
+  it('init --brief-file rejects absolute paths and traversal', () => {
     const root = makeRoot();
     const absolute = run(root, ['init', '--slug', 'demo', '--brief-file', '/etc/hosts', '--goals-json', GOALS]);
     assert.equal(absolute.code, 1);
-    assert.match(absolute.stderr, /상대경로만/);
+    assert.match(absolute.stderr, /relative path inside the repo/);
     const traversal = run(root, ['init', '--slug', 'demo', '--brief-file', '../outside.md', '--goals-json', GOALS]);
     assert.equal(traversal.code, 1);
-    assert.match(traversal.stderr, /상대경로만/);
+    assert.match(traversal.stderr, /relative path inside the repo/);
   });
 
-  it('win32 절대경로(드라이브·UNC)와 백슬래시 traversal도 거부한다 — POSIX 전용 가드의 구멍', () => {
+  it('win32 absolute paths (drive·UNC) and backslash traversal are rejected too — the POSIX-only-guard hole', () => {
     const root = makeRoot();
     for (const briefFile of ['C:\\evil\\b.md', 'C:/evil/b.md', '\\\\srv\\share\\b.md', 'a\\..\\outside.md']) {
       const result = run(root, ['init', '--slug', 'demo', '--brief-file', briefFile, '--goals-json', GOALS]);
-      assert.equal(result.code, 1, `${briefFile}가 가드를 통과했습니다`);
-      assert.match(result.stderr, /상대경로만/);
+      assert.equal(result.code, 1, `${briefFile} slipped past the guard`);
+      assert.match(result.stderr, /relative path inside the repo/);
     }
   });
 });
 
-describe('goal-state: init 원자성', () => {
-  it('성공한 init은 .tmp- 잔재를 남기지 않고 완결 디렉터리만 남긴다', () => {
+describe('goal-state: init atomicity', () => {
+  it('a successful init leaves no .tmp- debris, only the completed directory', () => {
     const root = makeRoot();
     assert.equal(initDemo(root).code, 0);
     const entries = readdirSync(path.join(root, '.omj/goals'));
-    assert.deepEqual(entries, ['demo'], `잔재가 남았습니다: ${entries.join(', ')}`);
+    assert.deepEqual(entries, ['demo'], `debris left behind: ${entries.join(', ')}`);
     for (const file of ['brief.md', 'goals.json', 'ledger.jsonl']) {
-      assert.ok(existsSync(path.join(root, '.omj/goals/demo', file)), `${file} 누락`);
+      assert.ok(existsSync(path.join(root, '.omj/goals/demo', file)), `${file} missing`);
     }
   });
 
-  it('크래시 잔해(.tmp- 디렉터리)가 있어도 재init이 성공하고 잔해를 청소한다', () => {
+  it('re-init succeeds despite crash debris (.tmp- directory) and cleans it up', () => {
     const root = makeRoot();
-    // 중간 크래시를 재현: 다른 pid의 temp 경로만 만들어지고 rename 전에 죽은 상태.
+    // Reproduce a mid-crash: another pid's temp path was created, then died before rename.
     mkdirSync(path.join(root, '.omj/goals/demo.tmp-99999'), { recursive: true });
     assert.equal(initDemo(root).code, 0);
     assert.ok(existsSync(path.join(root, '.omj/goals/demo/goals.json')));
     assert.deepEqual(
       readdirSync(path.join(root, '.omj/goals')),
       ['demo'],
-      '다른 pid의 .tmp- 잔해가 청소되지 않았습니다',
+      "another pid's .tmp- debris was not cleaned up",
     );
   });
 });
 
-describe('goal-state: 손상 감지와 복구', () => {
-  it('ledger 잘림은 전이·validate·reconcile 전부에서 거부된다 (append-only)', () => {
+describe('goal-state: corruption detection and recovery', () => {
+  it('ledger truncation is rejected by transition, validate, and reconcile alike (append-only)', () => {
     const root = makeRoot();
     initDemo(root);
     run(root, ['transition', '--slug', 'demo', '--goal', 'G001', '--to', 'active']);
     const ledgerFile = path.join(root, '.omj/goals/demo/ledger.jsonl');
     const lines = readFileSync(ledgerFile, 'utf8').trim().split('\n');
-    writeFileSync(ledgerFile, `${lines[0]}\n`); // 마지막 이벤트 절단
-    assert.match(run(root, ['transition', '--slug', 'demo', '--goal', 'G002', '--to', 'active']).stderr, /잘렸습니다/);
+    writeFileSync(ledgerFile, `${lines[0]}\n`); // cut off the last event
+    assert.match(run(root, ['transition', '--slug', 'demo', '--goal', 'G002', '--to', 'active']).stderr, /truncated/);
     assert.equal(run(root, ['validate', '--slug', 'demo']).code, 1);
-    assert.match(run(root, ['reconcile', '--slug', 'demo']).stderr, /짧습니다/);
+    assert.match(run(root, ['reconcile', '--slug', 'demo']).stderr, /shorter than the snapshot/);
   });
 
-  it('스냅샷 오염은 validate가 잡고 reconcile이 ledger에서 재유도한다', () => {
+  it('snapshot tampering is caught by validate and re-derived from the ledger by reconcile', () => {
     const root = makeRoot();
     initDemo(root);
     run(root, ['transition', '--slug', 'demo', '--goal', 'G001', '--to', 'active']);
     const snapshotFile = path.join(root, '.omj/goals/demo/goals.json');
     const snapshot = JSON.parse(readFileSync(snapshotFile, 'utf8'));
-    snapshot.goals[1].status = 'complete'; // ledger에 없는 완료 조작
+    snapshot.goals[1].status = 'complete'; // fabricated completion absent from the ledger
     writeFileSync(snapshotFile, JSON.stringify(snapshot));
-    assert.match(run(root, ['validate', '--slug', 'demo']).stderr, /유도 상태/);
+    assert.match(run(root, ['validate', '--slug', 'demo']).stderr, /ledger-derived/);
     assert.equal(run(root, ['reconcile', '--slug', 'demo']).code, 0);
     assert.equal(run(root, ['validate', '--slug', 'demo']).code, 0);
     const restored = JSON.parse(readFileSync(snapshotFile, 'utf8'));
@@ -202,28 +203,28 @@ describe('goal-state: 손상 감지와 복구', () => {
   });
 });
 
-describe('goal-state ↔ commands/goal-loop.md 어휘 드리프트', () => {
+describe('goal-state ↔ commands/goal-loop.md vocabulary drift', () => {
   const doc = readRepoFile('commands', 'goal-loop.md');
 
-  it('문서의 예시 ledger 이벤트가 스크립트 어휘의 부분집합이다', () => {
+  it("the doc's example ledger events are a subset of the script vocabulary", () => {
     const exampleEvents = [...doc.matchAll(/"event":\s*"([a-z_]+)"/g)].map((m) => m[1]);
-    assert.ok(exampleEvents.length > 0, 'goal-loop.md에 ledger 이벤트 예시가 없습니다');
+    assert.ok(exampleEvents.length > 0, 'goal-loop.md has no ledger event examples');
     for (const event of exampleEvents) {
-      assert.ok(EVENTS.includes(event), `문서의 이벤트 ${event}가 스크립트 EVENTS에 없습니다`);
+      assert.ok(EVENTS.includes(event), `doc event ${event} is missing from the script EVENTS`);
     }
   });
 
-  it('문서가 언급하는 상태 이름이 전이표와 일치한다', () => {
+  it('the status names the doc mentions match the transition table', () => {
     for (const status of GOAL_STATUSES) {
-      assert.ok(doc.includes(status), `문서에 상태 ${status} 설명이 없습니다`);
-      assert.ok(status in TRANSITIONS, `전이표에 ${status}가 없습니다`);
+      assert.ok(doc.includes(status), `the doc does not describe status ${status}`);
+      assert.ok(status in TRANSITIONS, `the transition table is missing ${status}`);
     }
   });
 
-  it('증거 필수조건의 문서 예시가 실제 검증기를 통과한다', () => {
+  it("the doc's evidence-requirement example passes the real validator", () => {
     const block = doc.match(/```json\n([\s\S]*?)```/)?.[1];
-    assert.ok(block, 'goal-loop.md에 evidence 예시 json 블록이 없습니다');
+    assert.ok(block, 'goal-loop.md has no evidence example json block');
     const example = JSON.parse(block);
-    assert.equal(validateEvidence(example.evidence ?? example), null, '문서의 증거 예시가 검증기에서 거부됩니다');
+    assert.equal(validateEvidence(example.evidence ?? example), null, "the doc's evidence example is rejected by the validator");
   });
 });
