@@ -1,27 +1,28 @@
 #!/usr/bin/env node
 /**
- * check-story-exists.mjs — PostToolUse(Edit|Write) 훅: 컴포넌트 저장 시 Story 누락 경고.
+ * check-story-exists.mjs — PostToolUse(Edit|Write) hook: missing-Story warning on component save.
  *
- * 배포: oh-my-joy 플러그인 templates/hooks/ 정본 → /omj-setup이 소비 프로젝트
- * .claude/hooks/ 로 복사하고 .claude/settings.json 에 등록한다(opt-in).
- * 게이트: 프로젝트 루트 .omj/fe-context.md 에 `storybook: true` 선언이 없으면 무조건 no-op.
- * 검사만 하고 수정·차단하지 않는다(경고 컨텍스트 주입, exit 0).
+ * Distribution: canon lives in the oh-my-joy plugin's templates/hooks/ → /omj-setup copies it
+ * into the consuming project's .claude/hooks/ and registers it in .claude/settings.json (opt-in).
+ * Gate: without a `storybook: true` declaration in the project root's .omj/fe-context.md, always no-op.
+ * Checks only; never fixes or blocks (injects warning context, exit 0).
  *
- * **자기완결 제약**: /omj-setup은 이 파일 하나만 복사하므로 공용 모듈을 import하지 않는다.
+ * **Self-containment constraint**: /omj-setup copies this single file, so it imports no shared modules.
  *
- * **"컴포넌트"의 정의가 이 훅의 정확도를 결정한다.** `.tsx`라고 전부 Story 대상이 아니다 —
- * Next.js App Router의 예약 파일(page/layout/route…)은 라우팅 진입점이고, 소문자로 시작하는
- * 파일은 관례상 훅·유틸이다. 이들을 걸러내지 않으면 경고가 상시 발화해 무시당한다.
+ * **The definition of "component" decides this hook's accuracy.** Not every `.tsx` is a Story
+ * target — Next.js App Router reserved files (page/layout/route…) are routing entry points, and
+ * files starting lowercase are hooks/utils by convention. Without filtering these, the warning
+ * fires constantly and gets ignored.
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
 const COMPONENT_EXT = /\.(tsx|jsx)$/;
 
-/** 이 훅이 발화하는 도구. 소비 프로젝트 matcher가 넓어져도 비변경 도구에선 침묵한다. */
+/** Tools this hook fires on. Even if the consuming project's matcher widens, stay silent on non-mutating tools. */
 const MUTATING_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 
-/** Story를 쓰지 않는 파일들 — 테스트/스토리 자신과 Next.js App Router 예약 파일. */
+/** Files that carry no Story — tests/stories themselves and Next.js App Router reserved files. */
 const NOT_A_COMPONENT = /\.(stories|test|spec)\.|^(page|layout|template|loading|error|global-error|not-found|route|default|middleware|instrumentation)\./;
 
 function readStdin() {
@@ -60,7 +61,7 @@ if (input.tool_name && !MUTATING_TOOLS.has(input.tool_name)) process.exit(0);
 const filePath = input.tool_input?.file_path ?? '';
 if (!COMPONENT_EXT.test(filePath)) process.exit(0);
 
-// 제외 판정은 파일명 기준이다 — 전체 경로로 보면 `^page\.`류 앵커가 절대 매치되지 않는다.
+// Exclusion is judged on the file name — against the full path, `^page\.`-style anchors could never match.
 const fileName = path.basename(filePath);
 if (NOT_A_COMPONENT.test(fileName)) process.exit(0);
 
@@ -72,40 +73,40 @@ let feContext;
 try {
   feContext = readFileSync(fcPath, 'utf8');
 } catch {
-  process.exit(0); // 판독 불가(디렉터리·권한 등) → 검사 전용 훅이 세션을 막지 않는다(fail-open)
+  process.exit(0); // unreadable (directory, permissions, …) → a check-only hook never blocks the session (fail-open)
 }
 if (!/^storybook:\s*true\s*$/m.test(feContext)) process.exit(0);
 
-// 경로 기준점은 훅 계약이 준 cwd 하나로 통일한다.
+// Path anchoring is unified on the single cwd the hook contract provides.
 const projectRoot = path.dirname(path.dirname(fcPath));
 const resolved = path.resolve(cwd, filePath);
 
-// 프로젝트 밖 파일은 이름조차 컨텍스트로 내보내지 않고 디렉터리도 열지 않는다.
-// (자매 훅 check-design-tokens.mjs와 같은 봉쇄 규칙 — 두 훅의 기준을 갈라 두지 않는다.
-//  `resolved !== projectRoot`는 파일 경로라 항상 참이지만 대칭 유지를 위해 남긴다.)
+// For files outside the project, do not even emit the name into context or open directories.
+// (Same containment rule as the sibling hook check-design-tokens.mjs — the two hooks' criteria
+//  are kept aligned. `resolved !== projectRoot` is always true for a file path but stays for symmetry.)
 if (resolved !== projectRoot && !resolved.startsWith(projectRoot + path.sep)) process.exit(0);
 
 const dir = path.dirname(resolved);
 const stem = path.basename(resolved).replace(COMPONENT_EXT, '');
 
-// `Button/index.tsx` 배럴 패턴에서는 형제 Story가 `Button.stories.tsx`다 — 파일명이 아니라
-// 디렉터리명이 컴포넌트 이름이므로 둘 다 후보로 본다.
+// In the `Button/index.tsx` barrel pattern the sibling Story is `Button.stories.tsx` — the
+// component name is the directory, not the file, so both are candidates.
 const candidates = stem === 'index' ? [path.basename(dir), stem] : [stem];
 
-// 소문자로 시작하면 관례상 훅·유틸이다(`useModal.tsx`, `utils.tsx`). index는 위에서 이미 해소됐다.
+// Lowercase-first means hook/util by convention (`useModal.tsx`, `utils.tsx`). index was resolved above.
 if (!/^[A-Z]/.test(candidates[0])) process.exit(0);
 
 /**
- * Story 탐색 위치. 기본은 형제 파일이고, Story를 별도 디렉터리에 모으는 프로젝트는
- * fe-context에 `storiesDir:`를 선언해 알린다(축은 프로젝트가 선언 — PRINCIPLES ⑩).
+ * Where to look for Stories. The default is sibling files; projects collecting Stories in a
+ * separate directory declare it via `storiesDir:` in fe-context (axes are project-declared — PRINCIPLES ⑩).
  */
 const storiesDirMatch = feContext.match(/^storiesDir:\s*(\S+)/m);
 const searchDirs = [dir];
 if (storiesDirMatch) searchDirs.push(path.resolve(projectRoot, storiesDirMatch[1]));
 
-// 읽을 수 없는 디렉터리는 "Story 없음"의 근거로도, "Story 있음"의 근거로도 쓰지 않는다.
-// 이걸 `true`로 승격하면 storiesDir 오타 하나가 `.some()`을 단락시켜 훅이 프로젝트
-// 전체에서 영구 침묵한다 — 읽히는 디렉터리가 하나라도 있으면 그것으로 판정한다.
+// An unreadable directory is evidence neither of "no Story" nor of "Story exists".
+// Promoting it to `true` would let one storiesDir typo short-circuit `.some()` and silence the
+// hook permanently across the project — judge from whichever directories are readable.
 const readable = searchDirs.map(listFiles).filter(Boolean);
 if (readable.length === 0) process.exit(0);
 
@@ -118,7 +119,7 @@ console.log(
   JSON.stringify({
     hookSpecificOutput: {
       hookEventName: 'PostToolUse',
-      additionalContext: `[omj:check-story-exists] ${fileName}에 대응하는 ${candidates[0]}.stories.* 가 없습니다 — 이 프로젝트는 storybook: true 선언 상태입니다(Story 추가 권장).`,
+      additionalContext: `[omj:check-story-exists] no ${candidates[0]}.stories.* found for ${fileName} — this project declares storybook: true (adding a Story is recommended).`,
     },
   }),
 );

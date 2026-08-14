@@ -1,52 +1,54 @@
 #!/usr/bin/env node
 /**
- * check-design-tokens.mjs — PostToolUse(Edit|Write) 훅: 하드코딩 색상 감지 경고.
+ * check-design-tokens.mjs — PostToolUse(Edit|Write) hook: hardcoded-color detection warning.
  *
- * 배포: oh-my-joy 플러그인 templates/hooks/ 정본 → /omj-setup이 소비 프로젝트
- * .claude/hooks/ 로 복사하고 .claude/settings.json 에 등록한다(opt-in).
- * 게이트: 프로젝트 루트 .omj/fe-context.md 에 tokensPath 선언이 없으면 무조건 no-op.
- * 검사만 하고 수정·차단하지 않는다(경고 컨텍스트 주입, exit 0).
+ * Distribution: canon lives in the oh-my-joy plugin's templates/hooks/ → /omj-setup copies it
+ * into the consuming project's .claude/hooks/ and registers it in .claude/settings.json (opt-in).
+ * Gate: without a tokensPath declaration in the project root's .omj/fe-context.md, always no-op.
+ * Checks only; never fixes or blocks (injects warning context, exit 0).
  *
- * **자기완결 제약**: /omj-setup은 이 파일 하나만 복사한다. 따라서 공용 모듈을
- * import하지 않는다 — check-story-exists.mjs와 겹치는 헬퍼가 있어도 각자 들고 있는
- * 편이 배포 계약에 맞다(공유 모듈을 만들면 복사본이 런타임에 깨진다).
+ * **Self-containment constraint**: /omj-setup copies this single file. Therefore it imports no
+ * shared modules — even where helpers overlap with check-story-exists.mjs, each file carrying its
+ * own copy matches the distribution contract (a shared module would break the copies at runtime).
  *
- * **오탐보다 미탐을 택한다**: 이 훅은 차단하지 않는 경고라 오탐이 쌓이면 사용자가
- * 통째로 무시하게 된다. 그래서 색상인지 식별자인지 구문 없이 구분할 수 없는 위치
- * (자유 위치의 네임드 컬러, DOM id 등)는 검사하지 않는다. 개별 오탐은 해당 줄에
- * `omj-allow-color` 주석으로 끈다.
+ * **Prefer misses over false positives**: this hook is a non-blocking warning, so accumulated
+ * false positives teach users to ignore it wholesale. Positions where color vs identifier cannot
+ * be distinguished without syntax (free-position named colors, DOM ids, …) are therefore not
+ * checked. Individual false positives are silenced per line with an `omj-allow-color` comment.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-/** CSS-in-JS·테마 객체는 .ts에, 스타일은 .css/.scss에 산다 — 둘 다 색상이 하드코딩되는 자리다. */
+/** CSS-in-JS/theme objects live in .ts, styles in .css/.scss — colors get hardcoded in both. */
 const TARGET_EXT = /\.(tsx|jsx|ts|mts|cts|css|scss|sass|less)$/;
 
-/** 이 훅이 발화하는 도구. 소비 프로젝트 matcher가 넓어져도 비변경 도구에선 침묵한다. */
+/** Tools this hook fires on. Even if the consuming project's matcher widens, stay silent on non-mutating tools. */
 const MUTATING_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 
-/** 해당 줄의 경고를 끄는 인라인 주석(eslint-disable-line과 같은 역할). */
+/** Inline comment that silences the warning for its line (same role as eslint-disable-line). */
 const SUPPRESSION = /omj-allow-color/;
 
-/** #RGB · #RGBA · #RRGGBB · #RRGGBBAA 만 CSS 색상이다 — 5·7자리는 색상이 아니다. */
+/** Only #RGB · #RGBA · #RRGGBB · #RRGGBBAA are CSS colors — 5/7 digits are not. */
 const HEX_COLOR =
   /(?<![\w#.$-])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![\w-])/g;
 
-/** 긴 이름을 먼저 둬 `rgba(`가 `rgb`로 잘려 매칭되지 않게 한다. */
+/** Longer names first so `rgba(` cannot be truncated into an `rgb` match. */
 const COLOR_FUNCTIONS = ['oklch', 'oklab', 'rgba', 'hsla', 'rgb', 'hsl', 'hwb', 'lab', 'lch'];
 
 /**
- * CSS 선언 위치의 네임드 컬러만 본다. 자유 위치의 `red`/`black`은 변수명·Tailwind
- * 클래스 조각과 구분할 수 없어 검사 대상에서 뺀다(미탐 > 오탐).
+ * Only named colors in CSS declaration positions are checked. Free-position `red`/`black` cannot
+ * be told apart from variable names or Tailwind class fragments, so they are excluded
+ * (misses > false positives).
  *
- * 경계 규칙이 이 정규식의 핵심이다 — `-`와 `.`는 단어 문자가 아니라서 `\b`만으로는
- * `--color-red-500`(토큰 참조)이나 `red.500`(토큰 표기) 안의 색상 이름이 그대로 잡힌다.
- * 훅이 권장하는 사용법을 위반으로 보고하면 경고 전체가 무시당하므로 양쪽 경계를 좁힌다.
- * 값 스캔이 `,`를 넘지 않는 것도 같은 이유다 — `{ color: string, tone: "red" }`처럼
- * 한 줄에 여러 프로퍼티가 있는 TS 객체에서 앞 속성이 뒤 속성 값을 삼키면 안 된다.
+ * The boundary rules are the core of this regex — `-` and `.` are not word characters, so `\b`
+ * alone would match color names inside `--color-red-500` (a token reference) or `red.500` (token
+ * notation). Reporting the hook's own recommended usage as a violation would get the whole
+ * warning ignored, so both boundaries are narrowed. The value scan not crossing `,` exists for
+ * the same reason — in a TS object like `{ color: string, tone: "red" }` with several properties
+ * on one line, an earlier property must not swallow a later property's value.
  */
 const NAMED_COLOR_DECLARATION = new RegExp(
-  // 속성 위치: CSS 커스텀 프로퍼티, `*color` 계열, 색상을 값으로 받는 단축 속성
+  // property positions: CSS custom properties, `*color` family, shorthand properties taking colors
   String.raw`(?:^|[;{])\s*(?:--[\w-]+|[\w-]*colou?r|background(?:-(?:color|image))?|border(?:-(?:top|right|bottom|left))?|outline|fill|stroke|box-shadow|text-shadow)\s*:\s*[^;{},]*?` +
     String.raw`(?<![\w-.])(?:black|white|red|blue|green|yellow|orange|purple|pink|gray|grey|silver|gold|brown|cyan|magenta|navy|teal|olive|maroon|lime|aqua|fuchsia)(?![\w-.])`,
   'g',
@@ -72,35 +74,35 @@ function findFeContext(startDir) {
   return null;
 }
 
-/** 라인 수와 열 위치를 보존하며 지운다 — 리포트의 L번호가 원본과 어긋나지 않게. */
+/** Blank out while preserving line count and column positions — so reported L numbers match the original. */
 const blankOut = (text) => text.replace(/[^\n]/g, ' ');
 
 /**
- * 색상 리터럴이 아닌 것이 확실한 구간을 지운다. 지우는 순서가 중요하다 —
- * 주석을 먼저 지워야 주석 안의 `url(`·`href=`가 다음 단계를 교란하지 않는다.
+ * Erases regions that are certainly not color literals. Order matters —
+ * comments must be erased first so `url(` / `href=` inside comments cannot confuse later steps.
  */
 function maskNonColorRegions(source) {
   return (
     source
-      // 블록 주석과 JSX 주석(`{/* … */}`)
+      // block comments and JSX comments (`{/* … */}`)
       .replace(/\/\*[\s\S]*?\*\//g, blankOut)
-      // 줄 주석. `https://`가 지워지지 않도록 `:` 뒤의 `//`는 건드리지 않는다.
+      // line comments. Leave `//` after `:` alone so `https://` is not erased.
       .replace(/(^|[^:\\])\/\/[^\n]*/gm, (match, prefix) => prefix + blankOut(match.slice(prefix.length)))
-      // SVG·CSS의 `url(#gradient)` — id 참조이지 색상이 아니다.
+      // `url(#gradient)` in SVG/CSS — an id reference, not a color.
       .replace(/\burl\(([^)\n]*)\)/g, (_match, inner) => `url(${blankOut(inner)})`)
-      // 앵커·라우터 경로의 `#section` 프래그먼트
+      // `#section` fragments in anchor/router paths
       .replace(/((?:href|to|xlinkHref)\s*=\s*["'`])([^"'`\n]*)/g, (_match, prefix, value) => prefix + blankOut(value))
   );
 }
 
 /**
- * 색상 함수 호출을 센다. 인자에 `var(`가 있으면 토큰을 참조하는 정상 패턴이므로
- * 위반이 아니다 — `hsl(var(--h) var(--s) var(--l))`가 그렇다. 중첩 괄호 때문에
- * 정규식만으로는 인자 경계를 못 잡아 괄호 깊이를 직접 센다.
+ * Counts color function calls. Arguments containing `var(` are the normal token-referencing
+ * pattern and not a violation — as in `hsl(var(--h) var(--s) var(--l))`. Nested parentheses make
+ * argument boundaries unreachable by regex alone, so paren depth is counted directly.
  */
 function countColorFunctions(line) {
-  // lookbehind가 `.`를 배제해야 `chroma.lab(`·`d3.rgb(` 같은 메서드 호출이 색상으로 잡히지
-  // 않는다(`lab`/`lch`는 색상 라이브러리에서 흔한 3글자 메서드명이다). HEX_COLOR와 같은 기준.
+  // The lookbehind must exclude `.` so method calls like `chroma.lab(` / `d3.rgb(` are not taken
+  // as colors (`lab`/`lch` are common 3-letter method names in color libraries). Same criterion as HEX_COLOR.
   const pattern = new RegExp(String.raw`(?<![\w-.$])(?:${COLOR_FUNCTIONS.join('|')})\(`, 'gi');
   let count = 0;
   let match;
@@ -113,8 +115,9 @@ function countColorFunctions(line) {
       if (line[cursor] === '(') depth++;
       else if (line[cursor] === ')' && --depth === 0) break;
     }
-    // 줄 안에서 닫히지 않으면 인자를 못 읽는다 = var() 면제를 판정할 수 없다.
-    // 판정 불가를 위반으로 세면 멀티라인 `hsl(\n var(--h) …)`가 오탐이 된다 — 세지 않는다.
+    // Unclosed within the line = the arguments are unreadable = the var() exemption cannot be
+    // judged. Counting the unjudgeable as violations would false-positive multiline
+    // `hsl(\n var(--h) …)` — so it is not counted.
     if (cursor >= line.length) continue;
     if (!/var\(/.test(line.slice(openIndex + 1, cursor))) count++;
   }
@@ -132,7 +135,7 @@ function countViolations(line) {
 const input = readStdin();
 if (!input) process.exit(0);
 
-// tool_name이 없는 입력(수동 실행·테스트)은 통과시키고, 명시된 경우에만 거른다.
+// Input without tool_name (manual runs, tests) passes through; filter only when it is explicit.
 if (input.tool_name && !MUTATING_TOOLS.has(input.tool_name)) process.exit(0);
 
 const filePath = input.tool_input?.file_path ?? '';
@@ -140,27 +143,28 @@ if (!TARGET_EXT.test(filePath)) process.exit(0);
 
 const cwd = input.cwd || process.cwd();
 const fcPath = findFeContext(cwd);
-if (!fcPath) process.exit(0); // fe-context 미선언 프로젝트 → no-op (범용성)
+if (!fcPath) process.exit(0); // project without fe-context → no-op (universality)
 
 let feContext;
 try {
   feContext = readFileSync(fcPath, 'utf8');
 } catch {
-  process.exit(0); // 판독 불가(디렉터리·권한 등) → 검사 전용 훅이 세션을 막지 않는다(fail-open)
+  process.exit(0); // unreadable (directory, permissions, …) → a check-only hook never blocks the session (fail-open)
 }
 const tokensPathMatch = feContext.match(/^tokensPath:\s*(\S+)/m);
-if (!tokensPathMatch) process.exit(0); // 토큰 시스템 미선언 → no-op
+if (!tokensPathMatch) process.exit(0); // no token system declared → no-op
 
-// 경로 기준점은 훅 계약이 준 cwd 하나로 통일한다. filePath가 절대경로면 그대로 유지된다.
+// Path anchoring is unified on the single cwd the hook contract provides. Absolute filePaths stay as is.
 const projectRoot = path.dirname(path.dirname(fcPath));
 const resolved = path.resolve(cwd, filePath);
 
-// 프로젝트 밖 파일은 읽지 않는다 — 훅이 무관한 파일 내용을 컨텍스트로 흘리지 않게.
+// Never read files outside the project — the hook must not leak unrelated file contents into context.
 if (resolved !== projectRoot && !resolved.startsWith(projectRoot + path.sep)) process.exit(0);
 
-// 토큰 정의 파일 자체는 raw 값이 정상이므로 제외.
-// 디렉터리 통째 제외는 토큰 "전용" 디렉터리(이름에 token 포함)일 때만 — 공유 디렉터리(예: src/styles/)에
-// 토큰이 선언된 경우 그 디렉터리의 비-토큰 파일까지 검사에서 빠지는 것을 막는다.
+// The token definition file itself legitimately holds raw values — excluded.
+// Whole-directory exclusion applies only to token-"dedicated" directories (name contains "token") —
+// preventing non-token files from escaping the check when tokens are declared in a shared
+// directory (e.g. src/styles/).
 const tokensFile = path.resolve(projectRoot, tokensPathMatch[1]);
 const tokensDir = path.dirname(tokensFile);
 const dirIsTokenOnly = /token/i.test(path.basename(tokensDir));
@@ -191,12 +195,12 @@ maskNonColorRegions(source)
 
 if (total === 0) process.exit(0);
 
-const scope = hits.length === 1 ? '' : ` (${hits.length}개 라인)`;
+const scope = hits.length === 1 ? '' : ` (across ${hits.length} lines)`;
 const context = [
-  `[omj:check-design-tokens] ${path.basename(resolved)}에 하드코딩 색상 ${total}건${scope} 감지 — 프로젝트 토큰(${tokensPathMatch[1]})의 시맨틱 값 사용을 권장:`,
+  `[omj:check-design-tokens] detected ${total} hardcoded color(s)${scope} in ${path.basename(resolved)} — prefer semantic values from the project tokens (${tokensPathMatch[1]}):`,
   ...hits.slice(0, 5),
-  hits.length > 5 ? `… 외 ${hits.length - 5}개 라인` : '',
-  '오탐이면 해당 줄에 `omj-allow-color` 주석을 붙여 끕니다.',
+  hits.length > 5 ? `… and ${hits.length - 5} more line(s)` : '',
+  'False positive? Silence that line with an `omj-allow-color` comment.',
 ]
   .filter(Boolean)
   .join('\n');
