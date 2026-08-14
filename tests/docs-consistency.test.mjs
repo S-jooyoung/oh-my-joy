@@ -63,7 +63,7 @@ describe('영문 산출물의 언어 순수성', () => {
   const ALLOWED = ['한국어'];
   // 완성형 한글만 보면 자모(ㅋㅋ)와 한자가 새어나간다.
   const CJK = /[가-힣ㄱ-ㅎㅏ-ㅣ㐀-鿿]/;
-  const ENGLISH_DOCS = ['README.md', 'docs/PRINCIPLES.en.md', 'CLAUDE.md', 'CONTRIBUTING.md', 'NOTICE.md'];
+  const ENGLISH_DOCS = ['README.md', 'CLAUDE.md', 'CONTRIBUTING.md', 'NOTICE.md', 'docs/PRINCIPLES.md'];
 
   for (const file of ENGLISH_DOCS) {
     it(`${file}에 허용된 리터럴 외의 한국어·한자가 없다`, () => {
