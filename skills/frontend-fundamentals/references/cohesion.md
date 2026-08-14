@@ -1,59 +1,59 @@
-# 응집도 (Cohesion)
+# Cohesion
 
-> 토스 frontend-fundamentals 기반. 출처: https://github.com/toss/frontend-fundamentals
+> Based on Toss frontend-fundamentals. Source: https://github.com/toss/frontend-fundamentals
 
-**원칙**: 함께 수정되는 코드는 함께 둔다. 한 가지를 바꿀 때 여러 파일을 동시에 고쳐야 한다면 응집도가 낮은 신호다.
+**Principle**: code that is modified together lives together. Needing to touch several files for one change is a low-cohesion signal.
 
-## 1. 함께 바뀌는 코드 모으기
+## 1. Gather code that changes together
 
-**Before** — 검증 규칙이 schema, 컴포넌트, 상수 파일에 흩어져 있어 한 규칙을 바꾸면 3곳을 수정해야 한다.
+**Before** — validation rules scattered across schema, component, and constants files: changing one rule means editing 3 places.
 
 ```
 src/schema/basic-form-schema.ts   // title min(1)
-src/components/forms/basic/...tsx  // 에러 메시지 하드코딩
-src/constants/form-limits.ts       // 길이 제한
+src/components/forms/basic/...tsx  // hardcoded error message
+src/constants/form-limits.ts       // length limits
 ```
 
-**After** — 한 도메인의 규칙을 한 단위(스키마)에 모은다.
+**After** — gather one domain's rules into one unit (the schema).
 
 ```ts
-// schema/basic-form-schema.ts — 메시지·제한을 한곳에서
+// schema/basic-form-schema.ts — messages and limits in one place
 export const basicFormSchema = z.object({
-  title: z.string().min(1, '제목을 입력해주세요').max(20),
+  title: z.string().min(1, 'Please enter a title').max(20),
 });
 ```
 
-## 2. 폼: 필드 단위 vs 폼 전체 단위 선택 기준
+## 2. Forms: choosing field-level vs whole-form cohesion
 
-응집도를 높이는 방법은 상황에 따라 다르다. **정답은 하나가 아니다.**
+How to raise cohesion depends on the situation. **There is no single right answer.**
 
-| 방식             | 응집 단위                       | 장점                       | 적합 상황                                                   |
-| ---------------- | ------------------------------- | -------------------------- | ----------------------------------------------------------- |
-| **필드 단위**    | 각 필드가 자기 검증·상태를 소유 | 재사용성·독립성↑           | 필드가 독립적으로 재사용되거나 동적으로 추가/삭제될 때      |
-| **폼 전체 단위** | 폼이 전체 상태·검증을 소유      | 일관된 흐름·교차 검증 용이 | 필드 간 의존(비밀번호 확인 등)이 많고 한 흐름으로 제출될 때 |
+| Approach         | Cohesion unit                            | Strength                          | Fits when                                                        |
+| ---------------- | ---------------------------------------- | --------------------------------- | ---------------------------------------------------------------- |
+| **Field-level**  | Each field owns its validation/state     | Reusability·independence ↑        | Fields are reused independently or added/removed dynamically     |
+| **Whole-form**   | The form owns all state/validation       | Consistent flow, easy cross-validation | Many inter-field dependencies (password confirm, …) and one submit flow |
 
-`react-hook-form + zod` 폼은 대개 **폼 전체 단위**가 자연스럽다 (한 schema가 전체를 검증).
+`react-hook-form + zod` forms are usually natural as **whole-form** (one schema validates everything).
 
-## 3. 매직 값을 의미 단위로 묶기
+## 3. Bundle magic values into meaning units
 
-흩어진 매직 값을 도메인 상수로 모으면, 변경 시 한곳만 고치면 된다.
+Gathering scattered magic values into domain constants means one change touches one place.
 
 ```ts
 // constants/upload.ts
-export const PENDING_UPLOAD_TTL_DAYS = 7; // eager-upload TTL — 한곳에서 관리
+export const PENDING_UPLOAD_TTL_DAYS = 7; // eager-upload TTL — managed in one place
 ```
 
 ## smell → remedy
 
-| Smell                              | Remedy                                  |
-| ---------------------------------- | --------------------------------------- |
-| 한 규칙 변경에 여러 파일 동시 수정 | 함께 바뀌는 것을 한 단위로 이동         |
-| 검증/메시지/제한이 분산            | 도메인 schema로 응집                    |
-| 같은 매직 값 중복 정의             | 단일 상수 파일로(`storage-keys.ts`처럼) |
+| Smell                                       | Remedy                                          |
+| ------------------------------------------- | ----------------------------------------------- |
+| One rule change touches several files       | Move what changes together into one unit        |
+| Validation/messages/limits dispersed        | Cohere into a domain schema                     |
+| The same magic value defined in duplicates  | A single constants file (like `storage-keys.ts`) |
 
-## 과설계 경고
+## Overengineering warning
 
-- 응집도를 높이려 무리하게 한 파일로 합치면 결합도가 올라가고 파일이 비대해진다. **함께 바뀌는 것만** 모은다.
-- 재사용·독립성이 더 중요한 필드는 굳이 폼 전체로 묶지 않는다.
+- Force-merging into one file for cohesion raises coupling and bloats the file. Gather **only what changes together**.
+- Fields where reuse/independence matters more need not be folded into the whole form.
 
-> 참고: 동일 localStorage 키를 여러 곳에 중복 정의하면 값이 어긋나기 쉽다 → 키는 `src/constants/storage-keys.ts` 한곳에만 두는 것이 응집도 원칙의 실제 적용이다.
+> Note: duplicating the same localStorage key in several places invites divergence → keeping keys only in `src/constants/storage-keys.ts` is the cohesion principle applied in practice.
