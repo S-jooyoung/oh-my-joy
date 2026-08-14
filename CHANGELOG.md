@@ -27,6 +27,10 @@
 
 - **`Bash(command:*)` 사전승인 제거** — `command`는 인자를 그대로 실행하는 셸 builtin이라 이 스코프는 사실상 bare Bash였다(스코프 문법을 쓰고도 임의 실행을 승인하는 세탁 경로). 3개 커맨드(omj-verify·omj-fix·omj-setup)를 실호출인 `Bash(command -v:*)`로 축소하고, 실행 위임 builtin(command·eval·exec·env·xargs 등) 단독 prefix를 불변식 테스트로 차단. Bash 호출지점 검사도 substring에서 단어 경계 정규식으로 강화 — 한국어 산문의 우연 일치로 공허 통과하던 구멍 봉합.
 - **omj-start의 미사용 `Grep` 선언 제거** — 본문 절차에 호출 지점이 없는 도구 선언 금지 규칙(CLAUDE.md) 위반이었다. Read·AskUserQuestion만으로 절차가 완결된다.
+- **소비 프로젝트에서 훅 설치 불가 결함** — `/omj-setup`의 훅 복사 절차가 소스 경로를 플러그인 루트 기준으로 지정하지 않아, 소비 프로젝트 cwd에는 없는 `templates/hooks/`를 찾다 실패했다(dogfood 레포에선 cwd==플러그인 루트라 은폐). `${CLAUDE_PLUGIN_ROOT}/templates/hooks/` 병기 + 경로 불변식 테스트로 고정. `cp`·`mkdir`·`claude plugin install` Bash 스코프도 실호출 기준으로 축소.
+- **훅 등록 matcher를 스크립트의 `MUTATING_TOOLS` 4종과 일치** — 설치 절차의 `Edit|Write` matcher가 스크립트 필터(Edit·Write·MultiEdit·NotebookEdit)보다 좁아 MultiEdit 저장이 훅을 조용히 우회했다.
+- **훅 fail-open 구멍 봉합** — 두 훅의 fe-context 판독이 try/catch 밖에 있어 판독 불가(디렉터리·권한) 시 uncaught exception이 exit 1로 새어 "검사만, exit 0" 계약이 깨졌다. try/catch로 no-op 처리 + 계약 테스트 2건.
+- **NOTICE 상대링크 3곳(deep-interview·goal-loop·ralplan)에 런타임 경로 병기** — 설치된 플러그인 프롬프트에선 상대링크가 소비 프로젝트 cwd 기준으로 해석되므로 `${CLAUDE_PLUGIN_ROOT}/NOTICE.md`를 함께 표기(GitHub 렌더링용 상대링크는 유지).
 
 ### Security
 

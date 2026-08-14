@@ -68,7 +68,12 @@ const cwd = input.cwd || process.cwd();
 const fcPath = findFeContext(cwd);
 if (!fcPath) process.exit(0);
 
-const feContext = readFileSync(fcPath, 'utf8');
+let feContext;
+try {
+  feContext = readFileSync(fcPath, 'utf8');
+} catch {
+  process.exit(0); // 판독 불가(디렉터리·권한 등) → 검사 전용 훅이 세션을 막지 않는다(fail-open)
+}
 if (!/^storybook:\s*true\s*$/m.test(feContext)) process.exit(0);
 
 // 경로 기준점은 훅 계약이 준 cwd 하나로 통일한다.

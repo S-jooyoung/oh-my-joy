@@ -104,6 +104,16 @@ describe('플러그인 구조 불변식', () => {
       assert.ok(existsSync(repoPath('templates', 'hooks', script)));
     }
   });
+
+  // 소비 프로젝트 cwd에는 templates/가 없다 — 소스가 플러그인 루트 기준이 아니면
+  // 훅 opt-in 설치가 절차대로 실행 불가다(dogfood에선 cwd==플러그인 루트라 은폐되는 결함 클래스).
+  it('omj-setup의 훅 복사 절차는 플러그인 루트 기준 소스 경로를 쓴다', () => {
+    const body = readRepoFile('commands', 'omj-setup.md');
+    assert.ok(
+      body.includes('${CLAUDE_PLUGIN_ROOT}/templates/hooks/'),
+      'omj-setup.md: 훅 복사 소스에 ${CLAUDE_PLUGIN_ROOT}/templates/hooks/ 표기가 필요합니다',
+    );
+  });
 });
 
 describe('commands/*.md frontmatter', () => {
@@ -260,8 +270,11 @@ describe('도구 선언 불변식 (commands allowed-tools · agents tools)', () 
         if (!m) continue;
         const cmd = m[1].replace(/:\*$/, '');
         // 단어 경계 매칭 — `command` 선언이 산문 속 "command" 조각으로 통과하는 공허를 막는다.
+        // 뒤 경계는 cmd가 단어 문자로 끝날 때만 요구한다(`git add` vs `git addendum`) —
+        // 경로 prefix처럼 비단어 문자로 끝나면 이어지는 파일명이 정당한 연속이다.
         const escaped = cmd.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const callSite = new RegExp(`(^|[^\\w-])${escaped}(?![\\w-])`);
+        const boundaryAfter = /[\w-]$/.test(cmd) ? '(?![\\w-])' : '';
+        const callSite = new RegExp(`(^|[^\\w-])${escaped}${boundaryAfter}`);
         if (!callSite.test(body)) violations.push(`${file}: Bash(${m[1]}) — 본문에 호출 지점 "${cmd}" 없음`);
       }
     }

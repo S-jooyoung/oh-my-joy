@@ -80,4 +80,4 @@ fe-context를 잃는다 — `goals/`·`baselines/`만 지정한다.
 ```
 
 > 방법론 출처: gajae-code의 durable goal 루프와 oh-my-claudecode의 goals/ledger
-> 상태 계약을 차용해 재작성 — [NOTICE.md](../NOTICE.md). 런타임은 이식하지 않았다.
+> 상태 계약을 차용해 재작성 — [NOTICE.md](../NOTICE.md)(런타임 경로 `${CLAUDE_PLUGIN_ROOT}/NOTICE.md`). 런타임은 이식하지 않았다.

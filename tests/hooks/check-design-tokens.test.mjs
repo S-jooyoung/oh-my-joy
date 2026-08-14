@@ -36,6 +36,21 @@ describe('check-design-tokens — 게이트(범용성 보장)', () => {
     assert.equal(result.stdout, '');
   });
 
+  it('fe-context.md가 판독 불가(디렉터리)여도 no-op — 검사 훅이 세션을 막지 않는다(fail-open)', () => {
+    // existsSync는 통과하지만 readFileSync가 EISDIR로 실패하는 케이스 —
+    // try/catch 없이는 uncaught exception이 exit 1로 새어 fail-open 계약이 깨진다.
+    const project = makeProject({
+      '.omj/fe-context.md/placeholder': '',
+      'src/Button.tsx': 'const s = { color: "#ff0000" };\n',
+    });
+    projects.push(project);
+    const result = runHook(
+      'check-design-tokens.mjs',
+      postToolUsePayload({ cwd: project.root, filePath: project.file('src/Button.tsx') }),
+    );
+    assert.equal(result.stdout, '');
+  });
+
   it('fe-context는 있으나 tokensPath 미선언이면 no-op', () => {
     const result = checkFile('src/Button.tsx', 'const s = { color: "#ff0000" };\n', {
       feContext: 'storybook: true\n',

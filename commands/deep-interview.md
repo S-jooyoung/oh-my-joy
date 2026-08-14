@@ -101,4 +101,4 @@ allowed-tools: Read, Grep, Glob, AskUserQuestion
 ```
 
 > 방법론 출처: gajae-code·oh-my-claudecode(MIT, Yeachan Heo)의 딥 인터뷰 방법론을
-> 차용해 재작성했다 — [NOTICE.md](../NOTICE.md). 런타임·상태 파일 규약은 이식하지 않았다.
+> 차용해 재작성했다 — [NOTICE.md](../NOTICE.md)(런타임 경로 `${CLAUDE_PLUGIN_ROOT}/NOTICE.md`). 런타임·상태 파일 규약은 이식하지 않았다.

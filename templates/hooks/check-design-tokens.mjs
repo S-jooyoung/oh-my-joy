@@ -142,7 +142,13 @@ const cwd = input.cwd || process.cwd();
 const fcPath = findFeContext(cwd);
 if (!fcPath) process.exit(0); // fe-context 미선언 프로젝트 → no-op (범용성)
 
-const tokensPathMatch = readFileSync(fcPath, 'utf8').match(/^tokensPath:\s*(\S+)/m);
+let feContext;
+try {
+  feContext = readFileSync(fcPath, 'utf8');
+} catch {
+  process.exit(0); // 판독 불가(디렉터리·권한 등) → 검사 전용 훅이 세션을 막지 않는다(fail-open)
+}
+const tokensPathMatch = feContext.match(/^tokensPath:\s*(\S+)/m);
 if (!tokensPathMatch) process.exit(0); // 토큰 시스템 미선언 → no-op
 
 // 경로 기준점은 훅 계약이 준 cwd 하나로 통일한다. filePath가 절대경로면 그대로 유지된다.

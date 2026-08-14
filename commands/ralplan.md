@@ -56,5 +56,5 @@ durable 완주가 필요하면 `/oh-my-joy:goal-loop`, OMC/OMX가 있으면 해�
 ```
 
 > 방법론 출처: gajae-code ralplan의 합의 구조(리뷰 join·PLANNING-STUCK·RALPLAN-DR)를
-> 차용해 v1은 critic 1패스로 축소 재작성 — [NOTICE.md](../NOTICE.md). Architect 2차
+> 차용해 v1은 critic 1패스로 축소 재작성 — [NOTICE.md](../NOTICE.md)(런타임 경로 `${CLAUDE_PLUGIN_ROOT}/NOTICE.md`). Architect 2차
 > 패스는 security·migration·public API 같은 고위험 트리거가 실측될 때 추가한다.

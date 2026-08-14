@@ -1,7 +1,7 @@
 ---
 description: OMJ 의존성 점검 + 스캐폴딩 — playwright-cli/MCP·Figma MCP·Context7 점검, .omj/fe-context.md·토큰 가드 훅(opt-in) 설치 제안
 argument-hint: "[--check] (점검만) | [--help]"
-allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(command -v:*), Bash(claude plugin list:*), Bash(claude plugin install:*), Bash(npm i -g playwright-cli:*), Bash(test:*), Bash(grep:*), Bash(cp:*), Bash(mkdir:*), Bash(gh auth status:*), Bash(gh api user/starred/S-jooyoung/oh-my-joy), Bash(gh api user/starred/S-jooyoung/oh-my-joy -X PUT)
+allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(command -v:*), Bash(claude plugin list:*), Bash(claude plugin install figma@claude-plugins-official:*), Bash(claude plugin install context7-plugin@context7-marketplace:*), Bash(npm i -g playwright-cli:*), Bash(test:*), Bash(grep:*), Bash(cp "${CLAUDE_PLUGIN_ROOT}/templates/hooks/":*), Bash(mkdir -p .claude/hooks:*), Bash(gh auth status:*), Bash(gh api user/starred/S-jooyoung/oh-my-joy), Bash(gh api user/starred/S-jooyoung/oh-my-joy -X PUT)
 ---
 
 # /omj-setup — 의존성 닥터 + 설치·스캐폴딩 가이드
@@ -46,10 +46,10 @@ OMJ가 기대는 **선택적 의존성**을 점검하고, 없으면 설치를 �
 - **`.gitignore` 등급 안내** → fe-context 스캐폴딩과 함께 소비 프로젝트 `.gitignore`에 `.omj/baselines/`(인증 후 스크린샷 — PII 가능)와 `.omj/goals/`(`/oh-my-joy:goal-loop`의 operational state — 명령 요약·경로 누적)를 추가하도록 안내한다. **`.omj/` 통째 ignore는 금지 안내** — 커밋 대상인 `.omj/fe-context.md`(프로젝트 선언)까지 잃는다. 두 하위 디렉터리만 지정한다.
 - **(선택) `docs/DESIGN.md` 초안** → fe-context 생성에 동의한 경우에만 이어서 제안: 브랜드 성격·색상/스페이싱 사용 맥락·컴포넌트 조합 규칙·Figma 레이어 네이밍 컨벤션의 **빈 틀 + 주석 가이드**만 생성(내용은 프로젝트가 채움). 생성 시 fe-context에 `designDocPath: docs/DESIGN.md` 연결.
 - **토큰 가드 훅 미설치** → 설치 제안은 **감지 기반으로 구성**한다: `check-design-tokens.mjs`는 기본 제안, `check-story-exists.mjs`는 **Storybook 신호가 감지될 때만**(`.storybook/` 디렉터리·`@storybook/*` 의존성·`*.stories.*` 파일) 선택지에 넣는다 — 신호가 없으면 목록에서 빼고 존재만 언급한다(훅 자체는 fe-context 미선언 시 no-op이라 이중 안전이지만, 대상 관행이 없는 프로젝트에 제안하는 것 자체가 노이즈다). 동의 시:
-  1. 플러그인 `templates/hooks/check-design-tokens.mjs`·`check-story-exists.mjs`를 소비 프로젝트 **`.claude/hooks/`로 복사**한다 — `mkdir -p .claude/hooks`로 디렉터리를 먼저 보장한 뒤 `cp`(디렉터리가 없으면 복사가 실패한다). 참조-등록이 아니라 **복사**인 이유: 소비 프로젝트 settings.json은 `${CLAUDE_PLUGIN_ROOT}`를 해석하지 못하고 플러그인 캐시 절대경로는 버전 업데이트마다 깨진다.
-  2. 소비 프로젝트 `.claude/settings.json`의 `hooks.PostToolUse`에 matcher `Edit|Write`로 두 스크립트를 상대경로(`node .claude/hooks/check-design-tokens.mjs`)로 등록한다(`Edit`, 파일 없으면 `Write`).
+  1. 플러그인 훅 정본 `${CLAUDE_PLUGIN_ROOT}/templates/hooks/`(레포 기준 `templates/hooks/`)의 선택된 스크립트를 소비 프로젝트 **`.claude/hooks/`로 복사**한다 — `mkdir -p .claude/hooks && cp "${CLAUDE_PLUGIN_ROOT}/templates/hooks/"check-design-tokens.mjs .claude/hooks/` 형태(선택된 스크립트만, 디렉터리를 먼저 보장해야 복사가 실패하지 않는다). 소스는 반드시 플러그인 루트 기준이어야 한다 — 소비 프로젝트 cwd에는 `templates/`가 없다. 참조-등록이 아니라 **복사**인 이유: 소비 프로젝트 settings.json은 `${CLAUDE_PLUGIN_ROOT}`를 해석하지 못하고 플러그인 캐시 절대경로는 버전 업데이트마다 깨진다.
+  2. 소비 프로젝트 `.claude/settings.json`의 `hooks.PostToolUse`에 matcher `Edit|Write|MultiEdit|NotebookEdit`로 두 스크립트를 상대경로(`node .claude/hooks/check-design-tokens.mjs`)로 등록한다 — 스크립트 내부 `MUTATING_TOOLS` 4종과 동일 집합(matcher가 좁으면 MultiEdit 저장이 훅을 조용히 우회한다).
   3. 훅은 fe-context 선언(`tokensPath`/`storybook: true`)이 없으면 no-op이므로, fe-context 스캐폴딩과 함께 설치할 것을 권장한다.
-  4. 재실행 시 플러그인 템플릿과 복사본이 다르면 "훅 스크립트 갱신 가능" 안내(덮어쓰기는 동의 시만).
+  4. 재실행 시 `${CLAUDE_PLUGIN_ROOT}/templates/hooks/`의 정본과 `.claude/hooks/` 복사본이 다르면 "훅 스크립트 갱신 가능" 안내(덮어쓰기는 동의 시만).
 
 > 플러그인 설치는 **다음 세션부터** 커맨드/도구가 로드된다 — 설치 후 "새 세션에서 적용됨" 안내. 훅 등록도 다음 세션부터 발화한다.
 
