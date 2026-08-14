@@ -7,8 +7,11 @@ oh-my-joy is a Claude Code plugin whose **behavior is declared in Markdown**. Th
 ```bash
 git clone https://github.com/S-jooyoung/oh-my-joy.git
 cd oh-my-joy
-node --test          # no install step — Node 20.11+ is all you need
+npm test                 # no install step — Node 20+ is all you need
+npm run validate-plugin  # manifest + command/agent/skill frontmatter conformance
 ```
+
+`validate-plugin` runs two layers: a built-in schema check (always) and `claude plugin validate --strict` (when the Claude Code CLI is on your PATH). The second layer is the authority — it tracks the spec as the runtime implements it — so run it locally before opening a PR even though CI can only run the first. It accepts exactly one known warning, documented at the top of `scripts/validate-plugin.mjs`; any other warning fails the run.
 
 To try it as a plugin in Claude Code:
 
@@ -16,6 +19,10 @@ To try it as a plugin in Claude Code:
 /plugin marketplace add <local path to this repo>
 /plugin install oh-my-joy@omj
 ```
+
+## Reporting a security problem
+
+Not here, and not in a public issue — use [private reporting](https://github.com/S-jooyoung/oh-my-joy/security/advisories/new). [SECURITY.md](SECURITY.md) describes what is in scope; the short version is that over-broad `allowed-tools` grants and shell injection in `scripts/`/`templates/hooks/` are the real risk classes here, while a permission prompt you did not expect is usually the design working.
 
 ## Never do these
 

@@ -1,0 +1,78 @@
+name: Bug report
+description: A command, agent, hook, or script behaves differently than documented
+labels: ['fix']
+assignees: ['S-jooyoung']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This plugin's behavior is declared in Markdown, so "what the docs say" and "what happened" are both evidence. Please give me the pair.
+
+        **Security problems do not belong here** — use [private reporting](https://github.com/S-jooyoung/oh-my-joy/security/advisories/new) instead.
+
+  - type: input
+    id: version
+    attributes:
+      label: Plugin version
+      description: From `/plugin list`, or the `version` in `.claude-plugin/plugin.json`. Run `/plugin update oh-my-joy` and `/reload-plugins` first — stale installs are the most common cause.
+      placeholder: '0.5.0'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Which surface
+      options:
+        - /omj
+        - /omj-start
+        - /omj-verify
+        - /omj-fix
+        - /omj-sync
+        - /omj-setup
+        - /oh-my-joy:ff-review
+        - /oh-my-joy:deep-interview
+        - /oh-my-joy:goal-loop
+        - /oh-my-joy:ralplan
+        - An agent (figma-implementer / design-qa / plan-critic)
+        - A hook (check-design-tokens / check-story-exists)
+        - scripts/ (goal-state, release, validate-plugin)
+        - Docs / README
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and where that is documented
+      description: Quote the line from the README, `commands/*.md`, or `docs/` that led you to expect it. If nothing documents it, say so — that may itself be the bug.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+      description: Paste the actual output. For a permission prompt you did not expect, include the exact tool name shown.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `/omj <figma-url>`
+        2. Approve the plan
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Claude Code version (`claude --version`), OS, Node version if a script is involved, and whether OMC/OMX is installed.
+    validations:
+      required: false

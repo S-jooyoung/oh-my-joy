@@ -1,0 +1,43 @@
+name: Feature request
+description: Propose a new command, flag, or behavior
+labels: ['feat']
+assignees: ['S-jooyoung']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Every surface added here is context loaded into someone's session forever, so the bar is "this earns its tokens", not "this would be nice". Arguing the problem is more persuasive than specifying the solution.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you hitting
+      description: Describe the situation where the current commands leave you stuck, and what you do today instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like it to do
+      description: A new command, a flag on an existing one, or changed behavior. Sketch the invocation if you have one in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you considered and rejected
+      description: Including "an existing command almost does this, except …". This repo records rejected alternatives in `docs/PRINCIPLES.md`, so this section usually survives into the docs.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This belongs to oh-my-joy's frontend loop or its general-purpose workflow commands, not to Claude Code itself or another plugin
+          required: true
+        - label: I checked the [README command table](https://github.com/S-jooyoung/oh-my-joy#commands) and no existing command covers it
+          required: true

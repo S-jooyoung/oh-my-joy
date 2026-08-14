@@ -36,3 +36,19 @@ jobs:
       # scripts.test (the repo's canonical verification command).
       - name: Verify suite
         run: npm test
+
+      # The official validator is the authoritative layer — it tracks the spec as the
+      # runtime implements it, so it catches field renames and new requirements the
+      # built-in check would learn about only from a broken install. Measured to run
+      # unauthenticated on a runner (~4s install), so it is a real gate here rather
+      # than a local-only convenience. One matrix leg is enough: the manifests do not
+      # vary by Node version, and the other legs still run the built-in layer.
+      - name: Install Claude Code CLI (official validator)
+        if: matrix.node == '22'
+        run: npm i -g @anthropic-ai/claude-code
+
+      # Manifest and frontmatter conformance. The script runs the built-in schema
+      # check always, adds `claude plugin validate --strict` when the CLI is present,
+      # and reports which layers ran.
+      - name: Validate plugin spec
+        run: npm run validate-plugin

@@ -10,7 +10,8 @@
   "scripts": {
     "test": "node --test",
     "release": "node scripts/release.mjs",
-    "test:watch": "node --test --watch"
+    "test:watch": "node --test --watch",
+    "validate-plugin": "node scripts/validate-plugin.mjs"
   },
   "license": "MIT"
 }

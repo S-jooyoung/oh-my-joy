@@ -184,3 +184,26 @@ The "why" behind each decision lives in **[docs/PRINCIPLES.md](docs/PRINCIPLES.m
 - **`/oh-my-joy:goal-loop` asks permission for every verification command** — intended. Verification commands are deliberately not pre-approved: the permission prompt is what makes the recorded evidence trustworthy. Also gitignore `.omj/goals/` (operational state — command summaries and paths accumulate there).
 - **MCP tool names differ** — Figma/Context7 tool names vary by environment. Check the actual names with `/mcp`.
 - **Duplicate committed skill copy** — if a project committed `frontend-fundamentals` into its own `.claude/skills/`, it may load alongside the OMJ bundle (harmless). Don't delete that copy (deleting it breaks teammates who cloned without OMJ installed) — just edit the source of truth in one place.
+
+---
+
+## Contributing
+
+Issues and PRs are welcome. The repo is Markdown-first — there is no build step and nothing to install:
+
+```bash
+git clone https://github.com/S-jooyoung/oh-my-joy.git
+cd oh-my-joy
+npm test                 # Node 20+ built-ins only, no npm install
+npm run validate-plugin  # manifest + frontmatter conformance
+```
+
+To try your change as a real plugin, `/plugin marketplace add <path to your clone>` then `/plugin install oh-my-joy@omj`.
+
+Two things worth knowing before your first PR: a feature is incomplete until **README (both languages), CHANGELOG, and — if a principle moved — `docs/PRINCIPLES.md`** change in the same commit; and `allowed-tools` must never declare a tool the command body does not call. Both are test-enforced. The full guide is [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Found a security problem? Do not open an issue — see [SECURITY.md](SECURITY.md).
+
+## License
+
+[MIT](LICENSE). Methodology borrowed from other projects is credited in [NOTICE.md](NOTICE.md).
