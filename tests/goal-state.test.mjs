@@ -159,12 +159,17 @@ describe('goal-state: init 원자성', () => {
     }
   });
 
-  it('크래시 잔해(.tmp- 디렉터리)가 있어도 재init이 성공한다 — 최종 경로 비점유 보장', () => {
+  it('크래시 잔해(.tmp- 디렉터리)가 있어도 재init이 성공하고 잔해를 청소한다', () => {
     const root = makeRoot();
-    // 중간 크래시를 재현: temp 경로만 만들어지고 rename 전에 죽은 상태.
+    // 중간 크래시를 재현: 다른 pid의 temp 경로만 만들어지고 rename 전에 죽은 상태.
     mkdirSync(path.join(root, '.omj/goals/demo.tmp-99999'), { recursive: true });
     assert.equal(initDemo(root).code, 0);
     assert.ok(existsSync(path.join(root, '.omj/goals/demo/goals.json')));
+    assert.deepEqual(
+      readdirSync(path.join(root, '.omj/goals')),
+      ['demo'],
+      '다른 pid의 .tmp- 잔해가 청소되지 않았습니다',
+    );
   });
 });
 

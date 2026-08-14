@@ -28,9 +28,12 @@ const marketplace = readJson('.claude-plugin', 'marketplace.json');
  * ZERO_BASH: 셸 실행 경로가 아예 없다(쓰기 도구·Task/Agent에 더해 Bash 토큰 0).
  *   `/omj`는 plan-gate를 우회할 쓰기 경로가 없어야 하고(PRINCIPLES ①③),
  *   `deep-interview`·`ralplan`은 네이티브 Plan만 산출하는 프라이머·리뷰 커맨드다.
- * REPORT_ONLY: 소스는 절대 수정하지 않지만 관찰용 스코프 Bash는 쓴다 —
- *   `ff-review`(git diff 판독)·`omj-verify`(브라우저 기동·캡처).
+ * REPORT_ONLY: **소스**는 절대 수정하지 않지만 관찰·리포트용 스코프 Bash는 쓴다 —
+ *   `ff-review`(git diff 판독)·`omj-verify`(브라우저 기동·캡처. curl은 `.omj/baselines/`
+ *   다운로드 쓰기를 포함하므로 무쓰기가 아니라 "소스 비수정"이며 쓰기 범위는 본문이 강제).
  *   bare Bash는 전 커맨드 공통 검사가 이미 차단하므로 여기선 쓰기 도구만 본다.
+ * `omj-start`(Read·AskUserQuestion뿐)는 의도적 미분류다 — 본문 "직접 Bash 실행 안전
+ *   조건"이 권한 프롬프트 게이트를 설계에 포함하므로 zero-bash 단언과 의미가 어긋난다.
  */
 const ZERO_BASH_COMMANDS = new Set(['omj.md', 'deep-interview.md', 'ralplan.md']);
 const REPORT_ONLY_COMMANDS = new Set(['ff-review.md', 'omj-verify.md']);
@@ -146,6 +149,8 @@ describe('commands/*.md frontmatter', () => {
 
       it('allowed-tools를 명시한다', () => {
         assert.ok(fm['allowed-tools']?.length > 0, `${file}에 allowed-tools 선언이 없습니다`);
+        // YAML 리스트로 쓰면 아래 doesNotMatch류가 알아보기 힘든 타입 에러로 죽는다 — 여기서 명시적으로 막는다.
+        assert.equal(typeof fm['allowed-tools'], 'string', `${file}: allowed-tools는 쉼표 구분 한 줄 문자열이어야 합니다`);
       });
 
       // "권한을 빼는 것이 곧 안전 게이트를 강제하는 것"(PRINCIPLES ③)이 이 레포의 핵심 주장이다.
@@ -158,15 +163,28 @@ describe('commands/*.md frontmatter', () => {
         );
       });
 
-      // Bash(command:*) 같은 실행 위임 builtin의 단독 prefix는 `command <아무거나>`를
-      // 무프롬프트로 승인한다 — 스코프 문법을 쓰고도 bare Bash와 동등해지는 세탁 경로.
-      // 인자까지 포함한 prefix(Bash(command -v:*))는 통과한다.
-      it('실행 위임 builtin을 단독 prefix로 스코프하지 않는다', () => {
-        assert.doesNotMatch(
-          fm['allowed-tools'],
-          /(^|,\s*)Bash\(\s*(command|eval|exec|source|sh|bash|zsh|env|xargs|sudo|nohup|time)\s*(:\*)?\s*\)/,
-          `${file}: 실행 위임 builtin 단독 스코프는 사실상 bare Bash다 — 인자까지 좁혀야 한다(예: Bash(command -v:*))`,
-        );
+      // Bash(command:*)·Bash(sh -c:*)·Bash(npx:*)처럼 prefix 전체가 실행 위임
+      // builtin·인터프리터·위임 플래그로만 이뤄지면 사실상 bare Bash 사전승인이다
+      // (스코프 문법을 쓰고도 임의 실행을 승인하는 세탁 경로). 알려진 세탁 형태를
+      // 리뷰 가시권으로 끌어내는 휴리스틱 게이트다 — `env FOO=1 sh` 같은 변형까지
+      // 막는 샌드박스가 아님을 알고 유지하라. 실제 대상 인자가 하나라도 있으면
+      // (Bash(command -v:*)·Bash(npx tsc:*)) 통과한다.
+      it('실행 위임 builtin·인터프리터를 사실상 bare로 스코프하지 않는다', () => {
+        const LAUNDER = new Set([
+          'command', 'eval', 'exec', 'source', 'sh', 'bash', 'zsh', 'env', 'xargs',
+          'sudo', 'nohup', 'time', 'node', 'npx', 'python', 'python3', 'perl', 'ruby', 'awk',
+        ]);
+        const DELEGATION_FLAGS = new Set(['-c', '-e', '-exec']);
+        for (const token of (fm['allowed-tools'] ?? '').split(',').map((t) => t.trim())) {
+          const m = /^Bash\((.+?)(?::\*)?\)$/.exec(token);
+          if (!m) continue;
+          const words = m[1].trim().split(/\s+/);
+          const launders = words.every((w) => LAUNDER.has(w) || DELEGATION_FLAGS.has(w));
+          assert.ok(
+            !launders,
+            `${file}: Bash(${m[1]})는 사실상 bare Bash다 — 실제 대상 인자까지 좁혀야 한다(예: Bash(command -v:*))`,
+          );
+        }
       });
 
       if (READ_ONLY_COMMANDS.has(file)) {
@@ -221,6 +239,7 @@ describe('agents/*.md frontmatter', () => {
       it('description과 tools를 갖는다', () => {
         assert.ok(fm.description?.length > 0);
         assert.ok(fm.tools?.length > 0);
+        assert.equal(typeof fm.tools, 'string', `${file}: tools는 쉼표 구분 한 줄 문자열이어야 합니다`);
       });
     });
   }
@@ -236,6 +255,9 @@ describe('agents/*.md frontmatter', () => {
     );
   });
 
+  // 잔존 구멍: tools의 bare Bash는 이 단언이 못 본다(에이전트 tools에는 스코프 문법이
+  // 없다). "소스 비수정"은 쓰기 도구 부재 + 본문 규율이 담보하는 계약이지 샌드박스가
+  // 아니다 — README의 design-qa 서술도 같은 정확도로 유지할 것.
   it('design-qa는 쓰기 도구를 선언하지 않는다 (검사만, 소스 비수정)', () => {
     const fm = parseFrontmatter(readRepoFile('agents', 'design-qa.md'));
     assert.doesNotMatch(
@@ -311,7 +333,16 @@ describe('도구 선언 불변식 (commands allowed-tools · agents tools)', () 
   it('bare MCP 선언은 플러그인 프리픽스 변형을 병기한다 (역방향)', () => {
     // 순방향(플러그인→bare)만 검사하면 bare 토큰만 선언한 파일이 통과한다 —
     // 플러그인 마켓플레이스 설치 사용자는 플러그인 프리픽스 도구명만 가지므로 사전승인을 잃는다.
+    // 서버 집합은 "레포 어딘가에서 플러그인 프리픽스로 선언된 서버" ∪ 알려진 목록으로
+    // 동적 구성한다. 한계: 어떤 파일에서도 플러그인 변형이 없는 새 서버를 bare로만
+    // 선언하면 이 검사가 침묵한다 — 새 MCP 서버 추가 시 알려진 목록도 함께 갱신할 것.
     const KNOWN_SERVERS = new Set(['figma', 'context7', 'playwright']);
+    for (const { tokens } of parsed) {
+      for (const token of tokens) {
+        const pm = /^mcp__plugin_(.+)__/.exec(token);
+        if (pm) KNOWN_SERVERS.add(pm[1].split('_').pop());
+      }
+    }
     const violations = [];
     for (const { file, tokens } of parsed) {
       for (const token of tokens) {

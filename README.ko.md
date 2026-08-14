@@ -97,7 +97,7 @@ _점선 = read-only, 소스 부작용 없음. 승인 게이트를 사용자 없�
 ### 번들 에이전트 & opt-in 훅
 
 - **`figma-implementer`** (에이전트) — **승인된 OMJ 스펙**을 Clarify→Context→Plan→Generate→Evaluate 5단계로 구현하는 inline 레인 실행자. 스펙 없는 bare Figma URL은 구현을 거부하고 `/omj`부터 안내(plan-gate 우회 차단). OMC/OMX 레인이 선택됐으면 그 레인이 우선.
-- **`design-qa`** (에이전트) — 타입체크·린트·토큰 하드코딩·Figma 충실도·a11y 기본(+fe-context 선언 시 Story·i18n)을 **검사만** 하는 기계 게이트. 소스는 절대 수정하지 않음.
+- **`design-qa`** (에이전트) — 타입체크·린트·토큰 하드코딩·Figma 충실도·a11y 기본(+fe-context 선언 시 Story·i18n)을 **검사만** 하는 기계 게이트. 쓰기 도구(`Write`/`Edit`) 미선언(불변식 테스트로 고정)이되, 검사 명령 실행용 Bash는 있어 순수 read-only는 아님.
 - **`plan-critic`** (에이전트) — `/oh-my-joy:ralplan`의 합의 패스가 소집하는 적대 플랜 리뷰어. read-only 계약(`Read, Grep, Glob` — 불변식 테스트로 고정), ralplan 밖에서는 소집되지 않음.
 - **토큰 가드 훅** — `templates/hooks/`의 `check-design-tokens.mjs`(하드코딩 색상 경고)·`check-story-exists.mjs`(Story 누락 경고). **플러그인이 자동 발화시키지 않습니다** — `/omj-setup`이 소비 프로젝트 `.claude/hooks/`로 복사·등록할 때만(opt-in) 동작하고, `.omj/fe-context.md` 선언이 없으면 no-op입니다.
 

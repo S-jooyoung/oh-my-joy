@@ -222,8 +222,10 @@ describe('커맨드 목록 정합', () => {
     for (const name of workflowCommands) {
       // 정확 매칭(`/name`)만 보면 인자 동반 인라인 코드(`/name --flag`)와 펜스 코드블록
       // 안의 bare 표기를 놓친다. 앞 경계에서 `:`(정규 호출 oh-my-joy:name)·`/`·단어
-      // 문자(경로 조각 commands/name.md)를 제외하면 순수 bare 슬래시 표기만 남는다.
-      const bare = new RegExp(`(^|[^\\w:/])/${name}(?![\\w-])`, 'm');
+      // 문자(경로 조각 commands/name.md)·`.`(상대링크 ./name.md)·`~`·`}`(치환변수
+      // ${…}/name)를 제외하고, 뒤에 `.md`가 붙으면 경로로 간주해 제외한다.
+      // 알려진 잔존 오탐: 한국어 문자 바로 뒤의 `/name`(\w가 한글을 포함하지 않음).
+      const bare = new RegExp(`(^|[^\\w:/.~}])/${name}(?![\\w-]|\\.md)`, 'm');
       for (const [label, source] of sources) {
         if (bare.test(source)) offenders.push(`${label}: /${name}`);
       }

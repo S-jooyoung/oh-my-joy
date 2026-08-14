@@ -11,7 +11,7 @@
  * ledger 꼬리의 일치를 검사한다 — 불일치는 "reconcile 먼저"로 멈춘다.
  * 동시 writer는 지원하지 않는다(단일 owner 순차 루프 전제).
  */
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -152,17 +152,19 @@ function loadState(slug) {
   return { snapshot, events };
 }
 
-function writeSnapshot(slug, snapshot) {
-  const target = snapshotPath(slug);
+// dir 인자는 init의 temp 디렉터리 경유용 — 직렬화·스탬프 경로를 이 두 함수 하나로
+// 유지해야 init이 형식을 복제하다 조용히 드리프트하는 사고를 막는다.
+function writeSnapshot(slug, snapshot, dir = goalsRoot(slug)) {
+  const target = path.join(dir, 'goals.json');
   const temp = `${target}.tmp`;
   snapshot.updated_at = new Date().toISOString();
   writeFileSync(temp, `${JSON.stringify(snapshot, null, 2)}\n`);
   renameSync(temp, target); // 원자적 교체 — 중단돼도 반쯤 쓰인 스냅샷이 남지 않는다
 }
 
-function appendEvent(slug, snapshot, event) {
+function appendEvent(slug, snapshot, event, dir = goalsRoot(slug)) {
   const entry = { seq: snapshot.last_event_id + 1, ts: new Date().toISOString(), ...event };
-  appendFileSync(ledgerPath(slug), `${JSON.stringify(entry)}\n`);
+  appendFileSync(path.join(dir, 'ledger.jsonl'), `${JSON.stringify(entry)}\n`);
   snapshot.last_event_id = entry.seq;
   return entry;
 }
@@ -229,21 +231,32 @@ function main() {
       slug,
       closed: false,
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      last_event_id: 1,
+      updated_at: null,
+      last_event_id: 0,
       goals: goals.map((goal) => ({ ...goal, status: 'pending', evidence: null, reason: null })),
     };
     // temp 디렉터리에 완성한 뒤 rename — 최종 경로에 직접 단계별로 쓰면 중간 크래시
     // 잔해가 경로를 점유해 init('이미 있습니다')·타 동사·reconcile('init 먼저') 전부가
     // 거부하는 복구 불능 상태가 된다(writeSnapshot의 원자 교체와 같은 계약을 init 전체로 확장).
+    const goalsParent = path.dirname(goalsRoot(slug));
+    if (existsSync(goalsParent)) {
+      // 다른 pid가 남긴 크래시 잔해도 여기서 청소한다 — gitignore 아래서 조용히 누적되는 것을 막는다.
+      for (const entry of readdirSync(goalsParent)) {
+        if (entry.startsWith(`${slug}.tmp-`)) rmSync(path.join(goalsParent, entry), { recursive: true, force: true });
+      }
+    }
     const tmpRoot = `${goalsRoot(slug)}.tmp-${process.pid}`;
-    rmSync(tmpRoot, { recursive: true, force: true });
-    mkdirSync(tmpRoot, { recursive: true });
-    writeFileSync(path.join(tmpRoot, 'brief.md'), brief);
-    const firstEvent = { seq: 1, ts: new Date().toISOString(), event: 'plan_created', goals };
-    writeFileSync(path.join(tmpRoot, 'ledger.jsonl'), `${JSON.stringify(firstEvent)}\n`);
-    writeFileSync(path.join(tmpRoot, 'goals.json'), `${JSON.stringify(snapshot, null, 2)}\n`);
-    renameSync(tmpRoot, goalsRoot(slug));
+    try {
+      mkdirSync(tmpRoot, { recursive: true });
+      writeFileSync(path.join(tmpRoot, 'brief.md'), brief);
+      writeFileSync(path.join(tmpRoot, 'ledger.jsonl'), '');
+      appendEvent(slug, snapshot, { event: 'plan_created', goals }, tmpRoot);
+      writeSnapshot(slug, snapshot, tmpRoot);
+      renameSync(tmpRoot, goalsRoot(slug));
+    } catch (error) {
+      rmSync(tmpRoot, { recursive: true, force: true });
+      throw error;
+    }
     return ok({ initialized: slug, goals: snapshot.goals.map((g) => ({ id: g.id, title: g.title, status: g.status })) });
   }
 

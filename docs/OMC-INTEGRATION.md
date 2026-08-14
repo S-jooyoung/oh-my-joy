@@ -24,7 +24,7 @@
 2. 사용자가 Plan을 승인한다.
 3. 선택된 레인으로 바로 실행하거나, 자동 시작이 불가하면 `/omj-start <approved-spec>` 한 줄로 넘긴다.
 
-`/oh-my-claudecode:ralplan`/`$ralplan` 합의는 모호·고위험·아키텍처 합의가 필요할 때만 명시적으로 거칩니다. 단순히 "큰 작업"이라는 이유만으로 매번 두 번째 계획 게이트를 강제하지 않습니다. OMC/OMX가 아예 없는 환경이면 OMJ native 풀 사이클 3종이 같은 역할을 맡습니다 — `/oh-my-joy:deep-interview`(요구 명료화) → `/oh-my-joy:goal-loop`(durable 실행) → `/oh-my-joy:ralplan`(합의 리뷰). 우선순위 정본은 [EXECUTION-HANDOFF.md](EXECUTION-HANDOFF.md)의 "OMJ native 레인" 절입니다.
+`/oh-my-claudecode:ralplan`/`$ralplan` 합의는 모호·고위험·아키텍처 합의가 필요할 때만 명시적으로 거칩니다. 단순히 "큰 작업"이라는 이유만으로 매번 두 번째 계획 게이트를 강제하지 않습니다. `/oh-my-joy:deep-interview`(요구 명료화)는 런타임과 무관한 상시 프라이머이고, durable 실행·합의 리뷰는 OMC/OMX 부재 시 OMJ native 2종이 같은 역할을 맡습니다 — `/oh-my-joy:goal-loop`(durable — 우선순위 정본: [EXECUTION-HANDOFF.md](EXECUTION-HANDOFF.md) "OMJ native 레인" 절)·`/oh-my-joy:ralplan`(합의 — 같은 문서의 Consensus fallback 서술).
 
 ## A. 일반 FE 작업 (단순~중간)
 

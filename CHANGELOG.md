@@ -31,20 +31,21 @@
 
 ### Fixed
 
-- **`Bash(command:*)` 사전승인 제거** — `command`는 인자를 그대로 실행하는 셸 builtin이라 이 스코프는 사실상 bare Bash였다(스코프 문법을 쓰고도 임의 실행을 승인하는 세탁 경로). 3개 커맨드(omj-verify·omj-fix·omj-setup)를 실호출인 `Bash(command -v:*)`로 축소하고, 실행 위임 builtin(command·eval·exec·env·xargs 등) 단독 prefix를 불변식 테스트로 차단. Bash 호출지점 검사도 substring에서 단어 경계 정규식으로 강화 — 한국어 산문의 우연 일치로 공허 통과하던 구멍 봉합.
 - **omj-start의 미사용 `Grep` 선언 제거** — 본문 절차에 호출 지점이 없는 도구 선언 금지 규칙(CLAUDE.md) 위반이었다. Read·AskUserQuestion만으로 절차가 완결된다.
 - **소비 프로젝트에서 훅 설치 불가 결함** — `/omj-setup`의 훅 복사 절차가 소스 경로를 플러그인 루트 기준으로 지정하지 않아, 소비 프로젝트 cwd에는 없는 `templates/hooks/`를 찾다 실패했다(dogfood 레포에선 cwd==플러그인 루트라 은폐). `${CLAUDE_PLUGIN_ROOT}/templates/hooks/` 병기 + 경로 불변식 테스트로 고정. `cp`·`mkdir`·`claude plugin install` Bash 스코프도 실호출 기준으로 축소.
 - **훅 등록 matcher를 스크립트의 `MUTATING_TOOLS` 4종과 일치** — 설치 절차의 `Edit|Write` matcher가 스크립트 필터(Edit·Write·MultiEdit·NotebookEdit)보다 좁아 MultiEdit 저장이 훅을 조용히 우회했다.
 - **훅 fail-open 구멍 봉합** — 두 훅의 fe-context 판독이 try/catch 밖에 있어 판독 불가(디렉터리·권한) 시 uncaught exception이 exit 1로 새어 "검사만, exit 0" 계약이 깨졌다. try/catch로 no-op 처리 + 계약 테스트 2건.
 - **`$schema`가 404 URL을 가리키던 문제** — plugin.json·marketplace.json의 anthropic.com 스키마 URL은 실측 404라 테스트가 주장하던 "에디터 검증" 효과가 공허했다. SchemaStore 등재본(실측 200)으로 교체하고 테스트를 존재 검사에서 정본 URL 리터럴 고정으로 강화.
-- **풀 사이클 문서 드리프트 일괄 정정** — PR-2·PR-3(goal-loop·ralplan)가 코드만 넣고 원리 문서를 못 따라가게 한 드리프트: ① PRINCIPLES ⑦(KO/EN)의 "durable은 복제하지 않는다" 단정을 "런타임 있으면 handoff 기본, 부재 시 ⑧ 흡수 규칙의 OMJ native 레인 fallback"으로 조건화해 EXECUTION-HANDOFF와의 SoT 충돌 해소, ② PRINCIPLES.en.md에 goal-loop·ralplan·plan-critic 반영(기각 대안 자기모순 해소 포함), ③ README(EN/KO) 에이전트 절에 plan-critic 추가·"(v0.3.0)" 스테일 라벨 제거·"에이전트 2종"→3종, ④ OMC-INTEGRATION에 OMJ native 풀 사이클 3종 반영, ⑤ CONTRIBUTING 릴리스 절차를 버전 4표면으로 정정(절차대로 2표면만 올리면 테스트가 실패했다), ⑥ PR 템플릿에 PRINCIPLES.en.md 동반 갱신 항목.
+- **풀 사이클 문서 드리프트 일괄 정정** — PR-2·PR-3(goal-loop·ralplan)가 코드만 넣고 원리 문서를 못 따라가게 한 드리프트: ① PRINCIPLES ⑦(KO/EN)의 "durable은 복제하지 않는다" 단정을 "런타임 있으면 handoff 기본, 부재 시 ⑧ 흡수 규칙의 OMJ native 레인이 기본값 — 런타임이 있어도 증거 강제 완료 목적이면 명시 선택 가능한 상시 축"으로 조건화해 EXECUTION-HANDOFF와의 SoT 충돌 해소, ② PRINCIPLES.en.md에 goal-loop·ralplan·plan-critic 반영(기각 대안 자기모순 해소 포함), ③ README(EN/KO) 에이전트 절에 plan-critic 추가·"(v0.3.0)" 스테일 라벨 제거·"에이전트 2종"→3종, ④ OMC-INTEGRATION에 OMJ native 풀 사이클 3종 반영, ⑤ CONTRIBUTING 릴리스 절차를 버전 4표면으로 정정(절차대로 2표면만 올리면 테스트가 실패했다), ⑥ PR 템플릿에 PRINCIPLES.en.md 동반 갱신 항목.
 - **NOTICE 상대링크 3곳(deep-interview·goal-loop·ralplan)에 런타임 경로 병기** — 설치된 플러그인 프롬프트에선 상대링크가 소비 프로젝트 cwd 기준으로 해석되므로 `${CLAUDE_PLUGIN_ROOT}/NOTICE.md`를 함께 표기(GitHub 렌더링용 상대링크는 유지).
 - **design-qa description에 비트리거 절 추가** — 번들 3종 중 유일하게 "어떤 요청은 이 에이전트가 아니다" 서술이 없어 자동위임 오발동 여지가 있었다. 질적 리뷰(ff-review)·수정 루프(omj-fix)와의 경계를 명시.
-- **goal-state `--brief-file` 절대경로 가드의 win32 구멍 봉합** — 기존 가드가 POSIX 전용(`/` 시작)이라 Windows 드라이브(`C:\…`·`C:/…`)·UNC(`\\srv\…`) 절대경로와 백슬래시 traversal이 통과해, 사전승인 Bash 규칙 아래 임의 파일 읽기가 가능했다. `path.win32.isAbsolute` 병용 + 거부 케이스 4종 테스트.
-- **goal-state init 원자화** — 최종 경로에 단계별로 쓰던 init은 중간 크래시 잔해가 경로를 점유해 재init·타 동사·reconcile 전부가 거부하는 복구 불능 상태를 만들 수 있었다. temp 디렉터리에 완성 후 rename하는 원자 이동으로 교체(writeSnapshot과 같은 계약을 init 전체로 확장). CLI·파일 계약은 불변.
-- **goal-loop의 Task 비선언이 의도임을 본문에 성문화** — 본문이 서브에이전트 소집을 지시하면서 allowed-tools에 Task가 없는 것이 결함처럼 읽혔다. 소집 시 권한 프롬프트가 확인 지점이라는 근거(PRINCIPLES ③)를 블록쿼트로 명시. 에이전트 `model` 필드 미지정=세션 모델 상속 의도도 CLAUDE.md에 성문화.
+- **goal-state init 원자화** — 최종 경로에 단계별로 쓰던 init은 중간 크래시 잔해가 경로를 점유해 재init·타 동사·reconcile 전부가 거부하는 복구 불능 상태를 만들 수 있었다. temp 디렉터리에 완성 후 rename하는 원자 이동으로 교체(writeSnapshot과 같은 계약을 init 전체로 확장, 직렬화·스탬프는 appendEvent/writeSnapshot 단일 경로 재사용). 다른 pid가 남긴 `.tmp-` 잔해 청소와 실패 시 자체 정리 포함. CLI·파일 계약은 불변.
+- **goal-loop의 Task 비선언이 의도임을 본문에 성문화** — 본문이 서브에이전트 소집을 지시하면서 allowed-tools에 Task가 없는 것이 결함처럼 읽혔다. 소집 시 권한 프롬프트가 확인 지점이라는 근거(PRINCIPLES ③)를 블록쿼트로 명시(ralplan의 critic 소집 단계에도 동일 블록쿼트로 대칭화). 에이전트 `model` 필드 미지정=세션 모델 상속 의도도 CLAUDE.md에 성문화.
 
 ### Security
+
+- **`Bash(command:*)` 사전승인 제거** — `command`는 인자를 그대로 실행하는 셸 builtin이라 이 스코프는 사실상 bare Bash였다(스코프 문법을 쓰고도 임의 실행을 승인하는 세탁 경로). 3개 커맨드(omj-verify·omj-fix·omj-setup)를 실호출인 `Bash(command -v:*)`로 축소하고, prefix 전체가 실행 위임 builtin·인터프리터·위임 플래그로만 이뤄진 선언(`Bash(sh -c:*)`·`Bash(npx:*)` 포함)을 휴리스틱 불변식 테스트로 차단(샌드박스가 아니라 리뷰 가시권 게이트 — 한계는 테스트 주석에 명시). Bash 호출지점 검사도 substring에서 단어 경계 정규식으로 강화 — 한국어 산문의 우연 일치로 공허 통과하던 구멍 봉합.
+- **goal-state `--brief-file` 절대경로 가드의 win32 구멍 봉합** — 기존 가드가 POSIX 전용(`/` 시작)이라 Windows 드라이브(`C:\…`·`C:/…`)·UNC(`\\srv\…`) 절대경로와 백슬래시 traversal이 통과해, 사전승인 Bash 규칙 아래 임의 파일 읽기가 가능했다. `path.win32.isAbsolute` 병용 + 거부 케이스 4종 테스트.
 
 ## [0.5.0] - 2026-08-06
 
