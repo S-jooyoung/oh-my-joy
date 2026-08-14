@@ -23,6 +23,7 @@
 - **read-only 커맨드 검사를 권한 등급 2단으로 분리** — zero-bash(omj·deep-interview·ralplan: Bash 토큰 0 단언 신설)와 report-only(ff-review·omj-verify: 소스 비수정 + 관찰용 스코프 Bash). 기존 검사는 Bash를 아예 보지 않아 "read-only(Write/Edit/Bash 없음)" 주장의 절반이 미고정이었고, omj-verify의 "mutating 능동 op" 자기 선언·CLAUDE.md 정의·테스트 집합이 서로 다른 어휘를 쓰던 충돌도 함께 정합화.
 - **FF 스킬 위임 레이어 전부에 graceful 부재 처리 동형화** — 라우팅 SoT(SKILL.md "통합 라우팅 규칙")에서 Context7에만 있던 부재 처리 문구를 vercel 2종·web-design-guidelines에도 추가하고, ff-review의 레이어별 중복 서술은 SoT 위임 1줄로 축약(규칙 조각 분산 해소). ff-review 절차에 Read·Grep·Glob 호출 지점도 명시(헝크만으로 응집도·결합도 오판 방지).
 - **FF 스킬 트리거를 FE 한정어로 스코프** — description의 bare "리팩터링"·"코드 리뷰"가 백엔드 코드 리뷰에도 자동 활성될 오발동 여지를 제거. `metadata.version`은 내용 변경 릴리스에만 올리는 독립 semver 규칙을 CONTRIBUTING에 성문화하고 1.1.0으로 상향(1.0.0 고정 방치 해소).
+- **검증 하네스 사각 4건 보강** — ① MCP 이중 프리픽스 병기 검사에 역방향(bare→플러그인 변형) 추가(순방향만으론 bare만 선언한 파일이 통과), ② bare 슬래시 표기 검사를 정확 매칭에서 경계 정규식으로(인자 동반·펜스 코드블록 내부 검출), ③ "실재하는 커맨드만 문서화" 검사를 README 한정에서 추적 전 마크다운으로 확장(+v1.1 예고·개명 이력 allowlist), ④ 정본 설치 문자열을 리터럴 대신 manifest에서 조립. CI도 `node --test` 직접 실행에서 `npm test`로 정렬(scripts.test와 결합 유지).
 
 ### Deprecated
 
@@ -35,6 +36,7 @@
 - **소비 프로젝트에서 훅 설치 불가 결함** — `/omj-setup`의 훅 복사 절차가 소스 경로를 플러그인 루트 기준으로 지정하지 않아, 소비 프로젝트 cwd에는 없는 `templates/hooks/`를 찾다 실패했다(dogfood 레포에선 cwd==플러그인 루트라 은폐). `${CLAUDE_PLUGIN_ROOT}/templates/hooks/` 병기 + 경로 불변식 테스트로 고정. `cp`·`mkdir`·`claude plugin install` Bash 스코프도 실호출 기준으로 축소.
 - **훅 등록 matcher를 스크립트의 `MUTATING_TOOLS` 4종과 일치** — 설치 절차의 `Edit|Write` matcher가 스크립트 필터(Edit·Write·MultiEdit·NotebookEdit)보다 좁아 MultiEdit 저장이 훅을 조용히 우회했다.
 - **훅 fail-open 구멍 봉합** — 두 훅의 fe-context 판독이 try/catch 밖에 있어 판독 불가(디렉터리·권한) 시 uncaught exception이 exit 1로 새어 "검사만, exit 0" 계약이 깨졌다. try/catch로 no-op 처리 + 계약 테스트 2건.
+- **`$schema`가 404 URL을 가리키던 문제** — plugin.json·marketplace.json의 anthropic.com 스키마 URL은 실측 404라 테스트가 주장하던 "에디터 검증" 효과가 공허했다. SchemaStore 등재본(실측 200)으로 교체하고 테스트를 존재 검사에서 정본 URL 리터럴 고정으로 강화.
 - **풀 사이클 문서 드리프트 일괄 정정** — PR-2·PR-3(goal-loop·ralplan)가 코드만 넣고 원리 문서를 못 따라가게 한 드리프트: ① PRINCIPLES ⑦(KO/EN)의 "durable은 복제하지 않는다" 단정을 "런타임 있으면 handoff 기본, 부재 시 ⑧ 흡수 규칙의 OMJ native 레인 fallback"으로 조건화해 EXECUTION-HANDOFF와의 SoT 충돌 해소, ② PRINCIPLES.en.md에 goal-loop·ralplan·plan-critic 반영(기각 대안 자기모순 해소 포함), ③ README(EN/KO) 에이전트 절에 plan-critic 추가·"(v0.3.0)" 스테일 라벨 제거·"에이전트 2종"→3종, ④ OMC-INTEGRATION에 OMJ native 풀 사이클 3종 반영, ⑤ CONTRIBUTING 릴리스 절차를 버전 4표면으로 정정(절차대로 2표면만 올리면 테스트가 실패했다), ⑥ PR 템플릿에 PRINCIPLES.en.md 동반 갱신 항목.
 - **NOTICE 상대링크 3곳(deep-interview·goal-loop·ralplan)에 런타임 경로 병기** — 설치된 플러그인 프롬프트에선 상대링크가 소비 프로젝트 cwd 기준으로 해석되므로 `${CLAUDE_PLUGIN_ROOT}/NOTICE.md`를 함께 표기(GitHub 렌더링용 상대링크는 유지).
 - **design-qa description에 비트리거 절 추가** — 번들 3종 중 유일하게 "어떤 요청은 이 에이전트가 아니다" 서술이 없어 자동위임 오발동 여지가 있었다. 질적 리뷰(ff-review)·수정 루프(omj-fix)와의 경계를 명시.

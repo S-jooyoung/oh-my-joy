@@ -55,8 +55,11 @@ describe('plugin.json', () => {
     assert.match(plugin.version, /^\d+\.\d+\.\d+$/);
   });
 
-  it('스키마를 선언해 에디터 검증이 걸린다', () => {
-    assert.ok(plugin.$schema, 'plugin.json에 $schema가 없습니다');
+  it('$schema가 실재하는 SchemaStore 등재본을 가리킨다', () => {
+    // 존재 검사만으로는 죽은 URL이 통과해 "에디터 검증" 효과가 공허해진다 —
+    // 종전 anthropic.com URL은 404였다. 정본 URL 리터럴을 고정해 드리프트를 드러낸다.
+    assert.equal(plugin.$schema, 'https://json.schemastore.org/claude-code-plugin-manifest.json');
+    assert.equal(marketplace.$schema, 'https://json.schemastore.org/claude-code-marketplace.json');
   });
 
   it('선언한 라이선스가 LICENSE 파일과 일치한다', () => {
@@ -303,6 +306,27 @@ describe('도구 선언 불변식 (commands allowed-tools · agents tools)', () 
       [],
       `raw MCP 등록(claude mcp add) 사용자는 플러그인 프리픽스 도구명이 없어 사전승인을 잃는다:\n${violations.join('\n')}`,
     );
+  });
+
+  it('bare MCP 선언은 플러그인 프리픽스 변형을 병기한다 (역방향)', () => {
+    // 순방향(플러그인→bare)만 검사하면 bare 토큰만 선언한 파일이 통과한다 —
+    // 플러그인 마켓플레이스 설치 사용자는 플러그인 프리픽스 도구명만 가지므로 사전승인을 잃는다.
+    const KNOWN_SERVERS = new Set(['figma', 'context7', 'playwright']);
+    const violations = [];
+    for (const { file, tokens } of parsed) {
+      for (const token of tokens) {
+        const m = /^mcp__([A-Za-z0-9-]+)__([A-Za-z0-9_*-]+)$/.exec(token);
+        if (!m || !KNOWN_SERVERS.has(m[1])) continue;
+        const [, server, tool] = m;
+        const ok = tokens.some((t) => {
+          const pm = /^mcp__plugin_(.+)__([A-Za-z0-9_*-]+)$/.exec(t);
+          if (!pm || pm[1].split('_').pop() !== server) return false;
+          return pm[2] === '*' || pm[2] === tool;
+        });
+        if (!ok) violations.push(`${file}: ${token} → mcp__plugin_*_${server}__ 변형 병기 필요`);
+      }
+    }
+    assert.deepEqual(violations, [], `이중 프리픽스 병기는 양방향이어야 한다:\n${violations.join('\n')}`);
   });
 
   it('Bash 선언은 frontmatter 제외 본문에 호출 지점이 있다', () => {

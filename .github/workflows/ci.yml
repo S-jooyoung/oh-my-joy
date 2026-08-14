@@ -32,5 +32,6 @@ jobs:
           node-version: ${{ matrix.node }}
 
       # 의존성 설치 단계가 없다. 플러그인도 검증 하네스도 Node 내장 모듈만 쓴다.
+      # npm test로 실행해 package.json scripts.test(레포 검증 정본 명령)와 결합을 유지한다.
       - name: 검증 스위트
-        run: node --test
+        run: npm test

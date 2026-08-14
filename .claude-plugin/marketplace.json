@@ -1,5 +1,5 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "omj",
   "description": "oh-my-joy — 프론트엔드 원스톱 (Figma 명세 → FF 구현 스펙 → 시각 검증 → code↔Figma 토큰 sync)",
   "owner": {
