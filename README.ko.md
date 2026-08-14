@@ -27,9 +27,12 @@ Figma 프레임을 AI 에이전트에 던지고 "이대로 만들어줘"라고 �
 
 ```mermaid
 flowchart TD
+    DI["/oh-my-joy:deep-interview<br/>흐릿한 아이디어 → 스펙 (Plan)"]:::readonly -.->|"FE 스펙이면 paste"| A
     A["/omj<br/>Figma + 코드 → 스펙"]:::readonly --> B["구현 스펙<br/>uSpec 섹션 × FF 4기준 × a11y"]:::readonly
+    B -.->|"설계 이견 위험?"| R["/oh-my-joy:ralplan<br/>적대 합의 (선택)"]:::readonly
+    R -.-> C
     B --> C{{"ExitPlanMode<br/>사용자가 검토·승인"}}
-    C --> D["실행 레인<br/>inline · /goal · /team · /ralph"]
+    C --> D["실행 레인<br/>inline · /goal · /team · /ralph<br/>· /oh-my-joy:goal-loop (durable)"]
     D --> E["/oh-my-joy:ff-review<br/>코드 diff 대비 기준"]:::readonly
     D --> F["/omj-verify<br/>렌더된 라우트 대비 baseline"]
     F -->|결함 발견| G["/omj-fix<br/>수정 → 재캡처"]
@@ -75,22 +78,34 @@ _점선 = read-only, 소스 부작용 없음. 승인 게이트를 사용자 없�
 
 ---
 
+## 어떤 순서로 뭘 쓰나
+
+풀 사이클을 분기로 정리하면 다음과 같습니다 — 라우팅 정본은 [docs/EXECUTION-HANDOFF.md](docs/EXECUTION-HANDOFF.md):
+
+1. **아이디어가 아직 흐릿하다?** `/oh-my-joy:deep-interview` — 가중 모호도 점수가 임계 아래로 떨어질 때까지 라운드당 1문항. 산출 스펙은 **파일이 아니라 네이티브 Plan 본문**입니다. FE 구현 신호(Figma URL 등)에는 의도적으로 발동을 거부하고 `/omj`로 안내하며, 입력이 이미 구체적이면 즉시 종료합니다 — 버그가 아니라 적합성 게이트입니다.
+2. **FE 작업이다?** `/omj <figma-url|작업> [route]` — 또는 **인터뷰 스펙을 `/omj`에 붙여넣습니다**(paste가 1급 입력). uSpec 구현 스펙을 author하고 멈춥니다.
+3. **설계 결정에 이견 위험이 있다?** 이미 있는 스펙/플랜에 `/oh-my-joy:ralplan`으로 적대 합의 패스를 겁니다. 작고 명확한 플랜은 "리뷰 없이 진행 권장"으로 조기 종료됩니다 — 의도된 동작입니다.
+4. **승인**(ExitPlanMode) 후 선택된 레인으로 실행: 1번 `(추천)`은 보통 inline이고, OMC/OMX가 있으면 `/goal` · `/team` · `/ralph`. **런타임이 없거나 완료를 증거로 증명해야 한다?** → `/oh-my-joy:goal-loop` (중단된 작업은 `/oh-my-joy:goal-loop --slug <name>` 하나로 재개).
+5. **검증**: `/oh-my-joy:ff-review`(diff 대비 기준) · `/omj-verify <route>`(렌더된 화면) → 시각 결함은 `/omj-fix`, 토큰 드리프트는 `/omj-sync`.
+
+---
+
 ## 커맨드
 
 | 커맨드 | 하는 일 | 언제 | 예시 |
 | --- | --- | --- | --- |
 | **`/omj`** | 명세 수집 + 구현 스펙(Plan) author + 실행 레인 추천 후 멈춤 (read-only 프라이머). route 미지정 시 추론 기록, 다중 Figma 노드+텍스트 작업 혼합 지원 | 모든 FE 작업의 시작점 | `/omj https://figma.com/design/abc?node-id=1-2 /settings/profile` |
 | **`/omj-start`** | 승인된 OMJ 스펙을 선택된 OMC/OMX 실행 레인으로 handoff | 승인 후 자동 시작이 불가할 때 (`(auto)` inline 스펙은 불필요) | `/omj-start ./omj-search-spec.md` |
-| **`/oh-my-joy:ff-review`** | 변경 FE diff를 FF 4기준+a11y·Figma 충실도·vercel·Next.js로 통합 리뷰 (리포트만) | 구현 직후 PR 전 코드 품질 점검 | `/oh-my-joy:ff-review --base main` |
+| **`/oh-my-joy:ff-review`** | 변경 FE diff를 FF 4기준+a11y·Figma 충실도·vercel·Next.js로 통합 리뷰 (리포트만). 무인자 = 미커밋+staged 변경(HEAD 대비), `--base <ref>` = `<ref>` 이후 브랜치 전체 | 구현 직후 PR 전 코드 품질 점검 | `/oh-my-joy:ff-review --base main` |
 | **`/omj-verify`** | 라우트를 실제 브라우저(playwright-cli, 부재 시 playwright MCP 폴백)로 열어 시각/구조 점검 + Figma baseline(`.omj/baselines/`) 대비. 캡처가 요청한 라우트에 실제 도달했는지 항상 검증(인증 리다이렉트는 비교하지 않고 실패로 보고) | PR 전 시각 회귀 확인 | `/omj-verify /settings/profile` |
 | **`/omj-fix`** | 붙인 스크린샷+route 결함을 고치고 재캡처로 확인 (능동 루프) | 픽셀/시각 결함 빠른 수정 | `/omj-fix /pricing "배너 z-index 낮음"` |
 | **`/omj-sync`** | 토큰 스토어(`tokens.json` **또는 CSS custom properties**) ↔ Figma 드리프트를 **방향 물어** 해소. `extract`로 Figma 변수를 CSS로 부트스트랩 | 코드/Figma 토큰 정렬·최초 추출 | `/omj-sync` · `check` · `push` · `extract <figma-url>` |
 | **`/omj-setup`** | 의존성 점검 + 일괄 multiSelect 선택 설치 + `.omj/fe-context.md` 스캐폴딩(`AGENTS.md`/`.claude/rules/` 같은 기존 규칙 문서는 복제 대신 `contextDocs:`로 채택) + 토큰 가드 훅(opt-in, Story 훅은 Storybook 감지 시에만 제안). 마무리에 GitHub star를 선택적으로 제안(이미 star면 조용히 스킵, 셋업을 막지 않음) | 첫 사용 전 — 셋업 흔적이 없으면 `/omj`가 1회 제안 | `/omj-setup` |
-| **`/oh-my-joy:deep-interview`** | 모호한 아이디어를 라운드당 1문항 소크라테스식 인터뷰로 파고들어 가중 모호도 점수가 임계 이하로 떨어지면 스펙(네이티브 Plan)을 제시 — 토폴로지 고정, 최약 차원 타겟팅, 온톨로지 수렴 추적, Restate/Closure 이중 종료 (read-only) | 목표 자체가 아직 흐릿할 때 — `/omj`나 구현보다 앞 단계 | `/oh-my-joy:deep-interview "사내 지식 베이스 — 아직 흐릿함"` |
-| **`/oh-my-joy:goal-loop`** | 승인된 스펙을 골 단위로 `.omj/goals/`에 영속시켜 하나씩 완주하는 단일 owner durable 루프 — 완료는 validator 스크립트의 증거 객체 검사를 통과해야만 성립(불법 전이·잘린 ledger·증거 없는 완료는 non-zero 거부, Plan 해제 후 실행) | 중단을 견디고 완료를 증명해야 하는 여러 턴 작업 — OMC/OMX 유무 무관 | `/oh-my-joy:goal-loop ./approved-spec.md --slug search-form` |
-| **`/oh-my-joy:ralplan`** | *이미 존재하는* 스펙/플랜의 적대 합의 리뷰: Planner 정규화(Drivers·Viable Options ≥2·ADR) → 독립 `plan-critic` 1패스 → 최대 2회 → 수렴하면 pending-approval, 미수렴이면 미해소 쟁점과 함께 PLANNING-STUCK 선언 (read-only) | 플랜이 이미 있고 설계 결정에 이견 위험이 있을 때 — 요구가 흐릿하면 `/oh-my-joy:deep-interview`가 먼저 | `/oh-my-joy:ralplan ./approved-spec.md` |
+| **`/oh-my-joy:deep-interview`** | 모호한 아이디어를 라운드당 1문항 소크라테스식 인터뷰로 파고들어 가중 모호도 점수가 임계(`--threshold N`, 기본 20) 이하로 떨어지면 스펙(**네이티브 Plan — 파일 아님**)을 제시 — 토폴로지 고정, 최약 차원 타겟팅, 온톨로지 수렴 추적, Restate/Closure 이중 종료 (read-only). 적합성 게이트: FE 구현 신호(Figma URL 등)는 발동 거부 후 `/omj`로 안내, 이미 구체적인 입력은 즉시 종료 | 목표 자체가 아직 흐릿할 때 — `/omj`나 구현보다 앞 단계 | `/oh-my-joy:deep-interview "사내 지식 베이스 — 아직 흐릿함"` |
+| **`/oh-my-joy:goal-loop`** | 승인된 스펙(경로 **또는 paste** — paste가 1급 입력)을 골 단위로 `.omj/goals/`에 영속시켜 하나씩 완주하는 단일 owner durable 루프 — 완료는 validator 스크립트의 증거 객체 검사를 통과해야만 성립(불법 전이·잘린 ledger·증거 없는 완료는 non-zero 거부, Plan 해제 후 실행) | 중단을 견디고 완료를 증명해야 하는 여러 턴 작업 — OMC/OMX 유무 무관 | `/oh-my-joy:goal-loop ./approved-spec.md --slug search-form` · 재개: `/oh-my-joy:goal-loop --slug search-form` |
+| **`/oh-my-joy:ralplan`** | *이미 존재하는* 스펙/플랜(경로 **또는 paste**)의 적대 합의 리뷰: Planner 정규화(Drivers·Viable Options ≥2·ADR) → 독립 `plan-critic` 1패스 → 최대 2회 → 수렴하면 pending-approval, 미수렴이면 미해소 쟁점과 함께 PLANNING-STUCK 선언 (read-only). 작고 명확한 플랜은 "리뷰 없이 진행 권장"으로 조기 종료 | 플랜이 이미 있고 설계 결정에 이견 위험이 있을 때 — 요구가 흐릿하면 `/oh-my-joy:deep-interview`가 먼저 | `/oh-my-joy:ralplan ./approved-spec.md` |
 
-> **read-only vs 능동 op.** `/omj`·`/oh-my-joy:ff-review`·`/oh-my-joy:deep-interview`는 read-only(리포트/스펙만) — `/omj`는 스펙 뒤 실행 레인 질문을 **최대 1회** 할 수 있고(inline/manual 추천이면 질문 없이 `(auto)` 기록만 — Plan 승인이 곧 레인 동의), 인터뷰는 자체 라운드 상한 아래 라운드당 1문항을 물으며, 셋 다 Write/Edit/build/test는 못 합니다. `/omj-start`는 handoff 커맨드입니다: 런타임 surface가 명시적이고 안전할 때만 시작하고, 아니면 copyable action 한 줄만 출력합니다. `/omj-verify`·`/omj-fix`·`/omj-sync`(sync/push/extract)는 Figma write·`Edit`/`Write`·Bash를 쓰는 능동 op라, 환경이 Plan 모드에서 이를 막으면 Plan을 해제한 뒤 실행하세요. 각 커맨드의 구문·인자·단계는 `commands/<name>.md`가 정본입니다.
+> **read-only vs 능동 op.** `/omj`·`/oh-my-joy:ff-review`·`/oh-my-joy:deep-interview`·`/oh-my-joy:ralplan`은 read-only(리포트/스펙만) — `/omj`는 스펙 뒤 실행 레인 질문을 **최대 1회** 할 수 있고(inline/manual 추천이면 질문 없이 `(auto)` 기록만 — Plan 승인이 곧 레인 동의), 인터뷰는 자체 라운드 상한 아래 라운드당 1문항을 물으며, 전부 Write/Edit/build/test는 못 합니다. `/omj-start`는 handoff 커맨드입니다: 런타임 surface가 명시적이고 안전할 때만 시작하고, 아니면 copyable action 한 줄만 출력합니다. `/omj-verify`·`/omj-fix`·`/omj-sync`(sync/push/extract)·`/oh-my-joy:goal-loop`(validator Bash + 구현)은 Figma write·`Edit`/`Write`·Bash를 쓰는 능동 op라, 환경이 Plan 모드에서 이를 막으면 Plan을 해제한 뒤 실행하세요. 각 커맨드의 구문·인자·단계는 `commands/<name>.md`가 정본입니다.
 >
 > **자동 발동.** 커맨드 description은 가장 빈발하는 실사용 패턴 2가지에 맞춰 작성돼 있어, 슬래시 커맨드를 직접 타이핑하지 않아도 에이전트가 라우팅할 수 있습니다: Figma Dev Mode 링크 붙여넣기("이 디자인을 구현하세요…")는 `/omj`로, 스크린샷+시각 불만("정렬이 안 맞아", "잘려 보여", "간격/색이 이상해")은 `/omj-fix`로 갑니다.
 
@@ -163,5 +178,7 @@ OMJ는 oh-my-claudecode(OMC), oh-my-codex(OMX)와 **별개의 독립 플러그�
 - **`/omj-verify`/`/omj-fix`가 아무것도 안 함** — 캡처 백엔드 없음(playwright-cli도 playwright MCP도 부재), dev 서버 미기동(`yarn dev`), 인증 라우트, 또는 환경 Plan 모드가 Bash를 막았을 수 있습니다. 인증 라우트는 `.omj/fe-context.md`의 `verifySetup` 선언(권장) 또는 실행 전 `export JOY_TEST_EMAIL=… JOY_TEST_PASSWORD=…` — **테스트 전용 계정만** 쓰고, 로그인 후 스크린샷에는 세션·개인정보가 담길 수 있으므로 `.omj/baselines/`는 반드시 gitignore한다.
 - **Figma 미연결 / 권한 없음** — `This figma file could not be accessed` 류는 graceful 처리 대상. Figma 데스크톱을 켜고 대상 파일을 활성 탭으로 둔 뒤 다시 실행하세요. **변수/노드 접근은 편집 권한이 필요** — 뷰어로 공유받은 파일(튜토리얼 등)은 사본(Duplicate)을 떠서 사본 URL로 사용하세요.
 - **baseline 비교가 안 됨** — Figma 에셋 URL은 약 7일 후 만료됩니다. `/omj`를 재실행해 스펙의 baseline provenance를 갱신하세요. 크로스세션 비교는 `.omj/baselines/`의 PNG가 담당합니다(gitignore 권장). 단 PNG의 **최초 생성**은 `/omj`와 같은 세션에서 `/omj-verify`를 한 번 실행해야 일어납니다(세션이 완전히 분리되면 URL 출처가 없어 생성 불가 — 스펙 기반 재조회는 v1.1 예정).
+- **`/oh-my-joy:deep-interview`가 바로 끝남** — 실패가 아니라 적합성 게이트입니다: 입력이 이미 충분히 구체적이거나, FE 구현 신호(Figma URL 등)라 `/omj`로 안내된 경우입니다.
+- **`/oh-my-joy:goal-loop`이 검증 명령마다 권한을 물음** — 의도된 동작입니다. 검증 명령을 일부러 사전승인하지 않아, 그 권한 프롬프트가 기록된 증거의 신뢰 근거가 됩니다. `.omj/goals/`는 gitignore하세요(명령 요약·경로가 누적되는 운영 상태).
 - **MCP 도구명이 다름** — Figma/Context7 도구명은 환경마다 다를 수 있습니다. `/mcp`로 실제 등록된 도구명을 확인하세요.
 - **커밋된 스킬 사본과 중복** — 어떤 프로젝트가 `frontend-fundamentals`를 자기 `.claude/skills/`에 커밋해 뒀다면 OMJ 번들과 동시 로드될 수 있습니다(무해). 그 사본은 삭제하지 마세요(삭제하면 OMJ 미설치로 클론한 동료의 환경이 깨집니다) — 편집(SoT)은 한쪽에서만 하면 됩니다.

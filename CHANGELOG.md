@@ -8,6 +8,8 @@
 
 ### Added
 
+- **README(EN/KO)에 "어떤 순서로 뭘 쓰나" 절 신설** — 풀 사이클 분기 서술(흐릿한 아이디어→deep-interview→스펙 paste→선택적 ralplan 합의→승인→실행 레인/goal-loop→검증)이 지금까지 docs/EXECUTION-HANDOFF.md에만 있어 "서술형은 README 정본" 규율과 어긋났다. mermaid 흐름도에도 deep-interview·ralplan·goal-loop을 반영(실행 레인 노드와 OMJ×OMC 표 간 자기모순 해소).
+
 - **범용 딥 인터뷰 커맨드 `/oh-my-joy:deep-interview`** — 모호한 아이디어를 라운드당 1문항 소크라테스식 인터뷰로 명세화하는 read-only 프라이머. 토폴로지 고정(Round 0)·최약 (컴포넌트×차원) 타겟팅·가중 모호도 공식(greenfield/brownfield)·온톨로지 수렴 추적·Restate/Closure 이중 종료 게이트를 갖추고, 산출 스펙은 파일이 아니라 **네이티브 Plan 본문**으로 제시한다(파일화는 승인 후 실행 단계 소유 — read-only 계약 유지). 방법론은 gajae-code·oh-my-claudecode(MIT)에서 차용해 재작성했고 런타임(CLI·tmux·상태 규약)은 이식하지 않았다(`NOTICE.md` 신설). PRINCIPLES ⑧(방법론 흡수 규칙)·⑪(인터뷰 상호작용 클래스) 정본 개정 동반. **풀 사이클 확장 1단계 — 도입 2026-08-13, 도달률 재측정 창(~09-03) 진행 중 시점 기록.**
 - **커맨드 네이밍 2축 규칙** — OMJ 고유 FE 루프 동사는 기존 `/omj-*` 접두, 이름 있는 방법론·루브릭 커맨드는 무접두 basename + 테스트 화이트리스트(`WORKFLOW_COMMANDS`) + 문서 표기는 항상 `/oh-my-joy:<name>` 정규 호출. bare 표기(`/deep-interview` 류)는 docs-consistency 테스트가 전 문서 표면에서 차단한다 — 동명의 OMC 스킬·Claude Code 네이티브 커맨드와의 호출 모호성을 문서 수준에서 봉쇄(2-워커 교차 리뷰 수렴안). read-only 커맨드 검사는 Write/Edit에 더해 `Task`/`Agent` 선언도 차단하도록 확장(서브에이전트는 부모 allowed-tools를 상속하지 않으므로).
 
@@ -31,6 +33,8 @@
 
 ### Fixed
 
+- **deep-interview 실행 브리지에 goal-loop durable 경로 추가** — goal-loop.md·EXECUTION-HANDOFF는 인터뷰 산출물을 goal-loop의 1급 입력으로 명시하는데 정작 브리지가 이 경로를 안내하지 않아, 런타임 없는 사용자가 durable 레인을 안내받지 못하는 SoT 모순이 있었다.
+- **README 권한 분류 문장의 신규 커맨드 누락 정정** — read-only 목록에 ralplan, 능동 op 목록에 goal-loop이 빠져 있었다(유일한 권한/모드 분류 문장인데 신규 4종 중 2종 미반영). 커맨드 표에 deep-interview 적합성 게이트·`--threshold`, goal-loop `--slug` 재개 호출형·paste 1급 입력, ralplan 조기 종료, ff-review 무인자 기본 동작을 보강하고 트러블슈팅에 "인터뷰 즉시 종료=게이트"·"goal-loop 권한 프롬프트=의도"·`.omj/goals/` gitignore 3건 추가. argument-hint 플래그의 README(EN/KO) 문서화를 불변식 테스트로 고정.
 - **omj-start의 미사용 `Grep` 선언 제거** — 본문 절차에 호출 지점이 없는 도구 선언 금지 규칙(CLAUDE.md) 위반이었다. Read·AskUserQuestion만으로 절차가 완결된다.
 - **소비 프로젝트에서 훅 설치 불가 결함** — `/omj-setup`의 훅 복사 절차가 소스 경로를 플러그인 루트 기준으로 지정하지 않아, 소비 프로젝트 cwd에는 없는 `templates/hooks/`를 찾다 실패했다(dogfood 레포에선 cwd==플러그인 루트라 은폐). `${CLAUDE_PLUGIN_ROOT}/templates/hooks/` 병기 + 경로 불변식 테스트로 고정. `cp`·`mkdir`·`claude plugin install` Bash 스코프도 실호출 기준으로 축소.
 - **훅 등록 matcher를 스크립트의 `MUTATING_TOOLS` 4종과 일치** — 설치 절차의 `Edit|Write` matcher가 스크립트 필터(Edit·Write·MultiEdit·NotebookEdit)보다 좁아 MultiEdit 저장이 훅을 조용히 우회했다.

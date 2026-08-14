@@ -15,6 +15,7 @@ import {
   repoPath,
   listMarkdownFiles,
   listCommandFiles,
+  parseFrontmatter,
   stripCode,
   REPO_ROOT,
 } from './helpers/repo.mjs';
@@ -177,6 +178,23 @@ describe('커맨드 목록 정합', () => {
   // 예고된 v1.1 커맨드(CLAUDE.md)와 개명 전 이력 표기는 명시 allowlist로 허용한다.
   const PLANNED_COMMANDS = new Set(['/omj-push', '/omj-spec']);
   const HISTORICAL_COMMANDS = new Set(['/omj-review']);
+
+  // 표 행이 커맨드 토큰만 싣고 인자를 빠뜨리는 드리프트(감사에서 --threshold 미문서화로
+  // 실증)를 막는다 — argument-hint의 플래그는 사용자가 알아야 호출할 수 있는 표면이다.
+  it('워크플로우 커맨드의 argument-hint 플래그가 README(EN/KO) 양쪽에 문서화돼 있다', () => {
+    for (const name of workflowCommands) {
+      const fm = parseFrontmatter(readRepoFile('commands', `${name}.md`));
+      const flags = [...(fm['argument-hint'] ?? '').matchAll(/--[a-z-]+/g)].map((m) => m[0]);
+      for (const flag of flags) {
+        for (const [label, source] of [['EN', readmeEn], ['KO', readmeKo]]) {
+          assert.ok(
+            source.includes(flag),
+            `${label} README에 /oh-my-joy:${name}의 ${flag} 플래그 문서가 없습니다`,
+          );
+        }
+      }
+    }
+  });
 
   it('추적되는 전 마크다운이 실재하는 커맨드만 문서화한다', () => {
     const offenders = [];
