@@ -7,8 +7,8 @@ This document is the **single routing SoT** for OMJ execution-lane selection. RE
 ## The four lanes
 
 - **inline** — the default. After approval, the current session implements the spec directly; for FE specs the bundled `figma-implementer` agent is the standard executor. Always available.
-- **`/goal`** — Claude Code's native goal loop: persistence *within* a session — it keeps the session iterating until the stated completion condition is judged met. Requires Claude Code's native goal support (a hook-enabled environment); when unavailable, fall back to inline or `/oh-my-joy:goal-loop`.
-- **agent team** — Claude Code's native parallel subagents: fan the approved spec out to 2+ agents when independent lanes exist (screens, docs, verification). Requires an environment where subagent spawning is available; when unavailable, fall back to inline, sequentially.
+- **`/goal`** — Claude Code's native goal loop: persistence *within* a session — it keeps the session iterating until the stated completion condition is judged met (the evaluator only judges what the session surfaced; it runs no commands itself). Part of the hooks system, so it is unavailable where hooks are disabled or the workspace is untrusted; fall back to inline or `/oh-my-joy:goal-loop`.
+- **agent team** — Claude Code's native parallel subagents: fan the approved spec out to 2+ agents when independent lanes exist (screens, docs, verification). Runs on ordinary subagents; coordinated agent teams (shared task list, inter-agent messaging) are an experimental Claude Code opt-in. When subagents are unavailable, fall back to inline, sequentially.
 - **`/oh-my-joy:goal-loop`** — OMJ's own durable wrapper: persistence *across* sessions. Goal state lives in `.omj/goals/`, an interrupted run resumes with `--slug` alone, and completion is accepted only through the validator's evidence gate. Available everywhere; runs outside Plan mode.
 
 **Consensus pass (not a lane)**: `/oh-my-joy:ralplan` — adversarial review of an existing spec/plan before approval, for work that is still ambiguous or carries design-disagreement risk.

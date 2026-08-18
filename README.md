@@ -73,8 +73,8 @@ _Hexagons are your decision points; the solid spine is the recommended path; das
 **Picking an execution lane.** The spec ends with a lane selection; option 1 is always the recommendation, labeled `(recommended)`, and small concrete work skips the question entirely (`(auto)` — approval doubles as consent).
 
 - **inline** — the default. Small, concrete work: after approval, the current session simply implements the spec. Always available.
-- **`/goal`** — persistence *within* a session: keeps this session iterating until a stated condition holds. Requires Claude Code's native goal support (hook-enabled environments).
-- **agent team** — work that splits into 2+ independent lanes (screens, docs, verification): fan the approved spec out to parallel Claude subagents. Requires Claude Code's native agent-team support.
+- **`/goal`** — persistence *within* a session: keeps this session iterating until a stated condition holds. Part of Claude Code's hooks system — unavailable where hooks are disabled.
+- **agent team** — work that splits into 2+ independent lanes (screens, docs, verification): fan the approved spec out to parallel Claude subagents (coordinated agent teams are an experimental Claude Code opt-in).
 - **`/oh-my-joy:goal-loop`** — persistence *across* sessions: goals live on disk (`.omj/goals/`), an interrupted run resumes with `--slug`, and completion is accepted only with recorded evidence. Available everywhere; runs outside Plan mode.
 
 The shorthand: `/goal` is a session that won't give up; `goal-loop` is work that survives the session — pick it when tomorrow-you must continue, or when "done" needs proof. The full routing rules and thresholds live in [docs/EXECUTION-HANDOFF.md](docs/EXECUTION-HANDOFF.md) — this section carries only the selection feel, never the numbers.
