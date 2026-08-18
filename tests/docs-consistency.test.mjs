@@ -75,12 +75,6 @@ describe('Language purity of English artifacts', () => {
   // Frontmatter descriptions may keep Korean trigger examples for auto-delegation
   // matching (CLAUDE.md command rules) — on these surfaces only the body is checked.
   const FRONTMATTER_EXEMPT_PREFIXES = ['commands/', 'agents/', 'skills/'];
-  // Body-level exception, kept minimal and literal: omj-start's backward-compat
-  // contract quotes the legacy Korean selector labels it must keep recognizing
-  // (the selector output contract switched to English literals in 0.6.0).
-  const FILE_ALLOWED = {
-    'commands/omj-start.md': ['선택된 레인', '실행 레인 선택', '(추천)'],
-  };
 
   const targets = listMarkdownFiles().filter((file) => !KOREAN_EXEMPT.has(file));
 
@@ -96,11 +90,10 @@ describe('Language purity of English artifacts', () => {
       if (FRONTMATTER_EXEMPT_PREFIXES.some((prefix) => file.startsWith(prefix))) {
         source = source.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
       }
-      const allowed = [...ALLOWED, ...(FILE_ALLOWED[file] ?? [])];
       const offenders = source
         .split('\n')
         .map((line, index) => {
-          const stripped = allowed.reduce((acc, literal) => acc.split(literal).join(''), line);
+          const stripped = ALLOWED.reduce((acc, literal) => acc.split(literal).join(''), line);
           return CJK.test(stripped) ? `L${index + 1}: ${line.trim()}` : null;
         })
         .filter(Boolean);
@@ -235,22 +228,14 @@ describe('Internal link integrity', () => {
 });
 
 describe('Command list consistency', () => {
-  // Two naming axes (CLAUDE.md): FE-loop commands use the `/omj-*` prefix,
-  // general-purpose workflow commands use an unprefixed basename and are always
-  // written as the canonical `/oh-my-joy:<name>` invocation in docs.
+  // Single naming axis (CLAUDE.md): every command uses an unprefixed basename
+  // and is always written as the canonical `/oh-my-joy:<name>` invocation in
+  // docs. CHANGELOG is excluded everywhere below as preserved history;
+  // announced v1.1 commands (CLAUDE.md) are allowed via an explicit list.
   const commandFiles = listCommandFiles();
-  const feCommands = commandFiles
-    .filter((f) => /^omj(-[a-z-]+)?\.md$/.test(f))
-    .map((f) => `/${f.replace(/\.md$/, '')}`);
-  const workflowCommands = commandFiles
-    .filter((f) => !/^omj(-[a-z-]+)?\.md$/.test(f))
-    .map((f) => f.replace(/\.md$/, ''));
+  const workflowCommands = commandFiles.map((f) => f.replace(/\.md$/, ''));
 
-  // Checking README alone misses dead command references in docs/ and commands/.
-  // CHANGELOG is excluded as preserved history; announced v1.1 commands
-  // (CLAUDE.md) and pre-rename historical names are allowed via explicit lists.
-  const PLANNED_COMMANDS = new Set(['/omj-push', '/omj-spec']);
-  const HISTORICAL_COMMANDS = new Set(['/omj-review']);
+  const PLANNED_COMMANDS = new Set(['push', 'ds-spec']);
 
   // Prevents the drift where a table row carries the command token but drops its
   // arguments (proven in the audit by the undocumented --threshold) —
@@ -278,22 +263,52 @@ describe('Command list consistency', () => {
     const offenders = [];
     for (const file of listMarkdownFiles().filter((f) => f !== 'CHANGELOG.md')) {
       const source = readRepoFile(file);
-      for (const [, command] of source.matchAll(/`(\/omj(?:-[a-z-]+)?)`/g)) {
-        if (feCommands.includes(command) || PLANNED_COMMANDS.has(command) || HISTORICAL_COMMANDS.has(command)) continue;
-        offenders.push(`${file}: ${command}`);
-      }
       for (const [, name] of source.matchAll(/`\/oh-my-joy:([a-z-]+)`/g)) {
-        if (!workflowCommands.includes(name)) offenders.push(`${file}: /oh-my-joy:${name}`);
+        if (!workflowCommands.includes(name) && !PLANNED_COMMANDS.has(name)) {
+          offenders.push(`${file}: /oh-my-joy:${name}`);
+        }
       }
     }
     assert.deepEqual(offenders, [], `documents commands that do not exist:\n${offenders.join('\n')}`);
   });
 
+  it('no legacy /omj token survives outside CHANGELOG', () => {
+    // The namespace unification renamed every /omj* command to
+    // /oh-my-joy:<name>. CHANGELOG keeps the old names as history; anywhere
+    // else they are drift that documents commands that no longer exist.
+    // (`\b` after "omj" also matches "/omj-verify" — the hyphen is a boundary.
+    // A trailing slash is excluded: `cache/omj/` is the marketplace directory,
+    // a path segment, never a command token.)
+    const offenders = [];
+    for (const file of listMarkdownFiles().filter((f) => f !== 'CHANGELOG.md')) {
+      readRepoFile(file)
+        .split('\n')
+        .forEach((line, index) => {
+          if (/\/omj\b(?!\/)/.test(line)) offenders.push(`${file}:L${index + 1}: ${line.trim()}`);
+        });
+    }
+    assert.deepEqual(offenders, [], `legacy /omj tokens must become /oh-my-joy:<name>:\n${offenders.join('\n')}`);
+  });
+
+  it('no canonical invocation is embedded in a path context', () => {
+    // A canonical /oh-my-joy:<name> token is always preceded by whitespace, a
+    // backtick, a quote, or line start — never by a path segment. A hit here
+    // is the signature of a mechanical rename over-matching a filesystem path
+    // (the observed defect class: cache/omj/ → cache/oh-my-joy:spec/, where
+    // "omj" was the marketplace directory, not a command name).
+    const offenders = [];
+    for (const file of listMarkdownFiles().filter((f) => f !== 'CHANGELOG.md')) {
+      readRepoFile(file)
+        .split('\n')
+        .forEach((line, index) => {
+          if (/[A-Za-z0-9_.~-]\/oh-my-joy:/.test(line)) offenders.push(`${file}:L${index + 1}: ${line.trim()}`);
+        });
+    }
+    assert.deepEqual(offenders, [], `path-embedded canonical tokens (rename over-match):\n${offenders.join('\n')}`);
+  });
+
   it('every command is documented in both READMEs (EN/KO)', () => {
     for (const [label, source] of [['EN', readmeEn], ['KO', readmeKo]]) {
-      for (const command of feCommands) {
-        assert.ok(source.includes(`\`${command}\``), `${label} README lacks docs for ${command}`);
-      }
       for (const name of workflowCommands) {
         assert.ok(
           source.includes(`\`/oh-my-joy:${name}\``),

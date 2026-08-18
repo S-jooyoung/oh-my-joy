@@ -1,14 +1,12 @@
 /**
- * Standalone invariants — "OMJ runs fully without OMC/OMX installed".
+ * Standalone invariants — "OMJ ships with zero runtime coupling".
  *
- * The plugin's independence is currently guaranteed only by prose in
- * README/PRINCIPLES/EXECUTION-HANDOFF. Prose does not fail a build, so a future
- * edit could reintroduce a hard runtime dependency (an `omx …` shell call with no
- * fallback, an npm dependency, a lane with no no-runtime row) and every existing
- * test would still pass.
- *
- * These checks turn that prose into a gate. They are deliberately structural —
- * they verify the *escape hatch exists*, not that any particular wording is used.
+ * Earlier releases guaranteed independence from external orchestrators by
+ * requiring every runtime mention to name a fallback. The orchestrator
+ * integration has since been removed entirely, so the guarantee strengthens:
+ * outside preserved history (CHANGELOG) and attribution (NOTICE), no tracked
+ * markdown may mention an external runtime at all — reintroducing one must be
+ * a deliberate, reviewed decision, not drift.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -16,20 +14,13 @@ import assert from 'node:assert/strict';
 import {
   readJson,
   readRepoFile,
-  listCommandFiles,
-  listAgentFiles,
+  listMarkdownFiles,
   listTrackedFiles,
-  stripCode,
 } from './helpers/repo.mjs';
 
-/** Optional-integration runtimes. Mentioning them is fine; *requiring* them is not. */
-const RUNTIME_MENTION = /\bOMC\b|\bOMX\b|oh-my-claudecode|oh-my-codex|\$ultragoal|\$ralph\b|\$team\b|\$ultraqa/;
-
-/**
- * A file that mentions a runtime must also name an escape hatch reachable
- * without it: an OMJ-native command, or an explicit manual/copyable path.
- */
-const FALLBACK_SIGNAL = /\/oh-my-joy:(goal-loop|ralplan|deep-interview|ff-review)|\/omj-|manual|copyable|without OMC|no runtime|No runtime/i;
+/** External orchestrator vocabulary that must not reappear in tracked docs. */
+const RUNTIME_MENTION = /\bOMC\b|\bOMX\b|oh-my-claudecode|oh-my-codex|\$ultragoal|\$ralph\b|\$team\b|\$ultraqa|\$ralplan\b/;
+const RUNTIME_EXEMPT = new Set(['CHANGELOG.md', 'NOTICE.md']);
 
 describe('standalone: zero runtime dependencies', () => {
   it('package.json declares no dependencies of any kind', () => {
@@ -78,53 +69,36 @@ describe('standalone: zero runtime dependencies', () => {
   });
 });
 
-describe('standalone: every runtime integration has a no-runtime path', () => {
-  const handoff = readRepoFile('docs', 'EXECUTION-HANDOFF.md');
-
-  it('the routing SoT carries an explicit no-runtime row', () => {
-    assert.match(
-      handoff,
-      /\|\s*No runtime\s*\|/,
-      'docs/EXECUTION-HANDOFF.md must keep a "No runtime" row in its syntax map — it is the ' +
-        'single place that states what a user without OMC/OMX gets for each lane.',
+describe('standalone: no external-runtime coupling remains', () => {
+  it('tracked markdown mentions no external orchestrator (history and attribution exempt)', () => {
+    const offenders = [];
+    for (const file of listMarkdownFiles()) {
+      if (RUNTIME_EXEMPT.has(file)) continue;
+      if (RUNTIME_MENTION.test(readRepoFile(file))) offenders.push(file);
+    }
+    assert.deepEqual(
+      offenders,
+      [],
+      `external orchestrator mentions found — the integration was removed, so these are drift:\n${offenders.join('\n')}`,
     );
   });
 
-  it('the no-runtime row routes durable work to the OMJ-native lane', () => {
-    const row = /\|\s*No runtime\s*\|([^\n]*)\|/.exec(handoff);
-    assert.ok(row, 'no-runtime row not found');
-    assert.match(
-      row[1],
-      /\/oh-my-joy:goal-loop/,
-      'the no-runtime durable wrapper must be the OMJ-native goal-loop, not a runtime command',
-    );
-  });
-
-  it('the no-runtime consensus fallback is the OMJ-native critic', () => {
-    assert.match(
-      handoff,
-      /\/oh-my-joy:ralplan/,
-      'EXECUTION-HANDOFF.md must name /oh-my-joy:ralplan as the consensus lane reachable without a runtime',
-    );
-  });
-
-  it('commands and agents that mention a runtime also name a fallback', () => {
-    const surfaces = [
-      ...listCommandFiles().map((f) => `commands/${f}`),
-      ...listAgentFiles().map((f) => `agents/${f}`),
-    ];
-
-    for (const file of surfaces) {
-      const body = stripCode(readRepoFile(file));
-      if (!RUNTIME_MENTION.test(body)) continue;
-      assert.match(
-        readRepoFile(file),
-        FALLBACK_SIGNAL,
-        `${file} mentions OMC/OMX but names no path that works without it. Every runtime ` +
-          'integration must degrade to an OMJ-native command or an explicit manual action ' +
-          '(graceful degradation — PRINCIPLES ⑨).',
+  it('the routing SoT defines all four lanes', () => {
+    const handoff = readRepoFile('docs', 'EXECUTION-HANDOFF.md');
+    for (const lane of ['inline', '`/goal`', 'agent team', '/oh-my-joy:goal-loop']) {
+      assert.ok(
+        handoff.includes(lane),
+        `docs/EXECUTION-HANDOFF.md must define the "${lane}" lane — it is the single routing SoT`,
       );
     }
+  });
+
+  it('the routing SoT names the consensus pass', () => {
+    assert.match(
+      readRepoFile('docs', 'EXECUTION-HANDOFF.md'),
+      /\/oh-my-joy:ralplan/,
+      'EXECUTION-HANDOFF.md must name /oh-my-joy:ralplan as the pre-approval consensus pass',
+    );
   });
 });
 

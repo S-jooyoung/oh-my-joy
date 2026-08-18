@@ -1,6 +1,6 @@
 ---
 name: design-qa
-description: Mechanical quality gate after FE implementation — checks (never fixes) typecheck, lint, token hardcoding, Figma fidelity, a11y basics, and (when the project declares them) Story existence and i18n key pairs. Explicit-invocation only, after implementation and before commit/PR. Never delegated for code writing/editing requests — qualitative FF code review belongs to /oh-my-joy:ff-review, visual defect fixing to /omj-fix; this agent owns only binary-verdict mechanical gates.
+description: Mechanical quality gate after FE implementation — checks (never fixes) typecheck, lint, token hardcoding, Figma fidelity, a11y basics, and (when the project declares them) Story existence and i18n key pairs. Explicit-invocation only, after implementation and before commit/PR. Never delegated for code writing/editing requests — qualitative FF code review belongs to /oh-my-joy:ff-review, visual defect fixing to /oh-my-joy:fix; this agent owns only binary-verdict mechanical gates.
 tools: Read, Grep, Glob, Bash, Skill
 ---
 
@@ -28,4 +28,4 @@ tools: Read, Grep, Glob, Bash, Skill
 
 ## Output
 
-A per-check ✅/❌ table; each ❌ reads `file:line + evidence + recommended fix`. End with an overall verdict (`PASS` / `FAIL: n items`). **Never fix code** — fixing belongs to the caller or `/omj-fix`. After running, `git status` must equal the pre-run state (report any artifacts left behind).
+A per-check ✅/❌ table; each ❌ reads `file:line + evidence + recommended fix`. End with an overall verdict (`PASS` / `FAIL: n items`). **Never fix code** — fixing belongs to the caller or `/oh-my-joy:fix`. After running, `git status` must equal the pre-run state (report any artifacts left behind).

@@ -4,7 +4,7 @@ argument-hint: "[sync|check|push|extract <figma-url>] [--tokens <path>]"
 allowed-tools: Read, Edit, Write, Grep, Glob, Skill, AskUserQuestion, mcp__plugin_figma_figma__get_variable_defs, mcp__plugin_figma_figma__use_figma, mcp__figma__get_variable_defs, mcp__figma__use_figma
 ---
 
-# /omj-sync — Design token sync (code ↔ Figma, interactive)
+# /oh-my-joy:sync — Design token sync (code ↔ Figma, interactive)
 
 Computes drift between a file-based token store (**`tokens.json` (W3C DTCG) or CSS custom properties `*.css`**) and Figma Variables, and resolves it by **asking the user the direction for each conflict**. `extract` is the bootstrap mode for turning Figma variables into code for the first time.
 
@@ -16,7 +16,7 @@ Computes drift between a file-based token store (**`tokens.json` (W3C DTCG) or C
 
 ## Arguments (modes)
 
-- `sync` (**default** — bare `/omj-sync`) — interactive mode: computes drift and **asks the direction per class** to resolve.
+- `sync` (**default** — bare `/oh-my-joy:sync`) — interactive mode: computes drift and **asks the direction per class** to resolve.
 - `check` — outputs only a **read-only drift report** of Figma Variables ↔ token store differences (no edits, no questions).
 - `push` — bulk create/update the token store into the active tab's Figma Variables without questions (**explicit code-wins fast path**).
 - `extract <figma-url>` — **Figma → code bootstrap**: extracts all variables of the active tab into CSS custom properties as new token files (procedure below).
@@ -73,16 +73,16 @@ Flattening semantic tokens into raw hex when pulling Figma values back into code
 1. Read the token store and the active tab's Variables via `get_variable_defs`.
 2. Compare both and output a **drift report**: code-only / Figma-only / value mismatches. **No edits, no questions.**
 3. **For Figma-only tokens, include a "token code suggestions" block** — copy-pastable CSS (or DTCG) snippets (reference-preservation rules applied). The user applies them or hands off to `sync`.
-4. Conclusion: advise "run `/omj-sync` (sync) to resolve by choosing directions, or `/omj-sync push` to push code as is".
+4. Conclusion: advise "run `/oh-my-joy:sync` (sync) to resolve by choosing directions, or `/oh-my-joy:sync push` to push code as is".
 
 ## Usage
 
 ```
-/omj-sync                                  # = sync (interactive: asks the direction per class)
-/omj-sync check                            # drift report + token code suggestions (read-only)
-/omj-sync push                             # bulk code→Figma without questions (explicit code-wins)
-/omj-sync extract https://figma.com/design/...   # Figma variables → CSS custom properties bootstrap
-/omj-sync push --tokens shared/tokens/tokens.json
-/omj-sync check --tokens src/tokens/colors.css   # CSS stores also supported
+/oh-my-joy:sync                                  # = sync (interactive: asks the direction per class)
+/oh-my-joy:sync check                            # drift report + token code suggestions (read-only)
+/oh-my-joy:sync push                             # bulk code→Figma without questions (explicit code-wins)
+/oh-my-joy:sync extract https://figma.com/design/...   # Figma variables → CSS custom properties bootstrap
+/oh-my-joy:sync push --tokens shared/tokens/tokens.json
+/oh-my-joy:sync check --tokens src/tokens/colors.css   # CSS stores also supported
 ```
 > Before running: open the target Figma design-system file as the **active tab** in the desktop app (duplicate viewer-permission files first).

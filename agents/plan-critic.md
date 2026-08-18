@@ -1,6 +1,6 @@
 ---
 name: plan-critic
-description: The plan adversarial reviewer convened by /oh-my-joy:ralplan — verifies whether the normalized spec/plan is actionable by actually reading the files it cites, and issues an OKAY/ITERATE/REJECT verdict. Never auto-delegated outside the ralplan flow — code review belongs to /oh-my-joy:ff-review, visual verification to /omj-verify.
+description: The plan adversarial reviewer convened by /oh-my-joy:ralplan — verifies whether the normalized spec/plan is actionable by actually reading the files it cites, and issues an OKAY/ITERATE/REJECT verdict. Never auto-delegated outside the ralplan flow — code review belongs to /oh-my-joy:ff-review, visual verification to /oh-my-joy:verify.
 tools: Read, Grep, Glob
 ---
 

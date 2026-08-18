@@ -1,5 +1,5 @@
 ---
-description: General-purpose deep interview that turns vague ideas/requirements into a spec via Socratic one-question rounds and an ambiguity score — for "interview me" ("인터뷰해줘"), "let's sort the requirements first" ("요구사항부터 정리하자"), "still fuzzy about what to build", "deep interview" requests. Does not fire on requests that already carry file paths/acceptance criteria (announces immediate exit), and Figma links/FE implementation requests go to /omj first. Canonical invocation is /oh-my-joy:deep-interview
+description: General-purpose deep interview that turns vague ideas/requirements into a spec via Socratic one-question rounds and an ambiguity score — for "interview me" ("인터뷰해줘"), "let's sort the requirements first" ("요구사항부터 정리하자"), "still fuzzy about what to build", "deep interview" requests. Does not fire on requests that already carry file paths/acceptance criteria (announces immediate exit), and Figma links/FE implementation requests go to /oh-my-joy:spec first. Canonical invocation is /oh-my-joy:deep-interview
 argument-hint: "[idea description [--threshold N]]"
 allowed-tools: Read, Grep, Glob, AskUserQuestion
 ---
@@ -29,7 +29,7 @@ no files — materializing the spec is the post-approval execution stage's job.
 An interview is only valuable where ambiguity exists. Judge before starting:
 
 1. If the input has a figma.com URL or is an FE screen/component implementation request → the
-   entry point is `/omj`, not this command. Announce and stop.
+   entry point is `/oh-my-joy:spec`, not this command. Announce and stop.
 2. If the input is already concrete (two or more of: file paths, symbol names, numbered steps,
    acceptance criteria, error messages) → print "Already clear enough — proceed without an
    interview" with the judgment rationale and stop. A small desire for confirmation does not
@@ -94,13 +94,11 @@ Present the full spec as the response body (the plan file if in Plan mode) and *
 
 **Execution bridge** — at the end of the spec, point to whichever paths apply:
 
-- If it became an FE implementation spec: after approval, paste this spec into `/omj` to develop it
+- If it became an FE implementation spec: after approval, paste this spec into `/oh-my-joy:spec` to develop it
   into a uSpec implementation spec (spec paste is a first-class input).
-- If OMC/OMX is installed: also list the existing execution lanes (`docs/EXECUTION-HANDOFF.md`).
-- If there is no runtime, or completion must be proven with evidence: after approval, paste this
-  spec into `/oh-my-joy:goal-loop` to see it through as a durable goal loop (paste is a first-class
-  input — the durable default when no runtime exists, and explicitly selectable even when one does;
-  see the "OMJ native lane" section of `docs/EXECUTION-HANDOFF.md`).
+- If the work must survive interruption or prove its completion with evidence: after approval,
+  paste this spec into `/oh-my-joy:goal-loop` to see it through as a durable goal loop (paste is a
+  first-class input; lane definitions: `docs/EXECUTION-HANDOFF.md`).
 - Otherwise: after approval, the current session implements inline per the spec.
 
 If the user wants the spec saved as a file, the post-approval execution stage saves it — this
@@ -113,7 +111,6 @@ command never writes.
 /oh-my-joy:deep-interview notification system overhaul --threshold 15
 ```
 
-> Methodology source: adapted and rewritten from the deep-interview methodology of
-> gajae-code·oh-my-claudecode (MIT, Yeachan Heo) —
-> [NOTICE.md](../NOTICE.md) (runtime path `${CLAUDE_PLUGIN_ROOT}/NOTICE.md`). The runtime and
-> state-file conventions were not ported.
+> Methodology source: adapted and rewritten from the deep-interview methodology of the
+> open-source projects credited in [NOTICE.md](../NOTICE.md) (runtime path
+> `${CLAUDE_PLUGIN_ROOT}/NOTICE.md`). The runtime and state-file conventions were not ported.

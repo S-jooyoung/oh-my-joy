@@ -29,7 +29,7 @@ Additional areas:
 - **Boundaries (Server/Client, errors, testability)** → [references/boundaries.md](references/boundaries.md) — where `'use client'` sits decides the bundle and the render model together
 - **Bundle/debug** → [references/bundling-debug.md](references/bundling-debug.md)
 - **Project acceptance axes (mechanism)** → [references/fe-acceptance.md](references/fe-acceptance.md) — reflects the "frequently missed axes" a project declares in `.omj/fe-context.md` into specs (the plugin forces no particular axis — general-purpose). Also the SoT for the token-system detection order.
-- **Figma fidelity (universal design→code rules)** → [references/figma-fidelity.md](references/figma-fidelity.md) — keep original text, no invented variants, no fixed px (w-full + parent padding), no hardcoded tokens. `/omj` prescribes; `/oh-my-joy:ff-review`·`design-qa` verify.
+- **Figma fidelity (universal design→code rules)** → [references/figma-fidelity.md](references/figma-fidelity.md) — keep original text, no invented variants, no fixed px (w-full + parent padding), no hardcoded tokens. `/oh-my-joy:spec` prescribes; `/oh-my-joy:ff-review`·`design-qa` verify.
 
 ## Quick checklist (smell → remedy)
 
@@ -68,4 +68,4 @@ Never do the following "to obey" the principles:
 
 ## Companion command
 
-`/oh-my-joy:ff-review` — integrated review of the current branch/staged diff against the 4 criteria above + a11y + Vercel performance/composition + Next.js (Context7) (read-only). Reuses the same FF SoT as `/omj` (prescription) at the verification stage.
+`/oh-my-joy:ff-review` — integrated review of the current branch/staged diff against the 4 criteria above + a11y + Vercel performance/composition + Next.js (Context7) (read-only). Reuses the same FF SoT as `/oh-my-joy:spec` (prescription) at the verification stage.

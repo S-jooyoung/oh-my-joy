@@ -255,7 +255,7 @@ function checkComponentFrontmatter() {
 /** The repo's own invariant: shipping hooks.json would auto-fire hooks everywhere. */
 function checkNoShippedHooks() {
   if (existsSync(repoPath('hooks', 'hooks.json'))) {
-    fail('hooks/hooks.json exists — the plugin must never ship auto-firing hooks (they are opt-in via /omj-setup)');
+    fail('hooks/hooks.json exists — the plugin must never ship auto-firing hooks (they are opt-in via /oh-my-joy:setup)');
   }
 }
 

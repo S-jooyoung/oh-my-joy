@@ -24,7 +24,7 @@ under the same slug.
 
 ## Input
 
-- The approved spec/plan: a file path or a **pasted body** (first-class input — including `/omj`·`/oh-my-joy:deep-interview` output).
+- The approved spec/plan: a file path or a **pasted body** (first-class input — including `/oh-my-joy:spec`·`/oh-my-joy:deep-interview` output).
 - `--slug <name>`: the state directory name (lowercase letters, digits, hyphens). An existing slug means **resume mode**.
 
 ## Flow
@@ -75,7 +75,7 @@ are all possible from this single file.
 ## git policy
 
 `.omj/goals/` is **operational state and is never committed** — add it to the consuming project's
-`.gitignore` at the same tier as `.omj/baselines/` (`/omj-setup` guides this during scaffolding).
+`.gitignore` at the same tier as `.omj/baselines/` (`/oh-my-joy:setup` guides this during scaffolding).
 It differs in tier from the committed `.omj/fe-context.md` (the project declaration), so ignoring
 `.omj/` wholesale loses fe-context — specify only `goals/`·`baselines/`.
 
@@ -86,6 +86,5 @@ It differs in tier from the committed `.omj/fe-context.md` (the project declarat
 /oh-my-joy:goal-loop --slug search-form          # resume an interrupted loop
 ```
 
-> Methodology source: adapted and rewritten from gajae-code's durable goal loop and
-> oh-my-claudecode's goals/ledger state contract —
+> Methodology source: adapted and rewritten from the open-source projects credited in
 > [NOTICE.md](../NOTICE.md) (runtime path `${CLAUDE_PLUGIN_ROOT}/NOTICE.md`). The runtime was not ported.

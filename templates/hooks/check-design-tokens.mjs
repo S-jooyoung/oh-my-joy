@@ -2,12 +2,12 @@
 /**
  * check-design-tokens.mjs — PostToolUse(Edit|Write) hook: hardcoded-color detection warning.
  *
- * Distribution: canon lives in the oh-my-joy plugin's templates/hooks/ → /omj-setup copies it
+ * Distribution: canon lives in the oh-my-joy plugin's templates/hooks/ → /oh-my-joy:setup copies it
  * into the consuming project's .claude/hooks/ and registers it in .claude/settings.json (opt-in).
  * Gate: without a tokensPath declaration in the project root's .omj/fe-context.md, always no-op.
  * Checks only; never fixes or blocks (injects warning context, exit 0).
  *
- * **Self-containment constraint**: /omj-setup copies this single file. Therefore it imports no
+ * **Self-containment constraint**: /oh-my-joy:setup copies this single file. Therefore it imports no
  * shared modules — even where helpers overlap with check-story-exists.mjs, each file carrying its
  * own copy matches the distribution contract (a shared module would break the copies at runtime).
  *

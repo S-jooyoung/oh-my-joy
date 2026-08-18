@@ -26,7 +26,7 @@ Not here, and not in a public issue — use [private reporting](https://github.c
 
 ## Never do these
 
-- **Never create `hooks/hooks.json`.** The moment it exists, hooks auto-fire in *every* repo that enables the plugin. Hook scripts are templates in `templates/hooks/`; activation happens only when `/omj-setup` copies them into a consuming project (opt-in). This invariant is test-enforced.
+- **Never create `hooks/hooks.json`.** The moment it exists, hooks auto-fire in *every* repo that enables the plugin. Hook scripts are templates in `templates/hooks/`; activation happens only when `/oh-my-joy:setup` copies them into a consuming project (opt-in). This invariant is test-enforced.
 - **Never leave AI signatures in commit messages.** No `Co-Authored-By: Claude`, no "Generated with …".
 - **Never declare a tool in `allowed-tools` that the body's procedure does not call.** Deliberately not pre-approving dangerous execution is itself a safety gate (the permission prompt becomes the user's confirmation point).
 
@@ -48,7 +48,7 @@ When you add or change a feature, put all three of the following in **the same c
 
 ## Adding a new command
 
-- File: `commands/<name>.md`. Naming has two axes — OMJ-specific FE loop verbs take the `/omj-*` prefix (root `/omj` excepted); named methodology/rubric commands (`deep-interview`, `ff-review`, and the like) use an unprefixed basename + registration in `WORKFLOW_COMMANDS` in `tests/plugin-manifest.test.mjs`. Unprefixed commands are always written in docs as the canonical `/oh-my-joy:<name>` invocation (bare notation is blocked by tests).
+- File: `commands/<name>.md`. Naming has one axis — every command uses an unprefixed kebab-case basename (`spec`, `verify`, `ff-review`, …); an `omj`-prefixed basename is blocked by tests (the plugin-name namespace already brands the command, so an in-name prefix would double it). In docs, commands are always written as the canonical `/oh-my-joy:<name>` invocation (bare notation is blocked by tests).
 - frontmatter: `description`, `argument-hint`, `allowed-tools` (**least privilege** — if read-only, do not include `Write`/`Edit`/`Bash`).
 - The SoT for behavior is that file's body. Other docs only summarize/link and never redefine thresholds or rules.
 - Add it to the README (EN/KO) command tables — tests fail if it is missing.

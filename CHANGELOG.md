@@ -12,10 +12,14 @@ History prior to 0.6.0 is preserved in Korean.
 - Repo-local `release-checklist` skill (`.claude/skills/`, maintainers only, not shipped to users): pre-flight gates, the release cut, the local apply loop for `directory`-source marketplaces, and a drift check that separates a stale install from a stale session.
 
 ### Changed
+- **BREAKING: single `/oh-my-joy:` namespace for every command** — `/omj`→`/oh-my-joy:spec`, `/omj-verify`→`/oh-my-joy:verify`, `/omj-fix`→`/oh-my-joy:fix`, `/omj-sync`→`/oh-my-joy:sync`, `/omj-setup`→`/oh-my-joy:setup` (already canonical: ff-review, deep-interview, goal-loop, ralplan). The v0.6.0 two-axis naming rule is retired: the plugin-name namespace already brands the command, so an in-name prefix duplicated it in the canonical form. Announced v1.1 names move too: `/omj-push`→`/oh-my-joy:push`, `/omj-spec`→`/oh-my-joy:ds-spec`. Auto-trigger routing (Figma link → spec, screenshot+complaint → fix) is description-based and unaffected. Non-command literals are intentionally unchanged: the `.omj/` state directory, the `oh-my-joy@omj` install string, the `[omj:*]` hook output prefixes, and the `omj-allow-color` suppression literal. Tests swap the two-axis assertion for a single-axis guard plus a negative legacy-token scan (CHANGELOG exempt as history).
+- **Execution lanes rebased on a runtime-free world** — the lane set is now inline (default) · native `/goal` (in-session iteration) · native agent team (parallel subagents) · `/oh-my-joy:goal-loop` (durable, evidence-gated); `docs/EXECUTION-HANDOFF.md` is rewritten around the four lanes and absorbs the gate-orthogonality narrative from the removed `docs/OMC-INTEGRATION.md`. PRINCIPLES ⑦ is rewritten as spec-first lane handoff, and the standalone test suite now bans external-orchestrator mentions outside CHANGELOG/NOTICE instead of requiring per-mention fallbacks.
+- **README (EN/KO) restructured around a "Recommended workflow"** — tutorial first (Quick Start → 4 recommended steps with each step's "when" folded into its line → a "What a Figma link turns into" mechanism section → a full session walkthrough), reference (command table) after, design notes last. A single boundary paragraph now states what never happens automatically (the primer writes no code; ExitPlanMode approval is where execution starts). The diagram is redrawn around the recommended spine with the two decision points (execution lane, ExitPlanMode) as hexagons; the read-only dash encoding is retired — the command table's privilege note owns that fact.
 
 ### Deprecated
 
 ### Removed
+- **BREAKING: OMC/OMX integration and `/omj-start`** — the external-orchestrator lane tables, `docs/OMC-INTEGRATION.md`, and the handoff command are removed; the spec's execution-lane section now prints the one copyable action itself, and legacy Korean selector-label recognition retires with the handoff command.
 
 ### Fixed
 
