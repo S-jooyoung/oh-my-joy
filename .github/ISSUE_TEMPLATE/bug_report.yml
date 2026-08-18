@@ -14,8 +14,8 @@ body:
     id: version
     attributes:
       label: Plugin version
-      description: From `/plugin list`, or the `version` in `.claude-plugin/plugin.json`. Run `/plugin update oh-my-joy` and `/reload-plugins` first — stale installs are the most common cause.
-      placeholder: '0.5.0'
+      description: From `/plugin list`, or the `version` in `.claude-plugin/plugin.json`. Run `/plugin update oh-my-joy@omj` and `/reload-plugins` first — stale installs are the most common cause.
+      placeholder: '0.7.0'
     validations:
       required: true
 

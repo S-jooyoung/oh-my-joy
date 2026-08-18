@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-oh-my-joy is maintained by one person, and only the latest released version receives fixes. Update with `/plugin update oh-my-joy` followed by `/reload-plugins` before reporting anything.
+oh-my-joy is maintained by one person, and only the latest released version receives fixes. Update with `/plugin update oh-my-joy@omj` followed by `/reload-plugins` before reporting anything.
 
 ## Reporting a vulnerability
 

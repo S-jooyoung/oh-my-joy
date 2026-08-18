@@ -17,6 +17,8 @@ History prior to 0.6.0 is preserved in Korean.
 ### Removed
 
 ### Fixed
+- **Manifest descriptions no longer promise auto-chaining** — `marketplace.json` advertised that the plugin "chains" implementation, verification, and token sync after approval, contradicting the README's core promise that verification never runs implicitly; both manifest descriptions are rewritten (each step runs on your invocation) and now also cover the general-purpose commands (deep-interview, goal-loop, ralplan). keywords/tags stay FE-focused by decision — the search identity is the FE loop.
+- **Doc facts re-anchored to their sources of truth** — the `fix` command-table row now says "screenshot and/or complaint" with the route required (matching `commands/fix.md`); `docs/design-tokens.md` is labeled as a consuming-project artifact and `figma-fidelity.md` becomes a relative link to the bundled FF reference (now covered by the link-integrity test); plan-critic restored to the PRINCIPLES bundled-agent enumeration; the `/plugin update oh-my-joy@omj` string is unified across SECURITY.md and the bug template and pinned by a new manifest-assembled guard test.
 
 ### Security
 

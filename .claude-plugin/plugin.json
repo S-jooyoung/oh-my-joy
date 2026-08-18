@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "oh-my-joy",
   "version": "0.7.0",
-  "description": "Frontend one-stop — Figma spec → FF implementation spec (Plan) → post-approval implementation, visual verification, and token sync",
+  "description": "The code↔Figma frontend loop plus the workflows that wrap it — spec-first planning, visual verification, token sync, deep interview, durable goal loop, consensus review. Nothing runs until you approve the plan.",
   "author": {
     "name": "Jooyoung Shin",
     "email": "jooyoung.dev@gmail.com"

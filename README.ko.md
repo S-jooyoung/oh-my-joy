@@ -129,7 +129,7 @@ _육각형 = 사용자의 결정 지점, 실선 spine = 권장 경로, 점선 = 
 | **`/oh-my-joy:ralplan`** | *이미 존재하는* 스펙/플랜(경로 **또는 paste**)의 적대 합의 리뷰: Planner 정규화(Drivers·Viable Options ≥2·ADR) → 독립 `plan-critic` 1패스 → 최대 2회 → 수렴하면 pending-approval, 미수렴이면 미해소 쟁점과 함께 PLANNING-STUCK 선언 (read-only). 작고 명확한 플랜은 "리뷰 없이 진행 권장"으로 조기 종료 | 플랜이 이미 있고 설계 결정에 이견 위험이 있을 때 — 요구가 흐릿하면 `/oh-my-joy:deep-interview`가 먼저 | `/oh-my-joy:ralplan ./approved-spec.md` |
 | **`/oh-my-joy:ff-review`** | 변경 FE diff를 FF 4기준+a11y·Figma 충실도·vercel·Next.js로 통합 리뷰 (리포트만). 무인자 = 미커밋+staged 변경(HEAD 대비), `--base <ref>` = `<ref>` 이후 브랜치 전체 | 구현 직후 PR 전 코드 품질 점검 | `/oh-my-joy:ff-review --base main` |
 | **`/oh-my-joy:verify`** | 라우트를 실제 브라우저(playwright-cli, 부재 시 playwright MCP 폴백)로 열어 시각/구조 점검 + Figma baseline(`.omj/baselines/`) 대비. 캡처가 요청한 라우트에 실제 도달했는지 항상 검증(인증 리다이렉트는 비교하지 않고 실패로 보고). `--base <url>`로 dev 서버 지정 | PR 전 시각 회귀 확인 | `/oh-my-joy:verify /settings/profile` |
-| **`/oh-my-joy:fix`** | 붙인 스크린샷+route 결함을 고치고 재캡처로 확인 (능동 루프). `--base <url>`(dev 서버)·`--commit`(확인된 수정 커밋) 지원 | 픽셀/시각 결함 빠른 수정 | `/oh-my-joy:fix /pricing "배너 z-index 낮음"` |
+| **`/oh-my-joy:fix`** | route(필수)의 결함을 붙인 스크린샷·불만(둘 중 하나 이상)으로 짚어 고치고 재캡처로 확인 (능동 루프). `--base <url>`(dev 서버)·`--commit`(확인된 수정 커밋) 지원 | 픽셀/시각 결함 빠른 수정 | `/oh-my-joy:fix /pricing "배너 z-index 낮음"` |
 | **`/oh-my-joy:sync`** | 토큰 스토어(`tokens.json` **또는 CSS custom properties**) ↔ Figma 드리프트를 **방향 물어** 해소. `extract`로 Figma 변수를 CSS로 부트스트랩, `--tokens <path>`로 스토어 경로 지정 | 코드/Figma 토큰 정렬·최초 추출 | `/oh-my-joy:sync` · `check` · `push` · `extract <figma-url>` |
 | **`/oh-my-joy:setup`** | 의존성 점검 + 일괄 multiSelect 선택 설치 + `.omj/fe-context.md` 스캐폴딩(`AGENTS.md`/`.claude/rules/` 같은 기존 규칙 문서는 복제 대신 `contextDocs:`로 채택) + 토큰 가드 훅(opt-in, Story 훅은 Storybook 감지 시에만 제안). 마무리에 GitHub star를 선택적으로 제안(이미 star면 조용히 스킵, 셋업을 막지 않음) | 첫 사용 전 — 셋업 흔적이 없으면 `spec`이 1회 제안 | `/oh-my-joy:setup` · `--check`(점검만) |
 | **`/oh-my-joy:goal-loop`** | 승인된 스펙(경로 **또는 paste** — paste가 1급 입력)을 골 단위로 `.omj/goals/`에 영속시켜 하나씩 완주하는 단일 owner durable 루프 — 완료는 validator 스크립트의 증거 객체 검사를 통과해야만 성립(불법 전이·잘린 ledger·증거 없는 완료는 non-zero 거부, Plan 해제 후 실행) | 중단을 견디고 완료를 증명해야 하는 여러 턴 작업 | `/oh-my-joy:goal-loop ./approved-spec.md --slug search-form` · 재개: `/oh-my-joy:goal-loop --slug search-form` |
@@ -152,7 +152,7 @@ _육각형 = 사용자의 결정 지점, 실선 spine = 권장 경로, 점선 = 
 - `/oh-my-joy:sync` (기본 `sync`) — 방향을 물어 대화형 해소.
 - `/oh-my-joy:sync check` — 읽기 전용 드리프트 리포트 + Figma에만 있는 토큰의 "추가할 코드 제안" 블록.
 - `/oh-my-joy:sync push` — 질문 없이 코드→Figma 일괄 반영(명시적 code-wins).
-- `/oh-my-joy:sync extract <figma-url>` — Figma 변수 전체를 CSS custom properties로 추출(`/`→`-` 변환, primitive→semantic `var()` 참조 유지, `docs/design-tokens.md` 매핑 테이블 생성). 토큰 스토어가 없는 프로젝트의 부트스트랩.
+- `/oh-my-joy:sync extract <figma-url>` — Figma 변수 전체를 CSS custom properties로 추출(`/`→`-` 변환, primitive→semantic `var()` 참조 유지, 매핑 테이블은 **여러분 프로젝트의** `docs/design-tokens.md`에 생성). 토큰 스토어가 없는 프로젝트의 부트스트랩.
 
 > 토큰 스토어는 `tokens.json`(DTCG)과 CSS custom properties(`*.css`) 둘 다 지원합니다. Figma 변수 접근은 **편집 권한**이 필요합니다 — 뷰어로 공유받은 파일은 사본(Duplicate)을 떠서 사용하세요.
 
@@ -189,7 +189,7 @@ _육각형 = 사용자의 결정 지점, 실선 spine = 권장 경로, 점선 = 
 ## 설계 원리 · Figma 2-트랙
 
 - **Plan 네이티브 프라이머**: `/oh-my-joy:spec`은 read-only — 스펙을 만들고 실행 레인 selector를 최대 1회 물은 뒤(inline 추천이면 질문 없이 `(auto)`) 멈추며, 승인(ExitPlanMode)해야 구현이 시작됩니다.
-- **스펙 포맷**: uSpec 섹션(Anatomy/Structure/Color·Tokens/Props·Variants/A11y/Motion) + 각 항목 FF 4기준 + a11y + Figma 충실도(`figma-fidelity.md`).
+- **스펙 포맷**: uSpec 섹션(Anatomy/Structure/Color·Tokens/Props·Variants/A11y/Motion) + 각 항목 FF 4기준 + a11y + Figma 충실도([`figma-fidelity.md`](skills/frontend-fundamentals/references/figma-fidelity.md)).
 - **토큰 sync**: 코드가 기본 SoT, 충돌은 사용자가 방향 선택(대화형). 스토어는 DTCG json·CSS custom properties 양쪽.
 - **Figma 2-트랙**: (A) 앱 화면 design→code = 공식 Dev Mode MCP, (B) 디자인 시스템 스펙·토큰 = figma-console-mcp + uSpec(v1.1+).
 - **번들 최소화**: 외부가 관리하는 지식은 참조만(vercel 스킬 — `npx skills add/update`), OMJ가 소유한 자작물(FF 스킬·에이전트 3종·훅 템플릿)만 번들. 플러그인 자체는 훅을 발화시키지 않는 zero-hook 유지(훅은 opt-in 복사-설치).
