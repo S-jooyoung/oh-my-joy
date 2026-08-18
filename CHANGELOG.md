@@ -9,6 +9,20 @@ History prior to 0.6.0 is preserved in Korean.
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.7.0] - 2026-08-18
+
+### Added
 - Repo-local `release-checklist` skill (`.claude/skills/`, maintainers only, not shipped to users): pre-flight gates, the release cut, the local apply loop for `directory`-source marketplaces, and a drift check that separates a stale install from a stale session.
 
 ### Changed
@@ -262,7 +276,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.3.0...v0.4.0
