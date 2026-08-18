@@ -13,7 +13,7 @@ _"거의 항상 Plan 모드"인 습관과 충돌하지 않는 Plan 네이티브 
 
 `Plan-first` · `Figma 2-트랙` · `대화형 토큰 sync` · `graceful degradation` · `zero runtime deps`
 
-[왜 만들었나](#왜-만들었나) • [Quick Start](#quick-start) • [권장 워크플로](#권장-워크플로) • [커맨드](#커맨드) • [설계 근거](#이-레포가-보여주는-것) • [트러블슈팅](#트러블슈팅)
+[왜 만들었나](#왜-만들었나) • [Quick Start](#quick-start) • [권장 워크플로](#권장-워크플로) • [워크스루](#한-세션-처음부터-끝까지) • [커맨드](#커맨드) • [설계 근거](#이-레포가-보여주는-것) • [트러블슈팅](#트러블슈팅)
 
 ---
 
@@ -37,9 +37,25 @@ Figma 프레임을 AI 에이전트에 던지고 "이대로 만들어줘"라고 �
 
 # 3. 시작 — 명세를 구현 스펙(Plan)으로 뽑고 멈춤 → 승인 → 구현
 /oh-my-joy:spec "검색 입력 폼 — React Hook Form + Zod, 모바일 우선" /search
+
+#    …디자인에서 시작한다면 — 같은 커맨드에 Figma 링크를 붙이면 됩니다
+/oh-my-joy:spec https://figma.com/design/abc?node-id=1-2 /search
 ```
 
 > **업데이트**는 릴리스(버전 범프)가 `main`에 머지될 때 배포됩니다 — 기능이 머지돼도 버전 문자열이 바뀌기 전에는 기존 설치에 도달하지 않습니다. `/plugin update oh-my-joy@omj`로 최신을 받고, `/reload-plugins`(또는 새 세션)로 로드하세요.
+>
+> **v0.6에서 업그레이드하셨나요?** v0.7.0에서 모든 커맨드가 단일 `/oh-my-joy:` 네임스페이스로 이동했습니다:
+>
+> | 구 커맨드 | 현재 |
+> | --- | --- |
+> | `omj` (동사 없는 루트 커맨드) | `/oh-my-joy:spec` |
+> | `omj-verify` | `/oh-my-joy:verify` |
+> | `omj-fix` | `/oh-my-joy:fix` |
+> | `omj-sync` | `/oh-my-joy:sync` |
+> | `omj-setup` | `/oh-my-joy:setup` |
+> | `omj-start` | 제거 — 스펙의 실행 레인 섹션이 실행할 한 줄을 출력합니다 |
+>
+> 그 외는 그대로입니다: `.omj/` 상태 디렉토리, `oh-my-joy@omj` 설치 문자열, 훅 출력. 함정 하나 — 예고됐던 `omj-spec`(디자인 시스템 스펙, v1.1)은 `spec`이 아니라 `/oh-my-joy:ds-spec`으로 예정명이 바뀌었습니다. 전체 매핑과 경위: [CHANGELOG](CHANGELOG.md)의 0.7.0 절.
 
 ---
 
@@ -47,7 +63,7 @@ Figma 프레임을 AI 에이전트에 던지고 "이대로 만들어줘"라고 �
 
 처음이라면 `/oh-my-joy:setup`을 한 번 실행하세요 — 선택 의존성을 점검하고 `.omj/fe-context.md`를 스캐폴딩합니다.
 
-1. `/oh-my-joy:spec <figma-url | 작업> [route]` — 모든 FE 작업은 여기서 시작합니다. 디자인과 코드를 읽고 구현 스펙을 작성한 뒤 멈춥니다. 요청이나 경계가 아직 모호하면 `/oh-my-joy:deep-interview`를 먼저 돌리고 그 결과를 `spec`에 붙여넣으세요.
+1. `/oh-my-joy:spec <figma-url | 작업> [route]` — 모든 FE 작업은 여기서 시작합니다. 디자인과 코드를 읽고 구현 스펙을 작성한 뒤 멈춥니다. 요청이나 경계가 아직 모호하면 `/oh-my-joy:deep-interview`를 먼저 돌리고 그것이 출력한 플랜 텍스트를 `spec`에 붙여넣으세요.
 2. **Plan 승인** (ExitPlanMode) — 구현은 오직 여기서, 스펙에 기록된 실행 레인으로 시작됩니다. 설계 결정에 이견 위험이 있으면 승인 전에 `/oh-my-joy:ralplan`으로 스펙을 합의 리뷰하세요.
 3. **선택된 레인에서 구현** — 기본은 inline. `/goal`·`/oh-my-joy:goal-loop`이 필요한 경우는 아래 레인 규칙 참고.
 4. **검증 — diff는 한 번에, 화면은 라우트 단위로.** `/oh-my-joy:ff-review`가 코드 diff 전체를 한 패스로 리뷰합니다(무인자 = 미커밋 변경 전체, `--base main` = 브랜치 전체). 이어서 바뀐 라우트마다 `/oh-my-joy:verify <route>` — 렌더된 화면은 라우트 하나씩 점검합니다. 리포트가 특정 시각 결함을 짚으면 `/oh-my-joy:fix <route> "불만"`이 그 결함만 고치고 재캡처하며, 토큰 드리프트가 보고되면 `/oh-my-joy:sync`로 정리합니다.
@@ -66,7 +82,7 @@ flowchart TD
     V -->|"토큰 드리프트"| T["/oh-my-joy:sync<br/>방향은 사용자가 선택"]
 ```
 
-_육각형 = 사용자의 결정 지점, 실선 spine = 권장 경로, 점선 = 선택 경로._
+_육각형 = 두 개의 결정 지점 — 레인 선택(작은 작업은 자동 해소)과 승인. 실선 spine = 권장 경로, 점선 = 선택 경로._
 
 **저절로 일어나지 않는 것.** `/oh-my-joy:spec`은 코드를 쓰지 않습니다 — 스펙을 만들고 멈추는 것이 이 커맨드의 전부입니다. Plan을 승인(ExitPlanMode)하기 전에는 아무것도 구현·빌드·커밋되지 않습니다: 승인이 스펙과 코드 사이의 유일한 관문이고, 이 플러그인의 어떤 커맨드도 그 관문을 대신 넘지 않습니다. 검증도 암묵적으로 돌지 않습니다 — `verify`·`ff-review`·`sync`는 직접 호출할 때만 실행됩니다.
 
@@ -74,7 +90,7 @@ _육각형 = 사용자의 결정 지점, 실선 spine = 권장 경로, 점선 = 
 
 - **inline** — 기본값. 작고 구체적인 작업: 승인 후 현재 세션이 그대로 스펙을 구현합니다. 항상 사용 가능.
 - **`/goal`** — **세션 안**의 끈기: 이 세션이 조건을 만족할 때까지 계속 반복하게 합니다. Claude Code 훅 시스템의 일부라 훅이 비활성인 환경에서는 사용할 수 없습니다.
-- **agent team** — 독립 병렬 레인 2개 이상으로 쪼개지는 작업(화면 여러 장·문서·검증): 승인된 스펙을 병렬 Claude 서브에이전트에 분배합니다(코디네이트되는 에이전트 팀은 Claude Code의 실험적 opt-in).
+- **agent team** — 독립 병렬 레인 2개 이상으로 쪼개지는 작업(화면 여러 장·문서·검증): 승인된 스펙을 병렬 Claude 서브에이전트에 분배합니다(코디네이트되는 에이전트 팀은 Claude Code의 실험적 opt-in). 기동은 평문 요청으로 — 스펙의 독립 레인을 병렬 에이전트에 나눠 달라고 말하면 됩니다.
 - **`/oh-my-joy:goal-loop`** — **세션을 넘어서는** 끈기: goal이 디스크(`.omj/goals/`)에 영속되어 끊긴 작업을 `--slug` 하나로 재개하고, 완료는 기록된 증거가 있어야만 성립합니다. 어디서나 동작하며 Plan 모드 밖에서 실행합니다.
 
 요약하면: `/goal`은 "포기하지 않는 세션", `goal-loop`은 "세션이 죽어도 살아남는 작업" — 내일 이어서 해야 하거나 "완료"에 증거가 필요하면 goal-loop입니다. 전체 라우팅 규칙과 임계값은 [docs/EXECUTION-HANDOFF.md](docs/EXECUTION-HANDOFF.md)에만 있습니다 — 이 섹션은 선택 감각만 담고 숫자는 담지 않습니다.
@@ -88,7 +104,7 @@ _육각형 = 사용자의 결정 지점, 실선 spine = 권장 경로, 점선 = 
 1. **픽셀이 아니라 데이터로 읽는다** — 공식 Dev Mode MCP로 레이아웃 구조, 그 뒤의 디자인 변수, 그리고 나중에 `verify`가 비교 기준으로 쓸 baseline 스크린샷을 수집합니다.
 2. **색·타이포·radius·shadow를 프로젝트의 시맨틱 토큰으로 매핑한다** — 토큰 시스템을 감지 순서(fe-context → tokens.json → Tailwind 설정 → CSS 변수)대로 찾고, tokens.json이 없는 프로젝트라도 raw hex는 선택지가 아닙니다.
 3. **fidelity 규칙이 항상 켜져 있다** — 원문 텍스트 유지, Figma에 없는 변형 창작 금지, 고정 px 대신 `w-full` + 부모 padding.
-4. **스펙을 보여주기 전에 먼저 채점한다** — uSpec 6섹션(Anatomy / Structure / Color·Tokens / Props·Variants / A11y / Motion)을 FF 기준 + 접근성으로 항목마다 평가합니다.
+4. **스펙을 보여주기 전에 먼저 채점한다** — uSpec 6섹션(Uber의 디자인 스펙 분류 체계: Anatomy / Structure / Color·Tokens / Props·Variants / A11y / Motion)을 FF 기준(Toss frontend-fundamentals: 가독성·예측 가능성·응집도·결합도) + 접근성으로 항목마다 평가합니다.
 
 그래서 "이 프레임 만들어줘" 프롬프트처럼 드리프트하지 않습니다: 모델이 스크린샷을 눈대중하는 게 아니라 구조화된 디자인 데이터로 고정 골격을 당신의 토큰 어휘로 채우고, 기록된 baseline이 그대로 `verify`의 비교 기준이 됩니다.
 
@@ -97,6 +113,8 @@ _육각형 = 사용자의 결정 지점, 실선 spine = 권장 경로, 점선 = 
 ## 한 세션 처음부터 끝까지
 
 작업: 검색 입력 폼 — React Hook Form + Zod, 모바일 우선, `/search`에 마운트.
+
+디자인에서 시작한다면? 같은 커맨드에 링크만 붙이면 됩니다 — `/oh-my-joy:spec https://figma.com/design/abc?node-id=1-2 /search` — 위 섹션의 figma primer로 읽기 단계만 달라지고, 스펙 이후 흐름은 동일합니다.
 
     /oh-my-joy:spec "검색 입력 폼 — React Hook Form + Zod, 모바일 우선" /search
 
@@ -172,11 +190,22 @@ _육각형 = 사용자의 결정 지점, 실선 spine = 권장 경로, 점선 = 
 
 ---
 
+## OMJ가 여러분 레포에 쓰는 것들
+
+- `.omj/fe-context.md` — 프로젝트 선언(수용 축·토큰 경로·verify 설정). **커밋 대상입니다.**
+- `.omj/baselines/`·`.omj/goals/` — 캡처 baseline과 goal-loop 상태. **이 둘만 gitignore하세요** — `.omj/`를 통째로 ignore하면 커밋 대상인 fe-context까지 잃습니다.
+- `.claude/hooks/`의 토큰 가드 훅 복사본 — `/oh-my-joy:setup`에서 동의했을 때만.
+- 필요 시 생성: 여러분 프로젝트의 `docs/design-tokens.md`(`sync extract` 매핑 테이블)와 `docs/DESIGN.md`(setup 스캐폴드).
+
+무엇이 어디에, 왜 놓이는지의 정본은 [`commands/setup.md`](commands/setup.md)입니다.
+
+---
+
 ## 이 레포가 보여주는 것
 
 아래 주장은 전부 이 레포에서 확인할 수 있다 — 근거 아티팩트와 **버린 대안**을 함께 적는다.
 
-- **최소권한을 관례가 아니라 매니페스트에 선언한다.** `/oh-my-joy:spec`의 `allowed-tools`는 `Read, Grep, Glob, Skill, AskUserQuestion` + 읽기 전용 Figma/Context7 MCP뿐이다([`commands/spec.md`](commands/spec.md)). 쓰기 도구가 하나도 사전승인돼 있지 않으니 쓰기가 **조용히** 일어날 수 없다 — 시도하면 권한 프롬프트로 드러나고, Plan 모드에서는 `Write`/`Edit`가 아예 차단된다. 버린 대안: "도구는 주고 쓰지 말라고 지시" — 산문은 강제층이 아니며, 그게 이 레포가 실제로 겪은 결함 클래스다(본문이 금지한 인자를 `Bash(...)` 와일드카드가 전부 사전승인 — 지금은 제거된 handoff 커맨드에서 발견·수정).
+- **최소권한을 관례가 아니라 매니페스트에 선언한다.** `/oh-my-joy:spec`은 `allowed-tools: Read, Grep, Glob, Skill, AskUserQuestion` + 읽기 전용 Figma/Context7 MCP만 싣고 배포된다([`commands/spec.md`](commands/spec.md)). 쓰기 도구가 하나도 사전승인돼 있지 않으니 쓰기가 **조용히** 일어날 수 없다 — 시도하면 권한 프롬프트로 드러나고, Plan 모드에서는 `Write`/`Edit`가 아예 차단된다. 버린 대안: "도구는 주고 쓰지 말라고 지시" — 산문은 강제층이 아니며, 그게 이 레포가 실제로 겪은 결함 클래스다(본문이 금지한 인자를 `Bash(...)` 와일드카드가 전부 사전승인 — 지금은 제거된 handoff 커맨드에서 발견·수정).
 - **한 사실에 하나의 SoT, 그리고 문서 사실은 CI가 검사한다.** 실행 레인 **임계값**은 [`docs/EXECUTION-HANDOFF.md`](docs/EXECUTION-HANDOFF.md)에만 있고, 커맨드는 링크만 하거나 그 파일에 도달할 수 없을 때의 임계값 없는 fallback만 갖는다. 무의존성 테스트가 양 언어 README의 커맨드 목록·설치 문자열 일치, 영문 페이지의 한국어 잔재, 전 상대 링크 도달성, CHANGELOG 릴리스 링크의 compare 범위를 검사한다([`tests/docs-consistency.test.mjs`](tests/docs-consistency.test.mjs)). 버린 대안: 레인 규칙을 필요한 곳마다 재기술 — 0.3.0 이전 커맨드 본문 사본이 한 릴리스 만에 드리프트했다.
 - **모든 의존성이 선택적이다.** Figma MCP·playwright·Context7 중 무엇이 없어도 에러가 아니라 "스킵 + 안내"로 내려앉는다. 어떤 환경에서도 첫날부터 쓸 수 있다. 버린 대안: hard requirement — 플러그인을 설치 프로젝트로 만든다.
 - **플러그인은 스스로 훅을 발화시키지 않는다.** `hooks/hooks.json`을 두면 플러그인을 켠 **모든 레포**에서 검사가 돈다. 대신 스크립트는 템플릿이고 `/oh-my-joy:setup`이 동의한 프로젝트에만 복사하며, 선언이 없으면 no-op이다. 이 불변식은 주석이 아니라 테스트가 못 박는다([`tests/plugin-manifest.test.mjs`](tests/plugin-manifest.test.mjs)).
@@ -201,7 +230,7 @@ _육각형 = 사용자의 결정 지점, 실선 spine = 권장 경로, 점선 = 
 ## 트러블슈팅
 
 - **`/oh-my-joy:spec`이 코드를 안 고침** — 정상입니다. read-only 프라이머라 스펙과 선택된 실행 레인만 남기고 멈춥니다. 승인(ExitPlanMode) 후 구현이 시작되며, 무거운 레인이면 스펙의 레인 섹션이 실행할 한 줄을 이미 출력해 뒀습니다.
-- **`/oh-my-joy:verify`/`/oh-my-joy:fix`가 아무것도 안 함** — 캡처 백엔드 없음(playwright-cli도 playwright MCP도 부재), dev 서버 미기동(`yarn dev`), 인증 라우트, 또는 환경 Plan 모드가 Bash를 막았을 수 있습니다. 인증 라우트는 `.omj/fe-context.md`의 `verifySetup` 선언(권장) 또는 실행 전 `export JOY_TEST_EMAIL=… JOY_TEST_PASSWORD=…` — **테스트 전용 계정만** 쓰고, 로그인 후 스크린샷에는 세션·개인정보가 담길 수 있으므로 `.omj/baselines/`는 반드시 gitignore한다.
+- **`/oh-my-joy:verify`/`/oh-my-joy:fix`가 아무것도 안 함** — 캡처 백엔드 없음(playwright-cli도 playwright MCP도 부재), dev 서버 미기동(`yarn dev`), 인증 라우트, 또는 환경 Plan 모드가 Bash를 막았을 수 있습니다. dev 서버 URL은 `--base <url>` > export된 `JOY_BASE_URL` > `http://localhost:3000` 순으로 해석됩니다 — 변수는 미리 export하세요; 인라인 `JOY_BASE_URL=… /oh-my-joy:verify` 접두는 적용되지 않습니다(슬래시 커맨드는 셸이 아님). 인증 라우트는 `.omj/fe-context.md`의 `verifySetup` 선언(권장) 또는 실행 전 `export JOY_TEST_EMAIL=… JOY_TEST_PASSWORD=…` — **테스트 전용 계정만** 쓰고, 로그인 후 스크린샷에는 세션·개인정보가 담길 수 있으므로 `.omj/baselines/`는 반드시 gitignore한다.
 - **Figma 미연결 / 권한 없음** — `This figma file could not be accessed` 류는 graceful 처리 대상. Figma 데스크톱을 켜고 대상 파일을 활성 탭으로 둔 뒤 다시 실행하세요. **변수/노드 접근은 편집 권한이 필요** — 뷰어로 공유받은 파일(튜토리얼 등)은 사본(Duplicate)을 떠서 사본 URL로 사용하세요.
 - **baseline 비교가 안 됨** — Figma 에셋 URL은 약 7일 후 만료됩니다. `/oh-my-joy:spec`을 재실행해 스펙의 baseline provenance를 갱신하세요. 크로스세션 비교는 `.omj/baselines/`의 PNG가 담당합니다(gitignore 권장). 단 PNG의 **최초 생성**은 `spec`과 같은 세션에서 `/oh-my-joy:verify`를 한 번 실행해야 일어납니다(세션이 완전히 분리되면 URL 출처가 없어 생성 불가 — 스펙 기반 재조회는 v1.1 예정).
 - **`/oh-my-joy:deep-interview`가 바로 끝남** — 실패가 아니라 적합성 게이트입니다: 입력이 이미 충분히 구체적이거나, FE 구현 신호(Figma URL 등)라 `/oh-my-joy:spec`으로 안내된 경우입니다.

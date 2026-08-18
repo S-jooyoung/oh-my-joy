@@ -11,6 +11,7 @@ History prior to 0.6.0 is preserved in Korean.
 ### Added
 
 ### Changed
+- **README (EN/KO) gains an upgrade pointer and a comprehension pass** — a migration table next to the Updates note (old `omj-*` names → `/oh-my-joy:*`, what did *not* change, the `ds-spec` rename trap) guarded by a new anti-vacuity test; FF and uSpec expanded on first use (Toss frontend-fundamentals · Uber's design-spec taxonomy); a Figma-link example in Quick Start and a Figma-track bridge in the walkthrough; a "What OMJ writes into your repo" section; the hexagon legend, the deep-interview paste bridge, the agent-team launch surface, and the `JOY_BASE_URL` precedence (including the inline-prefix trap) clarified.
 
 ### Deprecated
 
