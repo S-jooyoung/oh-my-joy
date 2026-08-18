@@ -109,7 +109,7 @@ This rewrites the install record, so confirm the plugin is still installed after
 ## D. Verify the install landed
 
 - [ ] `claude plugin list` shows the expected version for `oh-my-joy@omj`.
-- [ ] `ls ~/.claude/plugins/cache/oh-my-joy:spec/oh-my-joy/` contains a directory for the new version.
+- [ ] `ls ~/.claude/plugins/cache/omj/oh-my-joy/` contains a directory for the new version.
 - [ ] New commands are present in `<version>/commands/`, and any renamed predecessor is **gone**.
       A rename is two facts, and only checking for the new name hides a half-applied update.
 - [ ] `claude plugin details oh-my-joy@omj` lists the expected commands and agents.

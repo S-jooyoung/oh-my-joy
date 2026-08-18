@@ -280,16 +280,35 @@ describe('Command list consistency', () => {
     // The namespace unification renamed every /omj* command to
     // /oh-my-joy:<name>. CHANGELOG keeps the old names as history; anywhere
     // else they are drift that documents commands that no longer exist.
-    // (`\b` after "omj" also matches "/omj-verify" — the hyphen is a boundary.)
+    // (`\b` after "omj" also matches "/omj-verify" — the hyphen is a boundary.
+    // A trailing slash is excluded: `cache/omj/` is the marketplace directory,
+    // a path segment, never a command token.)
     const offenders = [];
     for (const file of listMarkdownFiles().filter((f) => f !== 'CHANGELOG.md')) {
       readRepoFile(file)
         .split('\n')
         .forEach((line, index) => {
-          if (/\/omj\b/.test(line)) offenders.push(`${file}:L${index + 1}: ${line.trim()}`);
+          if (/\/omj\b(?!\/)/.test(line)) offenders.push(`${file}:L${index + 1}: ${line.trim()}`);
         });
     }
     assert.deepEqual(offenders, [], `legacy /omj tokens must become /oh-my-joy:<name>:\n${offenders.join('\n')}`);
+  });
+
+  it('no canonical invocation is embedded in a path context', () => {
+    // A canonical /oh-my-joy:<name> token is always preceded by whitespace, a
+    // backtick, a quote, or line start — never by a path segment. A hit here
+    // is the signature of a mechanical rename over-matching a filesystem path
+    // (the observed defect class: cache/omj/ → cache/oh-my-joy:spec/, where
+    // "omj" was the marketplace directory, not a command name).
+    const offenders = [];
+    for (const file of listMarkdownFiles().filter((f) => f !== 'CHANGELOG.md')) {
+      readRepoFile(file)
+        .split('\n')
+        .forEach((line, index) => {
+          if (/[A-Za-z0-9_.~-]\/oh-my-joy:/.test(line)) offenders.push(`${file}:L${index + 1}: ${line.trim()}`);
+        });
+    }
+    assert.deepEqual(offenders, [], `path-embedded canonical tokens (rename over-match):\n${offenders.join('\n')}`);
   });
 
   it('every command is documented in both READMEs (EN/KO)', () => {
