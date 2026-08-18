@@ -75,9 +75,6 @@ describe('Language purity of English artifacts', () => {
   // Frontmatter descriptions may keep Korean trigger examples for auto-delegation
   // matching (CLAUDE.md command rules) — on these surfaces only the body is checked.
   const FRONTMATTER_EXEMPT_PREFIXES = ['commands/', 'agents/', 'skills/'];
-  // Body-level literal exceptions per file (none currently — the last one
-  // retired with /omj-start's legacy Korean selector-label recognition).
-  const FILE_ALLOWED = {};
 
   const targets = listMarkdownFiles().filter((file) => !KOREAN_EXEMPT.has(file));
 
@@ -93,11 +90,10 @@ describe('Language purity of English artifacts', () => {
       if (FRONTMATTER_EXEMPT_PREFIXES.some((prefix) => file.startsWith(prefix))) {
         source = source.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
       }
-      const allowed = [...ALLOWED, ...(FILE_ALLOWED[file] ?? [])];
       const offenders = source
         .split('\n')
         .map((line, index) => {
-          const stripped = allowed.reduce((acc, literal) => acc.split(literal).join(''), line);
+          const stripped = ALLOWED.reduce((acc, literal) => acc.split(literal).join(''), line);
           return CJK.test(stripped) ? `L${index + 1}: ${line.trim()}` : null;
         })
         .filter(Boolean);
