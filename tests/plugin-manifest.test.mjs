@@ -28,31 +28,19 @@ const marketplace = readJson('.claude-plugin', 'marketplace.json');
  * permission tiers.
  *
  * ZERO_BASH: no shell execution path at all (no write tools, no Task/Agent, and
- *   zero Bash tokens). `/omj` must have no write path that bypasses the
+ *   zero Bash tokens). `spec` must have no write path that bypasses the
  *   plan-gate (PRINCIPLES ①③); `deep-interview` and `ralplan` are primer/review
  *   commands that only produce a native Plan.
  * REPORT_ONLY: never modifies **source** but uses scoped Bash for observation
- *   and reporting — `ff-review` (reads git diffs), `omj-verify` (launches a
+ *   and reporting — `ff-review` (reads git diffs), `verify` (launches a
  *   browser, captures; curl includes `.omj/baselines/` download writes, so it is
  *   "source-untouched" rather than write-free, with the write scope enforced by
  *   the body). Bare Bash is already blocked by the all-commands check, so only
  *   write tools are asserted here.
- * `omj-start` (Read and AskUserQuestion only) is deliberately unclassified — its
- *   body's "safe conditions for direct Bash execution" makes the permission
- *   prompt gate part of the design, which contradicts a zero-bash assertion.
  */
-const ZERO_BASH_COMMANDS = new Set(['omj.md', 'deep-interview.md', 'ralplan.md']);
-const REPORT_ONLY_COMMANDS = new Set(['ff-review.md', 'omj-verify.md']);
+const ZERO_BASH_COMMANDS = new Set(['spec.md', 'deep-interview.md', 'ralplan.md']);
+const REPORT_ONLY_COMMANDS = new Set(['ff-review.md', 'verify.md']);
 const READ_ONLY_COMMANDS = new Set([...ZERO_BASH_COMMANDS, ...REPORT_ONLY_COMMANDS]);
-
-/**
- * "Named methodology/rubric" commands allowed to use unprefixed basenames (the
- * two-axis rule — CLAUDE.md). FE-loop verbs are covered by the `/omj-*` regex;
- * this axis is covered by an allowlist. The list is edited in the same PR that
- * adds a new command, so it is a speed bump rather than a hard block — it pulls
- * accidental unprefixed files into review visibility.
- */
-const WORKFLOW_COMMANDS = new Set(['deep-interview.md', 'ff-review.md', 'goal-loop.md', 'ralplan.md']);
 
 describe('plugin.json', () => {
   it('has the required fields', () => {
@@ -130,11 +118,11 @@ describe('Plugin structure invariants', () => {
   // A consuming project's cwd has no templates/ — unless the copy source is
   // plugin-root-relative, the opt-in hook install cannot run as written (a defect
   // class hidden in dogfooding, where cwd == plugin root).
-  it('omj-setup\'s hook copy step uses a plugin-root-relative source path', () => {
-    const body = readRepoFile('commands', 'omj-setup.md');
+  it('setup\'s hook copy step uses a plugin-root-relative source path', () => {
+    const body = readRepoFile('commands', 'setup.md');
     assert.ok(
       body.includes('${CLAUDE_PLUGIN_ROOT}/templates/hooks/'),
-      'omj-setup.md: the hook copy source needs the ${CLAUDE_PLUGIN_ROOT}/templates/hooks/ form',
+      'setup.md: the hook copy source needs the ${CLAUDE_PLUGIN_ROOT}/templates/hooks/ form',
     );
   });
 });
@@ -228,10 +216,16 @@ describe('commands/*.md frontmatter', () => {
         });
       }
 
-      it('honors the two-axis namespace rule (/omj·/omj-* or the workflow allowlist)', () => {
-        assert.ok(
-          /^omj(-[a-z-]+)?\.md$/.test(file) || WORKFLOW_COMMANDS.has(file),
-          `${file}: FE commands need the omj-* prefix; workflow commands must be listed in WORKFLOW_COMMANDS`,
+      it('honors the single-axis naming rule (unprefixed kebab-case basename)', () => {
+        // The plugin-name namespace already brands the command — an in-name
+        // prefix would double it (/oh-my-joy:omj-verify). The old two-axis rule
+        // was retired with the /oh-my-joy:* unification; this guard keeps the
+        // legacy prefix from creeping back.
+        assert.match(file, /^[a-z][a-z-]*\.md$/, `${file}: command basenames are lowercase kebab-case`);
+        assert.doesNotMatch(
+          file,
+          /^omj(-|\.)/,
+          `${file}: the omj- basename prefix is retired — the /oh-my-joy: namespace already brands the command`,
         );
       });
     });

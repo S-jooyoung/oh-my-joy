@@ -1,8 +1,8 @@
 # OMJ execution handoff routing
 
-This document is the **single routing SoT** for OMJ execution-lane selection. README, `docs/PRINCIPLES.md`, and `commands/omj.md` only summarize or link to it, and **never redefine the scoring signals or thresholds**.
+This document is the **single routing SoT** for OMJ execution-lane selection. README, `docs/PRINCIPLES.md`, and `commands/spec.md` only summarize or link to it, and **never redefine the scoring signals or thresholds**.
 
-> **One exception**: in case this file is unreachable at runtime, `commands/omj.md` carries a minimal **threshold-free** fallback mapping (small → inline; iterate-until-condition → `/goal`; parallel lanes → agent team; durable/evidence-gated → `/oh-my-joy:goal-loop`). Numbers and conditions live only here; the fallback gives direction only — the boundary that satisfies graceful degradation (PRINCIPLES ⑨) and single SoT (⑧) at once.
+> **One exception**: in case this file is unreachable at runtime, `commands/spec.md` carries a minimal **threshold-free** fallback mapping (small → inline; iterate-until-condition → `/goal`; parallel lanes → agent team; durable/evidence-gated → `/oh-my-joy:goal-loop`). Numbers and conditions live only here; the fallback gives direction only — the boundary that satisfies graceful degradation (PRINCIPLES ⑨) and single SoT (⑧) at once.
 
 ## The four lanes
 
@@ -62,7 +62,7 @@ Copyable-action shapes per lane: `/goal "<completion condition for the approved 
 
 ## Gate orthogonality
 
-`/omj` uses Claude Code's native Plan mode (ExitPlanMode) as a **read gate**; `/goal` and `/oh-my-joy:goal-loop` own their **execution gates** (the goal evaluator's condition · the validator's evidence object). The gates are orthogonal and meet only chronologically at the approval moment. The default flow is straight to the selected lane after approval — a `/oh-my-joy:ralplan` consensus pass is taken explicitly, and only when work is genuinely ambiguous or high-risk. "It's big" alone never forces a second planning gate.
+`/oh-my-joy:spec` uses Claude Code's native Plan mode (ExitPlanMode) as a **read gate**; `/goal` and `/oh-my-joy:goal-loop` own their **execution gates** (the goal evaluator's condition · the validator's evidence object). The gates are orthogonal and meet only chronologically at the approval moment. The default flow is straight to the selected lane after approval — a `/oh-my-joy:ralplan` consensus pass is taken explicitly, and only when work is genuinely ambiguous or high-risk. "It's big" alone never forces a second planning gate.
 
 ## Clear/start safety
 

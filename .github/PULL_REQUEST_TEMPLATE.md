@@ -9,7 +9,7 @@
 ## Checklist
 
 - [ ] `node --test` passes
-- [ ] No `hooks/hooks.json` was created (no plugin auto-firing — hooks are opt-in, copied by `/omj-setup`)
+- [ ] No `hooks/hooks.json` was created (no plugin auto-firing — hooks are opt-in, copied by `/oh-my-joy:setup`)
 - [ ] `allowed-tools` declares only tools the body's procedure actually calls (least privilege)
 - [ ] If commands/behavior changed, **README.md and README.ko.md** were updated together
 - [ ] A `CHANGELOG.md` entry was added

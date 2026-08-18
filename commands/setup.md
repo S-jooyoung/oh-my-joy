@@ -4,11 +4,11 @@ argument-hint: "[--check] (inspect only) | [--help]"
 allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(command -v:*), Bash(claude plugin list:*), Bash(claude plugin install figma@claude-plugins-official:*), Bash(claude plugin install context7-plugin@context7-marketplace:*), Bash(npm i -g playwright-cli:*), Bash(test:*), Bash(grep:*), Bash(cp "${CLAUDE_PLUGIN_ROOT}/templates/hooks/":*), Bash(mkdir -p .claude/hooks:*), Bash(gh auth status:*), Bash(gh api user/starred/S-jooyoung/oh-my-joy), Bash(gh api user/starred/S-jooyoung/oh-my-joy -X PUT)
 ---
 
-# /omj-setup — Dependency doctor + install/scaffolding guide
+# /oh-my-joy:setup — Dependency doctor + install/scaffolding guide
 
 Inspects the **optional dependencies** OMJ leans on and guides installation for anything missing. **Already-installed items are left untouched and reported with a ✓ only.** Running it once before first use is a good idea. Project declarations (`.omj/fe-context.md`) and the token-guard hooks are scaffolded **only here** (true opt-in — the plugin auto-installs nothing into consuming projects).
 
-> **Entry paths**: users invoke this command directly, but `/omj` also suggests it in one line at the end of a spec when it detects no setup trace (no `.omj/` in the repo + no `~/.claude/.omj-setup.json` marker) — in dogfood measurements, skipped setup was the root cause of the missing fe-context/hook chain.
+> **Entry paths**: users invoke this command directly, but `/oh-my-joy:spec` also suggests it in one line at the end of a spec when it detects no setup trace (no `.omj/` in the repo + no `~/.claude/.omj-setup.json` marker) — in dogfood measurements, skipped setup was the root cause of the missing fe-context/hook chain.
 
 ## Flags
 
@@ -22,15 +22,15 @@ Detect each item and report a ✓(present)/✗(missing)/➖(optional, fine witho
 
 | Dependency | Used for | Detection |
 | --- | --- | --- |
-| `playwright-cli` **or** playwright MCP | `/omj-verify`·`/omj-fix` visual verification (cli first, MCP fallback) | `command -v playwright-cli`; otherwise check session tools for `mcp__playwright__*` |
-| Official Figma Dev Mode MCP | `/omj` figma primer·`/omj-sync` | `claude plugin list \| grep -i figma` |
-| Context7 | `/omj` latest Next.js docs (optional) | `claude plugin list \| grep -i context7` |
+| `playwright-cli` **or** playwright MCP | `/oh-my-joy:verify`·`/oh-my-joy:fix` visual verification (cli first, MCP fallback) | `command -v playwright-cli`; otherwise check session tools for `mcp__playwright__*` |
+| Official Figma Dev Mode MCP | `/oh-my-joy:spec` figma primer·`/oh-my-joy:sync` | `claude plugin list \| grep -i figma` |
+| Context7 | `/oh-my-joy:spec` latest Next.js docs (optional) | `claude plugin list \| grep -i context7` |
 | `oh-my-joy:frontend-fundamentals` | implementation-spec rubric (bundled) | always present when OMJ is installed |
 | `.omj/fe-context.md` | project acceptance/token/verification declarations | `test -f .omj/fe-context.md` (➖ — if missing, scaffolding proposed below) |
-| Token store | target of `/omj-sync` (sync·push·extract) | detect in order: fe-context `tokensPath` → `shared/tokens/tokens.json` → **CSS-based systems** (Tailwind `@utility`/`@theme`·`:root --*`) (`references/fe-acceptance.md` is the SoT). `/omj` works without a file store — **only `/omj-sync` requires one** (bootstrap via `extract`) |
+| Token store | target of `/oh-my-joy:sync` (sync·push·extract) | detect in order: fe-context `tokensPath` → `shared/tokens/tokens.json` → **CSS-based systems** (Tailwind `@utility`/`@theme`·`:root --*`) (`references/fe-acceptance.md` is the SoT). `/oh-my-joy:spec` works without a file store — **only `/oh-my-joy:sync` requires one** (bootstrap via `extract`) |
 | Token-guard hooks (opt-in) | on-save hardcoding/Story warnings | existence of `.claude/hooks/check-design-tokens.mjs` in the consuming project |
 
-> Figma requires more than plugin installation: **Dev Mode MCP must be enabled in the Figma desktop app** for the `/omj` figma primer·`/omj-sync` to work, and **viewer-permission files are denied access**, so a Duplicate is needed — tell the user during inspection.
+> Figma requires more than plugin installation: **Dev Mode MCP must be enabled in the Figma desktop app** for the `/oh-my-joy:spec` figma primer·`/oh-my-joy:sync` to work, and **viewer-permission files are denied access**, so a Duplicate is needed — tell the user during inspection.
 > If the `claude` CLI is unavailable, skip detection and point to manual checks (`/mcp`, `/plugin`) (graceful).
 
 ## Step 2 — Install/scaffolding guide (missing items; only when not `--check`)
@@ -53,14 +53,14 @@ Gather the missing items into **one `AskUserQuestion` (multiSelect)** asking "pi
 
 ## Step 3 — Wrap-up
 
-- Inspection summary (✓/✗) and "now start with `/omj <figma-url|task>`".
+- Inspection summary (✓/✗) and "now start with `/oh-my-joy:spec <figma-url|task>`".
 - (optional) Record `{"setupCompleted": "<today>"}` in `~/.claude/.omj-setup.json` → reruns fast-path with "already inspected; inspect again?".
 - **(optional) GitHub star suggestion** — if `gh auth status` succeeds, check whether already starred via `gh api user/starred/S-jooyoung/oh-my-joy`. **If already starred (exit 0), ask nothing and move on quietly.** Only when unstarred, ask once via `AskUserQuestion` "If OMJ helps you, would you support it with a GitHub star?" (star it / no thanks / later), and run `gh api user/starred/S-jooyoung/oh-my-joy -X PUT` only on "star it". **Move on quietly even if the API fails — a star never blocks setup completion in any case.** If gh is missing or unauthenticated, print the single line `https://github.com/S-jooyoung/oh-my-joy` without prompting.
 
 ## Usage
 
 ```
-/omj-setup            dependency check + install/scaffolding guide for anything missing
-/omj-setup --check    inspection table only (read-only)
-/omj-setup --help     this help
+/oh-my-joy:setup            dependency check + install/scaffolding guide for anything missing
+/oh-my-joy:setup --check    inspection table only (read-only)
+/oh-my-joy:setup --help     this help
 ```

@@ -2,12 +2,12 @@
 /**
  * check-story-exists.mjs — PostToolUse(Edit|Write) hook: missing-Story warning on component save.
  *
- * Distribution: canon lives in the oh-my-joy plugin's templates/hooks/ → /omj-setup copies it
+ * Distribution: canon lives in the oh-my-joy plugin's templates/hooks/ → /oh-my-joy:setup copies it
  * into the consuming project's .claude/hooks/ and registers it in .claude/settings.json (opt-in).
  * Gate: without a `storybook: true` declaration in the project root's .omj/fe-context.md, always no-op.
  * Checks only; never fixes or blocks (injects warning context, exit 0).
  *
- * **Self-containment constraint**: /omj-setup copies this single file, so it imports no shared modules.
+ * **Self-containment constraint**: /oh-my-joy:setup copies this single file, so it imports no shared modules.
  *
  * **The definition of "component" decides this hook's accuracy.** Not every `.tsx` is a Story
  * target — Next.js App Router reserved files (page/layout/route…) are routing entry points, and

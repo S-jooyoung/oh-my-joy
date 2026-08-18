@@ -4,7 +4,7 @@ argument-hint: "<route> [--base <url>]"
 allowed-tools: Read, Bash(playwright-cli:*), Bash(curl:*), Bash(command -v:*), mcp__playwright__*, mcp__plugin_playwright_playwright__*
 ---
 
-# /omj-verify — Visual verification (active op)
+# /oh-my-joy:verify — Visual verification (active op)
 
 Opens the implemented screen in a real browser and inspects deviations from the design/spec.
 
@@ -12,10 +12,10 @@ Opens the implemented screen in a real browser and inspects deviations from the 
 
 ## Arguments
 
-- `<route>` — the path to verify (e.g. `/settings/profile`). **If the route is missing**, print the usage below and stop (verification is impossible without knowing which route the component mounts on). You can copy the `Verification route (inferred):` value from an `/omj` spec.
+- `<route>` — the path to verify (e.g. `/settings/profile`). **If the route is missing**, print the usage below and stop (verification is impossible without knowing which route the component mounts on). You can copy the `Verification route (inferred):` value from an `/oh-my-joy:spec` spec.
 - `--base <url>` — base URL override (defaults to `http://localhost:3000`). e.g. `--base http://localhost:5173` (Vite).
 
-> ℹ️ Slash commands are not a shell, so an **inline env prefix like `JOY_BASE_URL=... /omj-verify` does not apply.** For a different port use the `--base` argument, and `export` env vars such as login credentials in the shell *before* running.
+> ℹ️ Slash commands are not a shell, so an **inline env prefix like `JOY_BASE_URL=... /oh-my-joy:verify` does not apply.** For a different port use the `--base` argument, and `export` env vars such as login credentials in the shell *before* running.
 
 ## Variable resolution (pin as shell variables before running snippets)
 
@@ -36,7 +36,7 @@ route → filename slug: strip the leading `/`, inner `/`→`-`, drop the query 
 
 ## Preflight (exit gracefully on failure)
 
-1. **Capture backend**: if `command -v playwright-cli` succeeds, use playwright-cli. **Otherwise check whether the session has playwright MCP tools (`mcp__playwright__*`)**; if so, perform the same procedure below with them (navigate → accessibility snapshot → screenshot → baseline comparison) (fallback — same procedure, different tools). If neither exists → print "no capture backend — skipping verification. Install: `npm i -g playwright-cli` or enable the playwright MCP (see `/omj-setup`)" and stop.
+1. **Capture backend**: if `command -v playwright-cli` succeeds, use playwright-cli. **Otherwise check whether the session has playwright MCP tools (`mcp__playwright__*`)**; if so, perform the same procedure below with them (navigate → accessibility snapshot → screenshot → baseline comparison) (fallback — same procedure, different tools). If neither exists → print "no capture backend — skipping verification. Install: `npm i -g playwright-cli` or enable the playwright MCP (see `/oh-my-joy:setup`)" and stop.
 2. **Server up**: if `curl -sf "$BASE" >/dev/null` fails (non-200) → announce "dev server not running — start it with `yarn dev` and rerun, or skip verification" and stop (no auto-start).
 3. **Project verification procedure**: if the repo root `.omj/fe-context.md` declares `verifySetup:`, `Read` that document and apply the auth-bypass/API-mock procedure **before observing** (skip if absent — graceful).
 
@@ -55,20 +55,20 @@ playwright-cli -s=omj screenshot    # visual check
   - **Credential handling rule**: pass only **variable references** like `"$JOY_TEST_PASSWORD"` to `fill` — never resolve the value into command lines, reports, or error messages (it would persist in the transcript as plaintext). Use **test-only accounts** exclusively.
   - **Persistence caution for post-auth screens**: screenshots captured after login may contain session/personal data. Tell the user before persisting one to disk as a baseline.
 - **Reached-route validation (mandatory before using a capture as evidence)**: confirm from the `snapshot` result that the current URL/page context actually reached `"$ROUTE"`. If a redirect landed elsewhere (login, home, …), do not compare that capture against the reference — **report "expected route not reached (redirected)" as a failure**. Capturing the wrong screen and reporting "matches" is this command's most dangerous silent mis-verification failure mode. If still unreached after re-login, stop here (no forced comparison guessing).
-- **Baseline persistence (observation stage)**: if the session context contains the Figma asset URL from an `/omj` spec, persist the PNG:
+- **Baseline persistence (observation stage)**: if the session context contains the Figma asset URL from an `/oh-my-joy:spec` spec, persist the PNG:
   ```bash
   curl -f --remove-on-error --create-dirs -o ".omj/baselines/<route-slug>@<viewport>.png" "<asset-url>"
   ```
-  `-f` is mandatory (prevents a 403/404 error body being silently saved as a PNG), `--remove-on-error` is mandatory (prevents 0-byte leftovers on failure). On non-zero exit → advise "baseline expired (asset URLs last ~7 days) — rerun `/omj` to refresh" and continue. **The URL source is session context only** (re-fetching URLs from spec files is a v1.1 follow-up). Cross-session comparison is owned by the on-disk PNG in ② below.
-- **Comparison reference (3 tiers)**: ① if the immediately preceding `/omj` session context has the Figma reference image, compare against it. → ② otherwise, if `.omj/baselines/<route-slug>@<viewport>.png` exists and is **non-empty**, `Read` and compare (the viewport label is the verify-run viewport and may differ from the recorded design frame — the common single-frame case matches). → ③ with neither, inspect only the route's own structure/accessibility/layout (no forced comparison guessing without a baseline).
+  `-f` is mandatory (prevents a 403/404 error body being silently saved as a PNG), `--remove-on-error` is mandatory (prevents 0-byte leftovers on failure). On non-zero exit → advise "baseline expired (asset URLs last ~7 days) — rerun `/oh-my-joy:spec` to refresh" and continue. **The URL source is session context only** (re-fetching URLs from spec files is a v1.1 follow-up). Cross-session comparison is owned by the on-disk PNG in ② below.
+- **Comparison reference (3 tiers)**: ① if the immediately preceding `/oh-my-joy:spec` session context has the Figma reference image, compare against it. → ② otherwise, if `.omj/baselines/<route-slug>@<viewport>.png` exists and is **non-empty**, `Read` and compare (the viewport label is the verify-run viewport and may differ from the recorded design frame — the common single-frame case matches). → ③ with neither, inspect only the route's own structure/accessibility/layout (no forced comparison guessing without a baseline).
 - **Output**: group differences by severity (🔴/🟡/🟢) as `element·position + observed difference + recommended fix`. Prioritize FF accessibility (alt·labels·touch targets) and token deviations (raw hex etc., per `figma-fidelity.md`).
 - When done, always clean up the session with `playwright-cli -s=omj close` (with the MCP fallback, close the tab).
 
 ## Usage (when the route is missing)
 
 ```
-/omj-verify <route>                 e.g. /omj-verify /settings/profile
-/omj-verify <route> --base <url>    e.g. /omj-verify / --base http://localhost:5173
+/oh-my-joy:verify <route>                 e.g. /oh-my-joy:verify /settings/profile
+/oh-my-joy:verify <route> --base <url>    e.g. /oh-my-joy:verify / --base http://localhost:5173
 # for auth routes: declare verifySetup in .omj/fe-context.md (recommended), or beforehand in the shell
 #   export JOY_TEST_EMAIL=... JOY_TEST_PASSWORD=...
 ```

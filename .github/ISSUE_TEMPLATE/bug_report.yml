@@ -24,12 +24,11 @@ body:
     attributes:
       label: Which surface
       options:
-        - /omj
-        - /omj-start
-        - /omj-verify
-        - /omj-fix
-        - /omj-sync
-        - /omj-setup
+        - /oh-my-joy:spec
+        - /oh-my-joy:verify
+        - /oh-my-joy:fix
+        - /oh-my-joy:sync
+        - /oh-my-joy:setup
         - /oh-my-joy:ff-review
         - /oh-my-joy:deep-interview
         - /oh-my-joy:goal-loop
@@ -63,7 +62,7 @@ body:
     attributes:
       label: Steps to reproduce
       placeholder: |
-        1. Run `/omj <figma-url>`
+        1. Run `/oh-my-joy:spec <figma-url>`
         2. Approve the plan
         3. ...
     validations:
