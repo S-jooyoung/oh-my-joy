@@ -9,6 +9,7 @@ History prior to 0.6.0 is preserved in Korean.
 ## [Unreleased]
 
 ### Added
+- Repo-local `release-checklist` skill (`.claude/skills/`, maintainers only, not shipped to users): pre-flight gates, the release cut, the local apply loop for `directory`-source marketplaces, and a drift check that separates a stale install from a stale session.
 
 ### Changed
 
