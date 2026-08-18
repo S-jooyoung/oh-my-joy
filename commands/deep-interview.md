@@ -96,11 +96,9 @@ Present the full spec as the response body (the plan file if in Plan mode) and *
 
 - If it became an FE implementation spec: after approval, paste this spec into `/omj` to develop it
   into a uSpec implementation spec (spec paste is a first-class input).
-- If OMC/OMX is installed: also list the existing execution lanes (`docs/EXECUTION-HANDOFF.md`).
-- If there is no runtime, or completion must be proven with evidence: after approval, paste this
-  spec into `/oh-my-joy:goal-loop` to see it through as a durable goal loop (paste is a first-class
-  input — the durable default when no runtime exists, and explicitly selectable even when one does;
-  see the "OMJ native lane" section of `docs/EXECUTION-HANDOFF.md`).
+- If the work must survive interruption or prove its completion with evidence: after approval,
+  paste this spec into `/oh-my-joy:goal-loop` to see it through as a durable goal loop (paste is a
+  first-class input; lane definitions: `docs/EXECUTION-HANDOFF.md`).
 - Otherwise: after approval, the current session implements inline per the spec.
 
 If the user wants the spec saved as a file, the post-approval execution stage saves it — this
@@ -113,7 +111,6 @@ command never writes.
 /oh-my-joy:deep-interview notification system overhaul --threshold 15
 ```
 
-> Methodology source: adapted and rewritten from the deep-interview methodology of
-> gajae-code·oh-my-claudecode (MIT, Yeachan Heo) —
-> [NOTICE.md](../NOTICE.md) (runtime path `${CLAUDE_PLUGIN_ROOT}/NOTICE.md`). The runtime and
-> state-file conventions were not ported.
+> Methodology source: adapted and rewritten from the deep-interview methodology of the
+> open-source projects credited in [NOTICE.md](../NOTICE.md) (runtime path
+> `${CLAUDE_PLUGIN_ROOT}/NOTICE.md`). The runtime and state-file conventions were not ported.

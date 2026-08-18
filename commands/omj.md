@@ -56,35 +56,37 @@ The spec must state the **target file paths**, **existing functions/components t
 
 **No overengineering**: abstract only when things are certain to change together. Do not needlessly abstract simple logic or build deep layers for futures that will not happen (`frontend-fundamentals` "overengineering warning").
 
-**Execution lane selection (read-only handoff)**: always append an `## Execution lane selection` section at the end of the spec. The routing-rule SoT is `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md` (repo-relative `docs/EXECUTION-HANDOFF.md`); only when that file cannot be read, use the minimal fallback (small → inline/manual; durable goal → `$ultragoal` or `/goal` — without OMC/OMX, `/oh-my-joy:goal-loop`; parallel lanes → `$team`; sequential completion pressure → `$ralph`; hostile QA after implementation → `$ultraqa`; more consensus needed → `/oh-my-claudecode:ralplan`·`$ralplan` — with neither installed, `/oh-my-joy:ralplan`). Do not duplicate score tables/thresholds in command bodies.
+**Execution lane selection (read-only handoff)**: always append an `## Execution lane selection` section at the end of the spec. The routing-rule SoT is `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md` (repo-relative `docs/EXECUTION-HANDOFF.md`); only when that file cannot be read, use the minimal fallback (small → inline; iterate-until-condition → `/goal`; parallel lanes → agent team; durable/evidence-gated → `/oh-my-joy:goal-loop`; more consensus needed → `/oh-my-joy:ralplan` before approval). Do not duplicate score tables/thresholds in command bodies.
 
-The lane-selection question is **conditional** (the SoT's auto-select rule): if the recommended lane is `Wrapper=none; Sublane=inline/manual`, **do not ask** — just record `Selected lane: Wrapper=none; Sublane=inline/manual (auto)` in the spec. Plan approval is lane consent; if the user disagrees they can edit the plan on the approval screen or re-select in `/omj-start`. When any other lane ($team/$ultragoal/$ralph/$ralplan/$ultraqa) is recommended, ask via `AskUserQuestion` **exactly once** after the spec is complete. Option 1 is always the deterministic recommendation, labeled `(recommended)`. Write the recommendation split into `Wrapper` (durable/checkpoint owner: `none`·`/goal`·`$ultragoal`) and `Sublane` (execution mode: `inline/manual`·`$ralph`·`$team`). Recommend `$ultraqa` as option 1 only when implementation is done and only QA remains; when requirements/boundaries/architecture consensus is still lacking, recommend `/oh-my-claudecode:ralplan`/`$ralplan` first (OMX `$ralplan` stops after producing a plan — asymmetry canon: the SoT).
+The lane-selection question is **conditional** (the SoT's auto-select rule): if the recommended lane is **inline**, **do not ask** — just record `Selected lane: inline (auto)` in the spec. Plan approval is lane consent; if the user disagrees they can edit the plan on the approval screen. When any heavier lane (`/goal` · agent team · `/oh-my-joy:goal-loop`) is recommended, ask via `AskUserQuestion` **exactly once** after the spec is complete. Option 1 is always the deterministic recommendation, labeled `(recommended)`. When requirements/boundaries/architecture consensus is still lacking, recommend a `/oh-my-joy:ralplan` pass before approval instead of a heavier execution lane.
 
 The final spec records the selection in this format:
 
 ```md
 ## Execution lane selection
-1. Wrapper: $ultragoal; Sublane: $team (recommended) — multiple doc/command/verification lanes can be split; checkpoints needed.
-2. Wrapper: none; Sublane: $ralph — one owner implements/verifies sequentially.
-3. QA follow-up: $ultraqa — hostile QA/fix loop after implementation.
+1. Lane: /oh-my-joy:goal-loop (recommended) — multi-turn work; completion must be evidence-gated.
+2. Lane: /goal — iterate in this session until the stated condition holds.
+3. Lane: inline — implement directly in this session.
 
-Selected lane: Wrapper=<...>; Sublane=<...>          # on auto-select: Wrapper=none; Sublane=inline/manual (auto)
-If auto-start is not possible after approval: /omj-start <approved-spec-or-plan-path>
+Selected lane: <...>          # on auto-select: inline (auto)
+
+After approval, run exactly this one line:
+<the selected lane's copyable action — omitted for inline>
 ```
 
-After approval, do exactly one of two things: (a) if the current runtime offers an explicit, safe handoff surface, start the selected lane; or (b) if auto-start is impossible, print exactly one line — `/omj-start <approved-spec-or-plan-path>` — and stop. **Specs recorded `(auto)` as inline/manual do not need `/omj-start`** — on approval the current session proceeds with inline implementation immediately. `/omj` never implements, builds, tests, delegates to subagents, or performs hidden `/goal clear`.
+After approval, the lane section itself is the handoff: for a heavy lane it already ends with the one copyable action (shapes per lane: `docs/EXECUTION-HANDOFF.md`), and **specs recorded `inline (auto)` have nothing to launch** — on approval the current session proceeds with inline implementation immediately. `/omj` never implements, builds, tests, delegates to subagents, or performs hidden `/goal clear`.
 
 When authoring is done, **stop here.** Never do any of the following:
 - Create or modify code files (no Write/Edit — not in allowed-tools)
 - Run builds/tests/verification
-- Delegate implementation to OMC/OMX workers/executors/teams
-- Silently clear an active `/goal` or OMC/OMX workflow state
+- Delegate implementation to subagents or executors
+- Silently clear an active `/goal` or goal-loop state
 
 > **The full pipeline never auto-exits Plan mode.** Once the user reviews this spec and approves it themselves (ExitPlanMode), implementation begins from there.
 
 ## After approval (outside this command's scope, for reference)
 
-Once the user approves the spec, the main session hands the spec to the selected execution lane. If the selected lane is already recorded in the spec (manually chosen or `(auto)`), do not ask again — use it as is. If auto-start is impossible or the runtime is unclear, print the single line `/omj-start <approved-spec-or-plan-path>`. After implementation, verify the code diff with `/oh-my-joy:ff-review` (FF·a11y·vercel·nextjs) and the visuals with `/omj-verify <route>`. (For OMC/OMX execution tools and the `/goal`/`$ultragoal` handoff mechanism see `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md` (repo-relative `docs/EXECUTION-HANDOFF.md`); for the integrated flow see `${CLAUDE_PLUGIN_ROOT}/docs/OMC-INTEGRATION.md` (repo-relative `docs/OMC-INTEGRATION.md`).)
+Once the user approves the spec, execution follows the lane recorded in it. If the selected lane is already recorded (manually chosen or `(auto)`), do not ask again — use it as is: inline proceeds in the current session, and a heavy lane starts from the copyable action the lane section printed. After implementation, verify the code diff with `/oh-my-joy:ff-review` (FF·a11y·vercel·nextjs) and the visuals with `/omj-verify <route>`. (Lane definitions and gate orthogonality: `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md` (repo-relative `docs/EXECUTION-HANDOFF.md`).)
 
 ## Usage (bare `/omj`)
 
@@ -92,7 +94,6 @@ Once the user approves the spec, the main session hands the spec to the selected
 /omj <figma-url> [route]        Figma design → implementation spec (Plan). e.g. /omj https://figma.com/design/... /settings/profile
 /omj <figma-url> <figma-url> "<task description>"   mixed multi-node + text tasks supported (composite collection; proposes a split above 5 nodes)
 /omj "<task description>" [route]       code task → implementation spec (Plan). e.g. /omj "search input form component" /settings/profile
-/omj-start <approved-spec>      hand an approved OMJ spec to the selected OMC/OMX execution lane (not needed for (auto) inline specs)
 /oh-my-joy:ff-review [--base <ref>]      post-implementation code diff review (FF·a11y·vercel·nextjs, run outside Plan mode)
 /omj-verify <route>             post-implementation visual verification (run outside Plan mode)
 /omj-fix <route> ["description"]        screenshot+route defect fix loop (run outside Plan mode)

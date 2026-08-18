@@ -54,8 +54,8 @@ native Plan/response body, and materialization belongs to the post-approval exec
 ## After approval
 
 Executing the consensus plan follows the existing lane selection — for FE implementation, develop
-it into an `/omj` spec; when durable completion is needed, `/oh-my-joy:goal-loop`; with OMC/OMX
-installed, the corresponding lane (`docs/EXECUTION-HANDOFF.md` is the canon).
+it into an `/omj` spec; when durable completion is needed, `/oh-my-joy:goal-loop`
+(`docs/EXECUTION-HANDOFF.md` is the canon).
 
 ## Usage
 

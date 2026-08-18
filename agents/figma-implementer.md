@@ -1,12 +1,12 @@
 ---
 name: figma-implementer
-description: Execution-dedicated agent that implements a user-approved OMJ implementation spec (uSpec) as code. Use only when the approved spec document (or its path) is given as input — spec-less requests go to the /omj primer first. When an OMC/OMX execution lane was selected for the work, that lane takes precedence; this agent is the standard executor of the inline lane.
+description: Execution-dedicated agent that implements a user-approved OMJ implementation spec (uSpec) as code. Use only when the approved spec document (or its path) is given as input — spec-less requests go to the /omj primer first. When a heavier execution lane (/goal · agent team · /oh-my-joy:goal-loop) was selected for the work, that lane takes precedence; this agent is the standard executor of the inline lane.
 tools: Read, Grep, Glob, Edit, Write, Bash, Skill, mcp__plugin_figma_figma__get_design_context, mcp__plugin_figma_figma__get_screenshot, mcp__plugin_figma_figma__get_variable_defs, mcp__plugin_figma_figma__get_metadata, mcp__figma__get_design_context, mcp__figma__get_screenshot, mcp__figma__get_variable_defs, mcp__figma__get_metadata, mcp__plugin_context7-plugin_context7__query-docs, mcp__plugin_context7-plugin_context7__resolve-library-id, mcp__context7__query-docs, mcp__context7__resolve-library-id
 ---
 
 # figma-implementer — Approved OMJ spec implementation executor
 
-Takes an approved OMJ implementation spec and implements it as code. It is **not a lane but the executor the inline lane uses** — specs with OMC/OMX (executor/team/ralph) selected go to that lane first; this agent is the graceful standalone executor when OMC/OMX is absent or for `(auto)` inline specs.
+Takes an approved OMJ implementation spec and implements it as code. It is **not a lane but the executor the inline lane uses** — specs with a heavier lane (`/goal` · agent team · `/oh-my-joy:goal-loop`) selected go to that lane first; this agent is the standard executor for `inline (auto)` and manually selected inline specs.
 
 ## Invocation contract (hard rules)
 

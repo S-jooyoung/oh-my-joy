@@ -1,23 +1,17 @@
 # OMJ execution handoff routing
 
-This document is the **single routing SoT** for OMJ execution-lane selection. README, `docs/OMC-INTEGRATION.md`, `docs/PRINCIPLES.md`, `commands/omj.md`, and `commands/omj-start.md` only summarize or link to it, and **never redefine the scoring signals or thresholds**.
+This document is the **single routing SoT** for OMJ execution-lane selection. README, `docs/PRINCIPLES.md`, and `commands/omj.md` only summarize or link to it, and **never redefine the scoring signals or thresholds**.
 
-> **One exception**: in case this file is unreachable at runtime, `commands/omj.md` carries a minimal **threshold-free** fallback mapping (small → inline/manual, durable goal → wrapper, parallel lanes → team, …). Numbers and conditions live only here; the fallback gives direction only — the boundary that satisfies graceful degradation (PRINCIPLES ⑨) and single SoT (⑧) at once.
+> **One exception**: in case this file is unreachable at runtime, `commands/omj.md` carries a minimal **threshold-free** fallback mapping (small → inline; iterate-until-condition → `/goal`; parallel lanes → agent team; durable/evidence-gated → `/oh-my-joy:goal-loop`). Numbers and conditions live only here; the fallback gives direction only — the boundary that satisfies graceful degradation (PRINCIPLES ⑨) and single SoT (⑧) at once.
 
-## Model: Wrapper + Sublane
+## The four lanes
 
-- **Wrapper**: durable state/checkpoint owner.
-  - `none`: very small one-shot work.
-  - `/goal` or `$ultragoal`: work that needs multiple stages, multiple turns, or checkpoints.
-  - `/oh-my-joy:goal-loop`: OMJ's own durable wrapper — **always present even without an
-    OMC/OMX runtime** (an always-available axis, not a runtime row). It persists goal state
-    in `.omj/goals/` and accepts completion only through validator evidence objects.
-- **Sublane**: how execution actually runs.
-  - `inline/manual`: no OMC/OMX, or very small work.
-  - `$ralph`/`/ralph`: when one persistent owner must push through and verify to the end.
-  - `$team`/`/team`: when there are 2+ parallelizable implementation/doc/verification lanes.
-- **QA follow-up**: `$ultraqa`/`/ultraqa`, when the goal is adversarial e2e/hostile QA after implementation.
-- **Consensus fallback**: `/oh-my-claudecode:ralplan` (OMC), `$ralplan` (OMX), or `/oh-my-joy:ralplan` (OMJ native — no runtime needed, lightweight one-pass critic consensus), for work that is still ambiguous or needs architectural consensus. **Runtime asymmetry**: OMC `/oh-my-claudecode:ralplan` connects to execution (team/ralph) once consensus is approved, but OMX `$ralplan` currently **stops after producing the plan** behind the host receipt gate (fail-closed) — after consensus the user must start the execution lane separately, and when the selector recommends this lane in an OMX context it must say so.
+- **inline** — the default. After approval, the current session implements the spec directly; for FE specs the bundled `figma-implementer` agent is the standard executor. Always available.
+- **`/goal`** — Claude Code's native goal loop: persistence *within* a session — it keeps the session iterating until the stated completion condition is judged met. Requires Claude Code's native goal support (a hook-enabled environment); when unavailable, fall back to inline or `/oh-my-joy:goal-loop`.
+- **agent team** — Claude Code's native parallel subagents: fan the approved spec out to 2+ agents when independent lanes exist (screens, docs, verification). Requires an environment where subagent spawning is available; when unavailable, fall back to inline, sequentially.
+- **`/oh-my-joy:goal-loop`** — OMJ's own durable wrapper: persistence *across* sessions. Goal state lives in `.omj/goals/`, an interrupted run resumes with `--slug` alone, and completion is accepted only through the validator's evidence gate. Available everywhere; runs outside Plan mode.
+
+**Consensus pass (not a lane)**: `/oh-my-joy:ralplan` — adversarial review of an existing spec/plan before approval, for work that is still ambiguous or carries design-disagreement risk.
 
 ## Recommendation inputs
 
@@ -30,83 +24,49 @@ Lane recommendation weighs these signals together.
 - risk
 - verification need
 - expected multi-turn duration
-- OMC/OMX availability
 
 ## Recommendation rules
 
-1. **Small and concrete**: 1–2 files, 1 route, no new abstractions → `Wrapper: none`, `Sublane: inline/manual` or `ralph`.
-2. **Durable goal**: 3+ files, multiple stages, restart/checkpoint needed → `Wrapper: $ultragoal` or `/goal`. **If neither exists, `/oh-my-joy:goal-loop`** — and when evidence-enforced completion matters most, this lane may be chosen even with a runtime present (priority rules in the "OMJ native lane" section below).
-3. **Parallelizable**: 2+ independent lanes (screens/docs/verification) → `Sublane: $team` or `/team`.
-4. **Sequential pressure**: low parallelism but the completion/verification loop matters → `Sublane: $ralph` or `/ralph`.
-5. **QA-only**: implementation is done and the goal is hostile-scenario / visual-interaction defect hunting → recommend `$ultraqa`/`/ultraqa` as option 1.
-6. **Ambiguous/high-risk**: requirements, boundaries, or architecture unclear → recommend `/oh-my-claudecode:ralplan`/`$ralplan` first (with the plan-only note in OMX contexts — see Consensus fallback above). Without OMC/OMX, `/oh-my-joy:ralplan`.
-7. **No runtime**: no OMC/OMX → if durable is needed, `/oh-my-joy:goal-loop`; otherwise print a copyable manual command/action and do not fail.
+1. **Small and concrete**: 1–2 files, 1 route, no new abstractions → inline.
+2. **Iterate-until-condition**: the work has a crisp completion condition and needs retries within this session (make the tests pass, drive the diff to zero) → `/goal`. Without native goal support, inline.
+3. **Parallelizable**: 2+ independent lanes (screens/docs/verification) → agent team. Without subagent support, inline sequentially.
+4. **Durable/evidence-gated**: multi-turn work that must survive interruption, or whose completion needs recorded evidence → `/oh-my-joy:goal-loop`. Even when `/goal` is available, prefer this lane when the evidence gate or cross-session resume matters most.
+5. **Ambiguous/high-risk**: requirements, boundaries, or architecture unclear → run `/oh-my-joy:ralplan` on the spec before approval; pick the execution lane after consensus.
 
-## OMJ native lane (`/oh-my-joy:goal-loop`)
+## Auto-select rule (question skipped for inline only)
 
-This is **not a row in the runtime table but an always-present durable option** (regardless of OMC/OMX). Rules:
-
-- **Priority**: when OMC `/goal` or OMX `$ultragoal` is available, the default recommendation
-  is still that lane (wider orchestration reach). `/oh-my-joy:goal-loop` is ① the durable
-  default when no runtime exists, and ② listed as an explicit option even with a runtime
-  when the goal is "evidence-enforced completion, single-owner sequencing". Selector notation
-  must distinguish canonical invocations — `Wrapper: /goal` (OMC) and
-  `Wrapper: /oh-my-joy:goal-loop` (OMJ) are different lanes.
-- **Auto-select boundary**: `/oh-my-joy:goal-loop` is also a heavy lane — when recommended,
-  ask **exactly one question**, same as every other heavy lane (no silent progression).
-- **Full-cycle composition**: fuzzy ideas become specs via `/oh-my-joy:deep-interview`,
-  FE signals become uSpec via `/omj`, and this lane consumes the approved spec — the executor
-  of an FE goal is `figma-implementer`, and the verification layer (design-qa · `/omj-verify` ·
-  `/omj-fix` · `/omj-sync` · `/oh-my-joy:ff-review`) is shared unchanged. Standalone `/omj`
-  usage is unaffected.
-
-## Auto-select rule (question skipped for inline/manual only)
-
-Only when the recommended lane is **`Wrapper=none; Sublane=inline/manual`** does the selector skip `AskUserQuestion`, recording `Selected lane: Wrapper=none; Sublane=inline/manual (auto)` in the spec instead.
+Only when the recommended lane is **inline** does the selector skip `AskUserQuestion`, recording `Selected lane: inline (auto)` in the spec instead.
 
 - **Rationale**: here the answer is self-evident and the question would only add prompt fatigue (PRINCIPLES ⑪ — don't ask what is inferable and cheap). The blast radius of a wrong call is small — worst case, "proceed on the cheapest lane" or the user corrects it on the approval screen.
-- **Boundary**: if `$team`/`$ultragoal`/`/goal`/`$ralph`/`$ralplan`/`$ultraqa` is the recommendation, **always ask exactly once** (no silent progression on heavy lanes).
-- **Consent point**: Plan approval (ExitPlanMode) is the lane consent. If the user disagrees, they edit the plan file on the approval screen or re-select in `/omj-start`.
-- **After approval of an `(auto)` spec**: there is no separate lane to launch, so `/omj-start` is unnecessary — the current session proceeds with inline implementation directly.
+- **Boundary**: if `/goal`, agent team, or `/oh-my-joy:goal-loop` is the recommendation, **always ask exactly once** (no silent progression on heavy lanes).
+- **Consent point**: Plan approval (ExitPlanMode) is the lane consent. If the user disagrees, they edit the plan file on the approval screen.
+- **After approval of an `(auto)` spec**: there is nothing to launch — the current session proceeds with inline implementation directly.
 
 ## Selector output contract
 
-Option 1 must always be the recommendation and carries `(recommended)` (if the auto-select condition applies, skip the question and only record `(auto)` on the `Selected lane` line in the format below). When both a Wrapper and a Sublane apply, write them separated within one line.
+Option 1 must always be the recommendation and carries `(recommended)` (if the auto-select condition applies, skip the question and only record `(auto)` on the `Selected lane` line in the format below). The lane section always ends with the **one copyable action** for the selected lane — for inline there is nothing to run, so the line is omitted.
 
 ```md
 ## Execution lane selection
-1. Wrapper: $ultragoal; Sublane: $team (recommended) — multiple doc/command/verification lanes can be split; checkpoints needed.
-2. Wrapper: none; Sublane: $ralph — one owner implements/verifies sequentially.
-3. QA follow-up: $ultraqa — hostile QA/fix loop after implementation.
+1. Lane: /oh-my-joy:goal-loop (recommended) — multi-turn work; completion must be evidence-gated.
+2. Lane: /goal — iterate in this session until the stated condition holds.
+3. Lane: inline — implement directly in this session.
 
-Selected lane: Wrapper=$ultragoal; Sublane=$team
+Selected lane: /oh-my-joy:goal-loop
 
-If auto-start is not possible after approval, run exactly this one line:
-/omj-start <approved-spec-or-plan-path>
+After approval, run exactly this one line:
+/oh-my-joy:goal-loop <approved-spec-path> --slug <slug>
 ```
 
-## `/omj-start` fallback contract
+Copyable-action shapes per lane: `/goal "<completion condition for the approved spec>"` · a one-line dispatch note naming the independent lanes for agent team · `/oh-my-joy:goal-loop <approved-spec-path> --slug <slug>`.
 
-- If the spec already contains the lane `/omj` chose (whether manually selected or an `(auto)` record), never re-ask.
-- Only when no lane selection exists, ask the same single selector exactly once.
-- If a direct launch is possible and safe, launch.
-- If a direct launch is not possible, or slash/dollar command semantics are unclear, print exactly one copyable command/action.
-- The OMX ultragoal direct launch is **two-stage**: `omx ultragoal create-goals --brief-file '<path>'` only **creates** the durable goal; starting/resuming belongs to `omx ultragoal complete-goals` — after running create-goals, the final copyable action must be `omx ultragoal complete-goals`.
-- Never run `/goal clear` automatically. Print it as an explicit user action only when a previously completed goal blocks a new same-thread goal.
+## Gate orthogonality
 
-## Syntax map
-
-| Runtime | Durable wrapper | Team sublane | Ralph sublane | UltraQA | Ralplan |
-| --- | --- | --- | --- | --- | --- |
-| Codex/OMX | `$ultragoal` + Codex `/goal` | `$team` / `omx team`¹ | `$ralph` | `$ultraqa` | `$ralplan` (plan-only) |
-| Claude/OMC | `/goal` | `/team` | `/ralph` | `/ultraqa` | `/oh-my-claudecode:ralplan` |
-| No runtime | `/oh-my-joy:goal-loop` | manual | manual | manual QA checklist | `/oh-my-joy:ralplan` |
-
-¹ In sessions outside the Codex App and tmux, do not offer `$team`/`omx team` directly — the OMX CLI must be started from a shell first (OMX README).
+`/omj` uses Claude Code's native Plan mode (ExitPlanMode) as a **read gate**; `/goal` and `/oh-my-joy:goal-loop` own their **execution gates** (the goal evaluator's condition · the validator's evidence object). The gates are orthogonal and meet only chronologically at the approval moment. The default flow is straight to the selected lane after approval — a `/oh-my-joy:ralplan` consensus pass is taken explicitly, and only when work is genuinely ambiguous or high-risk. "It's big" alone never forces a second planning gate.
 
 ## Clear/start safety
 
 - Native Plan approval is the handoff/clear point for the plan gate.
-- Terminal/stale OMC/OMX state can be cleared only by the active execution workflow's documented cleanup path.
-- Active unrelated `/goal` must not be cleared silently.
-- `/omj` and `/omj-start` must never hide destructive or irreversible state changes behind "start".
+- Never run `/goal clear` automatically. Print it as an explicit user action only when a previously completed goal blocks a new same-thread goal.
+- An active unrelated `/goal` must not be cleared silently.
+- The spec's lane section must never hide destructive or irreversible state changes behind "start".

@@ -86,6 +86,5 @@ It differs in tier from the committed `.omj/fe-context.md` (the project declarat
 /oh-my-joy:goal-loop --slug search-form          # resume an interrupted loop
 ```
 
-> Methodology source: adapted and rewritten from gajae-code's durable goal loop and
-> oh-my-claudecode's goals/ledger state contract —
+> Methodology source: adapted and rewritten from the open-source projects credited in
 > [NOTICE.md](../NOTICE.md) (runtime path `${CLAUDE_PLUGIN_ROOT}/NOTICE.md`). The runtime was not ported.

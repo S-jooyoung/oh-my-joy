@@ -73,6 +73,6 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: Claude Code version (`claude --version`), OS, Node version if a script is involved, and whether OMC/OMX is installed.
+      description: Claude Code version (`claude --version`), OS, and Node version if a script is involved.
     validations:
       required: false
