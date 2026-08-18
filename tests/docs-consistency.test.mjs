@@ -59,6 +59,24 @@ describe('README EN/KO parity', () => {
       assert.ok(source.includes(installLine), `${label} README lacks the canonical install string (${installLine})`);
     }
   });
+
+  it('the canonical update command appears on every surface that gives update instructions', () => {
+    // The update string drifted once (SECURITY.md and the bug template dropped
+    // the @omj marketplace suffix) — like the install string, it is assembled
+    // from the manifest so a rename exposes every stale surface. bug_report.yml
+    // is YAML, outside every markdown-based guard, hence the explicit read.
+    const marketplace = JSON.parse(readRepoFile('.claude-plugin', 'marketplace.json'));
+    const updateLine = `/plugin update ${marketplace.plugins[0].name}@${marketplace.name}`;
+    const surfaces = [
+      ['README.md (EN)', readmeEn],
+      ['README.ko.md (KO)', readmeKo],
+      ['SECURITY.md', readRepoFile('SECURITY.md')],
+      ['.github/ISSUE_TEMPLATE/bug_report.yml', readRepoFile('.github', 'ISSUE_TEMPLATE', 'bug_report.yml')],
+    ];
+    for (const [label, source] of surfaces) {
+      assert.ok(source.includes(updateLine), `${label} lacks the canonical update string (${updateLine})`);
+    }
+  });
 });
 
 describe('Language purity of English artifacts', () => {
