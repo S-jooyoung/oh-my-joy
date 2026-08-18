@@ -308,6 +308,26 @@ describe('Command list consistency', () => {
     assert.deepEqual(offenders, [], `legacy /omj tokens must become /oh-my-joy:<name>:\n${offenders.join('\n')}`);
   });
 
+  it('the migration table\'s legacy names stay anchored to CHANGELOG history', () => {
+    // The upgrade block writes old command names slashless (`omj-verify`) so
+    // the legacy-token guard above stays clean. This check promotes that
+    // notation from a loophole to a documented exception: the tokens must
+    // exist in force (a deleted or reworded block cannot pass vacuously — the
+    // same anti-vacuity pattern as the purity enumeration guard), and each
+    // must appear in the CHANGELOG history it summarizes (containment, since
+    // CHANGELOG writes `/omj-verify` with the slash).
+    for (const [label, source] of [['EN', readmeEn], ['KO', readmeKo]]) {
+      const tokens = [...new Set([...source.matchAll(/\bomj-[a-z][\w-]*/g)].map((m) => m[0]))];
+      assert.ok(tokens.length >= 4, `${label} README migration table lost its legacy tokens (found ${tokens.length})`);
+      for (const token of tokens) {
+        assert.ok(
+          changelog.includes(token),
+          `${label} README names legacy command "${token}" that CHANGELOG history never recorded`,
+        );
+      }
+    }
+  });
+
   it('no canonical invocation is embedded in a path context', () => {
     // A canonical /oh-my-joy:<name> token is always preceded by whitespace, a
     // backtick, a quote, or line start — never by a path segment. A hit here

@@ -13,7 +13,7 @@ _A Plan-native primer that doesn't fight your "almost always in Plan mode" habit
 
 `Plan-first` · `Figma 2-track` · `interactive token sync` · `graceful degradation` · `zero runtime deps`
 
-[Why](#why) • [Quick Start](#quick-start) • [Recommended workflow](#recommended-workflow) • [Commands](#commands) • [Design notes](#what-this-repo-demonstrates) • [Troubleshooting](#troubleshooting)
+[Why](#why) • [Quick Start](#quick-start) • [Recommended workflow](#recommended-workflow) • [Walkthrough](#a-session-start-to-finish) • [Commands](#commands) • [Design notes](#what-this-repo-demonstrates) • [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -37,9 +37,25 @@ So OMJ inverts the obvious fix. `/oh-my-joy:spec` is **not** an implement comman
 
 # 3. Start — turn intent into an implementation spec (Plan), then stop → approve → implement
 /oh-my-joy:spec "Search input form — React Hook Form + Zod, mobile-first" /search
+
+#    …or start from a design — the same command takes the Figma link
+/oh-my-joy:spec https://figma.com/design/abc?node-id=1-2 /search
 ```
 
 > **Updates** ship when a release (version bump) lands on `main` — merged features don't reach existing installs until the version string changes. Pull the latest with `/plugin update oh-my-joy@omj`, then `/reload-plugins` (or a new session) to load it.
+>
+> **Upgrading from v0.6?** v0.7.0 moved every command under the single `/oh-my-joy:` namespace:
+>
+> | Old command | Now |
+> | --- | --- |
+> | `omj` (the bare root command) | `/oh-my-joy:spec` |
+> | `omj-verify` | `/oh-my-joy:verify` |
+> | `omj-fix` | `/oh-my-joy:fix` |
+> | `omj-sync` | `/oh-my-joy:sync` |
+> | `omj-setup` | `/oh-my-joy:setup` |
+> | `omj-start` | removed — the spec's execution-lane section prints the one line to run |
+>
+> Everything else is unchanged: the `.omj/` state directory, the `oh-my-joy@omj` install string, and the hook output. One trap: the once-announced `omj-spec` (design-system spec, v1.1) is now planned as `/oh-my-joy:ds-spec`, not `spec`. Full mapping and rationale: [CHANGELOG](CHANGELOG.md), section 0.7.0.
 
 ---
 
@@ -47,7 +63,7 @@ So OMJ inverts the obvious fix. `/oh-my-joy:spec` is **not** an implement comman
 
 First time here? Run `/oh-my-joy:setup` once — it checks the optional dependencies and scaffolds `.omj/fe-context.md`.
 
-1. `/oh-my-joy:spec <figma-url | task> [route]` — start here for every frontend task. It reads the design and your code, authors an implementation spec, and stops. If the request or its boundaries are still fuzzy, run `/oh-my-joy:deep-interview` first and paste its result into `spec`.
+1. `/oh-my-joy:spec <figma-url | task> [route]` — start here for every frontend task. It reads the design and your code, authors an implementation spec, and stops. If the request or its boundaries are still fuzzy, run `/oh-my-joy:deep-interview` first and paste the plan text it prints into `spec`.
 2. **Approve the plan** (ExitPlanMode) — implementation starts only here, on the execution lane the spec recorded. When the design decisions carry disagreement risk, run `/oh-my-joy:ralplan` on the spec before approving.
 3. **Implement on the selected lane** — inline by default; the lane rules below say when `/goal` or `/oh-my-joy:goal-loop` is worth it.
 4. **Verify — whole diff once, screens per route.** `/oh-my-joy:ff-review` reviews the entire code diff in one pass (no args = your uncommitted changes; `--base main` = the whole branch). Then run `/oh-my-joy:verify <route>` for each changed route — rendered screens are checked one route at a time. When a report pins a specific visual defect, `/oh-my-joy:fix <route> "complaint"` fixes just that and re-captures; when it reports token drift, `/oh-my-joy:sync` reconciles it.
@@ -66,7 +82,7 @@ flowchart TD
     V -->|"token drift"| T["/oh-my-joy:sync<br/>you pick the direction"]
 ```
 
-_Hexagons are your decision points; the solid spine is the recommended path; dashed = optional side paths._
+_Hexagons are the two decision points — the lane choice (auto-resolved for small work) and your approval; the solid spine is the recommended path; dashed = optional side paths._
 
 **What never happens on its own.** `/oh-my-joy:spec` writes no code — authoring the spec and stopping is the entire command. Nothing is implemented, built, or committed until you approve the plan (ExitPlanMode): approval is the single doorway between spec and code, and no command in this plugin crosses it for you. Verification is never implicit either — `verify`, `ff-review`, and `sync` run only when you invoke them.
 
@@ -74,7 +90,7 @@ _Hexagons are your decision points; the solid spine is the recommended path; das
 
 - **inline** — the default. Small, concrete work: after approval, the current session simply implements the spec. Always available.
 - **`/goal`** — persistence *within* a session: keeps this session iterating until a stated condition holds. Part of Claude Code's hooks system — unavailable where hooks are disabled.
-- **agent team** — work that splits into 2+ independent lanes (screens, docs, verification): fan the approved spec out to parallel Claude subagents (coordinated agent teams are an experimental Claude Code opt-in).
+- **agent team** — work that splits into 2+ independent lanes (screens, docs, verification): fan the approved spec out to parallel Claude subagents (coordinated agent teams are an experimental Claude Code opt-in). You start it in plain language — ask to split the spec's independent lanes across parallel agents.
 - **`/oh-my-joy:goal-loop`** — persistence *across* sessions: goals live on disk (`.omj/goals/`), an interrupted run resumes with `--slug`, and completion is accepted only with recorded evidence. Available everywhere; runs outside Plan mode.
 
 The shorthand: `/goal` is a session that won't give up; `goal-loop` is work that survives the session — pick it when tomorrow-you must continue, or when "done" needs proof. The full routing rules and thresholds live in [docs/EXECUTION-HANDOFF.md](docs/EXECUTION-HANDOFF.md) — this section carries only the selection feel, never the numbers.
@@ -88,7 +104,7 @@ Paste a section or frame link — `spec` walks the nodes one by one (past 5 node
 1. **Reads the design as data, not pixels** — via the official Dev Mode MCP it pulls the layout structure, the design variables behind it, and a screenshot that becomes the baseline `verify` checks against later.
 2. **Maps every color, type style, radius, and shadow to your semantic tokens** — it detects your token system (fe-context → tokens.json → Tailwind config → CSS variables), and raw hex is never an option, even in projects with no tokens.json.
 3. **Keeps fidelity rules on** — original text stays, variants that don't exist in Figma are never invented, fixed px gives way to `w-full` + parent padding.
-4. **Scores the spec before you see it** — six uSpec sections (Anatomy / Structure / Color·Tokens / Props·Variants / A11y / Motion), each evaluated against the FF criteria plus accessibility.
+4. **Scores the spec before you see it** — six uSpec sections (Uber's design-spec taxonomy: Anatomy / Structure / Color·Tokens / Props·Variants / A11y / Motion), each evaluated against the FF criteria (Toss frontend-fundamentals: readability, predictability, cohesion, coupling) plus accessibility.
 
 That is why the output doesn't drift the way "build this frame" prompts do: the model isn't eyeballing a screenshot — it fills a fixed skeleton from structured design data, in your token vocabulary, and the baseline it recorded is what `verify` compares the build against.
 
@@ -97,6 +113,8 @@ That is why the output doesn't drift the way "build this frame" prompts do: the 
 ## A session, start to finish
 
 Task: a search input form — React Hook Form + Zod, mobile-first, mounted at `/search`.
+
+Starting from a design instead? The same command takes the link — `/oh-my-joy:spec https://figma.com/design/abc?node-id=1-2 /search` — and runs the figma primer described above; everything from the spec onward is identical.
 
     /oh-my-joy:spec "Search input form — React Hook Form + Zod, mobile-first" /search
 
@@ -172,6 +190,17 @@ Missing ones never crash — OMJ **skips + guides** instead.
 
 ---
 
+## What OMJ writes into your repo
+
+- `.omj/fe-context.md` — your project's declarations (acceptance axes, token path, verify setup). **Meant to be committed.**
+- `.omj/baselines/` and `.omj/goals/` — capture baselines and goal-loop state. **Gitignore these two — and only these two**: ignoring `.omj/` wholesale would also lose the committed fe-context.
+- `.claude/hooks/` copies of the token-guard hooks — only when you opt in during `/oh-my-joy:setup`.
+- On demand: your project's `docs/design-tokens.md` (the `sync extract` mapping table) and `docs/DESIGN.md` (a setup scaffold).
+
+What goes where, and why, is owned by [`commands/setup.md`](commands/setup.md).
+
+---
+
 ## What this repo demonstrates
 
 Each claim below is checkable in this repo — the artifact is named, and so is the alternative that was rejected.
@@ -201,7 +230,7 @@ The "why" behind each decision lives in **[docs/PRINCIPLES.md](docs/PRINCIPLES.m
 ## Troubleshooting
 
 - **`/oh-my-joy:spec` didn't change any code** — that's correct. It's a read-only primer: it drafts a spec, records the selected execution lane, and stops. Implementation starts after you approve (ExitPlanMode); for a heavy lane, the spec's lane section already printed the one line to run.
-- **`/oh-my-joy:verify` / `/oh-my-joy:fix` does nothing** — no capture backend (neither playwright-cli nor playwright MCP), dev server not running (`yarn dev`), an auth-gated route, or your environment's Plan mode blocked Bash. For auth routes, declare `verifySetup` in `.omj/fe-context.md` (recommended) or `export JOY_TEST_EMAIL=… JOY_TEST_PASSWORD=…` before running — **use a test-only account**, and gitignore `.omj/baselines/` since post-login screenshots can contain session data or PII.
+- **`/oh-my-joy:verify` / `/oh-my-joy:fix` does nothing** — no capture backend (neither playwright-cli nor playwright MCP), dev server not running (`yarn dev`), an auth-gated route, or your environment's Plan mode blocked Bash. The dev-server URL resolves as `--base <url>` > an exported `JOY_BASE_URL` > `http://localhost:3000` — export the variable beforehand; an inline `JOY_BASE_URL=… /oh-my-joy:verify` prefix does not apply (slash commands are not a shell). For auth routes, declare `verifySetup` in `.omj/fe-context.md` (recommended) or `export JOY_TEST_EMAIL=… JOY_TEST_PASSWORD=…` before running — **use a test-only account**, and gitignore `.omj/baselines/` since post-login screenshots can contain session data or PII.
 - **Figma not connected / no permission** — `This figma file could not be accessed` is handled gracefully. Open the Figma desktop app, put the target file in the active tab, and retry. **Variable/node access requires edit permission** — duplicate viewer-shared files (tutorials etc.) and use the copy's URL.
 - **Baseline comparison not happening** — Figma asset URLs expire after ~7 days; re-run `/oh-my-joy:spec` to refresh the spec's baseline provenance. Cross-session comparison relies on the PNGs in `.omj/baselines/` (gitignore recommended). Note the PNG is **first created** only when `/oh-my-joy:verify` runs in the same session as `spec` (a fully separate session has no URL source — spec-based re-lookup is planned for v1.1).
 - **`/oh-my-joy:deep-interview` ended immediately** — that's the suitability gate, not a failure: the input was already concrete enough, or it carried FE-implementation signals (a Figma URL) that route to `/oh-my-joy:spec` instead.
