@@ -11,6 +11,20 @@ History prior to 0.6.0 is preserved in Korean.
 ### Added
 
 ### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.7.1] - 2026-08-18
+
+### Added
+
+### Changed
 - **README (EN/KO) gains an upgrade pointer and a comprehension pass** — a migration table next to the Updates note (old `omj-*` names → `/oh-my-joy:*`, what did *not* change, the `ds-spec` rename trap) guarded by a new anti-vacuity test; FF and uSpec expanded on first use (Toss frontend-fundamentals · Uber's design-spec taxonomy); a Figma-link example in Quick Start and a Figma-track bridge in the walkthrough; a "What OMJ writes into your repo" section; the hexagon legend, the deep-interview paste bridge, the agent-team launch surface, and the `JOY_BASE_URL` precedence (including the inline-prefix trap) clarified.
 
 ### Deprecated
@@ -279,7 +293,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.4.0...v0.5.0
