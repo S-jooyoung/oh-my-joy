@@ -24,6 +24,7 @@ Canonical facts (command names, the install string `/plugin install oh-my-joy@om
 - **Never declare a tool the body's procedure does not call.** Narrow Bash to the smallest runnable prefix (`Bash(npm i -g playwright-cli:*)`, not `Bash(npm:*)`). Declare MCP tools with the plugin prefix **and** the bare server variant (`mcp__figma__*` etc.) side by side — tool names differ by install source. Both rules are pinned by invariant tests (`tests/plugin-manifest.test.mjs`). Deliberately not pre-approving dangerous execution is itself a safety gate — the permission prompt becomes the user's confirmation point (PRINCIPLES ③).
 - **Agents** (`agents/*.md`): 3 bundled — `figma-implementer` (an approved spec is a required input — refuses to implement a bare Figma URL, no plan-gate bypass) · `design-qa` (inspect-only, never modifies sources) · `plan-critic` (ralplan-only adversarial plan reviewer, read-only). Write a new agent's description narrowly to prevent auto-delegation misfires. Do not set a `model` field (inherits the calling session's model — intentional omission). plan-critic/design-qa tool contracts are pinned by invariant tests. Never list agents in EXECUTION-HANDOFF (the lane SoT) or the selector (they are executors, not lanes).
 - **Hooks**: never ship `hooks/hooks.json` in the plugin (its existence = auto-firing across every repo the moment the plugin is enabled = the alternative PRINCIPLES ⑩ rejected). Canonical hook scripts live in `templates/hooks/*.mjs`; `/oh-my-joy:setup` **copy-installs** them into consuming projects (opt-in). The scripts no-op without an fe-context declaration.
+- Command bodies keep a compact skeleton — one goal sentence, numbered phases, explicit rules, an output contract. Trim prose that restates the skeleton; long bodies are where drift breeds (do not compress away test-enforced behavior).
 - The SoT for behavior is each `commands/*.md` body. Read that file before writing code or docs about it.
 
 ## Core design principles (summary — canonical: docs/PRINCIPLES.md)
@@ -39,6 +40,7 @@ Canonical facts (command names, the install string `/plugin install oh-my-joy@om
 
 - **No direct commits to main** — work on a branch and open a PR to main. Release tags attach to the main commit after merge.
 - Conventional commits: `<type>(<scope>): <subject>` (feat/fix/chore/docs/refactor/test).
+- **Rename grace**: when a command is renamed or retired, the old name stays visible in the README migration table and CHANGELOG for at least one minor release; removing that documentation happens only at a major version.
 - ❌ **AI signatures, `Co-Authored-By: Claude`, "Generated with Claude Code" — never.**
 - Write in English. Keep it concise.
 - PRs: `pr-triage.yml` auto-assigns the maintainer and syncs the type label from the title prefix; still pass `--assignee`/`--label` explicitly when creating PRs so they are set before the workflow runs.
