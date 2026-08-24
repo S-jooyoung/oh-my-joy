@@ -53,6 +53,7 @@ under the same slug.
   "verification": {
     "status": "passed",
     "commands": ["node --test"],
+    "exitCode": 0,
     "evidence": "157 passed, 0 failed — including the new goal-state suite"
   }
 }
