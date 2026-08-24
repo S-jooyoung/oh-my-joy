@@ -73,6 +73,60 @@ jobs:
           # A partial failure (tag exists but no Release) also heals on re-run.
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             node scripts/release.mjs notes --version "$VERSION" > "$RUNNER_TEMP/notes.md"
+
+            # Record the tag tree's content hash as release evidence. Hash the tag's
+            # tree, not $GITHUB_SHA's — on the heal path (tag exists, Release missing)
+            # the checkout is a newer main commit than the tag.
+            git worktree add --detach "$RUNNER_TEMP/tagtree" "refs/tags/$TAG"
+            HASH=$(cd "$RUNNER_TEMP/tagtree" && node "$GITHUB_WORKSPACE/scripts/generate-inventory.mjs" | node -p 'JSON.parse(require("fs").readFileSync(0,"utf8")).sha256')
+            git worktree remove --force "$RUNNER_TEMP/tagtree"
+            {
+              echo ""
+              echo "## Integrity"
+              echo ""
+              echo "Content hash: \`$HASH\` — \`scripts/generate-inventory.mjs\` over the tagged tree; compare a local install with \`--dir <plugin cache path>\`"
+            } >> "$RUNNER_TEMP/notes.md"
+
             gh release create "$TAG" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
             echo "::notice::Published GitHub Release $TAG"
           fi
+
+  # Post-publish re-verification (write-evidence → verify pattern): re-derive the
+  # content hash from a fresh checkout of the tag and compare it with the hash the
+  # Release recorded. Catches the drift class where the tag tree and the released
+  # evidence silently diverge (retagging, orphan tags, manual note edits).
+  verify-release:
+    needs: tag
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Verify released hash against the tag tree
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "JSON.parse(require('fs').readFileSync('.claude-plugin/plugin.json','utf8')).version")
+          TAG="v$VERSION"
+
+          EXPECTED=$(gh release view "$TAG" --json body -q .body | grep -oE 'Content hash: `[0-9a-f]{64}`' | grep -oE '[0-9a-f]{64}' | head -1 || true)
+          if [ -z "$EXPECTED" ]; then
+            echo "::warning::release $TAG records no content hash (pre-inventory release) — nothing to verify"
+            exit 0
+          fi
+
+          git checkout -q "refs/tags/$TAG"
+          ACTUAL=$(node scripts/generate-inventory.mjs | node -p 'JSON.parse(require("fs").readFileSync(0,"utf8")).sha256')
+
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::release $TAG evidence ($EXPECTED) does not match the tag tree ($ACTUAL) — released content drifted"
+            exit 1
+          fi
+          echo "::notice::release $TAG content verified ($ACTUAL)"
