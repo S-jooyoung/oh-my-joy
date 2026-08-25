@@ -150,7 +150,7 @@ _육각형 = 두 개의 결정 지점 — 레인 선택(작은 작업은 자동 
 | **`/oh-my-joy:fix`** | route(필수)의 결함을 붙인 스크린샷·불만(둘 중 하나 이상)으로 짚어 고치고 재캡처로 확인 (능동 루프). `--base <url>`(dev 서버)·`--commit`(확인된 수정 커밋) 지원 | 픽셀/시각 결함 빠른 수정 | `/oh-my-joy:fix /pricing "배너 z-index 낮음"` |
 | **`/oh-my-joy:sync`** | 토큰 스토어(`tokens.json` **또는 CSS custom properties**) ↔ Figma 드리프트를 **방향 물어** 해소. `extract`로 Figma 변수를 CSS로 부트스트랩, `--tokens <path>`로 스토어 경로 지정 | 코드/Figma 토큰 정렬·최초 추출 | `/oh-my-joy:sync` · `check` · `push` · `extract <figma-url>` |
 | **`/oh-my-joy:setup`** | 의존성 점검 + 일괄 multiSelect 선택 설치 + `.omj/fe-context.md` 스캐폴딩(`AGENTS.md`/`.claude/rules/` 같은 기존 규칙 문서는 복제 대신 `contextDocs:`로 채택) + 토큰 가드 훅(opt-in, Story 훅은 Storybook 감지 시에만 제안). 마무리에 GitHub star를 선택적으로 제안(이미 star면 조용히 스킵, 셋업을 막지 않음) | 첫 사용 전 — 셋업 흔적이 없으면 `spec`이 1회 제안 | `/oh-my-joy:setup` · `--check`(점검만) |
-| **`/oh-my-joy:goal-loop`** | 승인된 스펙(경로 **또는 paste** — paste가 1급 입력)을 골 단위로 `.omj/goals/`에 영속시켜 하나씩 완주하는 단일 owner durable 루프 — 완료는 validator 스크립트의 증거 객체 검사를 통과해야만 성립(불법 전이·잘린 ledger·증거 없는 완료는 non-zero 거부, Plan 해제 후 실행) | 중단을 견디고 완료를 증명해야 하는 여러 턴 작업 | `/oh-my-joy:goal-loop ./approved-spec.md --slug search-form` · 재개: `/oh-my-joy:goal-loop --slug search-form` |
+| **`/oh-my-joy:goal-loop`** | 승인된 스펙(경로 **또는 paste** — paste가 1급 입력)을 골 단위로 `.omj/goals/`에 영속시켜 하나씩 완주하는 단일 owner durable 루프 — 완료는 validator 스크립트의 증거 객체(명령 · exit code `0` · 요약) 검사를 통과해야만 성립(불법 전이·잘린 ledger·증거 없는 완료는 non-zero 거부, Plan 해제 후 실행) | 중단을 견디고 완료를 증명해야 하는 여러 턴 작업 | `/oh-my-joy:goal-loop ./approved-spec.md --slug search-form` · 재개: `/oh-my-joy:goal-loop --slug search-form` |
 
 > **read-only vs 능동 op.** `/oh-my-joy:spec`·`/oh-my-joy:ff-review`·`/oh-my-joy:deep-interview`·`/oh-my-joy:ralplan`은 read-only(리포트/스펙만) — `spec`은 스펙 뒤 실행 레인 질문을 **최대 1회** 할 수 있고(inline 추천이면 질문 없이 `(auto)` 기록만 — Plan 승인이 곧 레인 동의), 인터뷰는 자체 라운드 상한 아래 라운드당 1문항을 물으며, 전부 Write/Edit/build/test는 못 합니다. `/oh-my-joy:verify`·`/oh-my-joy:fix`·`/oh-my-joy:sync`(sync/push/extract)·`/oh-my-joy:goal-loop`(validator Bash + 구현)은 Figma write·`Edit`/`Write`·Bash를 쓰는 능동 op라, 환경이 Plan 모드에서 이를 막으면 Plan을 해제한 뒤 실행하세요. 각 커맨드의 구문·인자·단계는 `commands/<name>.md`가 정본입니다.
 >
@@ -161,7 +161,7 @@ _육각형 = 두 개의 결정 지점 — 레인 선택(작은 작업은 자동 
 - **`figma-implementer`** (에이전트) — **승인된 OMJ 스펙**을 Clarify→Context→Plan→Generate→Evaluate 5단계로 구현하는 inline 레인 실행자. 스펙 없는 bare Figma URL은 구현을 거부하고 `/oh-my-joy:spec`부터 안내(plan-gate 우회 차단). 더 무거운 레인이 선택됐으면 그 레인이 우선.
 - **`design-qa`** (에이전트) — 타입체크·린트·토큰 하드코딩·Figma 충실도·a11y 기본(+fe-context 선언 시 Story·i18n)을 **검사만** 하는 기계 게이트. 쓰기 도구(`Write`/`Edit`) 미선언(불변식 테스트로 고정)이되, 검사 명령 실행용 Bash는 있어 순수 read-only는 아님.
 - **`plan-critic`** (에이전트) — `/oh-my-joy:ralplan`의 합의 패스가 소집하는 적대 플랜 리뷰어. read-only 계약(`Read, Grep, Glob` — 불변식 테스트로 고정), ralplan 밖에서는 소집되지 않음.
-- **토큰 가드 훅** — `templates/hooks/`의 `check-design-tokens.mjs`(하드코딩 색상 경고)·`check-story-exists.mjs`(Story 누락 경고). **플러그인이 자동 발화시키지 않습니다** — `/oh-my-joy:setup`이 소비 프로젝트 `.claude/hooks/`로 복사·등록할 때만(opt-in) 동작하고, `.omj/fe-context.md` 선언이 없으면 no-op입니다.
+- **토큰 가드 훅** — `templates/hooks/`의 `check-design-tokens.mjs`(하드코딩 색상 경고)·`check-story-exists.mjs`(Story 누락 경고). **플러그인이 자동 발화시키지 않습니다** — `/oh-my-joy:setup`이 소비 프로젝트 `.claude/hooks/`로 복사·등록할 때만(opt-in) 동작하고, `.omj/fe-context.md` 선언이 없으면 no-op입니다. 두 훅 모두 **컨벤션상 advisory — fail-open**입니다: 예기치 못한 크래시도 exit 0으로 끝나 훅 결함이 세션을 막을 수 없습니다([`tests/hooks/hook-conventions.test.mjs`](tests/hooks/hook-conventions.test.mjs)로 고정).
 
 ### `/oh-my-joy:sync` — 방향을 사용자가 고른다
 
@@ -235,6 +235,7 @@ _육각형 = 두 개의 결정 지점 — 레인 선택(작은 작업은 자동 
 - **baseline 비교가 안 됨** — Figma 에셋 URL은 약 7일 후 만료됩니다. `/oh-my-joy:spec`을 재실행해 스펙의 baseline provenance를 갱신하세요. 크로스세션 비교는 `.omj/baselines/`의 PNG가 담당합니다(gitignore 권장). 단 PNG의 **최초 생성**은 `spec`과 같은 세션에서 `/oh-my-joy:verify`를 한 번 실행해야 일어납니다(세션이 완전히 분리되면 URL 출처가 없어 생성 불가 — 스펙 기반 재조회는 v1.1 예정).
 - **`/oh-my-joy:deep-interview`가 바로 끝남** — 실패가 아니라 적합성 게이트입니다: 입력이 이미 충분히 구체적이거나, FE 구현 신호(Figma URL 등)라 `/oh-my-joy:spec`으로 안내된 경우입니다.
 - **`/oh-my-joy:goal-loop`이 검증 명령마다 권한을 물음** — 의도된 동작입니다. 검증 명령을 일부러 사전승인하지 않아, 그 권한 프롬프트가 기록된 증거의 신뢰 근거가 됩니다. `.omj/goals/`는 gitignore하세요(명령 요약·경로가 누적되는 운영 상태).
+- **설치본이 예전 것 같을 때** — 릴리즈마다 태그 트리의 콘텐츠 해시가 GitHub Release 노트에 기록되고, 발행 후 CI가 태그를 그 해시로 재검증합니다. 로컬 복사본은 `node scripts/generate-inventory.mjs --dir <플러그인 캐시 경로>`로 해시를 재계산해 비교하세요 — `sha256`이 일치하면 설치본이 릴리즈 그대로라는 뜻입니다.
 - **MCP 도구명이 다름** — Figma/Context7 도구명은 환경마다 다를 수 있습니다. `/mcp`로 실제 등록된 도구명을 확인하세요.
 - **커밋된 스킬 사본과 중복** — 어떤 프로젝트가 `frontend-fundamentals`를 자기 `.claude/skills/`에 커밋해 뒀다면 OMJ 번들과 동시 로드될 수 있습니다(무해). 그 사본은 삭제하지 마세요(삭제하면 OMJ 미설치로 클론한 동료의 환경이 깨집니다) — 편집(SoT)은 한쪽에서만 하면 됩니다.
 

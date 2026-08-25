@@ -59,6 +59,10 @@ export function validateEvidence(evidence) {
   if (!Array.isArray(v.commands) || v.commands.length === 0 || v.commands.some((c) => !c?.trim())) {
     return 'verification.commands must be a non-empty list of commands';
   }
+  // A self-reported "passed" string is the weakest evidence field — requiring the
+  // actual exit code narrows the self-report to a machine-checkable value (only a
+  // strict integer 0 passes; strings, booleans, and omission are all rejected).
+  if (v.exitCode !== 0) return "verification.exitCode must be the integer 0 — record the verification command's actual exit code";
   if (typeof v.evidence !== 'string' || !v.evidence.trim()) return 'verification.evidence summary is required';
   return null;
 }

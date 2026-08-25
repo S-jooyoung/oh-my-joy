@@ -245,6 +245,24 @@ describe('Internal link integrity', () => {
   });
 });
 
+describe('Table hygiene', () => {
+  // An empty inline-code cell (`| `` |`) is an editing artifact — a table row whose
+  // cell content was deleted while its skeleton survived. It renders as a blank
+  // code chip on GitHub, so a reader cannot tell a decided "n/a" from an unfinished
+  // edit. CHANGELOG is preserved history and exempt, as everywhere above.
+  it('no blank placeholder cells survive in tracked tables', () => {
+    const offenders = [];
+    for (const file of listMarkdownFiles().filter((f) => f !== 'CHANGELOG.md')) {
+      readRepoFile(file)
+        .split('\n')
+        .forEach((line, index) => {
+          if (/\|\s*``\s*\|/.test(line)) offenders.push(`${file}:L${index + 1}: ${line.trim()}`);
+        });
+    }
+    assert.deepEqual(offenders, [], `blank placeholder cells:\n${offenders.join('\n')}`);
+  });
+});
+
 describe('Command list consistency', () => {
   // Single naming axis (CLAUDE.md): every command uses an unprefixed basename
   // and is always written as the canonical `/oh-my-joy:<name>` invocation in

@@ -17,6 +17,17 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
+/**
+ * Risk class: advisory (fail-open). Every guarded failure path below already exits 0;
+ * this handler extends the same guarantee to unexpected crashes so a defect in a
+ * check-only hook can never block the session. Only a destructive-mutation or
+ * security-boundary hook could justify failing closed — this plugin ships none.
+ */
+process.on('uncaughtException', (error) => {
+  console.error(`[omj:check-story-exists] advisory hook crashed (fail-open): ${error?.message ?? error}`);
+  process.exit(0);
+});
+
 const COMPONENT_EXT = /\.(tsx|jsx)$/;
 
 /** Tools this hook fires on. Even if the consuming project's matcher widens, stay silent on non-mutating tools. */

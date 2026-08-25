@@ -39,7 +39,7 @@ function run(cwd, args) {
 
 const GOALS = '[{"title":"Goal one","objective":"First objective"},{"title":"Goal two","objective":"Second objective"}]';
 const EVIDENCE = JSON.stringify({
-  verification: { status: 'passed', commands: ['node --test'], evidence: '157 passed' },
+  verification: { status: 'passed', commands: ['node --test'], exitCode: 0, evidence: '157 passed' },
 });
 
 const initDemo = (root) => run(root, ['init', '--slug', 'demo', '--brief', 'the brief', '--goals-json', GOALS]);
@@ -85,9 +85,27 @@ describe('goal-state: enforced rules', () => {
     assert.match(bare.stderr, /insufficient evidence/);
     const empty = run(root, [
       'transition', '--slug', 'demo', '--goal', 'G001', '--to', 'complete',
-      '--evidence-json', '{"verification":{"status":"passed","commands":[],"evidence":"x"}}',
+      '--evidence-json', '{"verification":{"status":"passed","commands":[],"exitCode":0,"evidence":"x"}}',
     ]);
     assert.match(empty.stderr, /commands/);
+  });
+
+  it('a missing or non-zero exitCode does not count as passing evidence', () => {
+    const root = makeRoot();
+    initDemo(root);
+    run(root, ['transition', '--slug', 'demo', '--goal', 'G001', '--to', 'active']);
+    for (const verification of [
+      { status: 'passed', commands: ['node --test'], evidence: 'claims green' }, // omitted
+      { status: 'passed', commands: ['node --test'], exitCode: 1, evidence: 'actually failed' },
+      { status: 'passed', commands: ['node --test'], exitCode: '0', evidence: 'stringly typed' },
+    ]) {
+      const result = run(root, [
+        'transition', '--slug', 'demo', '--goal', 'G001', '--to', 'complete',
+        '--evidence-json', JSON.stringify({ verification }),
+      ]);
+      assert.equal(result.code, 1, `${JSON.stringify(verification)} slipped past the validator`);
+      assert.match(result.stderr, /exitCode/);
+    }
   });
 
   it('single owner — a second active transition is rejected', () => {

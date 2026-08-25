@@ -19,6 +19,17 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
+/**
+ * Risk class: advisory (fail-open). Every guarded failure path below already exits 0;
+ * this handler extends the same guarantee to unexpected crashes so a defect in a
+ * check-only hook can never block the session. Only a destructive-mutation or
+ * security-boundary hook could justify failing closed — this plugin ships none.
+ */
+process.on('uncaughtException', (error) => {
+  console.error(`[omj:check-design-tokens] advisory hook crashed (fail-open): ${error?.message ?? error}`);
+  process.exit(0);
+});
+
 /** CSS-in-JS/theme objects live in .ts, styles in .css/.scss — colors get hardcoded in both. */
 const TARGET_EXT = /\.(tsx|jsx|ts|mts|cts|css|scss|sass|less)$/;
 

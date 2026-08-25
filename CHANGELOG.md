@@ -10,7 +10,14 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+- Deterministic plugin-surface inventory: `scripts/generate-inventory.mjs` hashes the tracked tree (or an installed copy via `--dir`) into a single sha256; each GitHub Release now records that hash in its notes, and a post-publish `verify-release` job re-derives the tag tree's hash and fails on divergence (`.github/workflows/release-tag.yml`)
+- Hook-template convention suite `tests/hooks/hook-conventions.test.mjs` — every shipped hook must declare its risk class, and advisory hooks must guard crashes with a fail-open exit 0
+- Table-hygiene docs check — blank placeholder table cells (empty inline-code cells left by unfinished edits) now fail `tests/docs-consistency.test.mjs`
+
 ### Changed
+
+- Token-guard hook templates declare `Risk class: advisory` and exit 0 even on an unexpected crash (fail-open) — a hook defect can never block a session
+- `/oh-my-joy:goal-loop` completion evidence now requires `verification.exitCode` to be the integer `0`; a self-reported "passed" string alone no longer completes a goal (in-flight loops add the field on their next complete transition)
 
 ### Deprecated
 
