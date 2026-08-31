@@ -20,7 +20,9 @@ import {
 
 /** External orchestrator vocabulary that must not reappear in tracked docs. */
 const RUNTIME_MENTION = /\bOMC\b|\bOMX\b|oh-my-claudecode|oh-my-codex|\$ultragoal|\$ralph\b|\$team\b|\$ultraqa|\$ralplan\b/;
-const RUNTIME_EXEMPT = new Set(['CHANGELOG.md', 'NOTICE.md']);
+// hud/README.md is attribution for the vendored HUD bundle (NOTICE.md names the source) —
+// the same history/attribution class as NOTICE.md, not an orchestrator integration.
+const RUNTIME_EXEMPT = new Set(['CHANGELOG.md', 'NOTICE.md', 'hud/README.md']);
 
 describe('standalone: zero runtime dependencies', () => {
   it('package.json declares no dependencies of any kind', () => {
