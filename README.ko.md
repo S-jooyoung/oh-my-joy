@@ -149,7 +149,7 @@ _육각형 = 두 개의 결정 지점 — 레인 선택(작은 작업은 자동 
 | **`/oh-my-joy:verify`** | 라우트를 실제 브라우저(playwright-cli, 부재 시 playwright MCP 폴백)로 열어 시각/구조 점검 + Figma baseline(`.omj/baselines/`) 대비. 캡처가 요청한 라우트에 실제 도달했는지 항상 검증(인증 리다이렉트는 비교하지 않고 실패로 보고). `--base <url>`로 dev 서버 지정 | PR 전 시각 회귀 확인 | `/oh-my-joy:verify /settings/profile` |
 | **`/oh-my-joy:fix`** | route(필수)의 결함을 붙인 스크린샷·불만(둘 중 하나 이상)으로 짚어 고치고 재캡처로 확인 (능동 루프). `--base <url>`(dev 서버)·`--commit`(확인된 수정 커밋) 지원 | 픽셀/시각 결함 빠른 수정 | `/oh-my-joy:fix /pricing "배너 z-index 낮음"` |
 | **`/oh-my-joy:sync`** | 토큰 스토어(`tokens.json` **또는 CSS custom properties**) ↔ Figma 드리프트를 **방향 물어** 해소. `extract`로 Figma 변수를 CSS로 부트스트랩, `--tokens <path>`로 스토어 경로 지정 | 코드/Figma 토큰 정렬·최초 추출 | `/oh-my-joy:sync` · `check` · `push` · `extract <figma-url>` |
-| **`/oh-my-joy:setup`** | 의존성 점검 + 일괄 multiSelect 선택 설치 + `.omj/fe-context.md` 스캐폴딩(`AGENTS.md`/`.claude/rules/` 같은 기존 규칙 문서는 복제 대신 `contextDocs:`로 채택) + 토큰 가드 훅(opt-in, Story 훅은 Storybook 감지 시에만 제안). 마무리에 GitHub star를 선택적으로 제안(이미 star면 조용히 스킵, 셋업을 막지 않음) | 첫 사용 전 — 셋업 흔적이 없으면 `spec`이 1회 제안 | `/oh-my-joy:setup` · `--check`(점검만) |
+| **`/oh-my-joy:setup`** | 의존성 점검 + 일괄 multiSelect 선택 설치 + `.omj/fe-context.md` 스캐폴딩(`AGENTS.md`/`.claude/rules/` 같은 기존 규칙 문서는 복제 대신 `contextDocs:`로 채택) + 토큰 가드 훅(opt-in, Story 훅은 Storybook 감지 시에만 제안). 마무리에 GitHub star를 선택적으로 제안(이미 star면 조용히 스킵, 셋업을 막지 않음) + OMJ HUD statusline(opt-in, `~/.claude/omj-hud/`로 복사되는 사용자 전역 설치) | 첫 사용 전 — 셋업 흔적이 없으면 `spec`이 1회 제안 | `/oh-my-joy:setup` · `--check`(점검만) |
 | **`/oh-my-joy:goal-loop`** | 승인된 스펙(경로 **또는 paste** — paste가 1급 입력)을 골 단위로 `.omj/goals/`에 영속시켜 하나씩 완주하는 단일 owner durable 루프 — 완료는 validator 스크립트의 증거 객체(명령 · exit code `0` · 요약) 검사를 통과해야만 성립(불법 전이·잘린 ledger·증거 없는 완료는 non-zero 거부, Plan 해제 후 실행) | 중단을 견디고 완료를 증명해야 하는 여러 턴 작업 | `/oh-my-joy:goal-loop ./approved-spec.md --slug search-form` · 재개: `/oh-my-joy:goal-loop --slug search-form` |
 
 > **read-only vs 능동 op.** `/oh-my-joy:spec`·`/oh-my-joy:ff-review`·`/oh-my-joy:deep-interview`·`/oh-my-joy:ralplan`은 read-only(리포트/스펙만) — `spec`은 스펙 뒤 실행 레인 질문을 **최대 1회** 할 수 있고(inline 추천이면 질문 없이 `(auto)` 기록만 — Plan 승인이 곧 레인 동의), 인터뷰는 자체 라운드 상한 아래 라운드당 1문항을 물으며, 전부 Write/Edit/build/test는 못 합니다. `/oh-my-joy:verify`·`/oh-my-joy:fix`·`/oh-my-joy:sync`(sync/push/extract)·`/oh-my-joy:goal-loop`(validator Bash + 구현)은 Figma write·`Edit`/`Write`·Bash를 쓰는 능동 op라, 환경이 Plan 모드에서 이를 막으면 Plan을 해제한 뒤 실행하세요. 각 커맨드의 구문·인자·단계는 `commands/<name>.md`가 정본입니다.
@@ -162,6 +162,7 @@ _육각형 = 두 개의 결정 지점 — 레인 선택(작은 작업은 자동 
 - **`design-qa`** (에이전트) — 타입체크·린트·토큰 하드코딩·Figma 충실도·a11y 기본(+fe-context 선언 시 Story·i18n)을 **검사만** 하는 기계 게이트. 쓰기 도구(`Write`/`Edit`) 미선언(불변식 테스트로 고정)이되, 검사 명령 실행용 Bash는 있어 순수 read-only는 아님.
 - **`plan-critic`** (에이전트) — `/oh-my-joy:ralplan`의 합의 패스가 소집하는 적대 플랜 리뷰어. read-only 계약(`Read, Grep, Glob` — 불변식 테스트로 고정), ralplan 밖에서는 소집되지 않음.
 - **토큰 가드 훅** — `templates/hooks/`의 `check-design-tokens.mjs`(하드코딩 색상 경고)·`check-story-exists.mjs`(Story 누락 경고). **플러그인이 자동 발화시키지 않습니다** — `/oh-my-joy:setup`이 소비 프로젝트 `.claude/hooks/`로 복사·등록할 때만(opt-in) 동작하고, `.omj/fe-context.md` 선언이 없으면 no-op입니다. 두 훅 모두 **컨벤션상 advisory — fail-open**입니다: 예기치 못한 크래시도 exit 0으로 끝나 훅 결함이 세션을 막을 수 없습니다([`tests/hooks/hook-conventions.test.mjs`](tests/hooks/hook-conventions.test.mjs)로 고정).
+- **OMJ HUD statusline** — `hud/`에 vendor된 statusLine HUD(어트리뷰션·라이선스는 [`NOTICE.md`](NOTICE.md), 구조·알려진 제약·번들 재생성은 [`hud/README.md`](hud/README.md)). **훅과 같은 opt-in 방식**: `/oh-my-joy:setup`이 동의 시에만 `hud/`를 `~/.claude/omj-hud/`로 복사(프로젝트별이 아닌 사용자 전역)하고 `~/.claude/settings.json`에 `statusLine`을 등록합니다. 재실행 시 플러그인 정본과 복사본이 다르면 업데이트를 안내합니다.
 
 ### `/oh-my-joy:sync` — 방향을 사용자가 고른다
 
@@ -195,6 +196,7 @@ _육각형 = 두 개의 결정 지점 — 레인 선택(작은 작업은 자동 
 - `.omj/fe-context.md` — 프로젝트 선언(수용 축·토큰 경로·verify 설정). **커밋 대상입니다.**
 - `.omj/baselines/`·`.omj/goals/` — 캡처 baseline과 goal-loop 상태. **이 둘만 gitignore하세요** — `.omj/`를 통째로 ignore하면 커밋 대상인 fe-context까지 잃습니다.
 - `.claude/hooks/`의 토큰 가드 훅 복사본 — `/oh-my-joy:setup`에서 동의했을 때만.
+- `~/.claude/omj-hud/`(그리고 `~/.claude/settings.json`의 `statusLine` 항목) — 사용자 전역, `/oh-my-joy:setup`에서 OMJ HUD에 동의했을 때만.
 - 필요 시 생성: 여러분 프로젝트의 `docs/design-tokens.md`(`sync extract` 매핑 테이블)와 `docs/DESIGN.md`(setup 스캐폴드).
 
 무엇이 어디에, 왜 놓이는지의 정본은 [`commands/setup.md`](commands/setup.md)입니다.
