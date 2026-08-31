@@ -314,13 +314,14 @@ describe('Command list consistency', () => {
     // else they are drift that documents commands that no longer exist.
     // (`\b` after "omj" also matches "/omj-verify" — the hyphen is a boundary.
     // A trailing slash is excluded: `cache/omj/` is the marketplace directory,
-    // a path segment, never a command token.)
+    // a path segment, never a command token. `-hud` is also excluded: omj-hud
+    // is the vendored statusline HUD's file prefix, not a legacy command.)
     const offenders = [];
     for (const file of listMarkdownFiles().filter((f) => f !== 'CHANGELOG.md')) {
       readRepoFile(file)
         .split('\n')
         .forEach((line, index) => {
-          if (/\/omj\b(?!\/)/.test(line)) offenders.push(`${file}:L${index + 1}: ${line.trim()}`);
+          if (/\/omj\b(?!\/|-hud)/.test(line)) offenders.push(`${file}:L${index + 1}: ${line.trim()}`);
         });
     }
     assert.deepEqual(offenders, [], `legacy /omj tokens must become /oh-my-joy:<name>:\n${offenders.join('\n')}`);

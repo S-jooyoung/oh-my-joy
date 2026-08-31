@@ -1,7 +1,7 @@
 ---
-description: OMJ dependency check + scaffolding — inspects playwright-cli/MCP, Figma MCP, Context7, and proposes installing .omj/fe-context.md and the token-guard hooks (opt-in)
+description: OMJ dependency check + scaffolding — inspects playwright-cli/MCP, Figma MCP, Context7, and proposes installing .omj/fe-context.md, the token-guard hooks, and the OMJ HUD statusline (opt-in)
 argument-hint: "[--check] (inspect only) | [--help]"
-allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(command -v:*), Bash(claude plugin list:*), Bash(claude plugin install figma@claude-plugins-official:*), Bash(claude plugin install context7-plugin@context7-marketplace:*), Bash(npm i -g playwright-cli:*), Bash(test:*), Bash(grep:*), Bash(cp "${CLAUDE_PLUGIN_ROOT}/templates/hooks/":*), Bash(mkdir -p .claude/hooks:*), Bash(gh auth status:*), Bash(gh api user/starred/S-jooyoung/oh-my-joy), Bash(gh api user/starred/S-jooyoung/oh-my-joy -X PUT)
+allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(command -v:*), Bash(claude plugin list:*), Bash(claude plugin install figma@claude-plugins-official:*), Bash(claude plugin install context7-plugin@context7-marketplace:*), Bash(npm i -g playwright-cli:*), Bash(test:*), Bash(grep:*), Bash(diff:*), Bash(cp "${CLAUDE_PLUGIN_ROOT}/templates/hooks/":*), Bash(mkdir -p .claude/hooks:*), Bash(cp -R "${CLAUDE_PLUGIN_ROOT}/hud/":*), Bash(mkdir -p ~/.claude/omj-hud:*), Bash(sh ~/.claude/omj-hud/omj-hud-cache.sh:*), Bash(gh auth status:*), Bash(gh api user/starred/S-jooyoung/oh-my-joy), Bash(gh api user/starred/S-jooyoung/oh-my-joy -X PUT)
 ---
 
 # /oh-my-joy:setup — Dependency doctor + install/scaffolding guide
@@ -29,6 +29,7 @@ Detect each item and report a ✓(present)/✗(missing)/➖(optional, fine witho
 | `.omj/fe-context.md` | project acceptance/token/verification declarations | `test -f .omj/fe-context.md` (➖ — if missing, scaffolding proposed below) |
 | Token store | target of `/oh-my-joy:sync` (sync·push·extract) | detect in order: fe-context `tokensPath` → `shared/tokens/tokens.json` → **CSS-based systems** (Tailwind `@utility`/`@theme`·`:root --*`) (`references/fe-acceptance.md` is the SoT). `/oh-my-joy:spec` works without a file store — **only `/oh-my-joy:sync` requires one** (bootstrap via `extract`) |
 | Token-guard hooks (opt-in) | on-save hardcoding/Story warnings | existence of `.claude/hooks/check-design-tokens.mjs` in the consuming project |
+| OMJ HUD statusline (opt-in) | model/usage/context statusLine HUD (user-global, not per-project) | `grep omj-hud ~/.claude/settings.json` — ➖ when absent (fine without) |
 
 > Figma requires more than plugin installation: **Dev Mode MCP must be enabled in the Figma desktop app** for the `/oh-my-joy:spec` figma primer·`/oh-my-joy:sync` to work, and **viewer-permission files are denied access**, so a Duplicate is needed — tell the user during inspection.
 > If the `claude` CLI is unavailable, skip detection and point to manual checks (`/mcp`, `/plugin`) (graceful).
@@ -48,6 +49,12 @@ Gather the missing items into **one `AskUserQuestion` (multiSelect)** asking "pi
   2. Register both scripts in the consuming project's `.claude/settings.json` under `hooks.PostToolUse` with matcher `Edit|Write|MultiEdit|NotebookEdit`, using relative paths (`node .claude/hooks/check-design-tokens.mjs`) — the same set as the scripts' internal `MUTATING_TOOLS` four (a narrower matcher lets MultiEdit saves silently bypass the hook).
   3. The hooks are no-ops without fe-context declarations (`tokensPath`/`storybook: true`), so recommend installing them together with fe-context scaffolding.
   4. On rerun, if the canon in `${CLAUDE_PLUGIN_ROOT}/templates/hooks/` differs from the `.claude/hooks/` copies, announce "hook script update available" (overwrite only on consent).
+- **OMJ HUD statusline missing (opt-in)** → on consent:
+  1. Copy the HUD from the plugin canon into the user config dir — `mkdir -p ~/.claude/omj-hud && cp -R "${CLAUDE_PLUGIN_ROOT}/hud/". ~/.claude/omj-hud/`. Same rationale as the hook copies: settings.json cannot resolve `${CLAUDE_PLUGIN_ROOT}`, and plugin-cache absolute paths break on every version update.
+  2. Set `statusLine` in `~/.claude/settings.json` (Edit; **warn before overwriting an existing custom statusLine** and proceed only on consent):
+     `{"type": "command", "command": "sh ~/.claude/omj-hud/omj-hud-cache.sh ~/.claude/omj-hud/omj-hud.mjs"}`
+  3. Smoke-check: pipe any small JSON (e.g. `{"session_id":"setup-check"}`) into `sh ~/.claude/omj-hud/omj-hud-cache.sh ~/.claude/omj-hud/omj-hud.mjs` and confirm a rendered line comes back.
+  4. On rerun, if `${CLAUDE_PLUGIN_ROOT}/hud/` differs from the `~/.claude/omj-hud/` copy (`diff -r`), announce "HUD update available" (overwrite only on consent). Attribution and known limitations: `hud/README.md`, `NOTICE.md` (vendored code, MIT).
 
 > Plugin installs load commands/tools **from the next session** — after installing, announce "takes effect in a new session". Hook registration also fires from the next session.
 

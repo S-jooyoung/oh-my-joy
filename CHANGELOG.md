@@ -10,6 +10,7 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+- OMJ HUD statusline: a vendored, self-contained HUD bundle under `hud/` (upstream attribution and MIT license text in `NOTICE.md`), installed opt-in by `/oh-my-joy:setup` as a copy at `~/.claude/omj-hud/` with a registered `statusLine` — the same copy-not-reference model as the token-guard hooks
 - Deterministic plugin-surface inventory: `scripts/generate-inventory.mjs` hashes the tracked tree (or an installed copy via `--dir`) into a single sha256; each GitHub Release now records that hash in its notes, and a post-publish `verify-release` job re-derives the tag tree's hash and fails on divergence (`.github/workflows/release-tag.yml`)
 - Hook-template convention suite `tests/hooks/hook-conventions.test.mjs` — every shipped hook must declare its risk class, and advisory hooks must guard crashes with a fail-open exit 0
 - Table-hygiene docs check — blank placeholder table cells (empty inline-code cells left by unfinished edits) now fail `tests/docs-consistency.test.mjs`
