@@ -63,6 +63,7 @@ stale session, and only value 4 versus 3 separates them.
 
 - [ ] `npm test` passes — this is the real gate. It covers the four version surfaces in lockstep,
       CHANGELOG links and skeleton, README EN/KO parity, command-list consistency, and standalone gating.
+- [ ] `npm run eval` was run for every command whose body changed (native `claude plugin eval` when enabled, otherwise the fallback runner) and the before/after scores are in the PR's test plan. `/skill-doctor` (early access) shows no never-invoked surfaces you did not expect.
 - [ ] `npm run validate-plugin` passes — two-layer manifest check. It fails on **any** warning
       except the one allow-listed `CLAUDE.md` message, so a new warning is a hard stop, not advice.
 - [ ] New or changed command: frontmatter carries `description`, `argument-hint`, and least-privilege

@@ -1,73 +1,77 @@
 ---
-description: OMJ dependency check + scaffolding — inspects playwright-cli/MCP, Figma MCP, Context7, and proposes installing .omj/fe-context.md, the token-guard hooks, and the OMJ HUD statusline (opt-in)
+description: OMJ dependency check + scaffolding — inspects playwright-cli/MCP, Figma MCP, Context7, the Agent Teams flag, and the OMJ answer style, and proposes installing .omj/fe-context.md, the token-guard hooks, and the OMJ HUD statusline (opt-in)
 argument-hint: "[--check] (inspect only) | [--help]"
 allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(command -v:*), Bash(claude plugin list:*), Bash(claude plugin install figma@claude-plugins-official:*), Bash(claude plugin install context7-plugin@context7-marketplace:*), Bash(npm i -g playwright-cli:*), Bash(test:*), Bash(grep:*), Bash(diff:*), Bash(cp "${CLAUDE_PLUGIN_ROOT}/templates/hooks/":*), Bash(mkdir -p .claude/hooks:*), Bash(cp -R "${CLAUDE_PLUGIN_ROOT}/hud/":*), Bash(mkdir -p ~/.claude/omj-hud:*), Bash(sh ~/.claude/omj-hud/omj-hud-cache.sh:*), Bash(gh auth status:*), Bash(gh api user/starred/S-jooyoung/oh-my-joy), Bash(gh api user/starred/S-jooyoung/oh-my-joy -X PUT)
 ---
 
-# /oh-my-joy:setup — Dependency doctor + install/scaffolding guide
+# /oh-my-joy:setup — Dependency doctor and scaffolding
 
-Inspects the **optional dependencies** OMJ leans on and guides installation for anything missing. **Already-installed items are left untouched and reported with a ✓ only.** Running it once before first use is a good idea. Project declarations (`.omj/fe-context.md`) and the token-guard hooks are scaffolded **only here** (true opt-in — the plugin auto-installs nothing into consuming projects).
+Inspect the optional dependencies OMJ leans on, guide the installation of anything missing, and scaffold the project declaration. Already-installed items are left untouched. Project declarations (`.omj/fe-context.md`), the token-guard hooks, the HUD, the Agent Teams flag, and the answer style are all opt-in and installed only here — the plugin changes nothing in a project or a user config on its own, because a plugin that did would fire in every repo it is enabled in.
 
-> **Entry paths**: users invoke this command directly, but `/oh-my-joy:spec` also suggests it in one line at the end of a spec when it detects no setup trace (no `.omj/` in the repo + no `~/.claude/.omj-setup.json` marker) — in dogfood measurements, skipped setup was the root cause of the missing fe-context/hook chain.
+Users run this directly; `/oh-my-joy:spec` also suggests it once when it sees no setup trace (no `.omj/` in the repo and no `~/.claude/.omj-setup.json`), because a skipped setup is the usual root cause of a missing fe-context or hook chain.
 
 ## Flags
 
-- `--help` → print the usage below and stop.
-- `--check` → print the inspection table only and stop (read-only, no install/scaffolding proposals).
-- (none) → after inspection, ask about installing/creating the missing items and guide.
+- `--help` — print Usage and stop.
+- `--check` — print the inspection table only (read-only).
+- (none) — inspect, then ask about installing or creating the missing items.
 
-## Step 1 — Inspection (read-only detection)
+## Step 1 — Inspection (read-only)
 
-Detect each item and report a ✓(present)/✗(missing)/➖(optional, fine without) table:
+Detect each item and print a table with present / missing / optional:
 
-| Dependency | Used for | Detection |
+| Item | Used for | Detection |
 | --- | --- | --- |
-| `playwright-cli` **or** playwright MCP | `/oh-my-joy:verify`·`/oh-my-joy:fix` visual verification (cli first, MCP fallback) | `command -v playwright-cli`; otherwise check session tools for `mcp__playwright__*` |
-| Official Figma Dev Mode MCP | `/oh-my-joy:spec` figma primer·`/oh-my-joy:sync` | `claude plugin list \| grep -i figma` |
-| Context7 | `/oh-my-joy:spec` latest Next.js docs (optional) | `claude plugin list \| grep -i context7` |
-| `oh-my-joy:frontend-fundamentals` | implementation-spec rubric (bundled) | always present when OMJ is installed |
-| `.omj/fe-context.md` | project acceptance/token/verification declarations | `test -f .omj/fe-context.md` (➖ — if missing, scaffolding proposed below) |
-| Token store | target of `/oh-my-joy:sync` (sync·push·extract) | detect in order: fe-context `tokensPath` → `shared/tokens/tokens.json` → **CSS-based systems** (Tailwind `@utility`/`@theme`·`:root --*`) (`references/fe-acceptance.md` is the SoT). `/oh-my-joy:spec` works without a file store — **only `/oh-my-joy:sync` requires one** (bootstrap via `extract`) |
-| Token-guard hooks (opt-in) | on-save hardcoding/Story warnings | existence of `.claude/hooks/check-design-tokens.mjs` in the consuming project |
-| OMJ HUD statusline (opt-in) | model/usage/context statusLine HUD (user-global, not per-project) | `grep omj-hud ~/.claude/settings.json` — ➖ when absent (fine without) |
+| `playwright-cli` or playwright MCP | `/oh-my-joy:verify` and `/oh-my-joy:fix` browser mode (cli first, MCP fallback) | `command -v playwright-cli`; otherwise session tools named `mcp__playwright__*` |
+| Official Figma Dev Mode MCP | `/oh-my-joy:spec` figma track, `/oh-my-joy:sync` | `claude plugin list \| grep -i figma` |
+| Context7 | current Next.js docs in `/oh-my-joy:spec` and `/oh-my-joy:review` (optional) | `claude plugin list \| grep -i context7` |
+| Agent Teams flag (opt-in) | the agent-team execution lane | `grep CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS ~/.claude/settings.json` — optional when absent |
+| OMJ answer style (opt-in) | natural, learner-friendly answers in your language | `grep '"outputStyle"' ~/.claude/settings.json .claude/settings.local.json` — optional when absent |
+| `oh-my-joy:frontend-fundamentals` | the spec and review rubric (bundled) | present whenever OMJ is installed |
+| `.omj/fe-context.md` | project acceptance, token, verification declarations | `test -f .omj/fe-context.md` — optional; scaffolding proposed below |
+| Token store | target of `/oh-my-joy:sync` | detect in the order of `references/fe-acceptance.md` (fe-context `tokensPath` → `shared/tokens/tokens.json` → CSS-based systems). Only `/oh-my-joy:sync` needs a file store; `/oh-my-joy:spec` works without one |
+| Token-guard hooks (opt-in) | on-save hardcoding and Story warnings | `.claude/hooks/check-design-tokens.mjs` exists in the project |
+| OMJ HUD statusline (opt-in) | model, usage, and context statusLine (user-global) | `grep omj-hud ~/.claude/settings.json` |
 
-> Figma requires more than plugin installation: **Dev Mode MCP must be enabled in the Figma desktop app** for the `/oh-my-joy:spec` figma primer·`/oh-my-joy:sync` to work, and **viewer-permission files are denied access**, so a Duplicate is needed — tell the user during inspection.
-> If the `claude` CLI is unavailable, skip detection and point to manual checks (`/mcp`, `/plugin`) (graceful).
+Figma needs more than the plugin: Dev Mode MCP has to be enabled in the Figma desktop app, and viewer-permission files deny access, so a Duplicate is needed — say so during inspection. If the `claude` CLI is unavailable, skip detection and point to `/mcp` and `/plugin` for manual checks.
 
-## Step 2 — Install/scaffolding guide (missing items; only when not `--check`)
+## Step 2 — Install and scaffold (missing items, not with `--check`)
 
-Gather the missing items into **one `AskUserQuestion` (multiSelect)** asking "pick the items to install/create now" — bundle dependencies (Figma MCP·Context7·capture backend) and scaffolding (fe-context·DESIGN.md·hooks) into at most 2 questions, and **never repeat per-item prompts** (prompt-fatigue prevention, PRINCIPLES ⑪). Execute only the selected items via the procedures below; for unselected items, print the manual commands only:
+Gather the missing items into one `AskUserQuestion` (multiSelect) — "pick the items to install or create now" — bundling dependencies and scaffolding into at most two questions and never repeating per-item prompts. Execute only the selected items; for the rest, print the manual commands.
 
-- **Figma MCP missing** → `claude plugin install figma@claude-plugins-official` + note "Dev Mode MCP must be enabled in the Figma desktop app".
-- **Context7 missing** → `claude plugin install context7-plugin@context7-marketplace`.
-- **No capture backend** → guide playwright-cli installation (`npm i -g playwright-cli`) or enabling the playwright MCP (either one suffices — verify supports the fallback).
-- **`.omj/fe-context.md` missing** → **first detect existing rule documents**: `AGENTS.md`, `.claude/rules/*.md`, `.github/copilot-instructions.md`, the FE section of CLAUDE.md. **If any exist, prefer reference-adoption over authoring new content** — generate fe-context that merely points at those documents via a `contextDocs:` list (no content duplication — duplicate SoT is a drift source, and in measurements the information fe-context targets already existed in such files). If none exist, scan the project as before (i18n message directories, token-system shape, theme classes, Storybook config) and `Write` a draft. **Rule (principle ⑩)**: fill `tokensPath` only when a file-based token store is actually detected, leave `acceptance:` an **empty list**, and record detected candidates **as comments only** — e.g. `# detected: src/messages/{ko,en}.json — the project decides whether simultaneous locale updates become an axis`. The plugin never auto-declares axes/rules. Also present the `decisions:` field (one line per recurrence-prevention decision/ADR) as an empty scaffold + comments — what actually improves review accuracy is the list of past decisions more than the token path. Format canon: `references/fe-acceptance.md`.
-- **`.gitignore` tier guidance** → along with fe-context scaffolding, guide adding `.omj/baselines/` (post-auth screenshots — possible PII) and `.omj/goals/` (operational state of `/oh-my-joy:goal-loop` — accumulating command summaries/paths) to the consuming project's `.gitignore`. **Warn against ignoring `.omj/` wholesale** — that would also lose the committed `.omj/fe-context.md` (the project declaration). Specify only the two subdirectories.
-- **(optional) `docs/DESIGN.md` draft** → propose only after fe-context creation was agreed: generate an **empty scaffold + comment guide** for brand personality, color/spacing usage context, component composition rules, and Figma layer naming conventions (the project fills the content). On creation, link it in fe-context as `designDocPath: docs/DESIGN.md`.
-- **Token-guard hooks missing** → build the proposal **detection-based**: `check-design-tokens.mjs` is the default proposal; include `check-story-exists.mjs` **only when Storybook signals are detected** (a `.storybook/` directory, `@storybook/*` dependencies, `*.stories.*` files) — without signals, drop it from the list and only mention its existence (the hook itself is a no-op without fe-context declarations, a double safety, but proposing it to a project without the practice is noise in itself). On consent:
-  1. Copy the selected scripts from the plugin hook canon `${CLAUDE_PLUGIN_ROOT}/templates/hooks/` (repo-relative `templates/hooks/`) into the consuming project's **`.claude/hooks/`** — in the shape `mkdir -p .claude/hooks && cp "${CLAUDE_PLUGIN_ROOT}/templates/hooks/"check-design-tokens.mjs .claude/hooks/` (selected scripts only; ensure the directory first so the copy cannot fail). The source must be plugin-root-relative — the consuming project's cwd has no `templates/`. Why **copy** instead of reference-registration: the consuming project's settings.json cannot resolve `${CLAUDE_PLUGIN_ROOT}`, and plugin-cache absolute paths break on every version update.
-  2. Register both scripts in the consuming project's `.claude/settings.json` under `hooks.PostToolUse` with matcher `Edit|Write|MultiEdit|NotebookEdit`, using relative paths (`node .claude/hooks/check-design-tokens.mjs`) — the same set as the scripts' internal `MUTATING_TOOLS` four (a narrower matcher lets MultiEdit saves silently bypass the hook).
-  3. The hooks are no-ops without fe-context declarations (`tokensPath`/`storybook: true`), so recommend installing them together with fe-context scaffolding.
-  4. On rerun, if the canon in `${CLAUDE_PLUGIN_ROOT}/templates/hooks/` differs from the `.claude/hooks/` copies, announce "hook script update available" (overwrite only on consent).
-- **OMJ HUD statusline missing (opt-in)** → on consent:
-  1. Copy the HUD from the plugin canon into the user config dir — `mkdir -p ~/.claude/omj-hud && cp -R "${CLAUDE_PLUGIN_ROOT}/hud/". ~/.claude/omj-hud/`. Same rationale as the hook copies: settings.json cannot resolve `${CLAUDE_PLUGIN_ROOT}`, and plugin-cache absolute paths break on every version update.
-  2. Set `statusLine` in `~/.claude/settings.json` (Edit; **warn before overwriting an existing custom statusLine** and proceed only on consent):
-     `{"type": "command", "command": "sh ~/.claude/omj-hud/omj-hud-cache.sh ~/.claude/omj-hud/omj-hud.mjs"}`
-  3. Smoke-check: pipe any small JSON (e.g. `{"session_id":"setup-check"}`) into `sh ~/.claude/omj-hud/omj-hud-cache.sh ~/.claude/omj-hud/omj-hud.mjs` and confirm a rendered line comes back.
-  4. On rerun, if `${CLAUDE_PLUGIN_ROOT}/hud/` differs from the `~/.claude/omj-hud/` copy (`diff -r`), announce "HUD update available" (overwrite only on consent). Attribution and known limitations: `hud/README.md`, `NOTICE.md` (vendored code, MIT).
+- Figma MCP → `claude plugin install figma@claude-plugins-official`, plus "enable Dev Mode MCP in the Figma desktop app".
+- Context7 → `claude plugin install context7-plugin@context7-marketplace`.
+- No capture backend → `npm i -g playwright-cli`, or enable the playwright MCP (either one suffices).
+- Agent Teams flag → on consent, `Edit` `~/.claude/settings.json` to add `"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"` under `env`, and say it applies from the next session. The feature is experimental; without it the agent-team lane degrades to subagents and inline, so this is a convenience, not a requirement.
+- OMJ answer style → on consent, `Edit` `~/.claude/settings.json` to set `"outputStyle": "oh-my-joy"` (the name the `/config` picker shows for this plugin's style; if the picker shows a namespaced name, use that). Warn before overwriting an existing custom style, and say it applies from the next session or after `/clear`. When declined, print how to pick it in `/config`.
+- `.omj/fe-context.md` → first look for existing rule documents: `AGENTS.md`, `.claude/rules/*.md`, `.github/copilot-instructions.md`, the FE section of CLAUDE.md. If any exist, generate fe-context that points at them via `contextDocs:` rather than duplicating their content — a second copy is a drift source. Otherwise scan the project (message directories, token-system shape, theme classes, Storybook config, `package.json` scripts) and `Write` a draft. Fill `tokensPath` only when a file-based store is detected; leave `acceptance:` an empty list; record detected candidates as comments only (`# detected: src/messages/{ko,en}.json — the project decides whether simultaneous locale updates become an axis`); scaffold `verifyCommands:` the same way, with the detected `typecheck`/`lint`/`test` scripts as comments; present `decisions:` as an empty scaffold with a comment. The plugin declares no axis on a project's behalf. Format canon: `references/fe-acceptance.md`.
+- `.gitignore` → alongside fe-context, guide adding `.omj/baselines/` (post-auth screenshots may contain personal data). Warn against ignoring `.omj/` wholesale, which would drop the committed fe-context.
+- `docs/DESIGN.md` (optional) → propose only after fe-context was agreed: an empty scaffold with comment guidance for brand personality, color and spacing usage, composition rules, and Figma layer naming; link it in fe-context as `designDocPath:`.
+- Token-guard hooks → propose `check-design-tokens.mjs` by default and `check-story-exists.mjs` only when Storybook signals exist (a `.storybook/` directory, `@storybook/*` dependencies, `*.stories.*` files) — the hook no-ops without a declaration, but proposing it to a project without the practice is noise. On consent:
+  1. Copy the selected scripts from the plugin canon into the project's `.claude/hooks/`: `mkdir -p .claude/hooks && cp "${CLAUDE_PLUGIN_ROOT}/templates/hooks/"check-design-tokens.mjs .claude/hooks/` (repo-relative `templates/hooks/`). The source is plugin-root-relative because the project has no `templates/`; the destination is a copy because the project's settings.json cannot resolve `${CLAUDE_PLUGIN_ROOT}` and plugin-cache absolute paths break on every update.
+  2. Register the scripts in the project's `.claude/settings.json` under `hooks.PostToolUse` with matcher `Edit|Write|MultiEdit|NotebookEdit` and relative commands (`node .claude/hooks/check-design-tokens.mjs`) — the same four tools the scripts treat as mutating, so a narrower matcher cannot let a save slip past.
+  3. The hooks no-op without fe-context declarations (`tokensPath`, `storybook: true`), so recommend installing them together with fe-context.
+  4. On rerun, if `${CLAUDE_PLUGIN_ROOT}/templates/hooks/` differs from the `.claude/hooks/` copies (`diff`), announce "hook script update available" and overwrite only on consent.
+- OMJ HUD statusline → on consent:
+  1. `mkdir -p ~/.claude/omj-hud && cp -R "${CLAUDE_PLUGIN_ROOT}/hud/". ~/.claude/omj-hud/` (a copy, for the same reasons as the hooks).
+  2. `Edit` `~/.claude/settings.json` to set `statusLine` to `{"type": "command", "command": "sh ~/.claude/omj-hud/omj-hud-cache.sh ~/.claude/omj-hud/omj-hud.mjs"}`; warn before overwriting an existing custom statusLine.
+  3. Smoke-check by piping `{"session_id":"setup-check"}` into `sh ~/.claude/omj-hud/omj-hud-cache.sh ~/.claude/omj-hud/omj-hud.mjs` and confirming a rendered line.
+  4. On rerun, if `${CLAUDE_PLUGIN_ROOT}/hud/` differs from the copy (`diff -r`), announce "HUD update available" and overwrite only on consent. Attribution and limitations: `hud/README.md`, `NOTICE.md`.
 
-> Plugin installs load commands/tools **from the next session** — after installing, announce "takes effect in a new session". Hook registration also fires from the next session.
+Plugin installs and hook registrations take effect from the next session — say so after installing.
 
 ## Step 3 — Wrap-up
 
-- Inspection summary (✓/✗) and "now start with `/oh-my-joy:spec <figma-url|task>`".
-- (optional) Record `{"setupCompleted": "<today>"}` in `~/.claude/.omj-setup.json` → reruns fast-path with "already inspected; inspect again?".
-- **(optional) GitHub star suggestion** — if `gh auth status` succeeds, check whether already starred via `gh api user/starred/S-jooyoung/oh-my-joy`. **If already starred (exit 0), ask nothing and move on quietly.** Only when unstarred, ask once via `AskUserQuestion` "If OMJ helps you, would you support it with a GitHub star?" (star it / no thanks / later), and run `gh api user/starred/S-jooyoung/oh-my-joy -X PUT` only on "star it". **Move on quietly even if the API fails — a star never blocks setup completion in any case.** If gh is missing or unauthenticated, print the single line `https://github.com/S-jooyoung/oh-my-joy` without prompting.
+- Print the inspection summary and "start with `/oh-my-joy:spec <figma-url|task>`; when the goal is still fuzzy, `/oh-my-joy:deep-interview` first".
+- Optionally record `{"setupCompleted": "<today>"}` in `~/.claude/.omj-setup.json`, so reruns can fast-path with "already inspected; inspect again?".
+- GitHub star (optional): if `gh auth status` succeeds, check `gh api user/starred/S-jooyoung/oh-my-joy`. Already starred (exit 0) → say nothing. Otherwise ask once via `AskUserQuestion` ("If OMJ helps you, would you support it with a GitHub star?" — star it / no thanks / later) and run `gh api user/starred/S-jooyoung/oh-my-joy -X PUT` only on "star it". An API failure is ignored; a star never blocks setup. With `gh` missing or unauthenticated, print `https://github.com/S-jooyoung/oh-my-joy` without asking.
 
 ## Usage
 
+<example>
 ```
 /oh-my-joy:setup            dependency check + install/scaffolding guide for anything missing
 /oh-my-joy:setup --check    inspection table only (read-only)
 /oh-my-joy:setup --help     this help
 ```
+</example>

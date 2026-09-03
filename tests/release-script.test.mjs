@@ -1,5 +1,5 @@
 /**
- * Behavioral proof for release.mjs — like goal-state.test.mjs, verified through a
+ * Behavioral proof for release.mjs — verified through a
  * real child process (argv/exit code/stdout·stderr) rather than function imports.
  *
  * The script's contract is threefold:

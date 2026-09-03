@@ -86,15 +86,24 @@ describe('Language purity of English artifacts', () => {
   // history is preserved in Korean; [Unreleased] entries may also quote legacy
   // Korean literals when documenting their replacement).
   const KOREAN_EXEMPT = new Set(['README.ko.md', 'CHANGELOG.md']);
+  // Eval cases are inputs under test: a case that checks the Korean answer style
+  // has to prompt in Korean, so the whole evals/ tree is fixture territory.
+  const KOREAN_EXEMPT_PREFIXES = ['evals/'];
   // The language-switcher literal in README.md.
   const ALLOWED = ['한국어'];
   // Matching only precomposed Hangul would let jamo (ㅋㅋ) and CJK ideographs slip through.
   const CJK = /[가-힣ㄱ-ㅎㅏ-ㅣ㐀-鿿]/;
   // Frontmatter descriptions may keep Korean trigger examples for auto-delegation
   // matching (CLAUDE.md command rules) — on these surfaces only the body is checked.
-  const FRONTMATTER_EXEMPT_PREFIXES = ['commands/', 'agents/', 'skills/'];
+  const FRONTMATTER_EXEMPT_PREFIXES = ['commands/', 'agents/', 'skills/', 'output-styles/'];
+  // The answer style teaches natural Korean by example, so its <example> blocks
+  // are the target language itself; the instructions around them stay English.
+  const EXAMPLE_EXEMPT_PREFIXES = ['output-styles/'];
+  const stripExamples = (source) => source.replace(/<examples?>[\s\S]*?<\/examples?>/g, '');
 
-  const targets = listMarkdownFiles().filter((file) => !KOREAN_EXEMPT.has(file));
+  const targets = listMarkdownFiles().filter(
+    (file) => !KOREAN_EXEMPT.has(file) && !KOREAN_EXEMPT_PREFIXES.some((prefix) => file.startsWith(prefix)),
+  );
 
   it('enumeration covers a meaningful number of files — never silently empty', () => {
     // Guards the denylist itself: if file enumeration regressed to an empty or
@@ -107,6 +116,9 @@ describe('Language purity of English artifacts', () => {
       let source = readRepoFile(file);
       if (FRONTMATTER_EXEMPT_PREFIXES.some((prefix) => file.startsWith(prefix))) {
         source = source.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
+      }
+      if (EXAMPLE_EXEMPT_PREFIXES.some((prefix) => file.startsWith(prefix))) {
+        source = stripExamples(source);
       }
       const offenders = source
         .split('\n')
@@ -343,6 +355,22 @@ describe('Command list consistency', () => {
           changelog.includes(token),
           `${label} README names legacy command "${token}" that CHANGELOG history never recorded`,
         );
+      }
+    }
+  });
+
+  it('retired command names stay in both migration tables and in CHANGELOG history', () => {
+    // v0.8.0 renamed ff-review → review and retired ralplan and goal-loop. The
+    // rename-grace rule (CLAUDE.md) keeps the old names visible for at least one
+    // minor release, written slashless so the exists-check above stays clean.
+    const RETIRED = ['ff-review', 'ralplan', 'goal-loop'];
+    for (const [label, source] of [['EN', readmeEn], ['KO', readmeKo]]) {
+      for (const name of RETIRED) {
+        assert.ok(
+          new RegExp(`\`${name}\``).test(source),
+          `${label} README migration table lost the retired name "${name}"`,
+        );
+        assert.ok(changelog.includes(name), `CHANGELOG history never recorded "${name}"`);
       }
     }
   });

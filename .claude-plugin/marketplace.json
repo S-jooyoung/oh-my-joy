@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "oh-my-joy",
-      "description": "Frontend workflow plugin that reads Figma designs and authors an FF- and vercel-informed implementation spec as the Plan you approve; implementation, visual verification, and token sync each run on your invocation — plus deep-interview, durable goal-loop, and consensus-review commands",
+      "description": "Frontend workflow plugin that reads Figma designs and authors an FF- and vercel-informed implementation spec as the Plan you approve; implementation, visual verification, and token sync each run on your invocation",
       "version": "0.7.1",
       "author": {
         "name": "Jooyoung Shin",

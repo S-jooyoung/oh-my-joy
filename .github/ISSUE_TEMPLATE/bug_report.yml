@@ -29,13 +29,14 @@ body:
         - /oh-my-joy:fix
         - /oh-my-joy:sync
         - /oh-my-joy:setup
-        - /oh-my-joy:ff-review
+        - /oh-my-joy:review
+        - /oh-my-joy:ship
         - /oh-my-joy:deep-interview
-        - /oh-my-joy:goal-loop
-        - /oh-my-joy:ralplan
-        - An agent (figma-implementer / design-qa / plan-critic)
+        - The oh-my-joy output style
+        - An agent (figma-implementer / design-qa)
         - A hook (check-design-tokens / check-story-exists)
-        - scripts/ (goal-state, release, validate-plugin)
+        - scripts/ (release, validate-plugin, eval-runner)
+        - evals/ (eval cases)
         - Docs / README
         - Something else
     validations:

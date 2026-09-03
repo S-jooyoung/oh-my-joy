@@ -11,6 +11,8 @@ npm test                 # no install step — Node 20+ is all you need
 npm run validate-plugin  # manifest + command/agent/skill frontmatter conformance
 ```
 
+`npm run eval` runs the behavioral eval cases (native `claude plugin eval` when enabled, otherwise the `claude -p` fallback runner); it costs tokens and needs a logged-in `claude`, so it is not part of `npm test`.
+
 `validate-plugin` runs two layers: a built-in schema check (always) and `claude plugin validate --strict` (when the Claude Code CLI is on your PATH). The second layer is the authority — it tracks the spec as the runtime implements it — so run it locally before opening a PR even though CI can only run the first. It accepts exactly one known warning, documented at the top of `scripts/validate-plugin.mjs`; any other warning fails the run.
 
 To try it as a plugin in Claude Code:
@@ -37,6 +39,7 @@ When you add or change a feature, put all three of the following in **the same c
 1. **README** — `README.md` (EN) and `README.ko.md` (KO) **at the same time**. The two files keep the same structure and the same canonical facts.
 2. **CHANGELOG** — 1 change = 1 entry.
 3. **`docs/PRINCIPLES.md`** — only when a principle, design decision, or mental model changes. Keep its opening decision table in sync with the principle sections in the same commit.
+4. **`evals/`** — when a command body's behavior changes, add or update the eval case that observes it, and paste the before/after score into the PR's test plan. `docs/EVALS.md` explains the loop.
 
 `tests/docs-consistency.test.mjs` checks the mechanically verifiable part of this discipline (README parity, link reachability, release links, command-list consistency).
 
@@ -48,10 +51,12 @@ When you add or change a feature, put all three of the following in **the same c
 
 ## Adding a new command
 
-- File: `commands/<name>.md`. Naming has one axis — every command uses an unprefixed kebab-case basename (`spec`, `verify`, `ff-review`, …); an `omj`-prefixed basename is blocked by tests (the plugin-name namespace already brands the command, so an in-name prefix would double it). In docs, commands are always written as the canonical `/oh-my-joy:<name>` invocation (bare notation is blocked by tests).
+- File: `commands/<name>.md`. Naming has one axis — every command uses an unprefixed kebab-case basename (`spec`, `verify`, `review`, …); an `omj`-prefixed basename is blocked by tests (the plugin-name namespace already brands the command, so an in-name prefix would double it). In docs, commands are always written as the canonical `/oh-my-joy:<name>` invocation (bare notation is blocked by tests).
 - frontmatter: `description`, `argument-hint`, `allowed-tools` (**least privilege** — if read-only, do not include `Write`/`Edit`/`Bash`).
 - The SoT for behavior is that file's body. Other docs only summarize/link and never redefine thresholds or rules.
 - Add it to the README (EN/KO) command tables — tests fail if it is missing.
+- Write the body to the prompting guide: what to do and why, no shouted imperatives, examples inside `<example>` tags. `tests/prompt-style.test.mjs` checks the mechanical part; `tests/token-budget.test.mjs` fails when the always-on description cost outgrows the budget, so trim elsewhere or raise the budget in a reviewed commit.
+- Add an eval case under `evals/<name>-…/` that observes the body's promise (`docs/EVALS.md`).
 
 ## Releases
 

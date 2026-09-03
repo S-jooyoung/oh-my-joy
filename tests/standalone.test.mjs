@@ -85,9 +85,9 @@ describe('standalone: no external-runtime coupling remains', () => {
     );
   });
 
-  it('the routing SoT defines all four lanes', () => {
+  it('the routing SoT defines all three lanes', () => {
     const handoff = readRepoFile('docs', 'EXECUTION-HANDOFF.md');
-    for (const lane of ['inline', '`/goal`', 'agent team', '/oh-my-joy:goal-loop']) {
+    for (const lane of ['inline', '`/goal`', 'agent team']) {
       assert.ok(
         handoff.includes(lane),
         `docs/EXECUTION-HANDOFF.md must define the "${lane}" lane — it is the single routing SoT`,
@@ -95,41 +95,20 @@ describe('standalone: no external-runtime coupling remains', () => {
     }
   });
 
-  it('the routing SoT names the consensus pass', () => {
-    assert.match(
-      readRepoFile('docs', 'EXECUTION-HANDOFF.md'),
-      /\/oh-my-joy:ralplan/,
-      'EXECUTION-HANDOFF.md must name /oh-my-joy:ralplan as the pre-approval consensus pass',
-    );
-  });
-});
-
-describe('standalone: the durable lane is self-hosted', () => {
-  it('goal-loop pre-approves only the bundled validator, never a runtime CLI', () => {
-    const body = readRepoFile('commands', 'goal-loop.md');
-    const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(body);
-    assert.ok(frontmatter, 'goal-loop.md must have frontmatter');
-
-    assert.doesNotMatch(
-      frontmatter[1],
-      /\bomx\b|\bomc\b/i,
-      'goal-loop must not pre-approve an external runtime CLI — its durable state is owned by ' +
-        'the bundled scripts/goal-state.mjs validator.',
-    );
-    assert.match(
-      frontmatter[1],
-      /goal-state\.mjs/,
-      'goal-loop must pre-approve the bundled goal-state.mjs validator',
-    );
+  it('the agent-team lane runs on native Agent Teams and names its fallback chain', () => {
+    // The lane is native, not an OMJ runtime: the enable flag and the degradation
+    // order are the two facts a user needs, and both must live in the SoT.
+    const handoff = readRepoFile('docs', 'EXECUTION-HANDOFF.md');
+    assert.match(handoff, /CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS/, 'the lane must name the Agent Teams enable flag');
+    assert.match(handoff, /subagents?.*inline/is, 'the lane must state the fallback order (agent team → subagents → inline)');
   });
 
-  it('the validator is committed and executable as a plain Node script', () => {
-    const source = readRepoFile('scripts', 'goal-state.mjs');
-    assert.match(source, /^#!\/usr\/bin\/env node/, 'goal-state.mjs must carry a node shebang');
-    assert.match(
-      source,
-      /SCHEMA_VERSION/,
-      'goal-state.mjs must own a schema version — the state contract is OMJ-local, not borrowed',
-    );
+  it('the routing SoT owns the completion procedure', () => {
+    // After approval the session chains implement → review → verify itself and
+    // only ship stays manual; spec and deep-interview link here instead of
+    // restating the sequence.
+    const handoff = readRepoFile('docs', 'EXECUTION-HANDOFF.md');
+    assert.match(handoff, /## Completion procedure/, 'EXECUTION-HANDOFF.md must carry the completion-procedure canon');
+    assert.match(handoff, /\/oh-my-joy:ship/, 'the completion procedure must name ship as the explicit last step');
   });
 });

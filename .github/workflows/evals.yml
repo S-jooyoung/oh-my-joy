@@ -1,0 +1,50 @@
+# Behavioral evals — on demand and on release, never per PR.
+#
+# The cases under evals/ drive real Claude sessions, so a run costs tokens and
+# needs an API key. CI keeps the free gates (npm test, validate-plugin) on every
+# PR and reserves this workflow for a manual trigger and for published releases,
+# where the pass rate is attached to the release as an artifact.
+name: Evals
+
+on:
+  workflow_dispatch:
+    inputs:
+      case:
+        description: 'Case glob (empty = all)'
+        required: false
+        default: ''
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Install Claude Code CLI
+        run: npm i -g @anthropic-ai/claude-code
+
+      - name: Run evals
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          ARGS=(--threshold 0.8 --max-cost-usd 5 --json evals/results/latest.json)
+          if [ -n "${{ github.event.inputs.case }}" ]; then ARGS+=(--case "${{ github.event.inputs.case }}"); fi
+          npm run eval -- "${ARGS[@]}"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: evals/results/
+          if-no-files-found: ignore
