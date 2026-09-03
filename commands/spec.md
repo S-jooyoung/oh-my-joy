@@ -1,102 +1,121 @@
 ---
-description: Entry point for FE work and Figma design implementation (design to code) — paste a figma.com link or ask "implement this Figma design" ("이 디자인/화면/컴포넌트 구현해줘") and this command comes first. Collects the spec, authors an FF/vercel-applied implementation spec (Plan), and stops (implementation happens after approval)
-argument-hint: "[figma-url … or task description] [route]"
+description: Entry point for concrete work — a Figma link ("implement this design/screen/component", "이 디자인/화면/컴포넌트 구현해줘"), a frontend task, or any general coding task. Reads the design or the code, authors the implementation spec as the Plan you approve, records the execution lane and the completion procedure, then stops
+argument-hint: "[figma-url … | task description] [route]"
 allowed-tools: Read, Grep, Glob, Skill, AskUserQuestion, mcp__plugin_figma_figma__get_design_context, mcp__plugin_figma_figma__get_screenshot, mcp__plugin_figma_figma__get_variable_defs, mcp__plugin_figma_figma__get_metadata, mcp__figma__get_design_context, mcp__figma__get_screenshot, mcp__figma__get_variable_defs, mcp__figma__get_metadata, mcp__plugin_context7-plugin_context7__*, mcp__context7__*
 ---
 
-# /oh-my-joy:spec — Frontend Plan primer
+# /oh-my-joy:spec — Plan primer
 
-**Collects the specification** for frontend work, authors an **implementation spec (= native Plan)**, then **stops**. Actual code implementation is handled by the normal execution that follows the user approving that Plan (ExitPlanMode).
+Turn a concrete request into an implementation spec that is the native Plan the user approves, then stop. Implementation starts only after approval, on the execution lane the spec records.
 
-> ⚠️ **This command never writes code directly (read-only).** It does not Write/Edit files or run builds/verification. allowed-tools is limited to read tools (`Read`/`Grep`/`Glob`) + **figma read-only tools only** (`get_design_context`/`get_screenshot`/`get_variable_defs`/`get_metadata` — write tools like `use_figma` excluded) + Context7 + `Skill` (to load the frontend-fundamentals rubric) + at most one `AskUserQuestion` for execution-lane selection right before approval. A `/oh-my-joy:spec` call therefore has no source-code side effects, and the resulting spec is exactly the Plan the user approves — it does not conflict with an "almost always Plan mode" habit.
+This command is read-only on purpose. Its tools are `Read`/`Grep`/`Glob`, the read-only Figma tools, Context7, `Skill`, and one `AskUserQuestion` for the lane choice. A spec-writing step that could also write code would quietly bypass the approval gate, and in Plan mode (where most users run it) writes are blocked anyway. Keeping the two halves separate is what makes the spec trustworthy as a plan.
 
-## Phase 0 — Mode dispatch (signal-presence based, in order)
+## Phase 0 — Classify the input
 
-Process `$ARGUMENTS` in the following order (no LLM guessing — each track is **decided independently by the mere presence of its signal**):
+Process `$ARGUMENTS` in this order; each track is decided by the presence of its own signal, not by guessing.
 
-1. **First**, if the arguments end with a token starting with `/` (e.g. `/settings/profile`), **peel it off and record it as the verification route** only (this command does not run verification). If there is no route token, infer the route where the target component mounts during Phase 1 code exploration and record it in the spec with the label `Verification route (inferred): /xxx` (the label is mandatory so a wrong inference stays visible to the user; if inference is impossible, leave it blank — no forced guessing).
-2. If the remaining arguments contain a `figma.com` URL → activate the **figma primer** track. If a non-URL **textual task item** is also present → **run dev-primer collection in parallel** (the two tracks are not exclusive but **composable** — each decided independently by its signal). If there are more than 5 Figma nodes, propose splitting the work to prevent spec bloat and context waste.
-3. If the remaining arguments are text only (no URL) → **dev primer**.
-4. If the remaining arguments are **empty** (route only, or bare `/oh-my-joy:spec`) → print the "Usage" section below and stop. **Never author an empty spec.**
+1. If the arguments end with a token starting with `/` (for example `/settings/profile`), peel it off as the verification route. This command runs no verification; the route is recorded for `/oh-my-joy:verify`. Without a route token, infer the route where the target mounts during Phase 1 and record it as `Verification route (inferred): /xxx`, so a wrong inference stays visible. If nothing can be inferred, leave it blank.
+2. A `figma.com` URL activates the figma track. A textual task alongside it runs the dev track in parallel; the two compose.
+3. Text without a URL is either a frontend task or a general task. Treat it as frontend when it names UI components, hooks, pages, routes, styles, tokens, or frontend file paths; otherwise it is general (backend, scripts, tooling, this plugin itself). When unsure, look at the files it names.
+4. Empty arguments (route only, or bare `/oh-my-joy:spec`) print the Usage section and stop. An empty spec helps nobody.
+5. Text so vague that no verifiable goal or target can be read from it (no nameable outcome, no file, no acceptance you could check) gets one line — "narrow this first with `/oh-my-joy:deep-interview`" — and stops. This mirrors the interview's own gate, which sends already-concrete input back here.
 
-- **Pasted-image interpretation**: if a screenshot was pasted into the conversation, interpret in one line whether it is *evidence of the current state* or *the expected design*, and record that in the spec Context (the canonical interpretation rules live in `fix.md` step 1).
-- Boilerplate that Figma "Copy as prompt" attaches ("Implement this 1 design from Figma" and the like) is not a task item — ignore it.
+Two small rules for pasted material: a pasted screenshot is interpreted in one line as either evidence of the current state or the expected design, and that reading goes into the spec's Context (the interpretation rules are canonical in `fix.md`). Boilerplate that Figma's "Copy as prompt" attaches ("Implement this 1 design from Figma") is not a task item.
 
-Verification (visual comparison) is owned by the separate command `/oh-my-joy:verify`, not this one. Words like `verify`/`review` inside a task description are part of the dev task description, not mode keywords.
+## Phase 1 — Gather (read-only)
 
-## Phase 1 — Spec collection (read-only)
+### Figma track
 
-**figma primer**: read the design via the official Figma (Dev Mode) MCP (read-only).
-- `mcp__plugin_figma_figma__get_design_context` — structure/layout spec for code
-- `mcp__plugin_figma_figma__get_screenshot` — reference image (the later `/oh-my-joy:verify` comparison baseline). Images in session context vanish when the session ends and asset URLs expire after ~7 days, so **record the node ID, asset URL, and captured-at timestamp in the spec** — after approval, `/oh-my-joy:verify` persists the PNG to `.omj/baselines/` from that URL (downloading belongs to the active ops verify/fix; the primer only records).
-- `mcp__plugin_figma_figma__get_variable_defs` — design tokens/variables
-- `mcp__plugin_figma_figma__get_metadata` — node metadata (optional)
-- If the Figma MCP is unavailable (not installed, desktop not connected), **do not treat it as an error** — announce "Figma not connected — proceed without the URL contents or take a manual spec" (graceful). Viewer-permission files are denied variable/node access — advise "Duplicate the file and retry with the copy's URL".
-- **Role boundary with the official figma skill**: the official figma plugin's `figma-design-to-code` skill mandates loading itself before any `get_design_context` call, but `/oh-my-joy:spec` priming **knowingly does not follow it — a deliberate decision**. That skill presumes implementation, whereas priming is spec-writing reads; loading implementation-steering instructions would erode the read-only plan-gate identity (PRINCIPLES ①③). Upstream instructions are followed by the **post-approval implementation stage** (figma-implementer / inline executor). Even in sessions where both skills are loaded, the division of labor stays the same: priming=OMJ, implementation=upstream compliance (no content duplication). This section does **not arbitrate skill-triggering competition** — that layer belongs to description triggers.
+Read the design as data through the official Dev Mode MCP:
 
-**dev primer**: read the target code.
-- Collect task-relevant components/hooks/styles/types with `Glob`·`Grep`·`Read` to understand the current structure and reusable patterns.
+- `mcp__plugin_figma_figma__get_design_context` — layout and structure for code.
+- `mcp__plugin_figma_figma__get_screenshot` — the reference image that `/oh-my-joy:verify` compares against later. Images in session context vanish with the session and asset URLs expire after about 7 days, so record the node ID, the asset URL, and the captured-at time in the spec; `/oh-my-joy:verify` persists the PNG to `.omj/baselines/` after approval.
+- `mcp__plugin_figma_figma__get_variable_defs` — design tokens.
+- `mcp__plugin_figma_figma__get_metadata` — node structure.
 
-**Common (optional)**: if the change touches Next.js version-sensitive topics, follow the **routing rules of the `frontend-fundamentals` skill** and query the latest `/vercel/next.js` docs via Context7 (`resolve-library-id` → `query-docs`). The SoT for the version-sensitive topic list and vercel/Context7 routing is the FF skill; do not restate it here — delegate. Skip this step if Context7 is absent (graceful). If the repo root has `.omj/fe-context.md` declaring `designDocPath`·`contextDocs`, also `Read` those documents and reflect brand/composition/project rules in the spec (use the `decisions:` list as a recurrence-prevention check). Conversely, if there is **no setup trace at all** (no `.omj/` in the repo + no `~/.claude/.omj-setup.json` marker), append one line at the end of the spec: "If this is your first run, running `/oh-my-joy:setup` once is recommended (fe-context, hooks, dependency check)" — suggest only, never execute.
+Section walk. One `get_design_context` call over a large frame returns a flattened, truncated picture, and the detail is exactly what a spec needs. So start with `get_metadata` on the root node and count its top-level child frames or sections:
 
-## Phase 2 — Author the implementation spec, then STOP
+- Fewer than 3 children: read the frame in one pass as before.
+- 3 to 8 children: section mode. Call `get_design_context` per section node ID in sequence and author a per-section spec. Take one root screenshot, and section screenshots only where a section's visual detail matters for verification. Assign each section to target files that no other section touches — the agent-team lane relies on that ownership being disjoint.
+- More than 8 children: propose splitting the frame into smaller links and stop; a spec that large will not survive review.
 
-Write the **implementation spec** from the collected material. Structure the spec with the **uSpec section taxonomy** below and evaluate every section against the **frontend-fundamentals 4 criteria (readability, predictability, cohesion, coupling) + accessibility**. Load the rubric by **invoking the frontend-fundamentals skill** via `Skill` and using its `references/`. For the figma primer, apply the **Figma fidelity rules** (`references/figma-fidelity.md` — keep original text, no invented variants, no fixed px, no hardcoded tokens) across every spec section:
+If the Figma MCP is unavailable (plugin missing, desktop not connected), say "Figma not connected — proceeding without the link contents; paste the spec manually if you have one" and continue. Viewer-permission files deny node and variable access; advise duplicating the file and retrying with the copy's URL.
 
-1. **Anatomy** — decompose the UI to build (which components/subcomponents it consists of).
-2. **Structure** — layout, spacing, dimensions, responsive breakpoints (mobile first; especially sensitive for services where mobile sharing matters). Component width uses `w-full` + parent padding control instead of fixed px (`figma-fidelity.md`).
-3. **Color / Tokens** — map colors/typography/radius/shadow to **semantic tokens** (no raw hex, no direct Primitive use). Find the token system via the **detection order in `references/fe-acceptance.md`** (① fe-context `tokensPath` → ② conventional tokens.json paths → ③ Tailwind config/`@utility` CSS → ④ CSS variables) — **the absence of tokens.json is no license for raw values**: map to the semantic classes/variables of whatever system was detected.
-4. **Props / Variants** — component API (props interface, variant axes). Predictability: name = behavior. Coupling: avoid props drilling. **Never invent variants that do not exist in Figma** (`figma-fidelity.md`).
-5. **A11y** — alt/labels/semantic tags/keyboard/touch targets (VoiceOver·ARIA).
-6. **Motion** — if there is animation, timeline/easing in `motion` (Motion One) terms.
+Role boundary: the official figma plugin's `figma-design-to-code` skill asks to be loaded before any `get_design_context` call. This command does not load it while priming, because that skill steers implementation and priming is spec-writing; the implementation stage (`figma-implementer` or the inline executor) follows it. This is a decision, not an omission.
 
-**Implementation acceptance (project-declaration based)**: if the repo root has **`.omj/fe-context.md`**, include the **project-specific acceptance axes** declared there in the spec's acceptance criteria. If absent, apply only the universal FF criteria (graceful). **OMJ does not force any particular axis (i18n, modes, etc.)** — the project decides what to check (general-purpose, open-source friendly). Mechanism details: `frontend-fundamentals` `references/fe-acceptance.md`. Universal axes such as responsiveness/tokens/a11y are already covered by the Structure/Color·Tokens/A11y sections above.
+### Dev track (frontend text)
 
-The spec must state the **target file paths**, **existing functions/components to reuse**, **FF/vercel principles to apply**, the **verification route** (from the argument or Phase 0 inference — label `(inferred)` when inferred), and for the figma primer the **baseline provenance** (node ID, asset URL, captured-at).
+Collect the components, hooks, styles, and types the task touches with `Glob`, `Grep`, and `Read`, so the spec names real files and reuse candidates rather than inventing them.
 
-**No overengineering**: abstract only when things are certain to change together. Do not needlessly abstract simple logic or build deep layers for futures that will not happen (`frontend-fundamentals` "overengineering warning").
+### General track (non-frontend text)
 
-**Execution lane selection (read-only handoff)**: always append an `## Execution lane selection` section at the end of the spec. The routing-rule SoT is `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md` (repo-relative `docs/EXECUTION-HANDOFF.md`); only when that file cannot be read, use the minimal fallback (small → inline; iterate-until-condition → `/goal`; parallel lanes → agent team; durable/evidence-gated → `/oh-my-joy:goal-loop`; more consensus needed → `/oh-my-joy:ralplan` before approval). Do not duplicate score tables/thresholds in command bodies.
+Read the code the task touches the same way, and additionally find how the project proves things work: `verifyCommands:` in `.omj/fe-context.md`, then `package.json` scripts named `typecheck`, `lint`, and `test`. Those commands become the spec's verification commands, which `/oh-my-joy:verify` and `/oh-my-joy:ship` run later.
 
-The lane-selection question is **conditional** (the SoT's auto-select rule): if the recommended lane is **inline**, **do not ask** — just record `Selected lane: inline (auto)` in the spec. Plan approval is lane consent; if the user disagrees they can edit the plan on the approval screen. When any heavier lane (`/goal` · agent team · `/oh-my-joy:goal-loop`) is recommended, ask via `AskUserQuestion` **exactly once** after the spec is complete. Option 1 is always the deterministic recommendation, labeled `(recommended)`. When requirements/boundaries/architecture consensus is still lacking, recommend a `/oh-my-joy:ralplan` pass before approval instead of a heavier execution lane.
+### Common
 
-The final spec records the selection in this format:
+- For Next.js version-sensitive topics, follow the routing rules of the `frontend-fundamentals` skill and query the current `/vercel/next.js` docs via Context7 (`resolve-library-id`, then `query-docs`). Without Context7, skip this step.
+- If `.omj/fe-context.md` declares `designDocPath`, `contextDocs`, or `decisions`, `Read` them and reflect the project's rules; the `decisions:` list is a recurrence-prevention checklist.
+- If there is no setup trace (no `.omj/` in the repo and no `~/.claude/.omj-setup.json`), append one line at the end of the spec suggesting `/oh-my-joy:setup` — suggest only.
+
+## Phase 2 — Author the spec, then stop
+
+Load the rubric by invoking the `frontend-fundamentals` skill via `Skill` and use its `references/`.
+
+Frontend specs use the six uSpec sections and evaluate every section against the four frontend-fundamentals criteria (readability, predictability, cohesion, coupling) plus accessibility. On the figma track, apply the fidelity rules from `references/figma-fidelity.md` throughout: keep original text, invent no variants, no fixed px widths, no hardcoded tokens.
+
+1. Anatomy — the components and subcomponents to build.
+2. Structure — layout, spacing, dimensions, responsive breakpoints (mobile first). Width uses `w-full` plus parent padding instead of fixed px.
+3. Color / Tokens — map colors, typography, radius, and shadow to semantic tokens; find the token system by the detection order in `references/fe-acceptance.md`. The absence of `tokens.json` never licenses raw values.
+4. Props / Variants — the component API. Names match behavior; avoid props drilling; only variants that exist in Figma.
+5. A11y — alt text, labels, semantic tags, keyboard, touch targets.
+6. Motion — timelines and easing in `motion` terms, when there is animation.
+
+General specs use a plainer skeleton: Goal (one sentence), Constraints, Target files and reuse candidates, Acceptance criteria (each checkable), Verification commands, Non-goals.
+
+Every spec, either kind, also states the target file paths, the functions or components to reuse, the verification route (frontend) or verification commands (general), and on the figma track the baseline provenance (node ID, asset URL, captured-at). If `.omj/fe-context.md` declares acceptance axes, include them in the acceptance criteria; without the file, only the universal criteria apply.
+
+Section mode adds a Sections table and, when the agent-team lane is recommended, a Dispatch table in this shape:
+
+| Section | Figma node | Teammate | Owns files | Verify command |
+| --- | --- | --- | --- | --- |
+| Header | 12:34 | header | src/components/checkout/Header.tsx | npx tsc --noEmit |
+
+Rows own disjoint files, because teammates editing the same file overwrite each other.
+
+Abstract only when things will certainly change together. Simple logic stays simple; layers built for futures that will not happen are the overengineering the rubric warns about.
+
+## Execution lane and completion procedure
+
+Always end the spec with two sections. The routing rules and thresholds are canonical in `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md` (repo-relative `docs/EXECUTION-HANDOFF.md`); if that file cannot be read, use the threshold-free fallback: small work → inline; iterate-until-condition → `/goal`; three or more independent units with disjoint files → agent team; a fuzzy requirement → `/oh-my-joy:deep-interview` first.
+
+The lane question is conditional. When the recommendation is inline, ask nothing and record `Selected lane: inline (auto)` — Plan approval is the consent, and the user can edit the plan on the approval screen. When `/goal` or agent team is recommended, ask via `AskUserQuestion` exactly once after the spec is complete, with option 1 as the recommendation labeled `(recommended)`.
 
 ```md
 ## Execution lane selection
-1. Lane: /oh-my-joy:goal-loop (recommended) — multi-turn work; completion must be evidence-gated.
+1. Lane: agent team (recommended) — 4 independent sections with disjoint files.
 2. Lane: /goal — iterate in this session until the stated condition holds.
 3. Lane: inline — implement directly in this session.
 
-Selected lane: <...>          # on auto-select: inline (auto)
+Selected lane: agent team          # on auto-select: inline (auto)
 
 After approval, run exactly this one line:
 <the selected lane's copyable action — omitted for inline>
+
+## Completion procedure
+After approval: implement on the selected lane → /oh-my-joy:review → /oh-my-joy:verify <route or none> → (visual defects) /oh-my-joy:fix <route> until clean → report with evidence. /oh-my-joy:ship is yours to run.
 ```
 
-After approval, the lane section itself is the handoff: for a heavy lane it already ends with the one copyable action (shapes per lane: `docs/EXECUTION-HANDOFF.md`), and **specs recorded `inline (auto)` have nothing to launch** — on approval the current session proceeds with inline implementation immediately. `/oh-my-joy:spec` never implements, builds, tests, delegates to subagents, or performs hidden `/goal clear`.
+The completion procedure is part of the approved plan, so the session follows it after approval without further prompting; `/oh-my-joy:ship` stays manual because pushing and opening a PR are visible to others. The canonical wording of the procedure and the per-lane copyable actions live in the routing document.
 
-When authoring is done, **stop here.** Never do any of the following:
-- Create or modify code files (no Write/Edit — not in allowed-tools)
-- Run builds/tests/verification
-- Delegate implementation to subagents or executors
-- Silently clear an active `/goal` or goal-loop state
+When the spec is written, stop. This command creates or modifies no files, runs no builds or tests, delegates nothing to subagents, and never clears an active `/goal`. The pipeline never auto-exits Plan mode; the user's approval is the only doorway to implementation.
 
-> **The full pipeline never auto-exits Plan mode.** Once the user reviews this spec and approves it themselves (ExitPlanMode), implementation begins from there.
+## Usage
 
-## After approval (outside this command's scope, for reference)
-
-Once the user approves the spec, execution follows the lane recorded in it. If the selected lane is already recorded (manually chosen or `(auto)`), do not ask again — use it as is: inline proceeds in the current session, and a heavy lane starts from the copyable action the lane section printed. After implementation, verify the code diff with `/oh-my-joy:ff-review` (FF·a11y·vercel·nextjs) and the visuals with `/oh-my-joy:verify <route>`. (Lane definitions and gate orthogonality: `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md` (repo-relative `docs/EXECUTION-HANDOFF.md`).)
-
-## Usage (bare `/oh-my-joy:spec`)
-
+<example>
 ```
-/oh-my-joy:spec <figma-url> [route]        Figma design → implementation spec (Plan). e.g. /oh-my-joy:spec https://figma.com/design/... /settings/profile
-/oh-my-joy:spec <figma-url> <figma-url> "<task description>"   mixed multi-node + text tasks supported (composite collection; proposes a split above 5 nodes)
-/oh-my-joy:spec "<task description>" [route]       code task → implementation spec (Plan). e.g. /oh-my-joy:spec "search input form component" /settings/profile
-/oh-my-joy:ff-review [--base <ref>]      post-implementation code diff review (FF·a11y·vercel·nextjs, run outside Plan mode)
-/oh-my-joy:verify <route>             post-implementation visual verification (run outside Plan mode)
-/oh-my-joy:fix <route> ["description"]        screenshot+route defect fix loop (run outside Plan mode)
-/oh-my-joy:sync [sync|check|push|extract <figma-url>]   design tokens code↔Figma (extract: Figma variables → CSS custom properties)
-/oh-my-joy:setup                      dependency check/install guide + fe-context/hook scaffolding
+/oh-my-joy:spec https://figma.com/design/abc?node-id=1-2 /settings/profile   Figma design → implementation spec (Plan); large frames are walked section by section
+/oh-my-joy:spec https://figma.com/design/... "add the empty state"           Figma link + text task, composed
+/oh-my-joy:spec "search input form — React Hook Form + Zod, mobile first" /search   frontend text → uSpec-based spec
+/oh-my-joy:spec "rate-limit middleware for the public API"                   general text → goal/constraints/acceptance/verification spec
 ```
+</example>

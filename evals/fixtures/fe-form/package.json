@@ -1,0 +1,17 @@
+{
+  "name": "fe-form-fixture",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "next": "15.3.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-hook-form": "7.55.0",
+    "zod": "3.24.0"
+  }
+}

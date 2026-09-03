@@ -1,0 +1,10 @@
+:root {
+  --color-gray-100: #f1f3f5;
+  --color-gray-900: #191f28;
+  --color-blue-500: #3182f6;
+  --color-red-600: #e5484d;
+  --color-fg-primary: var(--color-gray-900);
+  --color-surface-default: #ffffff;
+  --color-brand-primary: var(--color-blue-500);
+  --color-feedback-error: var(--color-red-600);
+}

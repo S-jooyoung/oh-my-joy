@@ -10,6 +10,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+- `/oh-my-joy:ship` — the explicit last step of every flow: runs the project's verification commands (each must exit 0), commits on a branch with the project's conventions, pushes, and opens the PR with the evidence table in its body. Pre-approves only `git`/`gh`/`npx tsc`; test runners go through the permission prompt on purpose (pinned by `tests/plugin-manifest.test.mjs`)
+- `/oh-my-joy:review` general mode — files outside the frontend set are reviewed for correctness, simplicity, consistency with surrounding code, and test coverage; an approved spec's acceptance criteria are checked against the diff; a diff with no frontend files is no longer "not a review target"
+- `/oh-my-joy:verify` evidence mode — without a route it runs the project's verification commands (spec → `verifyCommands:` → `package.json` scripts) and records `command · exit code · summary`
+- `/oh-my-joy:spec` general track (goal / constraints / target files / acceptance criteria / verification commands / non-goals) for non-frontend work, and a routing line to `/oh-my-joy:deep-interview` when the text carries no verifiable target
+- `/oh-my-joy:spec` section walk — a Figma frame with three or more top-level sections is read section by section (`get_metadata` first, one `get_design_context` per section) and yields a per-section spec plus a Dispatch table (`Section | Figma node | Teammate | Owns files | Verify command`); more than eight sections proposes a split
+- Agent-team lane on native Agent Teams — `docs/EXECUTION-HANDOFF.md` records the enable flag, the dispatch contract, the copyable spawn line, `verify` as the barrier, and the fallback chain (agent team → subagents → inline); `figma-implementer` gains a teammate contract (own only the row's files, report completion with evidence)
+- Completion procedure — every approved spec ends with `implement → /oh-my-joy:review → /oh-my-joy:verify → (frontend) /oh-my-joy:fix loop → report with evidence`, which the session follows after approval; `/oh-my-joy:ship` stays manual
+- `output-styles/oh-my-joy.md` — an opt-in answer style: natural answers composed in the reader's language (Korean rules adapted from fluent-korean, credited in `NOTICE.md`), explanations a junior developer can follow, and a next-step pointer; `keep-coding-instructions: true`, never `force-for-plugin` (pinned by tests). `/oh-my-joy:setup` offers to select it
+- `verifyCommands:` in `.omj/fe-context.md` — the project's own definition of "proven", read by `verify` (evidence mode) and `ship`; `/oh-my-joy:setup` scaffolds it from `package.json` scripts as comments
+- `/oh-my-joy:setup` inspects the Agent Teams flag and the answer style and offers both as opt-in installs
+- `tests/prompt-style.test.mjs` — every command, agent, skill, and output-style body is checked against the Anthropic prompting guide: no shouted imperatives, at most 20 bold markers, no callout glyphs, no principle-number pointers, usage examples inside `<example>` tags
+- `tests/token-budget.test.mjs` — the always-on description cost of all plugin surfaces is a ratcheted budget
+- `evals/` — behavioral eval cases per command for native `claude plugin eval` (early access), with `scripts/eval-runner.mjs` as the `claude -p` fallback and `npm run eval` choosing between them; `docs/EVALS.md` is the evolution loop (a behavior change adds or updates a case; scores go into the PR's test plan)
+- README (EN/KO) "How to use OMJ" — six scenarios with the exact command sequence each, and "How OMJ evolves"
 - OMJ HUD statusline: a vendored, self-contained HUD bundle under `hud/` (upstream attribution and MIT license text in `NOTICE.md`), installed opt-in by `/oh-my-joy:setup` as a copy at `~/.claude/omj-hud/` with a registered `statusLine` — the same copy-not-reference model as the token-guard hooks
 - Deterministic plugin-surface inventory: `scripts/generate-inventory.mjs` hashes the tracked tree (or an installed copy via `--dir`) into a single sha256; each GitHub Release now records that hash in its notes, and a post-publish `verify-release` job re-derives the tag tree's hash and fails on divergence (`.github/workflows/release-tag.yml`)
 - Hook-template convention suite `tests/hooks/hook-conventions.test.mjs` — every shipped hook must declare its risk class, and advisory hooks must guard crashes with a fail-open exit 0
@@ -17,12 +31,25 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Changed
 
+- OMJ is now a general spec-first workflow spine with the code↔Figma loop as a first-class mode: `deep-interview` or `spec` → approval → lane (inline · `/goal` · agent team) → `review` → `verify` → `ship`, for frontend and non-frontend work alike (README, `docs/PRINCIPLES.md` ①②⑤⑦⑧⑫, `CLAUDE.md`)
+- Execution lanes are three and all native — inline, `/goal`, agent team; the routing document also owns the completion procedure
+- `/oh-my-joy:ff-review` is renamed `/oh-my-joy:review` (the old name stays in the README migration table for one minor release)
+- Every command, agent, and skill body was rewritten to the Anthropic prompting guide: rules state what to do and why, shouted imperatives and warning glyphs are gone, usage examples sit in `<example>` tags; behavior is unchanged except where this changelog says otherwise
+- `/oh-my-joy:deep-interview` closes with the same execution-lane and completion-procedure sections as `spec`
+- `frontend-fundamentals` skill 1.3.0 — routing text restyled, companion commands updated to `review`, `verifyCommands` documented in `references/fe-acceptance.md`
+- `tests/standalone.test.mjs` pins three lanes, the Agent Teams flag, the fallback chain, and the completion procedure instead of the retired fourth lane; `tests/plugin-manifest.test.mjs` pins exactly two agents, the `ship` pre-approval surface, and the output-style frontmatter; `tests/docs-consistency.test.mjs` anchors the retired names to the migration tables and exempts `evals/` and output-style examples from the English-only check
 - Token-guard hook templates declare `Risk class: advisory` and exit 0 even on an unexpected crash (fail-open) — a hook defect can never block a session
 - `/oh-my-joy:goal-loop` completion evidence now requires `verification.exitCode` to be the integer `0`; a self-reported "passed" string alone no longer completes a goal (in-flight loops add the field on their next complete transition)
 
 ### Deprecated
 
+- The command name `ff-review` — use `/oh-my-joy:review`; the alias row stays in the README migration table until the next minor release
+
 ### Removed
+
+- `/oh-my-joy:ralplan` and the `plan-critic` agent — consensus review overlapped with native Plan mode; fuzzy work goes to `/oh-my-joy:deep-interview` before the spec instead
+- `/oh-my-joy:goal-loop`, `scripts/goal-state.mjs`, and `tests/goal-state.test.mjs` — the durable lane overlapped with `/goal` and Plan mode; its evidence rule (no completion without `command · exit code · summary`) lives on in `verify`, `ship`, and the teammate contract, and `.omj/goals/` is no longer written
+- The "no FE changes → not a review target" rule of the diff review
 
 ### Fixed
 

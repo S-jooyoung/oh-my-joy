@@ -9,7 +9,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 
 import {
   readJson,
@@ -29,18 +29,29 @@ const marketplace = readJson('.claude-plugin', 'marketplace.json');
  *
  * ZERO_BASH: no shell execution path at all (no write tools, no Task/Agent, and
  *   zero Bash tokens). `spec` must have no write path that bypasses the
- *   plan-gate (PRINCIPLES ①③); `deep-interview` and `ralplan` are primer/review
- *   commands that only produce a native Plan.
+ *   plan-gate (PRINCIPLES ①③); `deep-interview` is a primer that only produces
+ *   a native Plan.
  * REPORT_ONLY: never modifies **source** but uses scoped Bash for observation
- *   and reporting — `ff-review` (reads git diffs), `verify` (launches a
- *   browser, captures; curl includes `.omj/baselines/` download writes, so it is
- *   "source-untouched" rather than write-free, with the write scope enforced by
- *   the body). Bare Bash is already blocked by the all-commands check, so only
- *   write tools are asserted here.
+ *   and reporting — `review` (reads git diffs), `verify` (launches a browser,
+ *   captures, or runs the project's verification commands; curl includes
+ *   `.omj/baselines/` download writes, so it is "source-untouched" rather than
+ *   write-free, with the write scope enforced by the body). Bare Bash is already
+ *   blocked by the all-commands check, so only write tools are asserted here.
  */
-const ZERO_BASH_COMMANDS = new Set(['spec.md', 'deep-interview.md', 'ralplan.md']);
-const REPORT_ONLY_COMMANDS = new Set(['ff-review.md', 'verify.md']);
+const ZERO_BASH_COMMANDS = new Set(['spec.md', 'deep-interview.md']);
+const REPORT_ONLY_COMMANDS = new Set(['review.md', 'verify.md']);
 const READ_ONLY_COMMANDS = new Set([...ZERO_BASH_COMMANDS, ...REPORT_ONLY_COMMANDS]);
+
+/**
+ * `ship` is the one command that pushes and opens PRs, so its pre-approval
+ * surface is pinned twice: only git/gh/typecheck prefixes may be declared, and no
+ * test runner may be pre-approved. Verification commands (`npm test`, …) run
+ * through the permission prompt on purpose — that confirmation is what makes the
+ * evidence ship records trustworthy, and pre-approving a runner would launder a
+ * narrow grant into arbitrary project-script execution.
+ */
+const SHIP_BASH_PREFIXES = [/^git /, /^gh /, /^npx tsc/];
+const TEST_RUNNERS = /^(npm|pnpm|yarn|bun|vitest|jest|node --test|make)\b/;
 
 describe('plugin.json', () => {
   it('has the required fields', () => {
@@ -216,6 +227,21 @@ describe('commands/*.md frontmatter', () => {
         });
       }
 
+      if (file === 'ship.md') {
+        it('ship pre-approves only git/gh/typecheck prefixes and never a test runner', () => {
+          for (const token of fm['allowed-tools'].split(',').map((t) => t.trim())) {
+            const m = /^Bash\((.+?)(?::\*)?\)$/.exec(token);
+            if (!m) continue;
+            const cmd = m[1].trim();
+            assert.ok(
+              SHIP_BASH_PREFIXES.some((re) => re.test(cmd)),
+              `ship.md: Bash(${cmd}) is outside the git/gh/typecheck surface`,
+            );
+            assert.doesNotMatch(cmd, TEST_RUNNERS, `ship.md: Bash(${cmd}) pre-approves a test runner`);
+          }
+        });
+      }
+
       it('honors the single-axis naming rule (unprefixed kebab-case basename)', () => {
         // The plugin-name namespace already brands the command — an in-name
         // prefix would double it (/oh-my-joy:omj-verify). The old two-axis rule
@@ -235,8 +261,10 @@ describe('commands/*.md frontmatter', () => {
 describe('agents/*.md frontmatter', () => {
   // Loop-based checks all pass vacuously when the directory is empty — the
   // existence assertion closes that hole.
-  it('the three bundled agents exist', () => {
-    assert.ok(listAgentFiles().length >= 3, 'agents/ must carry the bundled trio (figma-implementer, design-qa, plan-critic)');
+  it('exactly the two bundled agents exist', () => {
+    // Agents are executors, not lanes — a third one is a decision about the
+    // auto-delegation surface, not a drop-in (CLAUDE.md "Agents").
+    assert.deepEqual(listAgentFiles(), ['design-qa.md', 'figma-implementer.md']);
   });
 
   for (const file of listAgentFiles()) {
@@ -255,18 +283,6 @@ describe('agents/*.md frontmatter', () => {
       });
     });
   }
-
-  // Agent tool contracts — the assertion that makes the "tool surface is pinned
-  // by tests" claim of ralplan.md and the CHANGELOG actually true. Without it the
-  // contract is declaration-only and regressions are silent.
-  it('plan-critic\'s tool surface is exactly Read, Grep, Glob (read-only adversarial reviewer)', () => {
-    const fm = parseFrontmatter(readRepoFile('agents', 'plan-critic.md'));
-    assert.deepEqual(
-      fm.tools.split(',').map((t) => t.trim()).sort(),
-      ['Glob', 'Grep', 'Read'],
-      'plan-critic is a read-only contract — adding a tool is a decision that changes ralplan\'s consensus trust model',
-    );
-  });
 
   // Residual hole: this assertion cannot see bare Bash in tools (agent tools have
   // no scope syntax). "Source-untouched" is a contract upheld by the absence of
@@ -407,6 +423,29 @@ describe('Tool declaration invariants (commands allowed-tools · agents tools)',
       `tools without a call site in the body's procedure must not be declared (CLAUDE.md):\n${violations.join('\n')}`,
     );
   });
+});
+
+describe('output-styles/*.md frontmatter', () => {
+  // The answer style is opt-in like the hooks and the HUD: a plugin style that
+  // set force-for-plugin would silently override every user's own outputStyle the
+  // moment the plugin is enabled, and dropping keep-coding-instructions would
+  // strip Claude Code's engineering guidance from a coding plugin.
+  const styles = readdirSync(repoPath('output-styles')).filter((f) => f.endsWith('.md')).sort();
+
+  it('the bundled answer style exists', () => {
+    assert.deepEqual(styles, ['oh-my-joy.md']);
+  });
+
+  for (const file of styles) {
+    const fm = parseFrontmatter(readRepoFile('output-styles', file));
+
+    it(`${file} keeps the coding instructions and never forces itself on`, () => {
+      assert.ok(fm, `${file} has no frontmatter`);
+      assert.ok(fm.name?.length > 0 && fm.description?.length > 0);
+      assert.equal(String(fm['keep-coding-instructions']), 'true');
+      assert.notEqual(String(fm['force-for-plugin']), 'true', `${file} must stay opt-in (no force-for-plugin)`);
+    });
+  }
 });
 
 describe('skills/frontend-fundamentals', () => {

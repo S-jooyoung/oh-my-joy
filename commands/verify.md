@@ -1,76 +1,88 @@
 ---
-description: Visually verify a route — check against the design/spec. playwright-cli first, playwright MCP fallback when absent (run outside Plan mode)
-argument-hint: "<route> [--base <url>]"
+description: Prove the work. With a route, open it in a real browser and check it against the design/spec (playwright-cli first, playwright MCP fallback); without a route, run the project's verification commands and record evidence (command · exit code · summary). Report only; run outside Plan mode
+argument-hint: "[<route>] [--base <url>]"
 allowed-tools: Read, Bash(playwright-cli:*), Bash(curl:*), Bash(command -v:*), mcp__playwright__*, mcp__plugin_playwright_playwright__*
 ---
 
-# /oh-my-joy:verify — Visual verification (active op)
+# /oh-my-joy:verify — Verification with evidence (report only)
 
-Opens the implemented screen in a real browser and inspects deviations from the design/spec.
+Show whether the implemented work matches what was promised, and leave evidence behind. Two modes, chosen by the arguments:
 
-> ⚠️ This command is a **report-only observation op that never modifies source** — but it uses side-effect Bash (browser launch, screenshot writes), so it is not zero-bash read-only; Plan mode blocks such side-effect Bash (read-only Bash is allowed), so verification will not run there. Exit Plan mode before running. `Read` is used only to load baseline PNGs and parse `.omj/fe-context.md` (no source modification).
+- Browser mode (a route is given) — open the screen in a real browser and inspect deviations from the design or spec.
+- Evidence mode (no route) — run the project's verification commands and record the results as an evidence table. This is the verification step for backend, script, and tooling work, and for frontend work whose proof is a test suite.
+
+Neither mode modifies source. Browser mode uses side-effect Bash (launching a browser, writing screenshots and baselines under `.omj/baselines/`), so Plan mode blocks it; leave Plan mode before running. `Read` is used only for baseline PNGs, `.omj/fe-context.md`, `package.json`, and the spec.
 
 ## Arguments
 
-- `<route>` — the path to verify (e.g. `/settings/profile`). **If the route is missing**, print the usage below and stop (verification is impossible without knowing which route the component mounts on). You can copy the `Verification route (inferred):` value from an `/oh-my-joy:spec` spec.
-- `--base <url>` — base URL override (defaults to `http://localhost:3000`). e.g. `--base http://localhost:5173` (Vite).
+- `<route>` — the path to verify, for example `/settings/profile`. Copy it from the `Verification route` line of the spec when there is one. Omitting it selects evidence mode.
+- `--base <url>` — dev server base URL (default `http://localhost:3000`; Vite projects typically need `--base http://localhost:5173`).
 
-> ℹ️ Slash commands are not a shell, so an **inline env prefix like `JOY_BASE_URL=... /oh-my-joy:verify` does not apply.** For a different port use the `--base` argument, and `export` env vars such as login credentials in the shell *before* running.
+Slash commands are not a shell, so an inline env prefix like `JOY_BASE_URL=… /oh-my-joy:verify` does not apply. Use `--base`, and `export` login credentials in the shell before running.
 
-## Variable resolution (pin as shell variables before running snippets)
+## Evidence mode
+
+1. Discover the commands in this order and stop at the first source that yields any: the approved spec's "Verification commands" in session context; `verifyCommands:` in `.omj/fe-context.md`; `package.json` scripts named `typecheck`, `lint`, and `test`. If none exists, print "no verification command declared — add `verifyCommands:` to `.omj/fe-context.md` or a `test` script" and stop; guessing a command would produce evidence about the wrong thing.
+2. Run each command. These commands are deliberately not pre-approved, so each raises a permission prompt — that confirmation is what makes the evidence trustworthy.
+3. Record one row per command: the command line, the exit code, and a one-line summary of the output (counts, the first failure). Secrets and personal data never go into the summary.
+4. Verdict: pass when every exit code is 0, otherwise fail, with the failing rows first. Suggest the next step: `/oh-my-joy:ship` on pass, a fix on fail.
+
+## Browser mode
+
+### Variables
+
+Pin these as shell variables before running any snippet, then use them only as double-quoted references (`"$ROUTE"`, `"$BASE"`), never expanded onto a command line:
 
 ```bash
-ROUTE="…"   # ← must be substituted with the route argument (e.g. /settings/profile). Literal <route> forbidden
-BASE="${JOY_BASE_URL:-http://localhost:3000}"   # overridden by the --base argument when present
+ROUTE="…"   # the route argument, e.g. /settings/profile
+BASE="${JOY_BASE_URL:-http://localhost:3000}"   # overridden by --base when present
 ```
-> **Actually substitute** `ROUTE` with the user-provided route argument. `BASE` precedence: `--base` > exported `JOY_BASE_URL` > `http://localhost:3000`.
 
-> ⚠️ **Argument validation (mandatory before substitution).** `ROUTE`·`BASE` are the only points where user input enters shell commands. Check the following *before* substituting; if anything is off, do not substitute — stop with "invalid argument format".
-> - `ROUTE` starts with `/` and contains no whitespace, newline, quote, backtick, `$`, `;`, `&`, `|`, `<`, `>`, `(`, `)` (if a query string's `?`·`=`·`&` is needed, keep the whole value double-quoted; `&` is a shell separator, so remove it from the route and handle it per the baseline slug rules).
-> - `BASE` is a URL starting with `http://` or `https://` and contains none of the same metacharacters.
-> - Both values are only ever used as **double-quoted variable references** like `"$ROUTE"`/`"$BASE"` in snippets (never expand the values onto the command line).
+Validate both before substituting, because they are the only points where user input enters a shell: `ROUTE` starts with `/` and contains no whitespace, quotes, backticks, `$`, `;`, `&`, `|`, `<`, `>`, or parentheses (a query string's `?`/`=` are fine inside the double quotes; drop `&`, which is a shell separator); `BASE` starts with `http://` or `https://` and contains none of the same characters. Anything else ends with "invalid argument format".
 
-### `<route-slug>` conversion rules (baseline file key)
+Baseline file key: the route becomes a slug by stripping the leading `/`, turning inner `/` into `-`, dropping the query string, and collapsing repeated or trailing `-`; the root route `/` becomes `root`. The viewport label is the one this run uses (`desktop` or `mobile`).
 
-route → filename slug: strip the leading `/`, inner `/`→`-`, drop the query string, root `/` becomes `root`, collapse trailing/duplicate `-`. e.g. `/settings/profile/` → `settings-profile`, `/` → `root`. The viewport label is the viewport this verify run uses (`desktop`|`mobile`).
+### Preflight
 
-## Preflight (exit gracefully on failure)
+1. Capture backend: if `command -v playwright-cli` succeeds, use playwright-cli. Otherwise, if the session has playwright MCP tools (`mcp__playwright__*`), run the same procedure with them (navigate, accessibility snapshot, screenshot, comparison). With neither, print "no capture backend — install `npm i -g playwright-cli` or enable the playwright MCP (see `/oh-my-joy:setup`)" and stop.
+2. Server up: if `curl -sf "$BASE" >/dev/null` fails, say "dev server not running — start it and rerun" and stop; nothing is auto-started.
+3. If `.omj/fe-context.md` declares `verifySetup:`, `Read` that document and apply its auth-bypass or API-mock procedure before observing.
 
-1. **Capture backend**: if `command -v playwright-cli` succeeds, use playwright-cli. **Otherwise check whether the session has playwright MCP tools (`mcp__playwright__*`)**; if so, perform the same procedure below with them (navigate → accessibility snapshot → screenshot → baseline comparison) (fallback — same procedure, different tools). If neither exists → print "no capture backend — skipping verification. Install: `npm i -g playwright-cli` or enable the playwright MCP (see `/oh-my-joy:setup`)" and stop.
-2. **Server up**: if `curl -sf "$BASE" >/dev/null` fails (non-200) → announce "dev server not running — start it with `yarn dev` and rerun, or skip verification" and stop (no auto-start).
-3. **Project verification procedure**: if the repo root `.omj/fe-context.md` declares `verifySetup:`, `Read` that document and apply the auth-bypass/API-mock procedure **before observing** (skip if absent — graceful).
+### Capture
 
-## Verification procedure
-
-Keep the session name `-s=omj` (with the playwright MCP fallback, the MCP browser tab takes the place of the session concept).
+Keep the session name `-s=omj`; with the MCP fallback, the browser tab takes the session's place.
 
 ```bash
 playwright-cli -s=omj open "$BASE$ROUTE" --persistent
 playwright-cli -s=omj goto "$BASE$ROUTE"
-playwright-cli -s=omj snapshot      # structural (accessibility tree) check
-playwright-cli -s=omj screenshot    # visual check
+playwright-cli -s=omj snapshot      # structure (accessibility tree)
+playwright-cli -s=omj screenshot    # visuals
 ```
 
-- **Auth-redirect handling (*after* open/goto)**: if the navigation above redirects to a login page, re-login with `fill`+`click` using the `verifySetup` procedure (if declared) or pre-exported credential envs (`$JOY_TEST_EMAIL`/`$JOY_TEST_PASSWORD`), then `goto` again. With neither → announce "route requires auth — log in manually in the browser and rerun". (Redirects are only observable after the page is opened, so this is handled here, not in preflight.)
-  - **Credential handling rule**: pass only **variable references** like `"$JOY_TEST_PASSWORD"` to `fill` — never resolve the value into command lines, reports, or error messages (it would persist in the transcript as plaintext). Use **test-only accounts** exclusively.
-  - **Persistence caution for post-auth screens**: screenshots captured after login may contain session/personal data. Tell the user before persisting one to disk as a baseline.
-- **Reached-route validation (mandatory before using a capture as evidence)**: confirm from the `snapshot` result that the current URL/page context actually reached `"$ROUTE"`. If a redirect landed elsewhere (login, home, …), do not compare that capture against the reference — **report "expected route not reached (redirected)" as a failure**. Capturing the wrong screen and reporting "matches" is this command's most dangerous silent mis-verification failure mode. If still unreached after re-login, stop here (no forced comparison guessing).
-- **Baseline persistence (observation stage)**: if the session context contains the Figma asset URL from an `/oh-my-joy:spec` spec, persist the PNG:
+- Auth redirects are only observable after the page opens, so handle them here: if navigation lands on a login page, re-login with `fill` and `click` using the `verifySetup` procedure or the exported `$JOY_TEST_EMAIL`/`$JOY_TEST_PASSWORD`, then `goto` again. With neither, say "route requires auth — log in manually in the browser and rerun". Pass credentials only as variable references, never resolved into commands, reports, or errors, and use test-only accounts; screenshots taken after login can contain session or personal data, so tell the user before persisting one as a baseline.
+- Reached-route validation comes before any comparison: confirm from the snapshot that the page actually reached `"$ROUTE"`. A redirect elsewhere is reported as "expected route not reached (redirected)" and never compared — matching the wrong screen against the reference is this command's most dangerous silent failure.
+- Baseline persistence: when the session context holds the Figma asset URL from a `/oh-my-joy:spec` spec, persist it:
   ```bash
   curl -f --remove-on-error --create-dirs -o ".omj/baselines/<route-slug>@<viewport>.png" "<asset-url>"
   ```
-  `-f` is mandatory (prevents a 403/404 error body being silently saved as a PNG), `--remove-on-error` is mandatory (prevents 0-byte leftovers on failure). On non-zero exit → advise "baseline expired (asset URLs last ~7 days) — rerun `/oh-my-joy:spec` to refresh" and continue. **The URL source is session context only** (re-fetching URLs from spec files is a v1.1 follow-up). Cross-session comparison is owned by the on-disk PNG in ② below.
-- **Comparison reference (3 tiers)**: ① if the immediately preceding `/oh-my-joy:spec` session context has the Figma reference image, compare against it. → ② otherwise, if `.omj/baselines/<route-slug>@<viewport>.png` exists and is **non-empty**, `Read` and compare (the viewport label is the verify-run viewport and may differ from the recorded design frame — the common single-frame case matches). → ③ with neither, inspect only the route's own structure/accessibility/layout (no forced comparison guessing without a baseline).
-- **Output**: group differences by severity (🔴/🟡/🟢) as `element·position + observed difference + recommended fix`. Prioritize FF accessibility (alt·labels·touch targets) and token deviations (raw hex etc., per `figma-fidelity.md`).
-- When done, always clean up the session with `playwright-cli -s=omj close` (with the MCP fallback, close the tab).
+  `-f` stops a 403/404 body being saved as a PNG and `--remove-on-error` prevents 0-byte leftovers. On failure, advise "baseline expired (asset URLs last about 7 days) — rerun `/oh-my-joy:spec` to refresh" and continue. The URL source is the session context only.
+- Comparison reference, in order: the Figma reference image from the immediately preceding `/oh-my-joy:spec` session context; otherwise a non-empty `.omj/baselines/<route-slug>@<viewport>.png`, `Read` and compared; otherwise inspect the route's own structure, accessibility, and layout without a forced comparison.
+- Finish with `playwright-cli -s=omj close` (with the MCP fallback, close the tab).
 
-## Usage (when the route is missing)
+### Output
 
+Group differences by severity (🔴 🟡 🟢) as `element and position + observed difference + recommended fix`, prioritizing accessibility (alt, labels, touch targets) and token deviations (raw hex, per `figma-fidelity.md`). Suggest the next step: `/oh-my-joy:fix <route> "<complaint>"` for a visual defect, `/oh-my-joy:ship` when clean.
+
+## Usage
+
+<example>
 ```
-/oh-my-joy:verify <route>                 e.g. /oh-my-joy:verify /settings/profile
-/oh-my-joy:verify <route> --base <url>    e.g. /oh-my-joy:verify / --base http://localhost:5173
-# for auth routes: declare verifySetup in .omj/fe-context.md (recommended), or beforehand in the shell
+/oh-my-joy:verify /settings/profile                 browser mode against the design/baseline
+/oh-my-joy:verify / --base http://localhost:5173    another dev server port
+/oh-my-joy:verify                                   evidence mode: run the project's verification commands
+# auth routes: declare verifySetup in .omj/fe-context.md, or beforehand in the shell
 #   export JOY_TEST_EMAIL=... JOY_TEST_PASSWORD=...
 ```
+</example>
 
-> **Always** add `.omj/baselines/` to the consuming project's `.gitignore` — not only is it a generated artifact, screenshots of authenticated screens may contain personal data and could get committed.
+Add `.omj/baselines/` to the consuming project's `.gitignore`: it is a generated artifact, and post-login screenshots may contain personal data.

@@ -1,6 +1,6 @@
 # Figma fidelity (figma-fidelity) — universal rules for design→code conversion
 
-When moving a Figma design into code, **never altering the designer's decisions** is the default. These are project-agnostic universal rules: `/oh-my-joy:spec` Phase 2 **prescribes** them while authoring the spec, and `/oh-my-joy:ff-review`·`design-qa` **verify** them after implementation (prescription↔verification, same SoT).
+When moving a Figma design into code, **never altering the designer's decisions** is the default. These are project-agnostic universal rules: `/oh-my-joy:spec` Phase 2 **prescribes** them while authoring the spec, and `/oh-my-joy:review`·`design-qa` **verify** them after implementation (prescription↔verification, same SoT).
 
 ## Rules
 

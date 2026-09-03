@@ -24,7 +24,6 @@ This plugin ships **no runtime code that executes on its own**. It is Markdown p
 - Prompt content that could steer Claude into destructive or exfiltrating actions (deleting files, pushing to remotes, sending data to a third party) without the user's confirmation.
 - Command injection in `scripts/*.mjs` or `templates/hooks/*.mjs` — particularly unquoted interpolation of a path or branch name into a shell invocation.
 - A hook that writes outside the consuming project, or that fails in a way that is not "no-op, exit 0".
-- Path traversal in `scripts/goal-state.mjs` (`--slug`, `--brief-file`) letting state escape `.omj/goals/`.
 
 **Out of scope**
 
