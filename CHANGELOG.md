@@ -18,6 +18,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Fixed
 
+- Repo-local `/release` waits for CI checks to register before watching them (a fresh PR answers "no checks reported" for a few seconds, which previously let the merge proceed before CI ran) and stops when `release.mjs next` finds nothing to release
+
 ### Security
 
 ## [0.8.1] - 2026-09-03
