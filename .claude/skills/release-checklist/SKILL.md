@@ -75,6 +75,8 @@ stale session, and only value 4 versus 3 separates them.
       For `commands/`, `agents/`, and `skills/` the exemption covers frontmatter only; paths outside
       those prefixes, including this file, must be fully English.
 
+> **Sections B and C are automated by `/release`** (`.claude/commands/release.md`): it cuts, opens the PR, waits for CI, merges, waits for the tag, and runs the local apply loop plus the drift check above. Keep reading when you need to do a step by hand or diagnose why one did not land.
+
 ## B. Release cut
 
 - [ ] `[Unreleased]` prose is written by a human — the script performs no summarizing.

@@ -207,3 +207,37 @@ describe('release notes — section extraction', () => {
     assert.ok(result.stdout.trim().length > 0, 'the current version section in the real CHANGELOG is empty');
   });
 });
+
+describe('release next — version inference', () => {
+  it('bumps the patch when [Unreleased] carries only additions or fixes', () => {
+    const root = makeFixture();
+    const result = run(root, ['next']);
+    assert.equal(result.code, 0);
+    assert.equal(result.stdout.trim(), '0.1.1');
+  });
+
+  it('bumps the minor when anything was removed, changed, or deprecated', () => {
+    const withRemoval = FIXTURE_CHANGELOG.replace('### Removed\n', '### Removed\n\n- Dropped the legacy flag.\n');
+    const root = makeFixture({ changelog: withRemoval });
+    const result = run(root, ['next']);
+    assert.equal(result.code, 0);
+    assert.equal(result.stdout.trim(), '0.2.0');
+  });
+
+  it('never infers a major bump — it is taken only from --bump', () => {
+    const root = makeFixture();
+    assert.equal(run(root, ['next', '--bump', 'major']).stdout.trim(), '1.0.0');
+    assert.equal(run(root, ['next', '--bump', 'minor']).stdout.trim(), '0.2.0');
+    const bad = run(root, ['next', '--bump', 'huge']);
+    assert.equal(bad.code, 1);
+    assert.match(bad.stderr, /--bump must be/);
+  });
+
+  it('refuses when [Unreleased] is an empty skeleton', () => {
+    const empty = FIXTURE_CHANGELOG.replace('- One new feature.\n', '');
+    const root = makeFixture({ changelog: empty });
+    const result = run(root, ['next']);
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /nothing to release/);
+  });
+});
