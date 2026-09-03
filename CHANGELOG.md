@@ -46,6 +46,7 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Changed
 
+- `/oh-my-joy:ship` never commits on a shared branch (`main`, `master`, `develop`, `dev`, `trunk`, `staging`, `release/*`, or the repo default): with changes it branches off first; on a clean shared branch it opens a promotion PR (for example `develop` → `main`) after running the verification commands. Without `--base` it asks once which branch the PR targets (candidates read from the remote); the commit message and PR body follow the repository's language and PR template
 - OMJ is now a general spec-first workflow spine with the code↔Figma loop as a first-class mode: `deep-interview` or `spec` → approval → lane (inline · `/goal` · agent team) → `review` → `verify` → `ship`, for frontend and non-frontend work alike (README, `docs/PRINCIPLES.md` ①②⑤⑦⑧⑫, `CLAUDE.md`)
 - Execution lanes are three and all native — inline, `/goal`, agent team; the routing document also owns the completion procedure
 - `/oh-my-joy:ff-review` is renamed `/oh-my-joy:review` (the old name stays in the README migration table for one minor release)

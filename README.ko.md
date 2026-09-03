@@ -141,7 +141,7 @@ AI 에이전트에게 작업을 던지고 "이대로 만들어줘"라고 하면 
 1. **진입** — 구체적인 것(Figma, 프론트엔드 텍스트, 범용 텍스트)은 `/oh-my-joy:spec <figma-url | task> [route]`; 목표 자체가 흐릿하면 `/oh-my-joy:deep-interview`. 둘 다 스펙을 쓰고, 실행 레인과 완료 절차를 기록하고, 멈춥니다.
 2. **플랜 승인**(ExitPlanMode) — 구현은 여기서만 시작되고, 스펙이 기록한 레인에서 돕니다. 작은 작업은 inline을 자동 선택하고, 무거운 레인은 딱 한 번 묻습니다.
 3. **플랜이 실행됨** — 레인에서 구현하고, `/oh-my-joy:review`(diff를 루브릭과 스펙의 수용 기준에 대조), `/oh-my-joy:verify`(라우트를 실제 브라우저에서, 또는 검증 명령을 exit code와 함께), 프론트엔드 결함이면 `/oh-my-joy:fix` 루프, 그리고 증거가 붙은 보고.
-4. **Ship** — `/oh-my-joy:ship "<title>"`이 검증 명령을 다시 돌리고, 프로젝트 컨벤션으로 커밋하고, push하고, 증거를 붙인 PR을 엽니다. 이 단계는 절대 자동으로 돌지 않습니다.
+4. **Ship** — `/oh-my-joy:ship "<title>"`이 검증 명령을 다시 돌리고, 프로젝트 컨벤션으로 커밋하고, push하고, 증거를 붙인 PR을 엽니다. `develop`으로 머지하는 팀은 `--base develop`을 붙이거나 질문 하나에 답하면 됩니다. 이 단계는 절대 자동으로 돌지 않습니다.
 
 ```mermaid
 flowchart TD
@@ -224,7 +224,7 @@ verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px�
 | **`/oh-my-joy:verify`** | 작업을 증명. 라우트가 있으면 실제 브라우저(playwright-cli, MCP 폴백)로 열어 Figma 베이스라인(`.omj/baselines/`)에 대조하고 요청한 라우트에 실제로 도달했는지 항상 확인. 라우트가 없으면 프로젝트의 검증 명령을 돌려 `명령 · exit code · 요약`을 기록. `--base <url>`은 dev 서버 | review 뒤 플랜이 실행; 팀원 완료 뒤 barrier | `/oh-my-joy:verify /settings/profile` · `/oh-my-joy:verify` |
 | **`/oh-my-joy:fix`** | 붙여넣은 스크린샷·불평으로 라우트(필수)의 결함을 고치고 재캡처로 확인(능동 루프). `--base <url>`, `--commit` | verify가 찾은 시각 결함 | `/oh-my-joy:fix /pricing "배너 z-index가 낮음"` |
 | **`/oh-my-joy:sync`** | 토큰 저장소(`tokens.json` 또는 CSS 커스텀 프로퍼티) ↔ Figma 드리프트를 방향을 물어 해소; `extract`는 Figma 변수에서 CSS 토큰을 부트스트랩; `--tokens <path>`로 저장소 경로 지정 | 코드/Figma 토큰 맞추기 · 최초 추출 | `/oh-my-joy:sync` · `check` · `push` · `extract <figma-url>` |
-| **`/oh-my-joy:ship`** | 검증 명령 실행(전부 exit 0이어야 함), 브랜치에서 프로젝트 컨벤션으로 커밋, push, 증거 표를 본문에 붙인 PR 생성. `--base <ref>`로 PR base 지정. git/gh/typecheck만 사전 승인 — 테스트 러너는 일부러 권한 프롬프트를 거침 | 마지막 단계, 항상 당신이 침 | `/oh-my-joy:ship "feat(checkout): summary panel"` |
+| **`/oh-my-joy:ship`** | 검증 명령 실행(전부 exit 0이어야 함), 브랜치에서 프로젝트 컨벤션·언어로 커밋, push, 증거 표를 본문에 붙인 PR 생성(레포에 PR 템플릿이 있으면 그 형식). `--base <ref>`로 PR base 지정, 없으면 어느 브랜치로 열지 한 번 물음. 공유 브랜치(`main`, `develop` …)에는 직접 커밋하지 않음: 변경이 있으면 먼저 갈라 나오고, 깨끗한 `develop`에서는 승격 PR을 엶. git/gh/typecheck만 사전 승인 — 테스트 러너는 일부러 권한 프롬프트를 거침 | 마지막 단계, 항상 당신이 침 | `/oh-my-joy:ship "feat(checkout): summary panel"` |
 | **`/oh-my-joy:setup`** | 의존성 진단 + 빠진 항목의 다중 선택 설치 + 스캐폴딩: `.omj/fe-context.md`(기존 규칙 문서를 `contextDocs:`로 채택, `verifyCommands:`를 package.json에서 주석으로 스캐폴드), opt-in 토큰 가드 훅, opt-in OMJ HUD, Agent Teams 플래그, OMJ 답변 스타일; 끝에 GitHub star 제안(막지 않음) | 첫 사용 전 — 설정 흔적이 없으면 `spec`이 한 번 제안 | `/oh-my-joy:setup` · `--check` (보고만) |
 
 > **read-only vs 능동 op.** `/oh-my-joy:spec`과 `/oh-my-joy:deep-interview`는 쓰기 도구도 Bash도 선언하지 않습니다: Plan을 쓰고 멈춥니다(`spec`은 레인 질문을 최대 한 번, inline 추천이면 생략). `/oh-my-joy:review`와 `/oh-my-joy:verify`는 보고 전용(관찰 범위의 Bash, 쓰기 도구 없음). `/oh-my-joy:fix`, `/oh-my-joy:sync`(sync/push/extract), `/oh-my-joy:ship`은 능동 op이며, Plan 모드가 이를 막는 환경이면 먼저 Plan 모드를 나오세요. 검증 명령(`npm test` 등)은 어떤 커맨드도 사전 승인하지 않습니다 — 권한 프롬프트가 기록된 증거를 신뢰할 수 있게 만듭니다. 각 커맨드의 문법과 단계는 `commands/<name>.md`(소스 오브 트루스)에 있습니다.
@@ -319,6 +319,7 @@ verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px�
 - **승인 뒤 review와 verify가 제가 안 쳤는데 돌았어요** — 이것도 맞습니다. 승인한 플랜이 그것들을 이름 붙인 완료 절차로 끝나기 때문입니다. `/oh-my-joy:ship`은 절대 그 안에 없습니다.
 - **`/oh-my-joy:verify` / `/oh-my-joy:fix`가 브라우저 모드에서 아무것도 안 해요** — 캡처 백엔드 없음(playwright-cli도 playwright MCP도), dev 서버 미실행, 인증이 필요한 라우트, 또는 Plan 모드가 Bash를 막음. dev 서버 URL은 `--base <url>` > export된 `JOY_BASE_URL` > `http://localhost:3000` 순으로 결정되고, 인라인 `JOY_BASE_URL=… /oh-my-joy:verify` 접두는 적용되지 않습니다(슬래시 커맨드는 셸이 아닙니다). 인증 라우트는 `.omj/fe-context.md`에 `verifySetup`을 선언하거나 실행 전에 `export JOY_TEST_EMAIL=… JOY_TEST_PASSWORD=…` — **테스트 전용 계정**을 쓰고 `.omj/baselines/`는 gitignore하세요.
 - **`/oh-my-joy:verify`나 `/oh-my-joy:ship`이 테스트 명령마다 권한을 물어요** — 의도입니다. 검증 명령은 일부러 사전 승인하지 않습니다: 권한 프롬프트가 기록된 증거를 신뢰할 수 있게 만듭니다.
+- **`/oh-my-joy:ship`이 PR을 엉뚱한 브랜치로 열었어요** — `--base <branch>`를 붙이거나(`develop` 팀은 매번 `--base develop`), 플래그 없이 나오는 base 질문에 답하세요. 이미 열린 PR은 `gh pr edit <n> --base <branch>`로 고칩니다. 변경이 있는 채로 `develop` 위에서 ship을 쳐도 안전합니다 — 거기에 커밋하지 않고 먼저 갈라 나옵니다.
 - **`/oh-my-joy:verify`나 `/oh-my-joy:ship`이 "검증 명령이 선언되지 않았다"고 해요** — `.omj/fe-context.md`에 `verifyCommands:`를(또는 `package.json`에 `test` 스크립트를) 추가하세요. OMJ는 돌릴 명령을 지어내지 않습니다.
 - **agent-team 레인이 순차로 돌았어요** — `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`이 설정되지 않았습니다(실험 기능, 기본 꺼짐). `/oh-my-joy:setup`이 추가를 제안하고, 없으면 레인은 서브에이전트, 그다음 inline으로 강등됩니다. 팀원은 리더의 권한 모드로 시작하므로 생성 전에 일상 명령을 사전 승인해 두세요.
 - **답변 스타일이 아무것도 안 바꿨어요** — 다음 세션이나 `/clear` 뒤에, 메인 대화에만 적용됩니다. `/config`의 **Output style**에 `oh-my-joy`가 선택돼 있는지 확인하세요.
