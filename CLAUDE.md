@@ -47,6 +47,7 @@ Canonical facts (command names, the install string `/plugin install oh-my-joy@om
 
 - **No direct commits to main** — branch and open a PR to main. Release tags attach to the main commit after merge.
 - Conventional commits: `<type>(<scope>): <subject>` (feat/fix/chore/docs/refactor/test).
+- **Release**: run `/release` (repo-local `.claude/commands/release.md` — cut → PR → merge → tag wait → local apply, one confirmation); never hand-edit version strings or run `git tag`.
 - **Rename grace**: a renamed or retired command stays in the README migration table and CHANGELOG for at least one minor release (v0.8.0: `ff-review` → `review`; `ralplan`, `goal-loop` retired).
 - ❌ **AI signatures, `Co-Authored-By: Claude`, "Generated with Claude Code" — never.**
 - Write in English. Keep it concise.

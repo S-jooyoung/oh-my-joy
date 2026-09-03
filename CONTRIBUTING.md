@@ -60,6 +60,8 @@ When you add or change a feature, put all three of the following in **the same c
 
 ## Releases
 
+**The one-command way.** In this repository, `/release` (a repo-local command in `.claude/commands/release.md`, not shipped with the plugin) does the whole procedure below: infers the next version from `[Unreleased]`, runs the cut, opens the release PR, waits for CI, merges, waits for the tag and GitHub Release, and applies the new version to this machine — with one confirmation before anything leaves the machine. `/release --pr-only` stops at the PR. The manual procedure stays here as the reference for what the command does.
+
 **Deployment model.** The marketplace (`/plugin install oh-my-joy@omj`) does not consume tags; it shallow-clones main HEAD, but **`version` in `plugin.json` is the deployment gate** — until that string changes, existing installs keep their cached version (manual force-update aside). In other words, **the moment a version bump merges to main is the deployment**; tags and GitHub Releases are human-readable history labels. Features piling up on main do not reach users until a release is cut.
 
 Procedure:

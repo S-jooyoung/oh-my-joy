@@ -18,6 +18,7 @@
  *
  *   cut   --version X.Y.Z [--date YYYY-MM-DD]  # finalize [Unreleased] + bump the 4 surfaces
  *   notes --version X.Y.Z                      # extract the section body (GitHub Release notes)
+ *   next  [--bump patch|minor|major]           # print the next version (inferred from [Unreleased] unless --bump is given)
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -182,6 +183,32 @@ function cut(args) {
   );
 }
 
+function next(args) {
+  const plugin = readJson(SURFACES[0].file);
+  const current = parseSemver(plugin.version);
+  if (!current) fail(`plugin.json version (${plugin.version}) is not semver`);
+  if (!existsSync(CHANGELOG)) fail(`${CHANGELOG} not found`);
+  const src = readFileSync(CHANGELOG, 'utf8');
+  const unreleased = sliceSection(src, 'Unreleased');
+  if (!unreleased) fail('## [Unreleased] section not found');
+  if (!/^- /m.test(unreleased.body)) fail('[Unreleased] is an empty skeleton — nothing to release');
+
+  let bump = args.bump;
+  if (bump === undefined || bump === true) {
+    // Inferred from which sections carry entries: anything that removes, changes, or
+    // deprecates behavior is a minor bump; additions and fixes alone are a patch. A major
+    // bump is a decision, never an inference — pass --bump major explicitly.
+    const blocks = unreleased.body.split(/\n(?=### )/).map((block) => block.trim());
+    const breaking = blocks.some((block) => /^### (Removed|Changed|Deprecated)/.test(block) && /^- /m.test(block));
+    bump = breaking ? 'minor' : 'patch';
+  }
+  if (!['patch', 'minor', 'major'].includes(bump)) fail('--bump must be patch, minor, or major');
+  const [major, minor, patch] = current;
+  const version =
+    bump === 'major' ? `${major + 1}.0.0` : bump === 'minor' ? `${major}.${minor + 1}.0` : `${major}.${minor}.${patch + 1}`;
+  process.stdout.write(`${version}\n`);
+}
+
 function notes(args) {
   const version = args.version;
   if (!parseSemver(version)) fail('--version must be in X.Y.Z form');
@@ -211,7 +238,8 @@ function main() {
   const args = parseArgs(rest);
   if (verb === 'cut') return cut(args);
   if (verb === 'notes') return notes(args);
-  return fail('usage: release.mjs <cut|notes> --version X.Y.Z [--date YYYY-MM-DD]');
+  if (verb === 'next') return next(args);
+  return fail('usage: release.mjs <cut|notes> --version X.Y.Z [--date YYYY-MM-DD] | next [--bump patch|minor|major]');
 }
 
 main();
