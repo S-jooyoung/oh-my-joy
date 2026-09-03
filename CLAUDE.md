@@ -29,7 +29,7 @@ Canonical facts (command names, the install string `/plugin install oh-my-joy@om
 - **Hooks**: never ship `hooks/hooks.json` (auto-firing in every repo is the rejected alternative). Canonical scripts live in `templates/hooks/*.mjs`; `/oh-my-joy:setup` copy-installs them (opt-in); they no-op without an fe-context declaration.
 - **HUD** (`hud/`): vendored statusLine bundle — never hand-edit `hud/vendor/hud/index.js`; regenerate per `hud/README.md`. Copy-installed user-globally by setup. Attribution: `NOTICE.md`.
 - The SoT for behavior is each `commands/*.md` body. Read that file before writing code or docs about it.
-- **Test gotchas**: `npm test` is scoped to `tests/*.test.mjs tests/hooks/*.test.mjs` on purpose — `evals/fixtures/*/test/` holds intentionally failing suites, so never widen it to bare `node --test`. The docs tests enumerate **tracked** files (`git ls-files`), so `git add` new markdown before trusting a green `npm test`. The legacy-token guard matches `\bomj-`, so avoid `omj-` inside heading anchors (`#how-omj-evolves` failed it).
+- **Test gotchas**: `npm test` is scoped to `tests/*.test.mjs tests/hooks/*.test.mjs` on purpose — `evals/fixtures/*/test/` holds intentionally failing suites, so never widen it to bare `node --test`. The docs tests enumerate **tracked** files (`git ls-files`), so `git add` new markdown before trusting a green `npm test`. The legacy-token guard matches `\bomj-`, so avoid `omj-` inside heading anchors (`#how-omj-evolves` failed it). When adding a CHANGELOG entry, anchor the edit on the `## [Unreleased]` block — right after a cut its sections are empty and a search for `### Changed` lands in the just-released section (it happened in 0.8.1).
 
 ## Core design principles (summary — canonical: docs/PRINCIPLES.md)
 
