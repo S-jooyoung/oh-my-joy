@@ -115,7 +115,11 @@ function parseFrontmatter(source) {
 
 function unquote(value) {
   const v = value.trim();
-  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) return v.slice(1, -1);
+  // YAML double-quoted scalars process escapes (\\ → \, \" → "), which is how
+  // regex patterns such as "[\\s\\S]*" are written in grader frontmatter;
+  // single-quoted scalars are literal.
+  if (v.startsWith('"') && v.endsWith('"')) return v.slice(1, -1).replace(/\\(["\\])/g, '$1');
+  if (v.startsWith("'") && v.endsWith("'")) return v.slice(1, -1);
   return v;
 }
 
