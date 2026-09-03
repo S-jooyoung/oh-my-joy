@@ -10,6 +10,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.8.0] - 2026-09-03
+
+### Added
+
 - `/oh-my-joy:ship` — the explicit last step of every flow: runs the project's verification commands (each must exit 0), commits on a branch with the project's conventions, pushes, and opens the PR with the evidence table in its body. Pre-approves only `git`/`gh`/`npx tsc`; test runners go through the permission prompt on purpose (pinned by `tests/plugin-manifest.test.mjs`)
 - `/oh-my-joy:review` general mode — files outside the frontend set are reviewed for correctness, simplicity, consistency with surrounding code, and test coverage; an approved spec's acceptance criteria are checked against the diff; a diff with no frontend files is no longer "not a review target"
 - `/oh-my-joy:verify` evidence mode — without a route it runs the project's verification commands (spec → `verifyCommands:` → `package.json` scripts) and records `command · exit code · summary`
@@ -329,7 +343,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.5.0...v0.6.0
