@@ -20,6 +20,22 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Security
 
+## [0.8.1] - 2026-09-03
+
+### Added
+
+### Changed
+
+- `/oh-my-joy:ship` never commits on a shared branch (`main`, `master`, `develop`, `dev`, `trunk`, `staging`, `release/*`, or the repo default): with changes it branches off first; on a clean shared branch it opens a promotion PR (for example `develop` → `main`) after running the verification commands. Without `--base` it asks once which branch the PR targets (candidates read from the remote); the commit message and PR body follow the repository's language and PR template
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
 ## [0.8.0] - 2026-09-03
 
 ### Added
@@ -46,7 +62,6 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Changed
 
-- `/oh-my-joy:ship` never commits on a shared branch (`main`, `master`, `develop`, `dev`, `trunk`, `staging`, `release/*`, or the repo default): with changes it branches off first; on a clean shared branch it opens a promotion PR (for example `develop` → `main`) after running the verification commands. Without `--base` it asks once which branch the PR targets (candidates read from the remote); the commit message and PR body follow the repository's language and PR template
 - OMJ is now a general spec-first workflow spine with the code↔Figma loop as a first-class mode: `deep-interview` or `spec` → approval → lane (inline · `/goal` · agent team) → `review` → `verify` → `ship`, for frontend and non-frontend work alike (README, `docs/PRINCIPLES.md` ①②⑤⑦⑧⑫, `CLAUDE.md`)
 - Execution lanes are three and all native — inline, `/goal`, agent team; the routing document also owns the completion procedure
 - `/oh-my-joy:ff-review` is renamed `/oh-my-joy:review` (the old name stays in the README migration table for one minor release)
@@ -344,7 +359,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.6.0...v0.7.0
