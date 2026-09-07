@@ -41,6 +41,10 @@ const marketplace = readJson('.claude-plugin', 'marketplace.json');
 const ZERO_BASH_COMMANDS = new Set(['spec.md', 'deep-interview.md']);
 const REPORT_ONLY_COMMANDS = new Set(['review.md', 'verify.md']);
 const READ_ONLY_COMMANDS = new Set([...ZERO_BASH_COMMANDS, ...REPORT_ONLY_COMMANDS]);
+// Commands that may spawn a subagent — only the read-only `critic`; the pins
+// below tie the declaration to that agent and that agent to read-only tools.
+const AGENT_SPAWNING_COMMANDS = new Set(['spec.md', 'review.md']);
+const CRITIC_TOOLS = 'Read, Grep, Glob';
 
 /**
  * `ship` is the one command that pushes and opens PRs, so its pre-approval
@@ -202,15 +206,35 @@ describe('commands/*.md frontmatter', () => {
       });
 
       if (READ_ONLY_COMMANDS.has(file)) {
-        // Task/Agent are blocked alongside write tools because subagents do not
-        // inherit the parent's allowed-tools — one summoning declaration voids
-        // the read-only contract at the manifest level.
-        it('read-only commands declare no write tools or subagent summoning', () => {
+        it('read-only commands declare no write tools', () => {
           assert.doesNotMatch(
             fm['allowed-tools'],
-            /(^|,\s*)(Write|Edit|MultiEdit|NotebookEdit|Task|Agent)\b/,
-            `${file} is a read-only contract but declares write tools or Task/Agent`,
+            /(^|,\s*)(Write|Edit|MultiEdit|NotebookEdit)\b/,
+            `${file} is a read-only contract but declares write tools`,
           );
+        });
+      }
+
+      if (READ_ONLY_COMMANDS.has(file) && !AGENT_SPAWNING_COMMANDS.has(file)) {
+        // A subagent does not inherit the parent's allowed-tools, so a command
+        // that has no reason to spawn one declares no way to.
+        it('read-only commands that spawn nothing declare no Task/Agent', () => {
+          assert.doesNotMatch(
+            fm['allowed-tools'],
+            /(^|,\s*)(Task|Agent)\b/,
+            `${file} declares Task/Agent but has no reviewer to spawn`,
+          );
+        });
+      }
+
+      if (AGENT_SPAWNING_COMMANDS.has(file)) {
+        // Independence comes from a fresh context, so spec and review may spawn
+        // the critic — and only the critic. The body names it, and the agent's
+        // own frontmatter (pinned below) carries no write tool.
+        it('agent-spawning commands declare Agent and name the critic in the body', () => {
+          assert.match(fm['allowed-tools'], /(^|,\s*)Agent\b/, `${file} spawns the critic but does not declare Agent`);
+          const body = readRepoFile('commands', file).replace(/^---[\s\S]*?\n---\n?/, '');
+          assert.match(body, /`critic`/, `${file} declares Agent but its body never names the critic agent`);
         });
       }
 
@@ -264,7 +288,7 @@ describe('agents/*.md frontmatter', () => {
   it('exactly the two bundled agents exist', () => {
     // Agents are executors, not lanes — a third one is a decision about the
     // auto-delegation surface, not a drop-in (CLAUDE.md "Agents").
-    assert.deepEqual(listAgentFiles(), ['design-qa.md', 'figma-implementer.md']);
+    assert.deepEqual(listAgentFiles(), ['critic.md', 'design-qa.md', 'implementer.md']);
   });
 
   for (const file of listAgentFiles()) {
@@ -295,6 +319,13 @@ describe('agents/*.md frontmatter', () => {
       /(^|,\s*)(Write|Edit|MultiEdit|NotebookEdit)\b/,
       'design-qa is inspection-only — a write tool would break the "inspects only" contract',
     );
+  });
+
+  it('critic declares exactly the three read tools', () => {
+    // The commands that spawn the critic are read-only contracts; the critic
+    // stays read-only by construction — no Bash, no write tool, no Skill.
+    const fm = parseFrontmatter(readRepoFile('agents', 'critic.md'));
+    assert.equal(fm.tools, CRITIC_TOOLS, `critic must declare exactly "${CRITIC_TOOLS}"`);
   });
 });
 

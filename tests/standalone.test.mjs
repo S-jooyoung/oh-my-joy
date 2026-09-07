@@ -111,4 +111,15 @@ describe('standalone: no external-runtime coupling remains', () => {
     assert.match(handoff, /## Completion procedure/, 'EXECUTION-HANDOFF.md must carry the completion-procedure canon');
     assert.match(handoff, /\/oh-my-joy:ship/, 'the completion procedure must name ship as the explicit last step');
   });
+
+  it('the routing SoT owns the execution rules', () => {
+    // Between approval and the report the session asks nothing and classifies
+    // what stopped it; both facts live here so spec, deep-interview, and the
+    // implementer agent only point at them.
+    const handoff = readRepoFile('docs', 'EXECUTION-HANDOFF.md');
+    assert.match(handoff, /## Execution rules/, 'EXECUTION-HANDOFF.md must carry the execution-rules canon');
+    assert.match(handoff, /asks no questions/i, 'the execution rules must state that execution asks no questions');
+    assert.match(handoff, /human-only/, 'the execution rules must name the human-only blocker class');
+    assert.match(handoff, /`implementer`/, 'the executor named by the routing SoT is the implementer agent');
+  });
 });

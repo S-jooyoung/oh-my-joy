@@ -24,8 +24,8 @@ Slash commands are not a shell, so an inline env prefix like `JOY_BASE_URL=… /
 
 1. Discover the commands in this order and stop at the first source that yields any: the approved spec's "Verification commands" in session context; `verifyCommands:` in `.omj/fe-context.md`; `package.json` scripts named `typecheck`, `lint`, and `test`. If none exists, print "no verification command declared — add `verifyCommands:` to `.omj/fe-context.md` or a `test` script" and stop; guessing a command would produce evidence about the wrong thing.
 2. Run each command. These commands are deliberately not pre-approved, so each raises a permission prompt — that confirmation is what makes the evidence trustworthy.
-3. Record one row per command: the command line, the exit code, and a one-line summary of the output (counts, the first failure). Secrets and personal data never go into the summary.
-4. Verdict: pass when every exit code is 0, otherwise fail, with the failing rows first. Suggest the next step: `/oh-my-joy:ship` on pass, a fix on fail.
+3. Record one row per command: the command line, the exit code, a one-line summary of the output (counts, the first failure), and the evidence kind — `test report` for a library or service (exit code plus counts), `command replay` for a CLI (the exact argv, its exit code, its first lines), `browser capture` for a route, which only browser mode produces. A sentence such as "it works" is not a row: without a command and an exit code there is nothing a reader can re-run. Secrets and personal data never go into the summary.
+4. Verdict: pass when every exit code is 0, otherwise fail, with the failing rows first. When the spec in session context records a verification route, add one line — "browser mode is still owed for `<route>`" — because a green test run does not show the screen. Suggest the next step: `/oh-my-joy:ship` on pass, a fix on fail.
 
 ## Browser mode
 

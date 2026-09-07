@@ -33,7 +33,7 @@ body:
         - /oh-my-joy:ship
         - /oh-my-joy:deep-interview
         - The oh-my-joy output style
-        - An agent (figma-implementer / design-qa)
+        - An agent (implementer / design-qa / critic)
         - A hook (check-design-tokens / check-story-exists)
         - scripts/ (release, validate-plugin, eval-runner)
         - evals/ (eval cases)

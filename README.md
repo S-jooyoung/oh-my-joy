@@ -11,6 +11,20 @@ English | [한국어](README.ko.md)
 **Enter once (`/oh-my-joy:spec` or `/oh-my-joy:deep-interview`), approve the plan, and the plan's completion procedure runs review and verify for you. `/oh-my-joy:ship` is the one step you type at the end.**
 _A Plan-native workflow that doesn't fight your "almost always in Plan mode" habit._
 
+| Your input | Enter with |
+| --- | --- |
+| Fuzzy — no file to name, no criterion you could check | `/oh-my-joy:deep-interview` — one question per round; at the end it hands the requirements to `/oh-my-joy:spec` (or plans directly for small work) |
+| Concrete — a Figma link, a task in words, file names | `/oh-my-joy:spec` — reads the code or the design, builds the plan, critiques it (an independent critic on non-trivial plans) |
+
+Both end the same way: a `## Critique` section, the execution lane, the completion procedure. Pick the wrong one and it points you to the other.
+
+| Surface | What it is |
+| --- | --- |
+| You type | `/oh-my-joy:deep-interview` (only when fuzzy) → `/oh-my-joy:spec` → approve → `/oh-my-joy:ship` |
+| The plan runs for you | `/oh-my-joy:review` → `/oh-my-joy:verify` → `/oh-my-joy:fix` loop, because the plan you approved says so |
+| Occasional tools | `/oh-my-joy:sync` (design tokens), `/oh-my-joy:setup` (dependencies, scaffolding) |
+| Internal, never typed | `critic` (architect + critic lenses, fresh context), `implementer`, `design-qa` |
+
 `Plan-first` · `evidence, not vibes` · `Figma section walk` · `native Agent Teams` · `graceful degradation` · `zero runtime deps`
 
 [Why](#why) • [Quick Start](#quick-start) • [How to use OMJ](#how-to-use-omj) • [Recommended workflow](#recommended-workflow) • [Commands](#commands) • [How this plugin evolves](#how-this-plugin-evolves) • [Troubleshooting](#troubleshooting)
@@ -35,7 +49,7 @@ So OMJ inverts the obvious fix. The entry commands are **not** implement command
 # 2. Check dependencies and opt into the extras you want (recommended before first use)
 /oh-my-joy:setup
 
-# 3. Start — a concrete task becomes an implementation spec (Plan), then stop → approve → the plan runs
+# 3. Start — a concrete task becomes an implementation spec (Plan) with its critique, then stop → approve → the plan runs
 /oh-my-joy:spec "Search input form — React Hook Form + Zod, mobile-first" /search
 
 #    …or start from a design — the same command takes the Figma link
@@ -49,6 +63,14 @@ So OMJ inverts the obvious fix. The entry commands are **not** implement command
 ```
 
 > **Updates** ship when a release (version bump) lands on `main` — merged features don't reach existing installs until the version string changes. Pull the latest with `/plugin update oh-my-joy@omj`, then `/reload-plugins` (or a new session) to load it.
+>
+> **Upgrading from v0.8?** v0.9.0 keeps every command and adds a critique gate and execution rules:
+>
+> | Old name | Now |
+> | --- | --- |
+> | `figma-implementer` (agent) | `implementer` — the same executor with a frontend mode and a general mode, now the teammate type for every Dispatch row |
+>
+> `/oh-my-joy:spec` ends with a `## Critique` section before the lane section (decision record, simulated tasks against your files, a ready verdict — plus two read-only `critic` readings in fresh contexts on non-trivial plans), `/oh-my-joy:deep-interview` hands its requirements to `spec` through an exit bridge, and the completion procedure asks no questions between approval and the report — blockers are classified and reported. Nothing else moved.
 >
 > **Upgrading from v0.7?** v0.8.0 generalized the spine and trimmed the surface:
 >
@@ -77,13 +99,13 @@ So OMJ inverts the obvious fix. The entry commands are **not** implement command
 
 ## How to use OMJ
 
-Six situations cover most days. Each is the exact sequence you type; everything between approval and ship happens on its own because the approved plan says so.
+Six situations cover most days. Each is the exact sequence you type; every spec critiques itself before you see it, and everything between approval and ship happens on its own because the approved plan says so.
 
 **1. One Figma screen**
 
 ```
 /oh-my-joy:spec https://figma.com/design/abc?node-id=1-2 /checkout
-  → approve the plan  → implement → /oh-my-joy:review → /oh-my-joy:verify /checkout → fix loop → report (automatic)
+  → the spec ends with ## Critique → approve the plan → implement → /oh-my-joy:review → /oh-my-joy:verify /checkout → fix loop → report (automatic)
 /oh-my-joy:ship "feat(checkout): summary panel"
 ```
 
@@ -91,9 +113,9 @@ Six situations cover most days. Each is the exact sequence you type; everything 
 
 ```
 /oh-my-joy:spec https://figma.com/design/abc?node-id=1-2 /checkout
-  → spec reads the frame section by section and ends with a Dispatch table; the agent-team lane is recommended — answer the one lane question
+  → spec reads the frame section by section and ends with a Dispatch table and its ## Critique; the agent-team lane is recommended — answer the one lane question
   → approve the plan
-  → paste the one line the spec printed: it spawns one figma-implementer teammate per section (needs CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1; without it the work runs sequentially)
+  → paste the one line the spec printed: it spawns one implementer teammate per section (needs CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1; without it the work runs sequentially)
   → teammates finish with evidence → /oh-my-joy:verify /checkout is the barrier → /oh-my-joy:review → report (automatic)
 /oh-my-joy:ship "feat(checkout): all sections"
 ```
@@ -102,7 +124,7 @@ Six situations cover most days. Each is the exact sequence you type; everything 
 
 ```
 /oh-my-joy:spec "search input form — React Hook Form + Zod, mobile first" /search
-  → approve → implement → review → verify /search → fix loop → report (automatic)
+  → the spec ends with ## Critique → approve → implement → review → verify /search → fix loop → report (automatic)
 /oh-my-joy:ship "feat: search form"
 ```
 
@@ -110,7 +132,7 @@ Six situations cover most days. Each is the exact sequence you type; everything 
 
 ```
 /oh-my-joy:spec "rate-limit middleware for the public API — 100 req/min per key"
-  → the spec lists acceptance criteria and the verification commands it found (verifyCommands or package.json scripts)
+  → the spec lists acceptance criteria and the verification commands it found (verifyCommands or package.json scripts), then critiques itself against your files
   → approve → implement → /oh-my-joy:review (general mode) → /oh-my-joy:verify (evidence mode: runs the commands, records exit codes) → report (automatic)
 /oh-my-joy:ship "feat(api): rate limiter"
 ```
@@ -119,7 +141,8 @@ Six situations cover most days. Each is the exact sequence you type; everything 
 
 ```
 /oh-my-joy:deep-interview "notification system overhaul — not sure where to start"
-  → one question per round until the ambiguity score passes → the spec is the plan → approve → the same completion procedure
+  → one question per round until the ambiguity score passes → the exit bridge hands the requirements to /oh-my-joy:spec (or plans directly for small work)
+  → the spec, with its ## Critique, is the plan → approve → the same completion procedure
 /oh-my-joy:ship
 ```
 
@@ -138,17 +161,29 @@ Every command also works on its own — a colleague's diff (`/oh-my-joy:review -
 
 First time here? Run `/oh-my-joy:setup` once — it checks the optional dependencies, offers the Agent Teams flag and the OMJ answer style, and scaffolds `.omj/fe-context.md`.
 
-1. **Enter** — `/oh-my-joy:spec <figma-url | task> [route]` for anything concrete (Figma, frontend text, or general text); `/oh-my-joy:deep-interview` when the goal itself is still fuzzy. Both author a spec, record the execution lane and the completion procedure, and stop.
+1. **Enter** — `/oh-my-joy:spec <figma-url | task> [route]` for anything concrete (Figma, frontend text, or general text); `/oh-my-joy:deep-interview` when the goal itself is still fuzzy. Both author a spec, critique it against the real code (decision record, simulated tasks, a ready verdict), record the execution lane and the completion procedure, and stop.
 2. **Approve the plan** (ExitPlanMode) — implementation starts only here, on the lane the spec recorded. Small work auto-selects inline; a heavier lane is asked about exactly once.
-3. **The plan runs** — implement on the lane, then `/oh-my-joy:review` (the diff against the rubric and the spec's acceptance criteria), then `/oh-my-joy:verify` (a route in a real browser, or the verification commands with exit codes), then the `/oh-my-joy:fix` loop for frontend defects, then a report with evidence.
+3. **The plan runs** — implement on the lane (no questions asked; blockers are classified and reported), then `/oh-my-joy:review` (the diff against the rubric and the spec's acceptance criteria), then `/oh-my-joy:verify` (a route in a real browser, or the verification commands with exit codes), then the `/oh-my-joy:fix` loop for frontend defects, then a report with evidence.
 4. **Ship** — `/oh-my-joy:ship "<title>"` re-runs the verification commands, commits with your conventions, pushes, and opens the PR with the evidence attached. Pass `--base develop` (or answer its one question) on teams that merge into `develop`. This step is never automatic.
+
+**The spine at a glance.** Each stage is a gate with one job.
+
+| Stage | Gate | What it checks |
+| --- | --- | --- |
+| `/oh-my-joy:deep-interview` | clarity — only when the goal is fuzzy; concrete input starts at the next row | ambiguity at or below the threshold, with a floor the score cannot dip under; ends by handing the requirements to `spec` (or planning directly for small work) |
+| `/oh-my-joy:spec` | feasibility | the critique: a self-check (decision record, simulated tasks against the real files), then two `critic` agents in fresh contexts on non-trivial plans, a ready verdict |
+| approval (ExitPlanMode) | consent | you read the spec and its critique; nothing has run |
+| implement | evidence, no questions | blockers classified `resolvable` or `human-only`; assumptions recorded |
+| `/oh-my-joy:review` | delta ratchet | acceptance criteria against the diff, an independent `critic` pass on non-trivial diffs; a second pass reports only what changed |
+| `/oh-my-joy:verify` | evidence by kind | test report · command replay · browser capture, each with an exit code |
+| `/oh-my-joy:ship` | yours | verification commands, commit, push, PR |
 
 ```mermaid
 flowchart TD
     DI["/oh-my-joy:deep-interview<br/>fuzzy idea → spec"] -.->|"still fuzzy?"| S
-    S["/oh-my-joy:spec<br/>design or code → implementation spec + lane + completion procedure"] --> L{{"execution lane<br/>inline (auto) · /goal · agent team"}}
+    S["/oh-my-joy:spec<br/>design or code → implementation spec + critique + lane + completion procedure"] --> L{{"execution lane<br/>inline (auto) · /goal · agent team"}}
     L --> P{{"ExitPlanMode<br/>you review & approve"}}
-    P --> I["implement on the lane<br/>inline · /goal · native Agent Teams (one teammate per Dispatch row)"]
+    P --> I["implement on the lane<br/>inline · /goal · native Agent Teams (one teammate per Dispatch row)<br/>no questions; blockers classified"]
     I --> R["/oh-my-joy:review — the diff vs rubric + acceptance criteria"]
     R --> V["/oh-my-joy:verify — route in a browser, or verification commands with exit codes"]
     V -->|"visual defect"| F["/oh-my-joy:fix<br/>edit → re-capture"]
@@ -163,9 +198,9 @@ _Hexagons are the three human decision points — the lane (auto-resolved for sm
 
 **Picking an execution lane.** The spec ends with a lane selection; option 1 is always the recommendation, labeled `(recommended)`, and small concrete work skips the question entirely (`(auto)`).
 
-- **inline** — the default. After approval, the current session implements the spec; `figma-implementer` is the frontend executor. Always available.
+- **inline** — the default. After approval, the current session implements the spec; `implementer` is the executor (frontend or general mode). Always available.
 - **`/goal`** — persistence *within* a session: keeps this session iterating until a stated condition holds. Part of Claude Code's hooks system — unavailable where hooks are disabled.
-- **agent team** — three or more independent units with disjoint files (sections of a large frame, separate modules): the spec's Dispatch table becomes the shared task list, one `figma-implementer` teammate per row, and `verify` is the barrier. Runs on Claude Code's native Agent Teams (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, experimental); without the flag it degrades to subagents, then to inline.
+- **agent team** — three or more independent units with disjoint files (sections of a large frame, separate modules): the spec's Dispatch table becomes the shared task list, one `implementer` teammate per row, and `verify` is the barrier. Runs on Claude Code's native Agent Teams (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, experimental); without the flag it degrades to subagents, then to inline.
 
 The full routing rules, the dispatch contract, and the completion procedure live in [docs/EXECUTION-HANDOFF.md](docs/EXECUTION-HANDOFF.md) — this section carries only the selection feel, never the numbers.
 
@@ -179,7 +214,7 @@ Paste a section or frame link — `spec` reads it as data, and for each frame:
 2. **Walks large frames section by section** — a frame with three or more top-level sections is read one section at a time (metadata first, then one design-context call per section), because a single call over a big frame comes back flattened. The spec gets a per-section breakdown and a Dispatch table that maps each section to the files that will own it; more than eight sections and it proposes splitting the link.
 3. **Maps every color, type style, radius, and shadow to your semantic tokens** — it detects your token system (fe-context → tokens.json → Tailwind config → CSS variables), and raw hex is never an option, even in projects with no tokens.json.
 4. **Keeps fidelity rules on** — original text stays, variants that don't exist in Figma are never invented, fixed px gives way to `w-full` + parent padding.
-5. **Scores the spec before you see it** — six uSpec sections (Uber's design-spec taxonomy: Anatomy / Structure / Color·Tokens / Props·Variants / A11y / Motion), each evaluated against the FF criteria (Toss frontend-fundamentals: readability, predictability, cohesion, coupling) plus accessibility.
+5. **Scores the spec before you see it, then critiques it** — six uSpec sections (Uber's design-spec taxonomy: Anatomy / Structure / Color·Tokens / Props·Variants / A11y / Motion), each evaluated against the FF criteria (Toss frontend-fundamentals: readability, predictability, cohesion, coupling) plus accessibility; then two or three representative tasks are simulated against your files and the `## Critique` section records the decision record and the verdict.
 
 That is why the output doesn't drift the way "build this frame" prompts do: the model isn't eyeballing a screenshot — it fills a fixed skeleton from structured design data, in your token vocabulary, at the right granularity, and the baseline it recorded is what `verify` compares the build against.
 
@@ -216,16 +251,16 @@ Say verify reports a defect — the submit button clips its label at 360px. The 
 
 ## Commands
 
-| Command | What it does | When to use | Example |
-| --- | --- | --- | --- |
-| **`/oh-my-joy:spec`** | Read the input (Figma link with a section walk for large frames, frontend text, or general text), author the implementation spec (Plan) with the execution lane and the completion procedure, then stop (read-only). Infers the verify route when omitted; sends text with no verifiable target to the interview | The starting point for every concrete task | `/oh-my-joy:spec https://figma.com/design/abc?node-id=1-2 /settings/profile` |
-| **`/oh-my-joy:deep-interview`** | Socratic one-question-per-round interview that turns a vague idea into a spec (native Plan) gated by a weighted ambiguity score (`--threshold N`%, default 20) — topology lock, weakest-dimension targeting, ontology tracking, restate/closure double gate (read-only); closes with the same lane and completion sections as `spec`. Exits immediately on already-concrete input and routes Figma links to `spec` | When the goal itself is still fuzzy | `/oh-my-joy:deep-interview "internal knowledge base — still fuzzy"` |
-| **`/oh-my-joy:review`** | Review the changed diff and report only — frontend files against the FF 4 criteria + a11y · Figma fidelity · vercel · Next.js (Context7); every other file for correctness, simplicity, consistency, and test coverage; an approved spec's acceptance criteria are checked against the diff. No args = uncommitted + staged vs HEAD; `--base <ref>` = the whole branch | Right after implementing (the plan runs it), or on anyone's diff | `/oh-my-joy:review --base main` |
-| **`/oh-my-joy:verify`** | Prove the work. With a route: open it in a real browser (playwright-cli, MCP fallback) and check it against the Figma baseline (`.omj/baselines/`), always asserting the page actually reached the route. Without a route: run the project's verification commands and record `command · exit code · summary`. `--base <url>` sets the dev server | The plan runs it after review; also the barrier after teammates finish | `/oh-my-joy:verify /settings/profile` · `/oh-my-joy:verify` |
-| **`/oh-my-joy:fix`** | Fix defects on a route (required) from a pasted screenshot and/or a complaint, then re-capture to confirm (active loop). `--base <url>`, `--commit` | Visual defects verify found | `/oh-my-joy:fix /pricing "banner z-index too low"` |
-| **`/oh-my-joy:sync`** | Reconcile drift between the token store (`tokens.json` or CSS custom properties) ↔ Figma by asking you the direction; `extract` bootstraps CSS tokens from Figma variables; `--tokens <path>` overrides the store path | Aligning code/Figma tokens · first extraction | `/oh-my-joy:sync` · `check` · `push` · `extract <figma-url>` |
-| **`/oh-my-joy:ship`** | Run the verification commands (every one must exit 0), commit on a branch with your conventions and language, push, and open the PR with the evidence table in its body (your PR template when the repo has one). `--base <ref>` picks the PR base; without it, ship asks once which branch to target. Never commits on a shared branch (`main`, `develop`, …): with changes it branches off first, on a clean `develop` it opens the promotion PR. Pre-approves only git/gh/typecheck — test runners go through the permission prompt on purpose | The last step, always typed by you | `/oh-my-joy:ship "feat(checkout): summary panel"` |
-| **`/oh-my-joy:setup`** | Dependency doctor + one multi-select install for anything missing + scaffolding: `.omj/fe-context.md` (adopts existing rule docs via `contextDocs:`, scaffolds `verifyCommands:` from package.json as comments), opt-in token-guard hooks, the opt-in OMJ HUD, the Agent Teams flag, and the OMJ answer style; offers a GitHub star at the end (never blocks) | Before first use — `spec` suggests it once when no setup trace exists | `/oh-my-joy:setup` · `--check` (report only) |
+| Command | Tier | What it does | When to use | Example |
+| --- | --- | --- | --- | --- |
+| **`/oh-my-joy:spec`** | you | Read the input (Figma link with a section walk for large frames, frontend text, or general text), author the implementation spec (Plan), critique it against the real code (`## Critique`: decision record, simulated tasks, ready verdict; two `critic` readings in fresh contexts on non-trivial plans), record the execution lane and the completion procedure, then stop (read-only). Also takes an interview's requirements from the session as input. Infers the verify route when omitted; sends text with no verifiable target to the interview | The starting point for every concrete task | `/oh-my-joy:spec https://figma.com/design/abc?node-id=1-2 /settings/profile` |
+| **`/oh-my-joy:deep-interview`** | you | Socratic one-question-per-round interview that turns a vague idea into a spec (native Plan) gated by a weighted ambiguity score (`--threshold N`%, default 20) — topology lock, weakest-dimension targeting, ontology tracking, an ambiguity floor, restate/closure double gate (read-only); ends with an exit bridge — hand the requirements to `spec` (default), plan directly for small work, or research first. Exits immediately on already-concrete input and routes Figma links to `spec` | When the goal itself is still fuzzy | `/oh-my-joy:deep-interview "internal knowledge base — still fuzzy"` |
+| **`/oh-my-joy:ship`** | you | Run the verification commands (every one must exit 0), commit on a branch with your conventions and language, push, and open the PR with the evidence table in its body (your PR template when the repo has one). `--base <ref>` picks the PR base; without it, ship asks once which branch to target. Never commits on a shared branch (`main`, `develop`, …): with changes it branches off first, on a clean `develop` it opens the promotion PR. Pre-approves only git/gh/typecheck — test runners go through the permission prompt on purpose | The last step, always typed by you | `/oh-my-joy:ship "feat(checkout): summary panel"` |
+| **`/oh-my-joy:review`** | the plan | Review the changed diff and report only — frontend files against the FF 4 criteria + a11y · Figma fidelity · vercel · Next.js (Context7); every other file for correctness, simplicity, consistency, and test coverage; an approved spec's acceptance criteria are checked against the diff; non-trivial diffs get an independent `critic` pass in a fresh context; a second pass on the same change reports the delta (prior findings resolved or not, then only what changed). No args = uncommitted + staged vs HEAD; `--base <ref>` = the whole branch | Right after implementing (the plan runs it), or on anyone's diff | `/oh-my-joy:review --base main` |
+| **`/oh-my-joy:verify`** | the plan | Prove the work. With a route: open it in a real browser (playwright-cli, MCP fallback) and check it against the Figma baseline (`.omj/baselines/`), always asserting the page actually reached the route. Without a route: run the project's verification commands and record `command · exit code · summary` with the evidence kind. `--base <url>` sets the dev server | The plan runs it after review; also the barrier after teammates finish | `/oh-my-joy:verify /settings/profile` · `/oh-my-joy:verify` |
+| **`/oh-my-joy:fix`** | the plan | Fix defects on a route (required) from a pasted screenshot and/or a complaint, then re-capture to confirm (active loop). `--base <url>`, `--commit` | Visual defects verify found | `/oh-my-joy:fix /pricing "banner z-index too low"` |
+| **`/oh-my-joy:sync`** | occasional | Reconcile drift between the token store (`tokens.json` or CSS custom properties) ↔ Figma by asking you the direction; `extract` bootstraps CSS tokens from Figma variables; `--tokens <path>` overrides the store path | Aligning code/Figma tokens · first extraction | `/oh-my-joy:sync` · `check` · `push` · `extract <figma-url>` |
+| **`/oh-my-joy:setup`** | occasional | Dependency doctor + one multi-select install for anything missing + scaffolding: `.omj/fe-context.md` (adopts existing rule docs via `contextDocs:`, scaffolds `verifyCommands:` from package.json as comments), opt-in token-guard hooks, the opt-in OMJ HUD, the Agent Teams flag, and the OMJ answer style; offers a GitHub star at the end (never blocks) | Before first use — `spec` suggests it once when no setup trace exists | `/oh-my-joy:setup` · `--check` (report only) |
 
 > **read-only vs active op.** `/oh-my-joy:spec` and `/oh-my-joy:deep-interview` declare no write tools and no Bash: they author the Plan and stop (`spec` asks at most one lane question, skipped when inline is recommended). `/oh-my-joy:review` and `/oh-my-joy:verify` are report-only (observation-scoped Bash, no write tools). `/oh-my-joy:fix`, `/oh-my-joy:sync` (sync/push/extract), and `/oh-my-joy:ship` are active ops; if your environment blocks those in Plan mode, exit Plan mode first. Verification commands (`npm test`, …) are never pre-approved by any command — the permission prompt is what makes the recorded evidence trustworthy. Each command's syntax and steps live in its `commands/<name>.md` (the source of truth).
 >
@@ -233,7 +268,8 @@ Say verify reports a defect — the submit button clips its label at 360px. The 
 
 ### Bundled agents, answer style, and opt-in extras
 
-- **`figma-implementer`** (agent) — implements an **approved OMJ spec** through a 5-step loop (Clarify → Context → Plan → Generate → Evaluate) as the inline-lane executor, and doubles as the teammate type on the agent-team lane: one instance per Dispatch row, editing only that row's files and reporting completion with evidence. Refuses bare Figma URLs without a spec (no plan-gate bypass).
+- **`critic`** (agent) — a read-only reviewer that `spec` spawns for non-trivial plans (two instances: architect lens and critic lens) and `review` spawns for non-trivial diffs, in a fresh context that did not write the material. Returns a verdict and findings, edits nothing; declares exactly `Read`, `Grep`, `Glob` (pinned by tests). Never typed.
+- **`implementer`** (agent) — implements an **approved OMJ spec** through a 5-step loop (Clarify → Context → Plan → Generate → Evaluate) in frontend mode (uSpec, Figma, a route) or general mode, as the inline-lane executor and as the teammate type for every Dispatch row: one instance per row, editing only that row's files, asking nothing mid-run, classifying blockers, and reporting completion with evidence. Refuses spec-less input (no plan-gate bypass).
 - **`design-qa`** (agent) — a mechanical gate that only **checks**: typecheck, lint, hardcoded tokens, Figma fidelity, a11y basics, plus Story/i18n checks only when declared in fe-context. Declares no write tools (pinned by tests).
 - **OMJ answer style** (`output-styles/oh-my-joy.md`, opt-in) — answers composed in your language rather than translated into it (for Korean: complete particles and endings, one polite register, English technical terms left as they are — rules adapted from [fluent-korean](https://github.com/snflkd/fluent-korean), credited in [`NOTICE.md`](NOTICE.md)), explained so a junior developer can follow, ending with the next step in the flow. Keeps Claude Code's coding instructions and never forces itself on: pick it in `/oh-my-joy:setup` or under **Output style** in `/config`; it applies to the main conversation from the next session (subagents keep their own prompts).
 - **Token-guard hooks** — `check-design-tokens.mjs` (hardcoded-color warning) and `check-story-exists.mjs` (missing-Story warning) in `templates/hooks/`. **The plugin never fires them by itself** — they run only after `/oh-my-joy:setup` copies and registers them into a consuming project's `.claude/hooks/` (opt-in), and they no-op without an `.omj/fe-context.md` declaration. Both are advisory and fail-open (pinned by [`tests/hooks/hook-conventions.test.mjs`](tests/hooks/hook-conventions.test.mjs)).
@@ -284,7 +320,7 @@ What goes where, and why, is owned by [`commands/setup.md`](commands/setup.md).
 Each claim below is checkable in this repo — the artifact is named, and so is the alternative that was rejected.
 
 - **Least privilege is declared in the manifest, not left to convention.** `/oh-my-joy:spec` ships with `allowed-tools: Read, Grep, Glob, Skill, AskUserQuestion` plus read-only Figma/Context7 MCP ([`commands/spec.md`](commands/spec.md)); `/oh-my-joy:ship` pre-approves only git, gh, and the typecheck, never a test runner ([`commands/ship.md`](commands/ship.md)). No write tool is pre-approved where it isn't called, so a write attempt cannot happen silently. Rejected: "grant the tools and instruct the model not to use them" — prose is not an enforcement layer.
-- **One source of truth per fact, and the doc facts are CI-checked.** Execution-lane thresholds and the completion procedure live only in [`docs/EXECUTION-HANDOFF.md`](docs/EXECUTION-HANDOFF.md). A dependency-free suite checks that the two READMEs declare the same command set and installation string, that no Korean leaks into the English pages, that every relative link resolves, and that retired command names stay in the migration tables ([`tests/docs-consistency.test.mjs`](tests/docs-consistency.test.mjs)).
+- **One source of truth per fact, and the doc facts are CI-checked.** Execution-lane thresholds and the completion procedure live only in [`docs/EXECUTION-HANDOFF.md`](docs/EXECUTION-HANDOFF.md). A dependency-free suite checks that the two READMEs declare the same command set and installation string, that no Korean leaks into the English pages, that every relative link resolves, and that retired command and agent names stay in the migration tables ([`tests/docs-consistency.test.mjs`](tests/docs-consistency.test.mjs)).
 - **Prompt bodies follow the prompting guide, and a test says so.** Every command, agent, skill, and style body states what to do and why, without shouted imperatives, emphasis inflation, or warning glyphs, and keeps examples in `<example>` tags ([`tests/prompt-style.test.mjs`](tests/prompt-style.test.mjs)). Rejected: a style checklist in a contributing guide — it held for exactly one release.
 - **Every dependency is optional, by design.** Figma MCP, playwright, Context7, the Agent Teams flag — each absence degrades to "skip + explain", never an error.
 - **The plugin never fires hooks or forces a style on its own.** No `hooks/hooks.json`, no `force-for-plugin` on the answer style; both are opt-in installs by `/oh-my-joy:setup`, pinned by [`tests/plugin-manifest.test.mjs`](tests/plugin-manifest.test.mjs).
@@ -296,8 +332,9 @@ The reasoning behind each decision — problem → decision → rationale → ou
 
 ## Principles · Figma 2-track
 
-- **Plan-native primers**: `/oh-my-joy:spec` and `/oh-my-joy:deep-interview` are read-only — they draft a spec, record the lane and the completion procedure, and stop; implementation starts only after you approve.
-- **Evidence rule**: "done" means a command, its exit code, and a summary — recorded by `verify` (evidence mode), `ship`, and agent-team teammates. Verification commands are never pre-approved.
+- **Plan-native primers, critique before consent**: `/oh-my-joy:spec` and `/oh-my-joy:deep-interview` are read-only — they draft a spec, critique it against the real code (`## Critique`), record the lane and the completion procedure, and stop; implementation starts only after you approve.
+- **Evidence rule**: "done" means a command, its exit code, a summary, and the evidence kind — recorded by `verify` (evidence mode), `ship`, and agent-team teammates. Verification commands are never pre-approved.
+- **Execution asks nothing**: between approval and the report the session asks no questions; a blocker is `resolvable` (three approaches first) or `human-only` (stop, say what you must do), and every assumption made where the plan was silent is listed in the report.
 - **Spec format**: uSpec sections + FF 4-criteria + a11y + Figma fidelity ([`figma-fidelity.md`](skills/frontend-fundamentals/references/figma-fidelity.md)) for frontend; goal / constraints / acceptance criteria / verification commands for everything else.
 - **Token sync**: code is the default SoT, and you choose the direction on conflict (interactive). Both DTCG json and CSS custom-property stores.
 - **Figma 2-track**: (A) app-screen design→code = official Dev Mode MCP, walked section by section on large frames; (B) design-system spec/tokens = figma-console-mcp + uSpec (v1.1+).
@@ -309,7 +346,7 @@ The "why" behind each decision lives in **[docs/PRINCIPLES.md](docs/PRINCIPLES.m
 
 ## How this plugin evolves
 
-Command bodies are prompts, so "a small wording change" is a behavior change. OMJ measures them: `evals/` holds a behavioral case per command (native `claude plugin eval` when your organization has it, otherwise the `claude -p` fallback runner — same case files), `npm run eval` scores them with a threshold, and a change to a command body adds or updates the case that observes it. On every PR, [`tests/token-budget.test.mjs`](tests/token-budget.test.mjs) keeps the always-on description cost under a ratcheted budget, so the surface cannot grow silently. The loop is written down in [docs/EVALS.md](docs/EVALS.md).
+Command bodies are prompts, so "a small wording change" is a behavior change. OMJ measures them: `evals/` holds a behavioral case per command (native `claude plugin eval` when your organization has it, otherwise the `claude -p` fallback runner — same case files), `npm run eval` scores them with a threshold, and a change to a command body adds or updates the case that observes it. Every run drives a real session, so run only the case for the body you changed, once (`--case <name> --runs 1`), and keep the three-run suite for a release; the runner checks its cost ceiling before each run and saves every run's output for reading. On every PR, [`tests/token-budget.test.mjs`](tests/token-budget.test.mjs) keeps the always-on description cost under a ratcheted budget, so the surface cannot grow silently. The loop is written down in [docs/EVALS.md](docs/EVALS.md).
 
 ---
 
@@ -325,6 +362,8 @@ Command bodies are prompts, so "a small wording change" is a behavior change. OM
 - **The answer style didn't change anything** — it applies from the next session or after `/clear`, to the main conversation only. Check **Output style** in `/config` shows `oh-my-joy` selected.
 - **Figma not connected / no permission** — `This figma file could not be accessed` is handled gracefully. Open the Figma desktop app, put the target file in the active tab, and retry. Variable/node access requires edit permission — duplicate viewer-shared files and use the copy's URL.
 - **Baseline comparison not happening** — Figma asset URLs expire after ~7 days; re-run `/oh-my-joy:spec` to refresh the spec's baseline provenance. Cross-session comparison relies on the PNGs in `.omj/baselines/` (gitignore recommended); the PNG is first created only when `/oh-my-joy:verify` runs in the same session as `spec`.
+- **`/oh-my-joy:spec` asked me a question before showing the plan** — the critique gate found items still open after two revisions (a target that does not exist, a criterion nobody can check). Answer once and the spec folds it in; after approval nothing asks.
+- **The session decided something I did not expect after approval** — by design it asks nothing between approval and the report. Every such decision is listed under assumptions in the report, and a blocker only you can clear (credentials, an external approval) stops the run and says so.
 - **`/oh-my-joy:deep-interview` ended immediately** — that's the suitability gate, not a failure: the input was already concrete (use `/oh-my-joy:spec`), or it carried a Figma URL that routes to `spec`.
 - **Suspect a stale install?** Every release records the tagged tree's content hash in its GitHub Release notes, and CI re-verifies the tag against that hash. Recompute a local copy's hash with `node scripts/generate-inventory.mjs --dir <plugin cache dir>`.
 - **MCP tool names differ** — Figma/Context7 tool names vary by environment. Check the actual names with `/mcp`.
