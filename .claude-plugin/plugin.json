@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "oh-my-joy",
   "version": "0.8.1",
-  "description": "The code↔Figma frontend loop plus the workflows that wrap it — spec-first planning, visual verification, token sync, deep interview, durable goal loop, consensus review. Nothing runs until you approve the plan.",
+  "description": "A spec-first workflow spine with the code↔Figma frontend loop built in — deep interview, spec with a critique gate, review, verify with evidence, fix, token sync, ship. Nothing runs until you approve the plan.",
   "author": {
     "name": "Jooyoung Shin",
     "email": "jooyoung.dev@gmail.com"

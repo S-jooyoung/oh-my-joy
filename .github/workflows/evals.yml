@@ -13,6 +13,10 @@ on:
         description: 'Case glob (empty = all)'
         required: false
         default: ''
+      runs:
+        description: 'Runs per case (1 for a quick check, 3 before a release)'
+        required: false
+        default: '1'
   release:
     types: [published]
 
@@ -37,7 +41,9 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           set -euo pipefail
-          ARGS=(--threshold 0.8 --max-cost-usd 5 --json evals/results/latest.json)
+          # One run per case costs about $1–2.6; eight cases at one run fit a $15 ceiling,
+          # which the runner checks before each run starts (docs/EVALS.md).
+          ARGS=(--threshold 0.8 --runs "${{ github.event.inputs.runs || '1' }}" --max-cost-usd 15 --json evals/results/latest.json)
           if [ -n "${{ github.event.inputs.case }}" ]; then ARGS+=(--case "${{ github.event.inputs.case }}"); fi
           npm run eval -- "${ARGS[@]}"
 
