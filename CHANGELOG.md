@@ -10,6 +10,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.9.0] - 2026-09-07
+
+### Added
+
 - Critique gate in `/oh-my-joy:spec` (Phase 3) before the Plan is presented: a self-check for every spec — decision record (drivers, at least two viable options, why the chosen one won), two or three representative tasks simulated against the real files, a `ready` verdict, at most two revisions — and, for non-trivial plans (three or more files, a new abstraction or contract, section mode), two `critic` agents spawned in fresh contexts (architect lens, critic lens) whose findings revise the spec with a delta re-review, at most two passes, then one question for what stays open. The result is a `## Critique` section closing `ready (self)` or `ready (independent: 2 lenses, N passes)`. Plan approval is consent; the gate is the feasibility check consent used to inherit blindly (`docs/PRINCIPLES.md` ①)
 - The `critic` agent (`agents/critic.md`) — a read-only reviewer with exactly `Read`, `Grep`, `Glob` (test-pinned), spawned by `spec` for plans and by `review` for non-trivial diffs (three or more files or a new abstraction), never typed by the user; it returns a verdict (`CLEAR`, `REVISE`, `BLOCK`) and findings and edits nothing
 - Exit bridge in `/oh-my-joy:deep-interview` — after the restate and closure gates the interview presents the requirements and asks one last question: hand them to `/oh-my-joy:spec` (the default, invoked as a skill with the requirements as input), plan directly for one-or-two-file work whose context the interview already secured, or stop for research when a `Research first` row exists. `/oh-my-joy:spec` accepts an interview's requirements as its fourth kind of input and asks nothing the interview answered
@@ -381,7 +395,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.7.0...v0.7.1
