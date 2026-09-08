@@ -4,8 +4,9 @@
  * The release verify job trusts this script's sha256 as the drift detector, so the
  * suite pins exactly two properties: the same tree always hashes the same
  * (reproducibility across runs and machines), and any content change hashes
- * differently (drift detection). Operational noise (.git, node_modules, .omc, .omj, .omx)
- * must not influence the hash, or a local cache could never match a fresh checkout.
+ * differently (drift detection). Root operational noise (.git, node_modules, .omc,
+ * .omj, .omx) must not influence the hash, or a local cache could never match a
+ * fresh checkout; nested shipped fixtures and unexpected artifacts must remain visible.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -70,6 +71,40 @@ describe('generate-inventory', () => {
     } finally {
       clean.cleanup();
       noisy.cleanup();
+    }
+  });
+
+  it('repo and directory modes preserve tracked nested runtime-named fixtures', () => {
+    const project = makeProject({
+      ...FIXTURE,
+      'evals/fixtures/fe-form/.omj/fe-context.md': '# tracked fixture\n',
+      '.omj/goals/local/ledger.jsonl': '{"event":"runtime-noise"}\n',
+    });
+    try {
+      execFileSync('git', ['init', '--quiet'], { cwd: project.root });
+      execFileSync(
+        'git',
+        ['add', '.claude-plugin/plugin.json', 'agents/helper.md', 'commands/spec.md', 'evals/fixtures/fe-form/.omj/fe-context.md'],
+        { cwd: project.root },
+      );
+
+      const repoInventory = JSON.parse(
+        execFileSync('node', [repoPath('scripts', 'generate-inventory.mjs')], {
+          cwd: project.root,
+          encoding: 'utf8',
+        }),
+      );
+      const dirInventory = runInventory('--dir', project.root);
+
+      assert.equal(repoInventory.files, 4);
+      assert.deepEqual(dirInventory, repoInventory);
+
+      writeFileSync(project.file('unexpected-artifact.txt'), 'contamination\n');
+      const contaminatedInventory = runInventory('--dir', project.root);
+      assert.equal(contaminatedInventory.files, 5);
+      assert.notEqual(contaminatedInventory.sha256, repoInventory.sha256);
+    } finally {
+      project.cleanup();
     }
   });
 

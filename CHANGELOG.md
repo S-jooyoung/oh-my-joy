@@ -12,11 +12,15 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Changed
 
+- Codex skill descriptions are front-loaded and held to per-skill and catalog budgets; the setup and eval documentation now provides a source-to-session diagnosis and read-only native smoke protocol for shortened skill catalogs.
+
 ### Deprecated
 
 ### Removed
 
 ### Fixed
+
+- Release inventory exclusions preserve nested tracked fixture files while omitting root-only orchestration state, with regression coverage for the boundary.
 
 ### Security
 

@@ -1,6 +1,6 @@
 ---
 name: ultragoal
-description: Execute or resume an approved OMJ plan through durable, evidence-backed completion, including only explicitly authorized existing-PR delivery.
+description: "Execute or resume an approved OMJ plan through verified completion, including only the existing-PR delivery that was explicitly authorized."
 license: MIT
 metadata:
   author: Jooyoung Shin

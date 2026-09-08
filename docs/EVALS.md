@@ -8,6 +8,80 @@ OMJ's behavior is written in Markdown, so a "small wording change" in a command 
 - **`npm run eval`** — runs the cases. It prefers Claude Code's native `claude plugin eval` (early access, enabled per organization; the runner detects "currently in early access" and falls back). The fallback, `scripts/eval-runner.mjs`, reads the same case files and drives `claude -p --plugin-dir . --output-format stream-json`, scoring the grader subset it understands (`regex`, `tool_used`, `file_exists`, `llm`), saving every run's final message and grader results as `results/<stamp>/<case>/run-N.md` and `run-N.json`, and writing the same `aggregate-result.json` shape (each arm carries an `outputPath` to its run). One case format, two runners, so switching to native later needs no rewrite. `tests/eval-runner.test.mjs` drives the runner against a stub `claude` (`OMJ_EVAL_CLAUDE_BIN`), so the harness itself is under test without spending tokens.
 - **`tests/token-budget.test.mjs`** — the always-on description cost of every surface, ratcheted. It runs on every PR because it is free; the eval cases run on demand because they cost tokens.
 
+## Discovery metadata budget
+
+The static estimate is deliberately simple and reproducible. For each row it computes `Math.round((name + description + argument-hint).length / 4)` and sums the results. This estimate excludes Codex namespacing, resolved paths, catalog framing, and every other installed plugin, so it is a repository ratchet rather than a prediction of the warning threshold.
+
+| Surface | Catalog ceiling | Per-description ceiling |
+| --- | ---: | ---: |
+| Codex plugin: 14 skills | 600 estimated tokens | 180 characters; `critic`, `design-qa`, `implementer`, and `spec` use 120 |
+| Claude plugin descriptions | 1,700 estimated tokens | 180 characters for shared `SKILL.md` entries; command and agent descriptions are aggregate-only |
+| Repository maintainer skills | 120 estimated tokens total | 180 characters |
+
+The pre-change baseline was 918 estimated Codex tokens and 1,973 Claude tokens. The planning candidate was 467 and 1,522, leaving 133 and 178 tokens of headroom; these are labeled planning estimates because the test output at the release commit is the final measurement. Maintainer skills are measured separately because they are repository-local and are not part of the published 14-skill inventory.
+
+The descriptions preserve the following routing contract:
+
+| Skill | Trigger | Role | Authority boundary |
+| --- | --- | --- | --- |
+| `deep-interview` | Fuzzy intent or an explicit requirements interview | Clarify one question per round, then hand requirements to ralplan | Read-only; does not implement |
+| `ralplan` | Concrete code, Figma, requirements, or PR-review planning | Produce one critiqued, decision-complete plan | Read-only; stops at native approval |
+| `ultragoal` | An approved OMJ plan or its resume | Execute and record the approved goals through final evidence | No scope expansion; delivery only when the plan authorized it |
+| `review` | Working-tree, branch, or PR diff review | Report correctness, FF, accessibility, and test findings | Report-only; does not edit or resolve delivery |
+| `verify` | Post-implementation proof, with an optional route | Run declared checks or inspect the live route and report evidence | Report-only; does not fix failures |
+| `fix` | A concrete frontend visual or behavioral defect | Diagnose, edit, and recapture until the scoped defect is repaired | Mutates only the requested fix scope |
+| `sync` | Explicit token check, extract, push, or sync | Reconcile file tokens and Figma Variables | User selects conflict direction before writes |
+| `ship` | Explicit ship, push, or new-PR request | Verify, commit, push, and open the PR | Never inferred from finished code; merge is outside its scope |
+| `setup` | OMJ readiness check or selected installation | Inspect dependencies and install selected integrations or scaffolds | Check mode is read-only; normal mode changes selected items only |
+| `spec` | Compatibility invocation for ralplan inputs | Route unchanged to the canonical ralplan workflow | Same read-only approval gate as ralplan |
+| `frontend-fundamentals` | Writing, changing, or reviewing React components or hooks | Supply readability, predictability, cohesion, coupling, and a11y guidance | Delegates only the specialist checks its references name |
+| `critic` | Parent ralplan or review requests an independent lens | Challenge plan or diff assumptions in fresh context | Internal and read-only; never a user execution lane |
+| `design-qa` | Parent workflow requests the mechanical frontend gate | Run non-mutating checks and return binary evidence | Internal and report-only; never fixes code |
+| `implementer` | Parent ultragoal dispatches one approved goal | Implement the owned files and return verification evidence | Internal; approved scope and file ownership are fixed |
+
+## Codex native skill-catalog smoke
+
+This smoke tests discovery and progressive disclosure without running an OMJ workflow. Use the release candidate in one fresh session with the same model and configuration as the comparison run:
+
+```bash
+codex exec --ephemeral --sandbox read-only --json -C <repo> -
+```
+
+Send this prelude verbatim on stdin, replacing only `<SCENARIOS>` with the table's numbered scenario text in order. Do not include the expected skill names in the prompt:
+
+```text
+Read-only skill-catalog smoke. Do not execute the requested workflow, mutate files, call external services, or dispatch an agent.
+
+Scenarios:
+<SCENARIOS>
+
+Phase 1: Do not read files or call tools. Using only the available skill catalog metadata, emit one JSON object with event="catalog_mapping" and a mappings array. Each mapping contains the scenario number, the single selected OMJ skill name, and a one-sentence reason. Finish all mappings before Phase 2.
+Phase 2: Read each unique selected skill's actual SKILL.md file once through a read-only file tool. For each unique skill, emit one JSON object with event="body_receipt", the skill name, the resolved path, and two concrete contract facts found in the body that are absent from the scenario text.
+
+A skill name in the mapping is not a body receipt. Stop after the mapping object and one receipt per unique skill.
+```
+
+| # | Scenario text |
+| ---: | --- |
+| 1 | `Plan a rate-limit middleware for the public API with repository-backed acceptance evidence.` |
+| 2 | `Plan a checkout implementation from https://figma.com/design/example?node-id=1-2 and verify it at /checkout.` |
+| 3 | `Plan how to address review comments on https://github.com/example/acme/pull/123 without processing them yet.` |
+| 4 | `Turn my fuzzy idea for an internal notification system into decision-complete requirements.` |
+| 5 | `Execute and resume the approved OMJ plan through final recorded evidence.` |
+| 6 | `Review the current working-tree diff and report findings without edits.` |
+| 7 | `Prove the finished change with the repository's declared commands and report their exit codes.` |
+| 8 | `Fix the misaligned mobile checkout button and recapture the result.` |
+| 9 | `Check drift between CSS design tokens and Figma Variables, then ask me to choose any conflict direction.` |
+| 10 | `Ship the verified change by committing, pushing, and opening a pull request.` |
+| 11 | `Check whether this repository is ready for OMJ without changing configuration.` |
+| 12 | `Refactor this React hook and component for readability and accessibility, using only the specialist checks the frontend guide routes to.` |
+| 13 | `The user explicitly invoked $oh-my-joy:spec for a concrete backend task.` |
+| 14 | `Parent ralplan dispatch: independently challenge this non-trivial draft plan with the architect lens.` |
+| 15 | `Parent ultragoal dispatch: run the non-mutating mechanical frontend quality gate.` |
+| 16 | `Parent ultragoal dispatch: implement approved goal G2 in the files assigned to this worker.` |
+
+The observed trace must show the complete phase-1 mapping event before any body-file or tool read, then exactly one read receipt and phase-2 receipt for each of the 14 unique selected skills. Capture stderr separately for the shortened-description warning when the runner exposes it. If stderr is unavailable, record the warning as `unobserved`. This proves only the tested Codex CLI model/configuration; App verification needs a fresh App thread and its own observed catalog. The invocation consumes model usage, but it does not run the full paid behavioral eval suite.
+
 ## Case format
 
 `evals/<case>/prompt.md`:

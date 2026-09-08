@@ -1,6 +1,6 @@
 ---
 name: spec
-description: Compatibility alias for ralplan. Accepts existing Figma, frontend, general coding, interview-requirements, and GitHub PR planning prompts and runs the canonical ralplan skill unchanged.
+description: "Compatibility alias for ralplan: the same reviewed plan for coding tasks, Figma designs and PR feedback."
 license: MIT
 metadata:
   author: Jooyoung Shin

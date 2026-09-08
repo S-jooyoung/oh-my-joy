@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Inspect OMJ readiness in Codex, then install selected integrations, project declarations, frontend hooks, answer style, and CLI status indicators. Check mode is read-only; setup changes are opt-in.
+description: "Check OMJ setup and propose selected integrations, project files and host settings. Check mode is read-only; setup applies selected items."
 license: MIT
 metadata:
   author: Jooyoung Shin

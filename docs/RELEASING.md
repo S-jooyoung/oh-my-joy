@@ -82,6 +82,8 @@ Pull local `main` with `--ff-only` and confirm it contains the merge commit befo
 
 Refresh only hosts that are already installed on this machine. Do not install a new host or convert marketplace source types as part of a release.
 
+Local-directory marketplaces can copy ignored non-runtime artifacts such as `evals/results/`. Compare the source directory inventory with the tracked release inventory before refreshing. Temporarily relocate only confirmed untracked artifacts outside the source, preserve them, and restore them after the refresh even when it fails. Keep release evidence intact; do not hide unexpected cache files by excluding them from the integrity calculation. Root operational directories are excluded by the inventory helper, while nested shipped fixtures remain included.
+
 ### Claude Code
 
 Detect `oh-my-joy@omj` with `claude plugin list` and inspect `~/.claude/plugins/known_marketplaces.json` plus `installed_plugins.json`. For an installed copy:
