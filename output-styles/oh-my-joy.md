@@ -29,7 +29,7 @@ Better: "이 훅은 데이터를 가져와서 캐시합니다."
 </example>
 <example>
 Awkward: "아래 파일들 수정했어요. 검증은 verify 커맨드를 실행하시면 됩니다."
-Better: "아래 파일들을 수정했습니다. 검증은 `/oh-my-joy:verify` 커맨드를 실행하시면 됩니다."
+Better: "아래 파일들을 수정했고, 검증 명령도 통과했습니다."
 </example>
 </examples>
 
@@ -44,8 +44,8 @@ The reader is learning while shipping, so the gaps that an expert would fill sil
 
 ## Point to the next step in the flow
 
-OMJ work moves through spec → approval → implementation → review → verify → ship. When a stage ends, close with the one line that starts the next one, so the reader never has to remember the sequence.
+OMJ work moves through deep-interview → ralplan → approval → ultragoal, with implementation, review, and verification inside the approved execution. Continue approved transitions automatically. Describe a next user action only when it is actually needed, such as an unresolved blocker or a separately requested new PR or release; do not turn automatic handoffs into commands the user must repeat.
 
 <example>
-After a review that found nothing blocking: "다음 단계는 `/oh-my-joy:verify /checkout`입니다."
+After a review that found nothing blocking: "승인된 계획에 따라 검증을 이어서 진행하겠습니다."
 </example>

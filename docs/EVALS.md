@@ -79,8 +79,9 @@ Grader types: `regex` (`pattern`, `flags`, `match: contains | not_contains | cou
 | `/oh-my-joy:deep-interview` | `deep-interview-gate` | the suitability gate exits on concrete input without asking |
 | `/oh-my-joy:review` | `review-mixed-diff`, `review-rerun-delta` | both file classes with severities; a second pass reports prior findings first and only the delta |
 | `/oh-my-joy:verify` | `verify-evidence-mode` | evidence rows with exit codes and an evidence kind, and a failing verdict on red |
-| `/oh-my-joy:ship` | `ship-on-shared-branch`, `ship-stops-on-red` | never commits on a shared branch; stops when a verification command fails |
-| answer style | `style-korean-answer` | fluent Korean, next-step pointer, no edits |
+| `/oh-my-joy:ship` | `ship-on-shared-branch`, `ship-stops-on-red` | branches before committing, reuses an established base without a question, stops on failed verification |
+| `/oh-my-joy:fix` | `fix-commit-stops-on-failed-recheck` | explicit `--commit` does not bypass a failed final recheck; no staging, branch, or commit mutation |
+| answer style | `style-korean-answer` | fluent Korean, respects explanation-only scope without forced internal handoffs, no edits |
 
 ## Enablement check
 

@@ -22,6 +22,8 @@ Claude Code statusLine HUD, vendored from [oh-my-claudecode](https://github.com/
 
 ## Known limitations
 
+- Codex uses its native CLI footer instead of this bundle. Model, branch, context, and quota indicators are configured through `[tui].status_line`; see [Codex setup](../docs/CODEX-SETUP.md). Codex App has no documented custom HUD slot. The shared answer style is available separately through project instructions.
+
 - Version label reads the nearest `package.json` up the tree (shows the oh-my-joy version when run from the copy layout).
 - `OMC_*` env vars (`OMC_DEBUG`, `OMC_STATE_DIR`, …) inside the bundle keep their upstream names.
 

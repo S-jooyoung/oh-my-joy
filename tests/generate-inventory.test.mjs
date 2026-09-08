@@ -4,7 +4,7 @@
  * The release verify job trusts this script's sha256 as the drift detector, so the
  * suite pins exactly two properties: the same tree always hashes the same
  * (reproducibility across runs and machines), and any content change hashes
- * differently (drift detection). Operational noise (.git, node_modules, .omc, .omj)
+ * differently (drift detection). Operational noise (.git, node_modules, .omc, .omj, .omx)
  * must not influence the hash, or a local cache could never match a fresh checkout.
  */
 import { describe, it } from 'node:test';
@@ -58,6 +58,8 @@ describe('generate-inventory', () => {
       'node_modules/x/index.js': 'x\n',
       '.omc/state/team-state.json': '{}\n',
       '.omj/goals/x/goals.json': '{}\n',
+      '.omx/state/runtime.json': '{"active":true}\n',
+      '.omx/logs/session.jsonl': '{"event":"turn"}\n',
       '.DS_Store': 'noise\n',
     });
     try {

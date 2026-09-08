@@ -12,15 +12,13 @@
  * Ownership boundary: CHANGELOG **prose is written by humans** — this script
  * only performs the structural transform of moving [Unreleased] into a version
  * section and regenerating the empty skeleton (no entry generation, no
- * summarizing). It runs no git commands (except the read-only diff behind the
- * skills advisory), so a cut is always reviewed as a diff by a human before
- * committing. Tagging belongs to the release-tag.yml workflow.
+ * summarizing). It runs no git commands, so a cut is always reviewed as a diff
+ * by a human before committing. Tagging belongs to the release-tag.yml workflow.
  *
  *   cut   --version X.Y.Z [--date YYYY-MM-DD]  # finalize [Unreleased] + bump all version surfaces
  *   notes --version X.Y.Z                      # extract the section body (GitHub Release notes)
  *   next  [--bump patch|minor|major]           # print the next version (inferred from [Unreleased] unless --bump is given)
  */
-import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 const CHANGELOG = 'CHANGELOG.md';
@@ -30,6 +28,13 @@ const SURFACES = [
   { file: '.codex-plugin/plugin.json', occurrences: 1 },
   { file: '.claude-plugin/marketplace.json', occurrences: 2 },
   { file: 'package.json', occurrences: 1 },
+];
+const CUT_PATHS = [
+  '.claude-plugin/marketplace.json',
+  '.claude-plugin/plugin.json',
+  '.codex-plugin/plugin.json',
+  CHANGELOG,
+  'package.json',
 ];
 const SKELETON_SECTIONS = ['Added', 'Changed', 'Deprecated', 'Removed', 'Fixed', 'Security'];
 
@@ -155,33 +160,13 @@ function cut(args) {
     fail('post-replacement re-parse check failed — inspect the version surfaces manually');
   }
 
-  // Advisory: if skill content changed, surface their independent semver bump (no auto-fix — that call belongs to a human).
-  try {
-    const changed = execFileSync('git', ['diff', '--name-only', `v${prev}..HEAD`, '--', 'skills/'], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'], // keep missing-git/missing-tag stderr out of the success output
-    }).trim();
-    if (changed) {
-      process.stderr.write(
-        `release: (advisory) plugin skills changed since v${prev} — consider bumping SKILL.md metadata.version:\n${changed}\n`,
-      );
-    }
-  } catch {
-    /* silently skip where git or the tag is absent (e.g. test fixtures) */
-  }
-
   process.stdout.write(
-    [
-      `release: v${version} cut complete — review and polish the diff, then run:`,
-      '',
-      `  git switch -c release/v${version}`,
-      '  npm test',
-      `  git commit -am "chore(release): v${version}"`,
-      `  gh pr create --title "chore(release): v${version}" --body "Release cut — on merge, release-tag.yml attaches the tag and GitHub Release automatically."`,
-      '',
-      'Tagging after merge is automatic — manual git tag is forbidden (CONTRIBUTING).',
-      '',
-    ].join('\n'),
+    `${[
+      `release: v${version} cut complete`,
+      'release: changed paths:',
+      ...CUT_PATHS.map((file) => `  ${file}`),
+      'release: next: follow docs/RELEASING.md section 2 from the existing release branch',
+    ].join('\n')}\n`,
   );
 }
 

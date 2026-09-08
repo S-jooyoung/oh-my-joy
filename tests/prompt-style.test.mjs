@@ -24,6 +24,7 @@ const targets = [
   ...listAgentFiles().map((f) => `agents/${f}`),
   ...listTrackedFiles('skills/*/SKILL.md'),
   ...listTrackedFiles('output-styles/*.md'),
+  ...listTrackedFiles('.claude/commands/*.md', '.claude/skills/*/SKILL.md', '.agents/skills/*/SKILL.md'),
 ];
 
 const body = (source) => source.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');

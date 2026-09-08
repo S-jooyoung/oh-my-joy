@@ -10,6 +10,9 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+- Repository-local Codex release and release-checklist skills, a shared maintainer release contract, and native AGENTS loading of repository rules.
+- Codex setup parity for selected integrations, design scaffolding, answer style through project instructions, native CLI status indicators, and an actual apply_patch frontend-hook adapter.
+
 - Standalone `deep-interview -> ralplan -> approval -> ultragoal` workflow on Claude Code and Codex. `spec` remains a compatible alias, including Figma and general input; the interview hands off automatically and native execution lanes no longer require a separate selection approval.
 - Dependency-free goal-state helper with approved-plan identity, per-goal evidence, workspace fingerprints, append-only recovery records, concurrent-writer protection, and same-checkout resume. Native goal support supplies continuation without a second user command; final completion requires fresh checks and independent review.
 - Existing-PR review response intake and approved delivery: paginate feedback, record accepted/rejected findings with reasons, verify owned fixes, commit/push to the scoped PR branch, reply, and read back the remote head and replies before completion. Uncertain external writes are reconciled before retry.
@@ -27,6 +30,9 @@ History prior to 0.6.0 is preserved in Korean.
 ### Removed
 
 ### Fixed
+
+- Codex fix --commit, token mapping document creation, Figma workflow loading, and normal feature-branch fast-forward shipping now preserve the shared command behavior.
+- Release-cut output no longer suggests duplicate branching or broad staging; installed-content hashes exclude transient orchestration state.
 
 ### Security
 

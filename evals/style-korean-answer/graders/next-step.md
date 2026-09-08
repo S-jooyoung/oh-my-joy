@@ -1,7 +1,5 @@
 ---
-type: regex
-pattern: "/oh-my-joy:(spec|deep-interview)"
-match: contains
-target: last_message
+type: llm
+criteria: The answer respects the request for explanation only. It does not implement the change or tell the user they must manually run each internal OMJ stage. Any next action is appropriate to planning a not-yet-approved change, and automatic approved workflow handoffs are not described as repeated user commands.
 ---
-The style closes with the next step in the OMJ flow.
+The style preserves the user's scope and avoids unnecessary manual stage handoffs.

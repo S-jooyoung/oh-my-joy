@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "^(Bash|apply_patch)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/codex-post-tool-use.mjs\"",
+            "commandWindows": "powershell -NoProfile -NonInteractive -Command \"& node (Join-Path (git rev-parse --show-toplevel) '.codex/hooks/codex-post-tool-use.mjs')\"",
+            "timeout": 30,
+            "statusMessage": "Checking frontend conventions"
+          }
+        ]
+      }
+    ]
+  }
+}
