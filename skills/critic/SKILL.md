@@ -1,6 +1,6 @@
 ---
 name: critic
-description: Internal read-only reviewer used by ralplan, ultragoal, and review in a fresh context. Applies an architect or critic lens, returns CLEAR, REVISE or BLOCK, and edits or runs nothing.
+description: "Internal read-only plan and diff reviewer for ralplan, review and ultragoal; apply the architect or critic lens."
 license: MIT
 metadata:
   author: Jooyoung Shin

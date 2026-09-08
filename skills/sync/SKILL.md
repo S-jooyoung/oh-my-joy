@@ -1,6 +1,6 @@
 ---
 name: sync
-description: Check or resolve drift between file-based design tokens and Figma Variables, including Figma-to-CSS bootstrap. Use for explicit token check, sync, push, or extract requests; preserve aliases and ask before conflict-direction changes.
+description: "Check or sync code tokens and Figma Variables, including extraction. Preserve aliases and ask before changing the conflict direction."
 license: MIT
 metadata:
   author: Jooyoung Shin

@@ -1,6 +1,6 @@
 ---
 name: fix
-description: Diagnose and repair a scoped frontend visual or behavioral defect from a route, screenshot, or concrete complaint, then recapture the result. Use for explicit fix requests; use verify for report-only inspection.
+description: "Fix a specific frontend visual or behavioral defect from a route, screenshot or complaint, then verify the result."
 license: MIT
 metadata:
   author: Jooyoung Shin

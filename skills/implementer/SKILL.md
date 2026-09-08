@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: Internal executor for one owned goal from an approved OMJ ralplan. Follows frontend/Figma constraints, returns fresh evidence, and never writes the ultragoal ledger or performs delivery.
+description: "Internal executor for one approved OMJ goal. Edit owned files, verify results and report evidence to the lead."
 license: MIT
 metadata:
   author: Jooyoung Shin

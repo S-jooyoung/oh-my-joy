@@ -17,6 +17,44 @@ This is the Codex mapping of OMJ's dependency doctor and opt-in scaffolding. The
 
 Inspect `AGENTS.md`, applicable overrides/rules, and existing user configuration before proposing changes. Do not dump credentials or unrelated configuration into the report. For Figma, distinguish authentication, tool access, and file edit permission. Confirm the selected integration's documented requirements rather than assuming that registration proves a desktop file is accessible.
 
+## Diagnose a shortened skill catalog
+
+Codex first receives each skill's name, description, and path, then reads the selected `SKILL.md`. The initial catalog has a separate context budget, and Codex shortens descriptions before omitting skills. A warning therefore concerns discovery metadata, not proof that a selected skill body was truncated. See the [official skill loading model](https://developers.openai.com/codex/skills/) and [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference#configtoml).
+
+Keep these four states separate:
+
+| State | Question to answer |
+| --- | --- |
+| Source | Which current `SKILL.md` files and descriptions does the repository or marketplace publish? |
+| Installed cache | Which versioned plugin directory is this Codex installation actually loading, and does its content match the source or release? |
+| Native CLI inventory | What does an initialized app-server `skills/list` call with `forceReload: true` report for this working directory and effective configuration? |
+| Session | Did a fresh CLI or App session using that inventory display shortening, select the expected skill, and read its full body? |
+
+For the native inventory, record enabled entries only, group their counts by `pluginId` (with repository, user, admin, and system entries kept distinct), and list the longest descriptions with their resolved paths. This finds the plugin or scope consuming the catalog without guessing from checked-out files. Resolve symlinks and versioned cache paths before comparing content. A CLI result proves the CLI configuration and model tested; it does not prove the Codex App used the same catalog. If stderr warning capture is unavailable, record the warning as `unobserved`, not absent.
+
+Apply remedies in this order:
+
+1. Update OMJ, start a fresh session, and repeat the same-model, same-configuration inventory and smoke protocol in [EVALS](EVALS.md#codex-native-skill-catalog-smoke).
+2. If the combined catalog still shortens, disable only a user-selected nonessential external skill. Resolve the current installed `SKILL.md` path first; versioned cache paths can change after an upgrade. The official full-file override is:
+
+   ```toml
+   [[skills.config]]
+   path = "/absolute/current/path/to/nonessential-skill/SKILL.md"
+   enabled = false
+   ```
+
+   Restart Codex and read back `skills/list`. To restore it, keep the same resolved path and set `enabled = true` (or remove that exact override), restart, and verify the entry returned.
+3. Consider a temporary `skills.max_context_tokens` comparison only when shortening persists under the same model and configuration **and** the effective catalog budget is confirmed below `10000`. An unknown budget is not evidence that it is low. Explicit values are capped at `10000`:
+
+   ```toml
+   [skills]
+   max_context_tokens = 10000
+   ```
+
+   Restore the prior value after the comparison and repeat `skills/list` plus the smoke. Do not apply this or any other user-global configuration change automatically.
+
+`allow_implicit_invocation: false` changes whether a skill may be selected from an unqualified prompt; it is not documented as catalog-context savings and is not a remedy for this warning. This diagnosis adds no setup behavior: `$oh-my-joy:setup --check` remains read-only, and normal setup still changes only explicitly selected items.
+
 ## Selected integrations and project files
 
 Bundle concrete missing items into one structured choice. Each option names the files or exact command that will change. A directly requested setup item already has authorization; do not ask about it again.

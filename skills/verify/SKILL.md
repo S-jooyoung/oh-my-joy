@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Use after implementation to prove the result with fresh evidence. With a route, inspects the live page in an available browser and compares it with the Figma or saved baseline; without a route, runs declared verification commands and records command, exit code, and summary. Reports only and never edits source.
+description: "Verify completed work; report-only, without source edits. Use a route for browser checks, or run declared checks and report results with evidence."
 license: MIT
 metadata:
   author: Jooyoung Shin

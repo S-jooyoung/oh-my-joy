@@ -1,6 +1,6 @@
 ---
 name: review
-description: Use to review a working-tree or branch diff without editing it. Checks frontend changes against frontend-fundamentals, accessibility and Figma fidelity, checks general changes for correctness, simplicity, consistency and tests, supports delta re-review, and adds an independent native Codex critic pass for non-trivial diffs.
+description: "Review a working-tree or branch diff without edits. Check correctness and frontend quality, with an independent critique for substantial changes."
 license: MIT
 metadata:
   author: Jooyoung Shin

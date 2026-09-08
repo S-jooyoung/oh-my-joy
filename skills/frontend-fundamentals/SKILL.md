@@ -1,6 +1,6 @@
 ---
 name: frontend-fundamentals
-description: Frontend code-quality guide based on Toss frontend-fundamentals. Applies the readability, predictability, cohesion, coupling, and accessibility principles when writing, modifying, or refactoring React components/hooks or reviewing code. Routes performance/bundle to vercel-react-best-practices, component composition/extensibility to vercel-composition-patterns, and latest Next.js APIs to Context7. Activates in FE contexts like "write a component" ("컴포넌트 작성"), "write a hook", "refactor this component/hook", "frontend code review", "readability" (backend/non-frontend code review is out of scope).
+description: "Guide React component and hook implementation or review for readability, predictability, cohesion, coupling and accessibility."
 license: MIT
 metadata:
   author: Jooyoung Shin

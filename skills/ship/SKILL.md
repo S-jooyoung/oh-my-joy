@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Verify finished work, commit it safely on a feature branch, push, and open a pull request with evidence. Use only when the user explicitly asks to ship, push, or create the PR; never infer shipping intent from completed code.
+description: "Ship finished work only on an explicit request: verify, commit, push and open a pull request."
 license: MIT
 metadata:
   author: Jooyoung Shin

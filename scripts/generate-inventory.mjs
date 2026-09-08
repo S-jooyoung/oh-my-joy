@@ -10,8 +10,9 @@
  *
  * Modes: the default hashes the git-tracked tree of the cwd (repo or tag checkout);
  * `--dir <path>` walks a plain directory (e.g. an installed plugin cache) with
- * .git/node_modules/.omc/.omj/.omx excluded, so a local install can be compared against
- * a published release hash.
+ * root operational directories (.git/node_modules/.omc/.omj/.omx) excluded, so a
+ * local install can be compared against a published release hash without dropping
+ * shipped fixtures that use one of those names below the root.
  *
  * Determinism contract: byte-order path sort, content-only hashing, no timestamps —
  * the same tree must always produce the same sha256 (pinned by
@@ -28,16 +29,16 @@ const EXCLUDED_FILES = new Set(['.DS_Store']);
 
 export function listDirFiles(root) {
   const files = [];
-  const walk = (dir) => {
+  const walk = (dir, isRoot = false) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       if (entry.isDirectory()) {
-        if (!EXCLUDED_DIRS.has(entry.name)) walk(path.join(dir, entry.name));
+        if (!isRoot || !EXCLUDED_DIRS.has(entry.name)) walk(path.join(dir, entry.name));
       } else if (entry.isFile() && !EXCLUDED_FILES.has(entry.name)) {
         files.push(path.relative(root, path.join(dir, entry.name)));
       }
     }
   };
-  walk(root);
+  walk(root, true);
   // Normalize to git's separator so repo mode and --dir mode hash identical trees identically.
   return files.map((file) => file.split(path.sep).join('/'));
 }

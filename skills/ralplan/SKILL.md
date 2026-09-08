@@ -1,6 +1,6 @@
 ---
 name: ralplan
-description: Use for a concrete coding task, Figma design, requirements from deep-interview, or GitHub PR review request. Produces one decision-complete, independently reviewed plan and stops at the native approval gate before ultragoal execution.
+description: "Plan coding tasks, Figma designs or PR feedback from current evidence. Read-only; critique the plan and hand approved work to ultragoal."
 license: MIT
 metadata:
   author: Jooyoung Shin

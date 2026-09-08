@@ -386,6 +386,7 @@ verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px�
 - **`/oh-my-joy:verify`나 `/oh-my-joy:ship`이 "검증 명령이 선언되지 않았다"고 해요** — `.omj/fe-context.md`에 `verifyCommands:`를(또는 `package.json`에 `test` 스크립트를) 추가하세요. OMJ는 돌릴 명령을 지어내지 않습니다.
 - **agent-team 레인이 순차로 돌았어요** — `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`이 설정되지 않았습니다(실험 기능, 기본 꺼짐). `/oh-my-joy:setup`이 추가를 제안하고, 없으면 레인은 서브에이전트, 그다음 inline으로 강등됩니다. 팀원은 리더의 권한 모드로 시작하므로 생성 전에 일상 명령을 사전 승인해 두세요.
 - **답변 스타일이 아무것도 안 바꿨어요** — 새 세션을 시작하세요. Claude Code는 `/config`의 **Output style**을, Codex는 실제 프로젝트 지침 파일의 `.omj/answer-style.md` 연결을 확인합니다. 기존 `AGENTS.override.md`가 있으면 `AGENTS.md`보다 우선합니다.
+- **Codex에 스킬 설명이 축약됐다는 경고가 떠요** — Codex는 전체 `SKILL.md`를 고르기 전에 모든 스킬의 이름과 설명을 먼저 불러오므로, 합친 카탈로그가 초기 목록 예산을 넘을 수 있습니다. OMJ를 갱신한 뒤 새 스레드에서 확인하세요. 경고가 계속되면 소스, 설치 캐시, 네이티브 `skills/list`, CLI 또는 App 세션을 나눠 진단한 뒤, 선택한 비필수 외부 스킬만 끄거나 실제 예산이 낮다고 확인된 경우에만 예산 비교를 합니다. [Codex 스킬 카탈로그 진단](docs/CODEX-SETUP.md#diagnose-a-shortened-skill-catalog)과 [공식 스킬 로딩 설명](https://developers.openai.com/codex/skills/)을 보세요.
 - **Figma 미연결 / 권한 없음** — `This figma file could not be accessed`는 graceful하게 처리됩니다. Figma 데스크톱 앱을 열고 대상 파일을 활성 탭에 두고 재시도하세요. 변수/노드 접근에는 편집 권한이 필요합니다 — viewer 공유 파일은 복제해서 사본 URL을 쓰세요.
 - **베이스라인 비교가 안 돼요** — Figma asset URL은 약 7일 뒤 만료됩니다. `/oh-my-joy:ralplan`을 다시 돌려 스펙의 베이스라인 출처를 갱신하세요. 세션 간 비교는 `.omj/baselines/`의 PNG에 의존하고(gitignore 권장), PNG는 `ralplan`과 같은 세션에서 `/oh-my-joy:verify`가 돌 때 처음 생성됩니다.
 - **`/oh-my-joy:ralplan`이 플랜을 보여주기 전에 질문했어요** — 비판 게이트가 두 번 수정한 뒤에도 열린 항목(존재하지 않는 대상, 아무도 확인할 수 없는 기준)을 찾은 것입니다. 한 번 답하면 스펙에 반영되고, 승인 뒤에는 아무것도 묻지 않습니다.

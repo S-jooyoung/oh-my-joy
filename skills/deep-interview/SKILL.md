@@ -1,6 +1,6 @@
 ---
 name: deep-interview
-description: Use when the user explicitly wants a requirements interview, says the idea is fuzzy, or asks to clarify requirements before planning. Runs one Socratic question per round, writes no files, and automatically hands decision-complete requirements to ralplan.
+description: "Clarify fuzzy requirements through an interview, then hand the agreed requirements to ralplan. Use when the user asks to explore the idea before planning."
 license: MIT
 metadata:
   author: Jooyoung Shin

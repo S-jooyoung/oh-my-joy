@@ -1,6 +1,6 @@
 ---
 name: design-qa
-description: Internal explicit mechanical frontend quality gate after implementation. Runs non-mutating typecheck and lint, checks token hardcoding, Figma fidelity and accessibility basics, conditionally checks Storybook and i18n declarations, returns binary evidence, and never fixes code.
+description: "Internal read-only frontend QA for types, lint, tokens, Figma and accessibility. Report findings without fixing code."
 license: MIT
 metadata:
   author: Jooyoung Shin
