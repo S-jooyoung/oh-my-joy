@@ -4,4 +4,4 @@ pattern: "## Critique"
 match: contains
 target: last_message
 ---
-Every spec, either kind, carries the critique section before the lane section.
+The compatibility alias returns ralplan's critique before the single approval handoff.

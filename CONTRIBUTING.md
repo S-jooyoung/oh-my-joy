@@ -1,6 +1,6 @@
 # Contributing
 
-oh-my-joy is a Claude Code plugin whose **behavior is declared in Markdown**. There is little code and the docs are the spec, so most of this repo's discipline is about "what must change together in the same commit".
+oh-my-joy is a Claude Code and Codex plugin whose **behavior is declared in Markdown**. There is little code and the docs are the spec, so most of this repo's discipline is about "what must change together in the same commit".
 
 ## Getting started
 
@@ -13,13 +13,20 @@ npm run validate-plugin  # manifest + command/agent/skill frontmatter conformanc
 
 `npm run eval` runs the behavioral eval cases (native `claude plugin eval` when enabled, otherwise the `claude -p` fallback runner); it costs tokens and needs a logged-in `claude`, so it is not part of `npm test`.
 
-`validate-plugin` runs two layers: a built-in schema check (always) and `claude plugin validate --strict` (when the Claude Code CLI is on your PATH). The second layer is the authority — it tracks the spec as the runtime implements it — so run it locally before opening a PR even though CI can only run the first. It accepts exactly one known warning, documented at the top of `scripts/validate-plugin.mjs`; any other warning fails the run.
+`validate-plugin` always validates both the Claude and Codex manifests, the exact Codex skill inventory, cross-runtime version parity, and safety boundaries. When the Claude Code CLI is present it also runs `claude plugin validate --strict`; the one accepted warning is documented at the top of `scripts/validate-plugin.mjs`.
 
 To try it as a plugin in Claude Code:
 
 ```
 /plugin marketplace add <local path to this repo>
 /plugin install oh-my-joy@omj
+```
+
+To try it in Codex, add the same repository as a marketplace, install the plugin, and start a new thread:
+
+```bash
+codex plugin marketplace add <local path to this repo>
+codex plugin add oh-my-joy@omj
 ```
 
 ## Reporting a security problem
@@ -67,10 +74,10 @@ When you add or change a feature, put all three of the following in **the same c
 Procedure:
 
 1. Describe changes under `[Unreleased]` as usual — prose is human-written (no auto-generation).
-2. `node scripts/release.mjs cut --version X.Y.Z` → finalizes the CHANGELOG section, the link definitions, and the 4 version surfaces (plugin.json / marketplace.json ×2 / package.json) in one deterministic transform. Review the diff and polish the prose.
+2. `node scripts/release.mjs cut --version X.Y.Z` → finalizes the CHANGELOG section, the link definitions, and all version occurrences (Claude manifest / Codex manifest / marketplace ×2 / package.json) in one deterministic transform. Review the diff and polish the prose.
 3. On a `release/vX.Y.Z` branch, commit `chore(release): vX.Y.Z` → open a PR with the same title → merge after CI is green.
 4. **Tagging and the GitHub Release are automatic** — on the merge push, `.github/workflows/release-tag.yml` attaches the plugin.json version's tag to the just-merged main commit and publishes a Release with that CHANGELOG section as its body. **Manual `git tag` is forbidden** — the incident where the v0.4.0 tag landed on an orphan commit off main is the reason for this rule (partial failures heal via a manual workflow re-run; the logic is idempotent and main-ref-only). A state where the current version's tag exists but the GitHub Release does not (releases predating the automation) is backfilled on the next main push — intended behavior.
 
 **Local apply (maintainers).** If your `omj` marketplace is a `directory` source pointing at this clone rather than the published one, a merged release reaches your machine only after `git pull` plus an explicit `claude plugin marketplace update omj`. The repo-local `release-checklist` skill (`.claude/skills/`, not shipped to users) carries that loop and a drift check for the "already at the latest version" symptom.
 
-`metadata.version` in bundled skills (`skills/*/SKILL.md`) is an independent semver unrelated to the plugin version — bump it only in releases that change skill content (SKILL.md, `references/`).
+`metadata.version` in bundled skills (`skills/*/SKILL.md`) is an independent semver unrelated to the plugin version — bump it only in releases that change skill content or references.

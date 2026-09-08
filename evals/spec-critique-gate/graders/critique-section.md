@@ -4,4 +4,4 @@ pattern: "## Critique"
 match: contains
 target: last_message
 ---
-The spec carries the critique section before the lane section.
+The plan carries the critique section before the single approval handoff.
