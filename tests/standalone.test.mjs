@@ -85,9 +85,9 @@ describe('standalone: no external-runtime coupling remains', () => {
     );
   });
 
-  it('the routing SoT defines all three lanes', () => {
+  it('the routing SoT preserves native continuation and parallel fallback', () => {
     const handoff = readRepoFile('docs', 'EXECUTION-HANDOFF.md');
-    for (const lane of ['inline', '`/goal`', 'agent team']) {
+    for (const lane of ['inline', '`/goal`', 'Agent Teams', 'scripts/goal-state.mjs']) {
       assert.ok(
         handoff.includes(lane),
         `docs/EXECUTION-HANDOFF.md must define the "${lane}" lane — it is the single routing SoT`,
@@ -108,7 +108,8 @@ describe('standalone: no external-runtime coupling remains', () => {
     // only ship stays manual; spec and deep-interview link here instead of
     // restating the sequence.
     const handoff = readRepoFile('docs', 'EXECUTION-HANDOFF.md');
-    assert.match(handoff, /## Completion procedure/, 'EXECUTION-HANDOFF.md must carry the completion-procedure canon');
+    assert.match(handoff, /## Completion report/, 'EXECUTION-HANDOFF.md must carry the completion-report canon');
+    assert.match(handoff, /close.*transition succeeded/, 'completion must require the durable close gate');
     assert.match(handoff, /\/oh-my-joy:ship/, 'the completion procedure must name ship as the explicit last step');
   });
 
@@ -117,8 +118,8 @@ describe('standalone: no external-runtime coupling remains', () => {
     // what stopped it; both facts live here so spec, deep-interview, and the
     // implementer agent only point at them.
     const handoff = readRepoFile('docs', 'EXECUTION-HANDOFF.md');
-    assert.match(handoff, /## Execution rules/, 'EXECUTION-HANDOFF.md must carry the execution-rules canon');
-    assert.match(handoff, /asks no questions/i, 'the execution rules must state that execution asks no questions');
+    assert.match(handoff, /## Execution and parallelism/, 'EXECUTION-HANDOFF.md must carry execution rules');
+    assert.match(handoff, /one.*plan approval|only approval/i, 'the workflow must have one plan-approval boundary');
     assert.match(handoff, /human-only/, 'the execution rules must name the human-only blocker class');
     assert.match(handoff, /`implementer`/, 'the executor named by the routing SoT is the implementer agent');
   });

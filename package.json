@@ -3,7 +3,7 @@
   "version": "0.9.0",
   "private": true,
   "type": "module",
-  "description": "Dev-only tooling for the oh-my-joy Claude Code plugin. The plugin itself ships no runtime dependencies \u2014 this manifest exists solely to run the validation suite.",
+  "description": "Standalone Claude Code and Codex workflows with a Node-built-in goal evidence helper and validation suite; no runtime dependencies.",
   "engines": {
     "node": ">=20"
   },

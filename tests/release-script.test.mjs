@@ -4,7 +4,7 @@
  *
  * The script's contract is threefold:
  *   ① finalizing [Unreleased] is a deterministic structural transform — no prose is created or summarized
- *   ② the 4-surface version replacement rejects without writing anything when occurrence counts mismatch
+ *   ② the 5-occurrence version replacement rejects without writing anything when occurrence counts mismatch
  *   ③ a CHANGELOG in inconsistent state (link-definition drift, empty skeleton) rejects the cut itself
  */
 import { describe, it, after } from 'node:test';
@@ -53,6 +53,7 @@ function makeFixture({ changelog = FIXTURE_CHANGELOG, version = '0.1.0' } = {}) 
   const root = mkdtempSync(path.join(tmpdir(), 'omj-release-'));
   roots.push(root);
   mkdirSync(path.join(root, '.claude-plugin'), { recursive: true });
+  mkdirSync(path.join(root, '.codex-plugin'), { recursive: true });
   writeFileSync(path.join(root, 'CHANGELOG.md'), changelog);
   writeFileSync(
     path.join(root, '.claude-plugin/plugin.json'),
@@ -61,6 +62,10 @@ function makeFixture({ changelog = FIXTURE_CHANGELOG, version = '0.1.0' } = {}) 
   writeFileSync(
     path.join(root, '.claude-plugin/marketplace.json'),
     `${JSON.stringify({ name: 'm', version, plugins: [{ name: 't', version }] }, null, 2)}\n`,
+  );
+  writeFileSync(
+    path.join(root, '.codex-plugin/plugin.json'),
+    `${JSON.stringify({ name: 't', version, skills: './skills/' }, null, 2)}\n`,
   );
   writeFileSync(path.join(root, 'package.json'), `${JSON.stringify({ name: 't', version, private: true }, null, 2)}\n`);
   return root;
@@ -106,11 +111,13 @@ describe('release cut — normal transform', () => {
     assert.match(src, /^\[0\.2\.0\]: https:\/\/github\.com\/x\/y\/compare\/v0\.1\.0\.\.\.v0\.2\.0$/m);
   });
 
-  it('bumps all four version surfaces', () => {
+  it('bumps all five version occurrences', () => {
     const plugin = JSON.parse(readFileSync(path.join(root, '.claude-plugin/plugin.json'), 'utf8'));
+    const codexPlugin = JSON.parse(readFileSync(path.join(root, '.codex-plugin/plugin.json'), 'utf8'));
     const marketplace = JSON.parse(readFileSync(path.join(root, '.claude-plugin/marketplace.json'), 'utf8'));
     const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
     assert.equal(plugin.version, '0.2.0');
+    assert.equal(codexPlugin.version, '0.2.0');
     assert.equal(marketplace.version, '0.2.0');
     assert.equal(marketplace.plugins[0].version, '0.2.0');
     assert.equal(pkg.version, '0.2.0');

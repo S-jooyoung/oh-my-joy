@@ -44,6 +44,32 @@ const VALID_MARKETPLACE = {
   plugins: [{ name: 'fixture-plugin', source: './', description: 'A fixture', version: '1.0.0' }],
 };
 
+const VALID_CODEX_PLUGIN = {
+  name: 'fixture-plugin',
+  version: '1.0.0',
+  description: 'A fixture',
+  author: { name: 'Fixture Author' },
+  license: 'MIT',
+  skills: './skills/',
+};
+
+const WORKFLOW_SKILLS = ['deep-interview', 'spec', 'ralplan', 'ultragoal', 'review', 'verify', 'fix', 'sync', 'setup', 'ship'];
+const ROLE_SKILLS = ['critic', 'implementer', 'design-qa'];
+
+function validSkill(name) {
+  let body = 'Follow the provider-neutral workflow contract.\n';
+  if (['deep-interview', 'spec', 'ralplan'].includes(name)) {
+    body += 'This workflow is read-only and must not modify repository source files.\n';
+  }
+  if (['review', 'verify'].includes(name)) {
+    body += 'This workflow is report-only and must not modify repository source files.\n';
+  }
+  if (name === 'ship') {
+    body += 'Run only when explicitly requested by the user. Complete verification before push. Never push directly from a shared branch.\n';
+  }
+  return `---\nname: ${name}\ndescription: ${name} fixture\n---\n\n${body}`;
+}
+
 /**
  * Builds a minimal valid plugin tree, then applies `mutate` to break exactly one
  * thing. Returns the root path; the caller cleans up.
@@ -52,10 +78,14 @@ function makeFixture(mutate = () => {}) {
   const root = mkdtempSync(path.join(tmpdir(), 'omj-validate-'));
   const tree = {
     plugin: structuredClone(VALID_PLUGIN),
+    codexPlugin: structuredClone(VALID_CODEX_PLUGIN),
     marketplace: structuredClone(VALID_MARKETPLACE),
     commands: { 'demo.md': '---\ndescription: A demo command\nargument-hint: "<x>"\nallowed-tools: Read\n---\n\nBody.\n' },
     agents: { 'demo-agent.md': '---\nname: demo-agent\ndescription: A demo agent\ntools: Read, Grep\n---\n\nBody.\n' },
-    skills: { demo: '---\nname: demo\ndescription: A demo skill\n---\n\nBody.\n' },
+    skills: { 'frontend-fundamentals': validSkill('frontend-fundamentals') },
+    codexSkills: Object.fromEntries(
+      [...WORKFLOW_SKILLS, ...ROLE_SKILLS].map((name) => [name, validSkill(name)]),
+    ),
     extraFiles: {},
   };
 
@@ -64,6 +94,10 @@ function makeFixture(mutate = () => {}) {
   mkdirSync(path.join(root, '.claude-plugin'), { recursive: true });
   writeFileSync(path.join(root, '.claude-plugin/plugin.json'), JSON.stringify(tree.plugin, null, 2));
   writeFileSync(path.join(root, '.claude-plugin/marketplace.json'), JSON.stringify(tree.marketplace, null, 2));
+  if (tree.codexPlugin !== null) {
+    mkdirSync(path.join(root, '.codex-plugin'), { recursive: true });
+    writeFileSync(path.join(root, '.codex-plugin/plugin.json'), JSON.stringify(tree.codexPlugin, null, 2));
+  }
 
   for (const [dir, files] of [['commands', tree.commands], ['agents', tree.agents]]) {
     mkdirSync(path.join(root, dir), { recursive: true });
@@ -73,9 +107,13 @@ function makeFixture(mutate = () => {}) {
     mkdirSync(path.join(root, 'skills', name), { recursive: true });
     if (body !== null) writeFileSync(path.join(root, 'skills', name, 'SKILL.md'), body);
   }
+  for (const [name, body] of Object.entries(tree.codexSkills)) {
+    mkdirSync(path.join(root, 'skills', name), { recursive: true });
+    if (body !== null) writeFileSync(path.join(root, 'skills', name, 'SKILL.md'), body);
+  }
   for (const [relative, body] of Object.entries(tree.extraFiles)) {
     mkdirSync(path.join(root, path.dirname(relative)), { recursive: true });
-    writeFileSync(path.join(root, relative), body);
+    if (body !== null) writeFileSync(path.join(root, relative), body);
   }
   return root;
 }
@@ -135,6 +173,25 @@ describe('validate-plugin: manifest violations', () => {
     assertRejects((t) => { t.marketplace.plugins[0].version = '9.9.9'; }, /version mismatch/);
   });
 
+  it('rejects a missing Codex plugin manifest', () => {
+    assertRejects(
+      (t) => { t.codexPlugin = null; },
+      /\.codex-plugin\/plugin\.json is required/,
+    );
+  });
+
+  it('rejects an unknown Codex plugin manifest field', () => {
+    assertRejects((t) => { t.codexPlugin.skillz = './skills/'; }, /unknown field "skillz"/);
+  });
+
+  it('rejects a Claude and Codex version disagreement', () => {
+    assertRejects((t) => { t.codexPlugin.version = '9.9.9'; }, /version mismatch: Claude plugin/);
+  });
+
+  it('rejects a Codex manifest that points outside the canonical skill tree', () => {
+    assertRejects((t) => { t.codexPlugin.skills = './codex-skills/'; }, /must be "\.\/skills\/"/);
+  });
+
   it('rejects a marketplace entry that does not name the plugin', () => {
     assertRejects(
       (t) => { t.marketplace.plugins[0].name = 'someone-else'; },
@@ -186,13 +243,95 @@ describe('validate-plugin: component violations', () => {
   });
 
   it('rejects a skill directory with no SKILL.md', () => {
-    assertRejects((t) => { t.skills.demo = null; }, /SKILL\.md is missing/);
+    assertRejects((t) => { t.codexSkills.critic = null; }, /SKILL\.md is missing/);
   });
 
   it('rejects an unknown SKILL.md frontmatter field', () => {
     assertRejects(
-      (t) => { t.skills.demo = '---\nname: demo\ndescription: x\nversion: 1.0.0\n---\n\nBody.\n'; },
+      (t) => { t.codexSkills.critic = '---\nname: critic\ndescription: x\nversion: 1.0.0\n---\n\nBody.\n'; },
       /unknown frontmatter field "version"/,
+    );
+  });
+
+  it('rejects a Codex skill without a name', () => {
+    assertRejects(
+      (t) => { t.codexSkills.critic = '---\ndescription: x\n---\n\nBody.\n'; },
+      /"name" is required for Codex discovery/,
+    );
+  });
+
+  it('rejects a Codex skill whose name differs from its directory', () => {
+    assertRejects(
+      (t) => { t.codexSkills.critic = '---\nname: reviewer\ndescription: x\n---\n\nBody.\n'; },
+      /name "reviewer" must match its directory/,
+    );
+  });
+
+  it('rejects a missing expected Codex workflow skill', () => {
+    assertRejects((t) => { delete t.codexSkills.fix; }, /expected exactly/);
+  });
+
+  it('rejects an unexpected Codex skill', () => {
+    assertRejects((t) => { t.codexSkills.surprise = validSkill('surprise'); }, /expected exactly/);
+  });
+
+  it('rejects a missing shared frontend-fundamentals skill', () => {
+    assertRejects((t) => { delete t.skills['frontend-fundamentals']; }, /skills\/: expected exactly/);
+  });
+
+  for (const token of [
+    'AskUserQuestion',
+    'ExitPlanMode',
+    'CLAUDE_PLUGIN_ROOT',
+    'CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS',
+    'mcp__plugin_oh_my_joy__figma',
+  ]) {
+    it(`rejects the Claude-only runtime token ${token}`, () => {
+      assertRejects(
+        (t) => { t.codexSkills.fix = validSkill('fix') + `\nInvoke ${token}.\n`; },
+        /Claude-only runtime token/,
+      );
+    });
+  }
+});
+
+describe('validate-plugin: Codex safety boundaries', () => {
+  for (const name of ['spec', 'ralplan', 'deep-interview']) {
+    it(`rejects ${name} without a non-mutating source boundary`, () => {
+      assertRejects(
+        (t) => { t.codexSkills[name] = validSkill(name).replace(/This workflow[^\n]+\n/, 'Inspect the project.\n'); },
+        /must explicitly preserve a non-mutating/,
+      );
+    });
+  }
+
+  for (const name of ['review', 'verify']) {
+    it(`rejects ${name} without its report-only boundary`, () => {
+      assertRejects(
+        (t) => { t.codexSkills[name] = validSkill(name).replace('report-only', 'observational'); },
+        /must explicitly be report-only/,
+      );
+    });
+  }
+
+  it('rejects ship without an explicit user-request gate', () => {
+    assertRejects(
+      (t) => { t.codexSkills.ship = validSkill('ship').replace('explicitly requested by the user', 'the workflow is ready'); },
+      /must require an explicit user request/,
+    );
+  });
+
+  it('rejects ship when verification is not ordered before push', () => {
+    assertRejects(
+      (t) => { t.codexSkills.ship = validSkill('ship').replace('Complete verification before push.', 'Record the evidence.'); },
+      /verification must complete before push/,
+    );
+  });
+
+  it('rejects ship without a shared-branch guard', () => {
+    assertRejects(
+      (t) => { t.codexSkills.ship = validSkill('ship').replace('Never push directly from a shared branch.', 'Prepare the branch.'); },
+      /guard against direct shipping/,
     );
   });
 });

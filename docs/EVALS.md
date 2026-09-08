@@ -22,7 +22,7 @@ timeout_seconds: 300
 allowed_tools: [Read, Grep, Glob, Skill]
 scaffold_script: cp -R "$EVAL_FIXTURES/node-service/." .
 ---
-/oh-my-joy:spec "add a rate limiter to the public API — 100 requests per minute per API key"
+/oh-my-joy:ralplan "add a rate limiter to the public API — 100 requests per minute per API key"
 ```
 
 `evals/<case>/graders/<grader>.md` — frontmatter selects the grader; the body carries a pattern or a rubric:
@@ -74,7 +74,8 @@ Grader types: `regex` (`pattern`, `flags`, `match: contains | not_contains | cou
 
 | Command | Cases | What they pin |
 | --- | --- | --- |
-| `/oh-my-joy:spec` | `spec-general-text`, `spec-frontend-text`, `spec-critique-gate`, `spec-from-interview` | the two spec shapes, the lane and completion sections, read-only, the `## Critique` section with its decision record and simulated tasks, and an interview's requirements taken as input without re-asking |
+| `/oh-my-joy:ralplan` | `ralplan-single-approval`, `spec-general-text`, `spec-frontend-text`, `spec-critique-gate`, `spec-from-interview` | the two spec shapes, the approved goal units and handoff sections, read-only, the `## Critique` section with its decision record and simulated tasks, and an interview's requirements taken as input without re-asking |
+| `/oh-my-joy:ultragoal` | `ultragoal-requires-plan` | rejects unapproved raw work without code or ledger mutation |
 | `/oh-my-joy:deep-interview` | `deep-interview-gate` | the suitability gate exits on concrete input without asking |
 | `/oh-my-joy:review` | `review-mixed-diff`, `review-rerun-delta` | both file classes with severities; a second pass reports prior findings first and only the delta |
 | `/oh-my-joy:verify` | `verify-evidence-mode` | evidence rows with exit codes and an evidence kind, and a failing verdict on red |
@@ -88,3 +89,13 @@ cd "$(mktemp -d)" && claude plugin eval
 # "No eval cases found"                  → native runner available
 # "plugin eval is currently in early access" → fallback runner is used
 ```
+
+The new goal-state helper is also exercised through real child processes in `tests/goal-state.test.mjs`: resume, lock/CAS contention, corrupted state, failed or stale proof, review failure, and incomplete PR readback all block false completion. These tests do not claim a live GitHub delivery; that requires an explicitly authorized PR and readback.
+
+## Workflow verification — 2026-09-08
+
+- `npm test`: 509 passed, zero failed or skipped. Goal-state coverage includes 17 real child-process scenarios.
+- `npm run validate-plugin`: passed the local Claude/Codex schema checks and both strict Claude manifest checks. The existing root `CLAUDE.md` warning remains accepted.
+- Live Claude fallback runs: `ralplan-single-approval` passed 6/6 graders; `ultragoal-requires-plan` passed 5/5. Both exited 0 without timeout or source-write tool calls. The latter trace contains an actual `Skill(oh-my-joy:ralplan)` invocation and stops at final approval with automatic ultragoal continuation described.
+- The admission case uses a one-line README task to isolate routing and approval. An earlier rate-limiter admission run invoked ralplan and its two reviewers but hit the 300-second limit; it is a failed run, not independent-review completion evidence.
+- These single-prompt runs do not exercise the interactive approval-to-execution stretch, Codex live continuation, or real GitHub delivery. The ledger protocol is verified separately through subprocess tests; a release smoke must cover the remaining live paths.

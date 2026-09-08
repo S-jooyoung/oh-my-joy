@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * validate-plugin — checks the two manifests against the Claude Code plugin spec.
+ * validate-plugin — checks the Claude Code and Codex plugin surfaces.
  *
  * Two layers, deliberately:
  *
@@ -139,6 +139,28 @@ const AGENT_FRONTMATTER_FIELDS = new Set([
 /** Plugin-shipped agents cannot carry these (security restriction in the spec). */
 const AGENT_FORBIDDEN_FIELDS = ['hooks', 'mcpServers', 'permissionMode'];
 
+/** Codex plugin manifest fields used by the published plugin schema. */
+const CODEX_PLUGIN_FIELDS = new Set([
+  '$schema', 'name', 'version', 'description', 'author', 'homepage', 'repository',
+  'license', 'keywords', 'skills', 'mcpServers', 'hooks', 'apps', 'interface',
+]);
+
+const EXPECTED_CODEX_ADAPTERS = [
+  'critic', 'deep-interview', 'design-qa', 'fix', 'implementer', 'ralplan', 'review',
+  'setup', 'ship', 'spec', 'sync', 'ultragoal', 'verify',
+];
+
+// These identifiers belong to Claude's tool/runtime surface. Natural-language
+// references to Claude are legal, but an adapter containing one of these tokens
+// cannot execute as written in Codex.
+const CLAUDE_ONLY_CODEX_TOKENS = [
+  ['AskUserQuestion', /\bAskUserQuestion\b/],
+  ['ExitPlanMode', /\bExitPlanMode\b/],
+  ['CLAUDE_PLUGIN_ROOT', /\bCLAUDE_PLUGIN_ROOT\b/],
+  ['CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS', /\bCLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS\b/],
+  ['mcp__plugin_*', /\bmcp__plugin_[A-Za-z0-9_-]+__/],
+];
+
 const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 function checkUnknownFields(object, allowed, label) {
@@ -156,6 +178,37 @@ function checkPluginManifest() {
 
   if (plugin.author && !plugin.author.name) fail('plugin.json: author.name is required when author is present');
   return plugin;
+}
+
+function checkCodexManifest(claudePlugin) {
+  const manifestPath = repoPath('.codex-plugin', 'plugin.json');
+  if (!existsSync(manifestPath)) {
+    fail('.codex-plugin/plugin.json is required for Codex installation');
+    return null;
+  }
+
+  const codex = readJson('.codex-plugin', 'plugin.json');
+  checkUnknownFields(codex, CODEX_PLUGIN_FIELDS, '.codex-plugin/plugin.json');
+
+  for (const field of ['name', 'version', 'description', 'author', 'license', 'skills']) {
+    if (!codex[field]) fail(`.codex-plugin/plugin.json: "${field}" is required`);
+  }
+  if (codex.name && !KEBAB_CASE.test(codex.name)) {
+    fail(`.codex-plugin/plugin.json: "name" must be kebab-case (got "${codex.name}")`);
+  }
+  if (codex.author && !codex.author.name) {
+    fail('.codex-plugin/plugin.json: author.name is required when author is present');
+  }
+  if (codex.name && claudePlugin.name && codex.name !== claudePlugin.name) {
+    fail(`name mismatch: Claude plugin ${claudePlugin.name} vs Codex plugin ${codex.name}`);
+  }
+  if (codex.version && claudePlugin.version && codex.version !== claudePlugin.version) {
+    fail(`version mismatch: Claude plugin ${claudePlugin.version} vs Codex plugin ${codex.version}`);
+  }
+  if (codex.skills !== './skills/') {
+    fail('.codex-plugin/plugin.json: "skills" must be "./skills/" (the canonical Codex plugin skill path)');
+  }
+  return codex;
 }
 
 function checkMarketplaceManifest(plugin) {
@@ -229,26 +282,103 @@ function checkComponentFrontmatter() {
     }
   }
 
-  // skills/<name>/SKILL.md is the only layout Claude Code discovers.
-  const skillsDir = repoPath('skills');
-  if (!existsSync(skillsDir)) return;
-  for (const name of readdirSync(skillsDir)) {
-    const dir = path.join(skillsDir, name);
-    if (!statSync(dir).isDirectory()) continue;
-    const skillFile = path.join(dir, 'SKILL.md');
-    if (!existsSync(skillFile)) {
-      fail(`skills/${name}: SKILL.md is missing — the directory will not be discovered`);
-      continue;
+  // Both providers discover <root>/<name>/SKILL.md. Codex requires the canonical
+  // skills/ root; adapter frontmatter below keeps those entries inert in Claude.
+  for (const root of ['skills']) {
+    const skillsDir = repoPath(root);
+    if (!existsSync(skillsDir)) continue;
+    for (const name of readdirSync(skillsDir)) {
+      const dir = path.join(skillsDir, name);
+      if (!statSync(dir).isDirectory()) continue;
+      const skillFile = path.join(dir, 'SKILL.md');
+      if (!existsSync(skillFile)) {
+        fail(`${root}/${name}: SKILL.md is missing — the directory will not be discovered`);
+        continue;
+      }
+      const keys = parseFrontmatterKeys(readFileSync(skillFile, 'utf8'));
+      if (!keys) {
+        fail(`${root}/${name}/SKILL.md: missing YAML frontmatter`);
+        continue;
+      }
+      for (const key of keys) {
+        if (!SKILL_FRONTMATTER_FIELDS.has(key)) fail(`${root}/${name}/SKILL.md: unknown frontmatter field "${key}"`);
+      }
+      if (!keys.includes('description')) fail(`${root}/${name}/SKILL.md: "description" is required`);
     }
-    const keys = parseFrontmatterKeys(readFileSync(skillFile, 'utf8'));
-    if (!keys) {
-      fail(`skills/${name}/SKILL.md: missing YAML frontmatter`);
-      continue;
+  }
+}
+
+function skillBody(source) {
+  return source.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
+}
+
+function hasNoMutationBoundary(body) {
+  return /\b(?:do not|must not|never|without)\b[^\n]{0,120}\b(?:modify|edit|write|mutat|change)\w*\b[^\n]{0,80}\b(?:source|repo(?:sitory)?|project|file)s?\b/i.test(body)
+    || /\b(?:read[- ]only|no[- ]mutation|non[- ]mutating)\b/i.test(body);
+}
+
+function checkCodexSkills() {
+  const adaptersDir = repoPath('skills');
+  if (!existsSync(adaptersDir)) {
+    fail('skills/: Codex skill directory is missing');
+    return;
+  }
+
+  const actual = readdirSync(adaptersDir)
+    .filter((name) => statSync(path.join(adaptersDir, name)).isDirectory())
+    .sort();
+  const expected = [...EXPECTED_CODEX_ADAPTERS, 'frontend-fundamentals'].sort();
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    fail(`skills/: expected exactly ${expected.join(', ')} (got ${actual.join(', ')})`);
+  }
+
+  const sources = new Map();
+  const completeSources = new Map();
+  for (const name of EXPECTED_CODEX_ADAPTERS) {
+    const file = path.join(adaptersDir, name, 'SKILL.md');
+    if (!existsSync(file)) continue; // checkComponentFrontmatter reports this precisely
+    const source = readFileSync(file, 'utf8');
+    const keys = parseFrontmatterKeys(source);
+    if (keys && !keys.includes('name')) fail(`skills/${name}/SKILL.md: "name" is required for Codex discovery`);
+    const nameMatch = /^---\r?\n[\s\S]*?^name:\s*["']?([^\r\n"']+)["']?\s*$/m.exec(source);
+    if (nameMatch && nameMatch[1].trim() !== name) {
+      fail(`skills/${name}/SKILL.md: name "${nameMatch[1].trim()}" must match its directory`);
     }
-    for (const key of keys) {
-      if (!SKILL_FRONTMATTER_FIELDS.has(key)) fail(`skills/${name}/SKILL.md: unknown frontmatter field "${key}"`);
+
+    const body = skillBody(source);
+    sources.set(name, body);
+    completeSources.set(name, source);
+    for (const [label, pattern] of CLAUDE_ONLY_CODEX_TOKENS) {
+      if (pattern.test(body)) fail(`skills/${name}/SKILL.md: Claude-only runtime token "${label}" is not valid in a Codex adapter`);
     }
-    if (!keys.includes('description')) fail(`skills/${name}/SKILL.md: "description" is required`);
+  }
+
+  for (const name of ['spec', 'ralplan', 'deep-interview']) {
+    const body = sources.get(name);
+    if (body && !hasNoMutationBoundary(body)) {
+      fail(`skills/${name}/SKILL.md: must explicitly preserve a non-mutating repository/source boundary`);
+    }
+  }
+  for (const name of ['review', 'verify']) {
+    const body = sources.get(name);
+    const reportOnly = /\b(?:reports?[- ]only|inspection[- ]only|source[- ]untouched)\b/i.test(completeSources.get(name) ?? '')
+      || /\breview and report\s*;\s*never fix\b/i.test(body ?? '');
+    if (body && !(hasNoMutationBoundary(body) && reportOnly)) {
+      fail(`skills/${name}/SKILL.md: must explicitly be report-only and preserve a non-mutating repository/source boundary`);
+    }
+  }
+
+  const ship = sources.get('ship');
+  if (ship) {
+    if (!/\bexplicit(?:ly)?\b[^\n]{0,80}\b(?:request\w*|instruction\w*|authoriz\w*|ask(?:ed)?)\b/i.test(ship)) {
+      fail('skills/ship/SKILL.md: shipping must require an explicit user request');
+    }
+    if (!/(?:\bverif\w*\b[^\n]{0,100}\bbefore\b[^\n]{0,60}\bpush\w*\b)|(?:\bbefore\b[^\n]{0,60}\bpush\w*\b[^\n]{0,100}\bverif\w*\b)/i.test(ship)) {
+      fail('skills/ship/SKILL.md: verification must complete before push');
+    }
+    if (!/\b(?:shared|protected|default) branch\b|\bdirect(?:ly)?\s+(?:commit|push)\b/i.test(ship)) {
+      fail('skills/ship/SKILL.md: must guard against direct shipping from a shared/protected/default branch');
+    }
   }
 }
 
@@ -262,10 +392,12 @@ function checkNoShippedHooks() {
 // ---------------------------------------------------------------------------
 
 const plugin = checkPluginManifest();
+checkCodexManifest(plugin);
 checkMarketplaceManifest(plugin);
 checkComponentFrontmatter();
+checkCodexSkills();
 checkNoShippedHooks();
-notes.push('built-in schema check: manifests, command/agent/skill frontmatter, hooks invariant');
+notes.push('built-in schema check: Claude/Codex manifests, exact Codex skills, frontmatter, safety boundaries, hooks invariant');
 
 if (SKIP_CLI) {
   notes.push('--skip-cli — ran the built-in check only');

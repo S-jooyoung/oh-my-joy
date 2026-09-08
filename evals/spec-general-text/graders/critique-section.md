@@ -4,4 +4,4 @@ pattern: "## Critique"
 match: contains
 target: last_message
 ---
-Every spec, either kind, carries the critique section before the lane section.
+Every compatibility-spec result carries ralplan's critique section before approval.

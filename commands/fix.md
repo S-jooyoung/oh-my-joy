@@ -8,7 +8,7 @@ allowed-tools: Read, Grep, Glob, Edit, Skill, Bash(command -v:*), Bash(playwrigh
 
 Diagnose the defect in a pasted screenshot plus a route, fix it, and confirm with a recapture. The flow is observe → edit → recheck, a thin composition around the same capture procedure `/oh-my-joy:verify` uses, run inline rather than by invoking that command.
 
-This is an active op: it uses `Edit` and side-effect Bash, so Plan mode blocks it — run it outside Plan mode. For large or ambiguous changes, write a spec first with `/oh-my-joy:spec`; this loop is for defects that a screenshot and one sentence already scope.
+This is an active op: it uses `Edit` and side-effect Bash, so Plan mode blocks it — run it outside Plan mode. For large or ambiguous changes, create an approved plan first with `/oh-my-joy:ralplan`; this loop is for defects that a screenshot and one sentence already scope.
 
 ## Capture procedure — canonical in verify.md
 

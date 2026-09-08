@@ -1,92 +1,83 @@
-# OMJ execution handoff routing
+# OMJ planning and execution handoff
 
-This document is the single routing source of truth for OMJ execution-lane selection and for the completion procedure that follows approval. README, `docs/PRINCIPLES.md`, `commands/spec.md`, and `commands/deep-interview.md` only summarize or link to it and never redefine the signals, thresholds, or the procedure.
-
-> One exception: if this file is unreachable at runtime, `commands/spec.md` carries a threshold-free fallback (small → inline; iterate-until-condition → `/goal`; three or more independent units with disjoint files → agent team; fuzzy requirement → `/oh-my-joy:deep-interview` first). Numbers and conditions live only here.
-
-## The three lanes
-
-- **inline** — the default. After approval the current session implements the spec directly; the bundled `implementer` agent is the standard executor (frontend mode for uSpec/Figma/route specs, general mode otherwise). Always available.
-- **`/goal`** — Claude Code's native goal loop: persistence within a session. It keeps the session iterating until the stated completion condition is judged met (the evaluator judges what the session surfaced; it runs nothing itself). Part of the hooks system, so it is unavailable where hooks are disabled or the workspace is untrusted; fall back to inline.
-- **agent team** — Claude Code's native Agent Teams: parallel teammates with a shared task list, dependencies, and direct messaging. Pick it when the spec has three or more independent units (sections of a large Figma frame, separate modules, docs beside code) whose owned files do not overlap. Experimental and off by default; the section below says how it is enabled and what OMJ adds on top.
-
-Agents (`implementer`, `design-qa`, `critic`) are executors or reviewers, never lanes, and are not listed in the selector.
-
-## Agent team lane — native Agent Teams plus OMJ's dispatch contract
-
-**Enabling.** Agent Teams run only when `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is set in the shell or in `settings.json` under `env`; `/oh-my-joy:setup` offers to add it. Without the flag Claude creates no teammates, so the lane degrades: first to ordinary subagents (the `Agent` tool, results reported back to the session, no shared task list), and when those are unavailable too, to inline, sequentially. The spec's copyable action stays valid in every case because it is a plain-language instruction.
-
-**Dispatch contract.** A section-mode spec ends with a Dispatch table — `Section | Figma node | Teammate | Owns files | Verify command`. The rows are the shared task list: one task per row, owned files disjoint across rows (teammates editing the same file overwrite each other), and one verification command per row. The teammate type is `implementer` for every row — frontend mode for rows with a Figma node or a route, general mode for the rest — so the approved-spec requirement and the evidence contract hold for general work too. The definition's tools and body apply to the teammate; its skills and MCP frontmatter do not, so the spawn prompt carries the spec path.
-
-**Copyable action** (the one line the spec prints for this lane):
+This document is the provider-neutral source of truth for the OMJ workflow boundary. Claude commands and Codex skills adapt syntax and available tools; they do not add approval steps or redefine authority.
 
 ```text
-Spawn one teammate per row of the Dispatch table using the implementer agent type, named by the Teammate column. Each implements only its row from <spec path>, edits only its Owns-files, and reports completion with evidence (command · exit 0 · summary). Wait for all teammates, then run /oh-my-joy:verify <route>.
+deep-interview (only when requirements are fuzzy)
+        ↓ automatic requirements handoff
+ralplan (ground + independent critique)
+        ↓ one native plan approval
+ultragoal (execute + durable evidence + resume)
+        ↓
+report, or explicitly authorized existing-PR delivery
 ```
 
-**Barrier.** The lead does not implement while teammates work; it waits, then runs `/oh-my-joy:verify` as the barrier before `/oh-my-joy:review`. A teammate's "done" without evidence is not done — the lead asks for the evidence or reassigns the task.
+`spec` is a compatibility alias for `ralplan`. `sync` remains the separate Figma Variables/token workflow.
 
-**Sizing.** Three to five teammates, five or six tasks each, is the range the platform documents as productive; beyond it coordination cost outgrows the parallel gain. One team per session, no nested teams, and teammates start with the lead's permission mode — pre-approve the routine commands before spawning so prompts do not bubble up for every file.
+## Runtime adapters
 
-## Recommendation inputs
+| Contract | Claude Code | Codex |
+| --- | --- | --- |
+| Invoke | `/oh-my-joy:<name>` | `$oh-my-joy:<name>` |
+| Interview choice | `AskUserQuestion` | structured user input when exposed; one concise question otherwise |
+| Plan approval | native Plan/`ExitPlanMode` | native Plan mode and one `<proposed_plan>` block |
+| Continuation | native `/goal` when callable | native goal operations when exposed and authorized |
+| Parallel work | Agent Teams when enabled, then subagents, then inline | typed subagents, then default subagents, then inline |
+| Durable proof | `scripts/goal-state.mjs` | `scripts/goal-state.mjs` |
 
-Lane recommendation weighs these signals together: touched file count, screen or route count, count of separable units, uncertainty, risk, verification need, expected multi-turn duration.
+The adapters never require the other host. Figma, documentation, browser, native-goal, and agent capabilities are detected from the current session and degrade only along the paths documented here.
 
-## Recommendation rules
+## One approval boundary
 
-1. **Small and concrete**: 1–2 files, 1 route, no new abstractions → inline.
-2. **Iterate-until-condition**: a crisp completion condition that needs retries within this session (make the tests pass, drive the diff to zero) → `/goal`. Without native goal support, inline.
-3. **Parallelizable**: three or more independent units with disjoint owned files → agent team. Without the flag, subagents; without subagents, inline sequentially.
-4. **Fuzzy**: the requirement itself is unclear → `/oh-my-joy:deep-interview` first; its exit bridge hands the requirements to `/oh-my-joy:spec` (the default) or, for one or two files whose context the interview already secured, plans directly. The lane is chosen once the spec exists.
+`deep-interview` asks only questions that reduce requirement ambiguity. Once its closure audit passes, it hands requirements to `ralplan` automatically. It does not ask whether to plan, choose an execution lane, or produce a small plan itself.
 
-## Auto-select rule (question skipped for inline only)
+`ralplan` owns the complete implementation plan. It inspects current code and, when relevant, Figma or all paginated GitHub PR review material. The lead planner self-checks every plan. Non-trivial plans also receive fresh `architect` and `critic` readings for at most two revision rounds. Reviewers advise; the lead records every accepted, rejected, or synthesized disposition and never claims artificial consensus.
 
-Only when the recommended lane is inline does the selector skip `AskUserQuestion`, recording `Selected lane: inline (auto)` in the spec. Here the answer is self-evident and a question would only add fatigue; the blast radius of a wrong call is small, and the user corrects it on the approval screen. When `/goal` or agent team is recommended, the selector asks exactly once; option 1 is the recommendation and carries `(recommended)`. Plan approval (ExitPlanMode) is the lane consent. After approval of an `(auto)` spec there is nothing to launch — the session proceeds inline.
+The resulting plan contains executable goal units, checkable acceptance criteria, verification commands, independent-review requirements, a completion condition, assumptions, non-goals, and any explicitly authorized delivery. The native plan approval is the user's only approval for that described scope. The same session then hands the approved plan to `ultragoal`; users do not choose or invoke `/goal` separately.
 
-## Selector output contract
+## Native goal and durable ledger
 
-```md
-## Execution lane selection
-1. Lane: agent team (recommended) — 4 independent sections with disjoint files.
-2. Lane: /goal — iterate in this session until the stated condition holds.
-3. Lane: inline — implement directly in this session.
+Native goal support supplies continuation only. OMJ does not install an auto-firing hook or recreate a stop loop.
 
-Selected lane: agent team
+`ultragoal` requires Node.js 20 or newer and a Git worktree. `ralplan` checks both. In a non-Git target it may propose `git init` as an explicit local setup step for approval; neither planning nor execution silently initializes a repository. Without that approved step, durable execution stops before ledger creation.
 
-After approval, run exactly this one line:
-<copyable action>
-```
+- Claude may expose `/goal` through a host-controlled `ProposeGoal` approval. OMJ respects that gate and continues after the host decision.
+- Codex native create/get/update operations are used only when the current session exposes them and scoped authorization permits them.
+- An unrelated active native goal is never cleared, replaced, completed, or updated. OMJ continues inline and uses its own ledger.
+- When no callable native goal exists, `ultragoal` runs the same completion loop in the current session and reports native persistence as unavailable once.
 
-Copyable-action shapes per lane: `/goal "<completion condition for the approved spec>"` · the agent-team spawn line above · nothing for inline.
+The durable layer is `scripts/goal-state.mjs`. The lead reads `status` before every state change and sends mutation JSON on stdin with the exact `expectedRevision`. A compare-and-swap conflict triggers a new status read and a decision about what remains; it never triggers a blind retry. Subagents never invoke the helper or edit `.omj/goals/`.
 
-## Completion procedure
+Evidence is tied to the current repository fingerprint. Change goals use the helper's argv-based `verify`; report goals use `evidence`. Every goal requires a truly independent passing `review`, and closure requires another final review. When the host exposes no independent reviewer context, execution reports that blocker; the lead cannot relabel self-review as independent. Final proof and final review must share the current fingerprint, so an edit after either invalidates closure. A ledger can close only after all goals and PR findings have evidence and any required delivery has been read back.
 
-Every approved spec (from `/oh-my-joy:spec` or `/oh-my-joy:deep-interview`) ends with this section, and the session follows it after approval by invoking the commands as skills. Nothing in it runs before approval; everything in it is what the user approved.
+## Execution and parallelism
 
-```md
-## Completion procedure
-After approval: implement on the selected lane → /oh-my-joy:review → /oh-my-joy:verify <route or none> → (visual defects) /oh-my-joy:fix <route> until clean → report with evidence. Execution asks no questions; blockers are classified and reported (rules in the routing document). /oh-my-joy:ship is yours to run.
-```
+`ultragoal` chooses the smallest execution shape that fulfills the approved plan:
 
-- `/oh-my-joy:review` reads the diff against the spec's acceptance criteria and reports; a second pass on the same change reports the delta (prior findings resolved or not, then only what changed).
-- `/oh-my-joy:verify` runs in browser mode when the spec recorded a route, otherwise in evidence mode with the spec's verification commands. On the agent-team lane it is also the barrier after the teammates finish.
-- `/oh-my-joy:fix` loops only for frontend work and only while verify reports visual defects.
-- The report closes with the evidence (command · exit code · summary), the assumptions made where the plan was silent, the blockers with their classification, and the one line to run next.
-- `/oh-my-joy:ship` is never run automatically: pushing and opening a PR are visible to others, so that step is the user's.
+1. Coupled or small work stays with the lead.
+2. Three or more independent units with disjoint files may use the OMJ `implementer` agent through the host's native agent surface. In Claude, Agent Teams require `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`; without it, use ordinary subagents, then inline. Each implementer gets one goal, exclusive owned files, acceptance criteria, and a verification command.
+3. Shared files remain with the lead. Nested teams are not used.
+4. Workers edit only their ownership and return evidence. They never update the ledger, commit, push, reply on a PR, or mark completion.
+5. The lead integrates results, runs goal verification, records receipts, and runs final verification plus independent review.
 
-## Execution rules
+A resolvable blocker gets three materially different attempts: exact-failure inspection, a focused diagnostic or alternate path, and a smaller/reordered approach. Credentials, external approval, physical action, or paid access are human-only blockers. Record `block` only for an active goal. If all goals are complete but final audit or delivery is blocked, leave the ledger open and report the missing close gate; resume continues those final steps without reopening completed goals.
 
-The approved plan is the set of answers the session works from; the primers already carried every open item to the user through the critique gate. These rules keep the stretch from approval to the report free of prompts and honest about what stopped it.
+## GitHub PR authority
 
-- The session asks no questions between approval and the report. Where the plan is silent, it picks the option most consistent with the spec, records the assumption in the report, and continues — a mid-run question spends the user's attention on a decision the plan was supposed to settle.
-- A blocker is `resolvable` by default. Before it is reported the session tries three distinct approaches: inspect the failure, run a focused test or rerun, split the task, look for local configuration. Most blockers are the task in another form.
-- A blocker is `human-only` when only a person can act — credentials, an external approval, a physical step, a paid resource. The session stops at once and reports the classification with what the user has to do; parking such an item as "in progress" wastes the run.
-- `/oh-my-joy:review` and `/oh-my-joy:verify` run against the same diff. A fix made after them re-runs both on the delta (the fix loop); a partial re-check leaves the evidence describing code that no longer exists.
-- The report carries both lists — assumptions and blockers — so the user sees every decision the session made on their behalf.
+A PR URL alone is read-only authority. `ralplan` may inspect metadata, the current head, the diff, and every paginated review thread/comment. It triages findings against current code as accepted or rejected with rationale.
 
-## Clear/start safety
+An explicit request to process/address/apply review feedback changes the proposed plan: by default it includes scoped delivery back to that existing PR. Approving that plan authorizes only:
 
-- Native Plan approval is the handoff point for the plan gate.
-- Never run `/goal clear` automatically. Print it as an explicit user action only when a previously completed goal blocks a new same-thread goal.
-- An active unrelated `/goal` is not cleared silently.
-- The spec's lane section never hides destructive or irreversible state changes behind "start".
+- editing the files and findings named by the plan on the actual PR head branch;
+- committing only those owned edits;
+- a normal non-force push to that branch;
+- one evidence-bearing reply per planned finding;
+- readback of the remote head and reply URLs.
+
+The PR head branch must not be a shared/integration branch. `ultragoal` rechecks the remote head immediately before delivery and stops on incompatible drift. An uncertain push or reply is reconciled through remote readback before retry, preventing duplicate commits or comments. The ledger delivery receipt contains the PR URL, delivered head SHA, and one stable reply URL per finding.
+
+Force-push, merge, PR closure, base changes, and a new PR remain outside this approval. A new PR uses the explicit `/oh-my-joy:ship` workflow; merge remains a separate explicit user action outside `ultragoal`.
+
+## Completion report
+
+Completion means the ledger `close` transition succeeded. The report includes changed files, every goal and acceptance result, verification argv/exit code/artifact, independent-review receipt, assumptions, blockers, and external delivery readback when authorized. If close fails, work remains; `ultragoal` fixes the missing proof or reports the real blocker instead of declaring completion.

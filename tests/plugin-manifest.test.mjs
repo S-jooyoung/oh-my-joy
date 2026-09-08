@@ -21,6 +21,7 @@ import {
 } from './helpers/repo.mjs';
 
 const plugin = readJson('.claude-plugin', 'plugin.json');
+const codexPlugin = readJson('.codex-plugin', 'plugin.json');
 const marketplace = readJson('.claude-plugin', 'marketplace.json');
 
 /**
@@ -39,11 +40,11 @@ const marketplace = readJson('.claude-plugin', 'marketplace.json');
  *   blocked by the all-commands check, so only write tools are asserted here.
  */
 const ZERO_BASH_COMMANDS = new Set(['spec.md', 'deep-interview.md']);
-const REPORT_ONLY_COMMANDS = new Set(['review.md', 'verify.md']);
+const REPORT_ONLY_COMMANDS = new Set(['ralplan.md', 'review.md', 'verify.md']);
 const READ_ONLY_COMMANDS = new Set([...ZERO_BASH_COMMANDS, ...REPORT_ONLY_COMMANDS]);
 // Commands that may spawn a subagent — only the read-only `critic`; the pins
 // below tie the declaration to that agent and that agent to read-only tools.
-const AGENT_SPAWNING_COMMANDS = new Set(['spec.md', 'review.md']);
+const AGENT_SPAWNING_COMMANDS = new Set(['ralplan.md', 'review.md']);
 const CRITIC_TOOLS = 'Read, Grep, Glob';
 
 /**
@@ -82,6 +83,17 @@ describe('plugin.json', () => {
   });
 });
 
+describe('.codex-plugin/plugin.json', () => {
+  it('declares the canonical shared skill tree', () => {
+    assert.equal(codexPlugin.skills, './skills/');
+  });
+
+  it('identity and version agree with the Claude manifest', () => {
+    assert.equal(codexPlugin.name, plugin.name);
+    assert.equal(codexPlugin.version, plugin.version);
+  });
+});
+
 describe('marketplace.json', () => {
   it('has the required fields', () => {
     assert.ok(marketplace.name);
@@ -106,6 +118,7 @@ describe('marketplace.json', () => {
     const surfaces = [
       ['marketplace.plugins[].version', entry.version],
       ['marketplace top-level version', marketplace.version],
+      ['Codex plugin version', codexPlugin.version],
       ['package.json version', readJson('package.json').version],
     ];
     for (const [label, actual] of surfaces) {

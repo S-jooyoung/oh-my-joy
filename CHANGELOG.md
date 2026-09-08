@@ -10,7 +10,17 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+- Standalone `deep-interview -> ralplan -> approval -> ultragoal` workflow on Claude Code and Codex. `spec` remains a compatible alias, including Figma and general input; the interview hands off automatically and native execution lanes no longer require a separate selection approval.
+- Dependency-free goal-state helper with approved-plan identity, per-goal evidence, workspace fingerprints, append-only recovery records, concurrent-writer protection, and same-checkout resume. Native goal support supplies continuation without a second user command; final completion requires fresh checks and independent review.
+- Existing-PR review response intake and approved delivery: paginate feedback, record accepted/rejected findings with reasons, verify owned fixes, commit/push to the scoped PR branch, reply, and read back the remote head and replies before completion. Uncertain external writes are reconciled before retry.
+
+- Native Codex plugin packaging with the same ten OMJ workflow entry points exposed as `$oh-my-joy:<name>` skills, plus internal `critic`, `implementer`, and `design-qa` role skills. The existing Claude Code commands and agents remain supported from the same repository and release.
+- Codex installation, update, setup, and new-thread loading instructions in both READMEs.
+
 ### Changed
+
+- Execution-lane and approval contracts are now provider-neutral: Claude Code maps them to slash commands, `/goal`, and Agent Teams; Codex maps them to skills, native Plan approval, goals, and native subagents, with inline fallback when a host surface is absent.
+- Release and validation contracts now keep the Claude and Codex plugin manifests in version lockstep.
 
 ### Deprecated
 

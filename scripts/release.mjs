@@ -5,7 +5,7 @@
  * Deployment-model premise (CONTRIBUTING "Release" section): the marketplace
  * serves main HEAD, but plugin.json `version` is the deployment gate, so the
  * moment a version bump merges IS the deployment. This script removes the
- * recurring accident of bumping the four surfaces by hand until they drift
+ * recurring accident of bumping the five version occurrences by hand until they drift
  * (tests do catch it, but every round trip costs), plus the mechanical mistakes
  * in finalizing the CHANGELOG section and its two link lines.
  *
@@ -16,7 +16,7 @@
  * skills advisory), so a cut is always reviewed as a diff by a human before
  * committing. Tagging belongs to the release-tag.yml workflow.
  *
- *   cut   --version X.Y.Z [--date YYYY-MM-DD]  # finalize [Unreleased] + bump the 4 surfaces
+ *   cut   --version X.Y.Z [--date YYYY-MM-DD]  # finalize [Unreleased] + bump all version surfaces
  *   notes --version X.Y.Z                      # extract the section body (GitHub Release notes)
  *   next  [--bump patch|minor|major]           # print the next version (inferred from [Unreleased] unless --bump is given)
  */
@@ -24,9 +24,10 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 const CHANGELOG = 'CHANGELOG.md';
-/** The four version surfaces — the same list tests/plugin-manifest.test.mjs keeps in lockstep. */
+/** The release version surfaces — the same list tests/plugin-manifest.test.mjs keeps in lockstep. */
 const SURFACES = [
   { file: '.claude-plugin/plugin.json', occurrences: 1 },
+  { file: '.codex-plugin/plugin.json', occurrences: 1 },
   { file: '.claude-plugin/marketplace.json', occurrences: 2 },
   { file: 'package.json', occurrences: 1 },
 ];
@@ -112,7 +113,7 @@ function cut(args) {
   if (!linkMatch) fail(`[Unreleased] link definition does not point to compare/v${prev}...HEAD — clean up manually first`);
   const base = linkMatch[1];
 
-  // Pre-flight: read and validate all four surfaces in memory — **every rejection path must
+  // Pre-flight: read and validate every surface in memory — **every rejection path must
   // write nothing** so the cut stays re-runnable (a leftover partial write blocks re-runs with
   // "version already bumped", leaving git checkout as the only way out).
   const surfaces = SURFACES.map(({ file, occurrences }) => {
@@ -143,9 +144,10 @@ function cut(args) {
     // No JSON.stringify re-serialization — it would break human formatting such as inline arrays.
     writeFileSync(file, source.split(needle).join(`"version": "${version}"`));
   }
-  const [pluginAfter, marketplaceAfter, packageAfter] = SURFACES.map(({ file }) => readJson(file));
+  const [pluginAfter, codexPluginAfter, marketplaceAfter, packageAfter] = SURFACES.map(({ file }) => readJson(file));
   if (
     pluginAfter.version !== version ||
+    codexPluginAfter.version !== version ||
     marketplaceAfter.version !== version ||
     marketplaceAfter.plugins?.[0]?.version !== version ||
     packageAfter.version !== version
@@ -161,7 +163,7 @@ function cut(args) {
     }).trim();
     if (changed) {
       process.stderr.write(
-        `release: (advisory) skills/ changed since v${prev} — consider bumping skills/*/SKILL.md metadata.version:\n${changed}\n`,
+        `release: (advisory) plugin skills changed since v${prev} — consider bumping SKILL.md metadata.version:\n${changed}\n`,
       );
     }
   } catch {

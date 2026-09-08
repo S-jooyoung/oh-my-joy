@@ -1,14 +1,14 @@
 ---
-description: General-purpose deep interview that turns vague ideas into requirements via Socratic one-question rounds and an ambiguity score — for "interview me" ("인터뷰해줘"), "let's sort the requirements first" ("요구사항부터 정리하자"), "still fuzzy about what to build". Ends with an exit bridge — hand the requirements to /oh-my-joy:spec (default) or plan directly for small work. Exits at once on already-concrete input; Figma links go to /oh-my-joy:spec. Canonical invocation is /oh-my-joy:deep-interview
+description: General-purpose deep interview that turns vague ideas into decision-complete requirements via Socratic one-question rounds and an ambiguity score, then automatically hands them to ralplan without a second routing question. Exits at once on already-concrete input; Figma and concrete work go directly to ralplan
 argument-hint: "[idea description [--threshold N]]"
 allowed-tools: Read, Grep, Glob, Skill, AskUserQuestion
 ---
 
 # /oh-my-joy:deep-interview — Requirement-clarification interview
 
-Dig into a vague idea one question per round, and once ambiguity drops below the threshold, hand the requirements to `/oh-my-joy:spec` for the implementation plan — or, for small work whose context the interview already secured, present the plan directly. This command writes no code and creates no files; materializing anything belongs to the execution stage after approval.
+Dig into a vague idea one question per round. Once ambiguity drops below the threshold and the closure audit passes, hand the requirements directly to `/oh-my-joy:ralplan`, which produces the one plan the user approves. This command writes no code and creates no files; materializing anything belongs to `ultragoal` after approval.
 
-The tools are `Read`/`Grep`/`Glob` for brownfield facts, `AskUserQuestion` for the questions, and `Skill` for one thing: invoking `/oh-my-joy:spec` at the exit bridge. Asking one question per round is deliberate: each question depends on the previous answer, which is data that did not exist before the round, so it cannot be replaced by a flag or a default. Three bounds keep it finite: a hard cap of 20 rounds, early exit allowed after round 3, and "stop" honored at any time.
+The tools are `Read`/`Grep`/`Glob` for brownfield facts, `AskUserQuestion` for interview questions, and `Skill` for invoking `ralplan` at the exit bridge. Asking one question per round is deliberate: each question depends on the previous answer. Three bounds keep it finite: a hard cap of 20 rounds, early exit allowed after round 3, and "stop" honored at any time.
 
 ## Arguments
 
@@ -19,8 +19,8 @@ The tools are `Read`/`Grep`/`Glob` for brownfield facts, `AskUserQuestion` for t
 
 An interview is only valuable where ambiguity exists, so judge before starting:
 
-1. A figma.com URL or a frontend screen/component implementation request belongs to `/oh-my-joy:spec`. Announce that and stop.
-2. Input that is already concrete — two or more of: file paths, symbol names, numbered steps, acceptance criteria, error messages — gets "Already clear enough — proceed with `/oh-my-joy:spec`" plus the reason, and stops. A small wish for confirmation does not create interview value.
+1. A figma.com URL or a frontend screen/component implementation request belongs to `/oh-my-joy:ralplan`. Invoke it with the original input; do not make the user repeat the command.
+2. Input that is already concrete — two or more of: file paths, symbol names, numbered steps, acceptance criteria, error messages — gets "Already clear enough — handing this to `/oh-my-joy:ralplan`" plus the reason, then invokes it. A small wish for confirmation does not create interview value.
 3. Otherwise announce `Deep interview threshold: N%` on the first line and begin.
 
 Brownfield detection: if the cwd has source or package files and the input points at modifying something that exists, explore the relevant code first with `Read`/`Grep`/`Glob` to secure facts. Ask the user nothing the code already answers, and cite evidence (paths, symbols) in confirmation questions.
@@ -52,17 +52,13 @@ When ambiguity is at or below the threshold, pass two gates before writing the s
 1. Restate — show the one-sentence restated goal verbatim in the question body and get it confirmed (asking "is this right?" without showing it defeats the purpose; at most twice).
 2. Closure audit — even when the math passes, check that every active component has a verifiable success criterion and every deferred item carries a reason. If not, say "the score passes but {gap} keeps this open" and return to the loop.
 
-## Exit bridge — requirements first, then the plan
+## Exit bridge — requirements into ralplan
 
-When both gates pass, present the requirements as the response body: goal (one sentence), topology (active and deferred, with reasons), constraints, non-goals, verifiable acceptance criteria, verification commands where the work has them, the table of exposed and resolved assumptions, key entities, the final ambiguity with per-dimension scores, and for brownfield the technical context secured by exploration (files and patterns cited). A dimension that only a measurement can score (a benchmark, a user test, a spike) is not scored by guessing: it becomes a `Research first` row in the deferred table, with what has to be measured and why the plan waits on it.
+When both gates pass, present the requirements as the response body: goal (one sentence), topology (active and deferred, with reasons), constraints, non-goals, verifiable acceptance criteria, verification commands where the work has them, the table of exposed and resolved assumptions, key entities, the final ambiguity with per-dimension scores, and for brownfield the technical context secured by exploration (files and patterns cited). A dimension that only a measurement can score (a benchmark, user test, or spike) becomes a `Research first` row with what must be measured and why; `ralplan` performs only the research needed to settle that implementation decision.
 
-Requirements are not yet a plan. The interview knows what to build and why; the implementation plan needs what the interview did not read — target files, reuse candidates, verification commands, the design — and a critique against that code. So the interview closes with one last round, an `AskUserQuestion` with the recommendation first and labeled `(recommended)`:
+Requirements are not yet a plan. The interview knows what to build and why; `ralplan` grounds target files, reuse candidates, verification, design detail, and independent critique. Invoke `/oh-my-joy:ralplan` through `Skill` immediately with the requirements in session context. There is no final route question and no small-work direct-plan exception: one canonical planner means one approval surface. If skill invocation is unavailable, continue by reading `commands/ralplan.md` in the current context; only when neither path exists print the exact `/oh-my-joy:ralplan` invocation.
 
-1. Plan with `/oh-my-joy:spec` — the default. Invoke `/oh-my-joy:spec` via `Skill`; the requirements in the session context are its input, so it reads the code, builds the plan, critiques it, and presents the Plan. Where the skill cannot be invoked, print the one line to type — `/oh-my-joy:spec` — and stop.
-2. Plan directly from this interview — recommended only when the work is one or two files with no new abstraction, the brownfield exploration already secured the technical context, and every acceptance criterion is checkable. Run the self-critique `/oh-my-joy:spec` describes (Phase 3 of `${CLAUDE_PLUGIN_ROOT}/commands/spec.md`, repo-relative `commands/spec.md`): the assumptions table is the decision record, two or three representative tasks walked against the real files, the verdict as a `## Critique` section closing `Critique: ready (self)`. Then append the same two closing sections `/oh-my-joy:spec` uses — `## Execution lane selection` and `## Completion procedure` — following the routing rules in `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-HANDOFF.md` (repo-relative `docs/EXECUTION-HANDOFF.md`): ask the lane question only when a lane heavier than inline is recommended, and record the completion procedure the session follows after approval (implement → `/oh-my-joy:review` → `/oh-my-joy:verify` → report; execution asks no questions and classifies blockers; `/oh-my-joy:ship` is the user's). Then stop.
-3. Research first — offered only when `Research first` rows exist. List what has to be measured and why, and stop; nothing executes on an unscored dimension.
-
-Frontend and Figma work always takes option 1: the uSpec sections and the fidelity rules live in `spec`. If the user wants the requirements saved as a file, the execution stage saves them.
+Frontend, Figma, general engineering, and PR review requirements all use this same handoff. If the user wants the requirements saved, make that an explicit goal in the plan rather than writing during the interview.
 
 ## Usage
 
