@@ -84,10 +84,23 @@ describe('release cut — normal transform', () => {
   const root = makeFixture();
   const result = run(root, ['cut', '--version', '0.2.0', '--date', '2026-02-02']);
 
-  it('succeeds and prints the follow-up commands', () => {
+  it('succeeds and reports only the canonical cut result and follow-up', () => {
     assert.equal(result.code, 0);
-    assert.match(result.stdout, /release\/v0\.2\.0/);
-    assert.match(result.stdout, /chore\(release\): v0\.2\.0/);
+    assert.equal(
+      result.stdout,
+      [
+        'release: v0.2.0 cut complete',
+        'release: changed paths:',
+        '  .claude-plugin/marketplace.json',
+        '  .claude-plugin/plugin.json',
+        '  .codex-plugin/plugin.json',
+        '  CHANGELOG.md',
+        '  package.json',
+        'release: next: follow docs/RELEASING.md section 2 from the existing release branch',
+        '',
+      ].join('\n'),
+    );
+    assert.doesNotMatch(result.stdout, /git (?:switch|commit)|gh pr|SKILL\.md/);
   });
 
   const changelog = () => readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8');

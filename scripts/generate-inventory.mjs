@@ -10,7 +10,7 @@
  *
  * Modes: the default hashes the git-tracked tree of the cwd (repo or tag checkout);
  * `--dir <path>` walks a plain directory (e.g. an installed plugin cache) with
- * .git/node_modules/.omc/.omj excluded, so a local install can be compared against
+ * .git/node_modules/.omc/.omj/.omx excluded, so a local install can be compared against
  * a published release hash.
  *
  * Determinism contract: byte-order path sort, content-only hashing, no timestamps —
@@ -23,7 +23,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const EXCLUDED_DIRS = new Set(['.git', 'node_modules', '.omc', '.omj']);
+const EXCLUDED_DIRS = new Set(['.git', 'node_modules', '.omc', '.omj', '.omx']);
 const EXCLUDED_FILES = new Set(['.DS_Store']);
 
 export function listDirFiles(root) {

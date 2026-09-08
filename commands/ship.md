@@ -1,5 +1,5 @@
 ---
-description: Ship the finished work — run the project's verification commands (every one must exit 0), commit on a branch with the project's conventions and language, push, and open the PR with the evidence attached. Asks one question when --base is not given (which branch the PR targets); never commits directly on a shared branch. The last step of every OMJ flow; review and verify are yours to run first (run outside Plan mode). Canonical invocation is /oh-my-joy:ship
+description: Ship the finished work — run the project's verification commands (every one must exit 0), commit on a branch with the project's conventions and language, push, and open the PR with the evidence attached. Uses an explicit or unambiguous established base and asks only when multiple genuine candidates remain; never commits directly on a shared branch. The last step of every OMJ flow; review and verify are yours to run first (run outside Plan mode). Canonical invocation is /oh-my-joy:ship
 argument-hint: "[\"PR title\"] [--base <ref>]"
 allowed-tools: Read, Grep, Glob, AskUserQuestion, Bash(git status:*), Bash(git diff:*), Bash(git rev-parse:*), Bash(git branch:*), Bash(git checkout -b:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git log:*), Bash(gh auth status:*), Bash(gh pr create:*), Bash(npx tsc:*)
 ---
@@ -13,7 +13,7 @@ Verification commands (`npm test` and friends) are not pre-approved here. Each o
 ## Arguments
 
 - `["PR title"]` — the pull request title. Without it, derive one from the commit subject.
-- `--base <ref>` — the branch the PR targets. Without it, ship asks once which branch to open the PR against (its only question); teams that always target `develop` pass `--base develop` and are never asked.
+- `--base <ref>` — the branch the PR targets. Without it, use an established unambiguous base from the branch the work left, repository instructions or branch convention, or the remote default when it is the only genuine candidate. Ask once only when multiple genuine remote shared-branch candidates remain.
 
 ## Shared branches
 
@@ -29,20 +29,20 @@ A shared branch is one people merge into rather than commit on: the repository's
 3. Run every discovered command and collect evidence per command: the command line, its exit code, and a one-line summary. Any non-zero exit ends the run with the evidence table and no commit; fix the failure, then ship again.
 4. Branch. On a shared branch with changes, create a branch first with `git checkout -b <type>/<short-slug>` and remember the branch you left — it is the natural PR target and becomes option 1 of the question in step 7. On a feature branch, stay where you are.
 5. Commit. Read the project's conventions from `git log` and any contributing guide and follow them, including the language: a repository whose recent commits are in Korean gets a Korean commit message. Subject says what changed, body says why. Stage only the files this work changed, by explicit path with `git add <path> …`; `git add -A` would sweep in unrelated working-tree changes. Then `git commit`. No AI signatures or `Co-Authored-By` trailers, and no `--no-verify`: pre-commit hooks are the project's gate, not an obstacle.
-6. `git push -u origin <branch>`.
-7. Choose the base and open the PR. With `--base`, use it. Without it, ask exactly once via `AskUserQuestion` — "Open the PR against which branch?" — with options drawn from `git branch -r`: the shared branches that actually exist on the remote (at most four; anything else goes through the free-text answer), never the current branch. Option 1 is the shared branch you branched off in step 4 when there was one, otherwise the default branch. This is the only decision the command cannot make from a rule, because the right target differs per repository and per PR (feature → `develop`, release → `main`), and the answer sends work to other people. Then check `gh auth status` and run `gh pr create --title "<title>" --base <ref> --body "<body>"`. The body follows the repository's `.github/PULL_REQUEST_TEMPLATE.md` when one exists — fill its headings, tick only the checkboxes that are actually true — and otherwise uses Summary / Changes / Test plan with those three headings written in the same language as the commit (a Korean repository gets Korean headings). Test plan always carries the evidence table from step 3, with column names in that language, and a two-line summary of any review or verify report from the session. If `gh` is missing or unauthenticated, print the compare URL from the push output and stop; the push already happened.
+6. `git push -u origin <branch>`. A normal fast-forward update of an existing remote feature branch is allowed. If the push reports a non-fast-forward update or inspection shows divergent history, stop and report it; never force-push or overwrite the remote branch.
+7. Choose the base and open the PR. With `--base`, use it. Without it, first use an established unambiguous base: the shared branch left in step 4; otherwise the single base established by repository instructions or branch convention; otherwise the remote default when it is the only genuine candidate. Ask exactly once via `AskUserQuestion` only when two or more genuine remote shared targets remain plausible — "Open the PR against which branch?" — with options drawn from shared branches that actually exist in `git branch -r` (at most four; anything else goes through the free-text answer), never the current branch. Then check `gh auth status` and run `gh pr create --title "<title>" --base <ref> --body "<body>"`. The body follows the repository's `.github/PULL_REQUEST_TEMPLATE.md` when one exists — fill its headings, tick only the checkboxes that are actually true — and otherwise uses Summary / Changes / Test plan with those three headings written in the same language as the commit (a Korean repository gets Korean headings). Test plan always carries the evidence table from step 3, with column names in that language, and a two-line summary of any review or verify report from the session. If `gh` is missing or unauthenticated, print the compare URL from the push output and stop; the push already happened.
 
 ## Output
 
-The evidence table (command · exit code · summary), the commit hash (or "promotion — no commit"), the branch, the base with how it was chosen (`Base: develop (--base)` or `Base: develop (asked)`), and the PR URL. When step 3 fails, the same table with the failing rows first and no commit.
+The evidence table (command · exit code · summary), the commit hash (or "promotion — no commit"), the branch, the base with how it was chosen (`Base: develop (--base)`, `Base: develop (inferred: branched from develop)`, or `Base: develop (asked)`), and the PR URL. When step 3 fails, the same table with the failing rows first and no commit.
 
 ## Usage
 
 <example>
 ```
 /oh-my-joy:ship "feat(checkout): implement the checkout sections" --base develop   feature branch → develop, no question
-/oh-my-joy:ship                                                                     derive the title from the commit subject; ask for the base
+/oh-my-joy:ship                                                                     derive the title and use an established unambiguous base
 /oh-my-joy:ship "release: 2026-09 week 3" --base main                               run on a clean develop → promotion PR develop → main
-/oh-my-joy:ship "fix: rate-limit off-by-one"                                       run on develop with changes → branches off first, then asks for the base
+/oh-my-joy:ship "fix: rate-limit off-by-one"                                       run on develop with changes → branch off and target develop
 ```
 </example>
