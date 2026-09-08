@@ -10,7 +10,7 @@
     {
       "name": "oh-my-joy",
       "description": "Standalone deep-interview, ralplan, and ultragoal workflows for Claude Code and Codex, with Figma support and verified PR review delivery.",
-      "version": "0.9.0",
+      "version": "0.10.0",
       "author": {
         "name": "Jooyoung Shin",
         "email": "jooyoung.dev@gmail.com"
@@ -27,5 +27,5 @@
       ]
     }
   ],
-  "version": "0.9.0"
+  "version": "0.10.0"
 }

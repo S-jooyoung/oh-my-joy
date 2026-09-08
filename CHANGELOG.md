@@ -10,6 +10,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.10.0] - 2026-09-08
+
+### Added
+
 - Repository-local Codex release and release-checklist skills, a shared maintainer release contract, and native AGENTS loading of repository rules.
 - Codex setup parity for selected integrations, design scaffolding, answer style through project instructions, native CLI status indicators, and an actual apply_patch frontend-hook adapter.
 
@@ -411,7 +425,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.7.1...v0.8.0
