@@ -67,7 +67,9 @@ function validSkill(name) {
   if (name === 'ship') {
     body += 'Run only when explicitly requested by the user. Complete verification before push. Never push directly from a shared branch.\n';
   }
-  return `---\nname: ${name}\ndescription: ${name} fixture\n---\n\n${body}`;
+  const invocation = name === 'frontend-fundamentals' ? ''
+    : 'user-invocable: false\ndisable-model-invocation: true\n';
+  return `---\nname: ${name}\ndescription: ${name} fixture\n${invocation}---\n\n${body}`;
 }
 
 /**
@@ -291,6 +293,55 @@ describe('validate-plugin: component violations', () => {
         (t) => { t.codexSkills.fix = validSkill('fix') + `\nInvoke ${token}.\n`; },
         /Claude-only runtime token/,
       );
+    });
+  }
+});
+
+describe('validate-plugin: host invocation boundaries', () => {
+  const flags = { 'user-invocable': 'false', 'disable-model-invocation': 'true' };
+
+  for (const name of [...WORKFLOW_SKILLS, ...ROLE_SKILLS]) {
+    for (const [key, value] of Object.entries(flags)) {
+      it(`rejects ${name} without ${key}`, () => {
+        assertRejects((t) => {
+          t.codexSkills[name] = validSkill(name).replace(`${key}: ${value}\n`, '');
+        }, new RegExp(`${key}.*must be ${value}`));
+      });
+    }
+  }
+
+  for (const [key, value] of Object.entries(flags)) {
+    for (const wrong of [value === 'true' ? 'false' : 'true', `"${value}"`, 'null', '']) {
+      it(`rejects ${key} with non-boolean or wrong value ${JSON.stringify(wrong)}`, () => {
+        assertRejects((t) => {
+          t.codexSkills.critic = validSkill('critic').replace(`${key}: ${value}`, `${key}: ${wrong}`);
+        }, new RegExp(`${key}.*must be ${value}`));
+      });
+    }
+
+    it(`rejects duplicate ${key} declarations`, () => {
+      assertRejects((t) => {
+        t.codexSkills.critic = validSkill('critic').replace(`${key}: ${value}\n`, `${key}: ${value}\n${key}: ${value}\n`);
+      }, new RegExp(`${key}.*must be ${value}`));
+    });
+
+    it(`rejects a conflicting ${key} with whitespace before the colon`, () => {
+      assertRejects((t) => {
+        const opposite = value === 'true' ? 'false' : 'true';
+        t.codexSkills.critic = validSkill('critic').replace(`${key}: ${value}\n`, `${key}: ${value}\n${key} : ${opposite}\n`);
+      }, new RegExp(`${key}.*must be ${value}`));
+    });
+
+    it(`does not accept ${key} in the body instead of frontmatter`, () => {
+      assertRejects((t) => {
+        t.codexSkills.critic = validSkill('critic').replace(`${key}: ${value}\n`, '') + `\n${key}: ${value}\n`;
+      }, new RegExp(`${key}.*must be ${value}`));
+    });
+
+    it(`keeps ${key} absent from the shared rubric`, () => {
+      assertRejects((t) => {
+        t.skills['frontend-fundamentals'] = validSkill('frontend-fundamentals').replace('---\n', `---\n${key}: ${value}\n`);
+      }, new RegExp(`frontend-fundamentals.*${key}.*must be absent`));
     });
   }
 });

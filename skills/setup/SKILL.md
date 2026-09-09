@@ -1,4 +1,6 @@
 ---
+user-invocable: false
+disable-model-invocation: true
 name: setup
 description: "Check OMJ setup and propose selected integrations, project files and host settings. Check mode is read-only; setup applies selected items."
 license: MIT

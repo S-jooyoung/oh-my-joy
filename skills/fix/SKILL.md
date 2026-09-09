@@ -1,4 +1,6 @@
 ---
+user-invocable: false
+disable-model-invocation: true
 name: fix
 description: "Fix a specific frontend visual or behavioral defect from a route, screenshot or complaint, then verify the result."
 license: MIT

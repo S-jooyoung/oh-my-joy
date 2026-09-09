@@ -1,4 +1,6 @@
 ---
+user-invocable: false
+disable-model-invocation: true
 name: verify
 description: "Verify completed work; report-only, without source edits. Use a route for browser checks, or run declared checks and report results with evidence."
 license: MIT

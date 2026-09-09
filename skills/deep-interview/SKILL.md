@@ -1,4 +1,6 @@
 ---
+user-invocable: false
+disable-model-invocation: true
 name: deep-interview
 description: "Clarify fuzzy requirements through an interview, then hand the agreed requirements to ralplan. Use when the user asks to explore the idea before planning."
 license: MIT

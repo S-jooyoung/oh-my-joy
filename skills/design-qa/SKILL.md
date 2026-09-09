@@ -1,4 +1,6 @@
 ---
+user-invocable: false
+disable-model-invocation: true
 name: design-qa
 description: "Internal read-only frontend QA for types, lint, tokens, Figma and accessibility. Report findings without fixing code."
 license: MIT

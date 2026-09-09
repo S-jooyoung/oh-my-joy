@@ -94,6 +94,24 @@ describe('.codex-plugin/plugin.json', () => {
   });
 });
 
+describe('Codex adapter invocation metadata', () => {
+  const adapters = [...listCommandFiles(), ...listAgentFiles()].map(file => file.slice(0, -3));
+
+  for (const name of adapters) {
+    it(`${name} is hidden from Claude user and model invocation`, () => {
+      const fm = parseFrontmatter(readRepoFile('skills', name, 'SKILL.md'));
+      assert.equal(fm['user-invocable'], 'false');
+      assert.equal(fm['disable-model-invocation'], 'true');
+    });
+  }
+
+  it('keeps the shared frontend rubric available to both hosts', () => {
+    const fm = parseFrontmatter(readRepoFile('skills', 'frontend-fundamentals', 'SKILL.md'));
+    assert.equal(Object.hasOwn(fm, 'user-invocable'), false);
+    assert.equal(Object.hasOwn(fm, 'disable-model-invocation'), false);
+  });
+});
+
 describe('marketplace.json', () => {
   it('has the required fields', () => {
     assert.ok(marketplace.name);

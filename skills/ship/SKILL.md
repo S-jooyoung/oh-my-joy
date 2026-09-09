@@ -1,4 +1,6 @@
 ---
+user-invocable: false
+disable-model-invocation: true
 name: ship
 description: "Ship finished work only on an explicit request: verify, commit, push and open a pull request."
 license: MIT

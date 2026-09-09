@@ -1,4 +1,6 @@
 ---
+user-invocable: false
+disable-model-invocation: true
 name: review
 description: "Review a working-tree or branch diff without edits. Check correctness and frontend quality, with an independent critique for substantial changes."
 license: MIT

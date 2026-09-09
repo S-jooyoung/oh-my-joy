@@ -1,4 +1,6 @@
 ---
+user-invocable: false
+disable-model-invocation: true
 name: critic
 description: "Internal read-only plan and diff reviewer for ralplan, review and ultragoal; apply the architect or critic lens."
 license: MIT
