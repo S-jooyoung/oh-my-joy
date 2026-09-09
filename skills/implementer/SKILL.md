@@ -1,4 +1,6 @@
 ---
+user-invocable: false
+disable-model-invocation: true
 name: implementer
 description: "Internal executor for one approved OMJ goal. Edit owned files, verify results and report evidence to the lead."
 license: MIT

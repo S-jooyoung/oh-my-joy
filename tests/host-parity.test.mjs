@@ -33,6 +33,21 @@ describe('Claude/Codex capability parity', () => {
     }
   });
 
+  it('exposes each workflow once in Claude while retaining the Codex skill inventory', () => {
+    const commands = readdirSync(repoPath('commands')).filter(f => f.endsWith('.md')).map(f => f.slice(0, -3));
+    const roles = readdirSync(repoPath('agents')).filter(f => f.endsWith('.md')).map(f => f.slice(0, -3));
+    const skills = readdirSync(repoPath('skills')).filter(name => existsSync(repoPath('skills', name, 'SKILL.md')));
+    assert.deepEqual(skills.sort(), [...commands, ...roles, 'frontend-fundamentals'].sort());
+    for (const key of ['user-invocable', 'disable-model-invocation']) {
+      const exposed = skills.filter(name => {
+        const fm = parseFrontmatter(readRepoFile('skills', name, 'SKILL.md'));
+        return key === 'user-invocable' ? fm[key] !== 'false' : fm[key] !== 'true';
+      });
+      assert.deepEqual(exposed, ['frontend-fundamentals'], key);
+      assert.equal(new Set([...commands, ...exposed]).size, commands.length + exposed.length);
+    }
+  });
+
   it('Codex project instructions bridge to the existing shared repository contract', () => {
     assert.match(readRepoFile('AGENTS.md'), /\[CLAUDE\.md\]\(CLAUDE\.md\)/);
     assert.match(readRepoFile('AGENTS.md'), /\.agents\/skills/);

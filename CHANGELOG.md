@@ -18,6 +18,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Fixed
 
+- Claude Code no longer shows duplicate workflow entries: the 13 Codex-only adapters are hidden from Claude's menu and model invocation while all 14 skills, including the shared `frontend-fundamentals` rubric, remain discoverable in Codex.
+
 ### Security
 
 ## [0.11.0] - 2026-09-08

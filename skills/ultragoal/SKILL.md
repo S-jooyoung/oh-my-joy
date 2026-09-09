@@ -1,4 +1,6 @@
 ---
+user-invocable: false
+disable-model-invocation: true
 name: ultragoal
 description: "Execute or resume an approved OMJ plan through verified completion, including only the existing-PR delivery that was explicitly authorized."
 license: MIT

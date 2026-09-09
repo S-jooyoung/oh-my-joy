@@ -82,7 +82,7 @@ $oh-my-joy:ralplan "검색 입력 폼 — React Hook Form + Zod, 모바일 우�
 $oh-my-joy:ship "feat: search form"
 ```
 
-Codex는 같은 10개 워크플로 진입점(`spec` 호환 별칭 포함)과 내부 역할 3개를 제공합니다. 답변 스타일은 프로젝트 지침으로, 상태 표시는 Codex CLI 기본 상태 표시줄로 적용하며, 훅은 Codex 쓰기 이벤트를 처리합니다. Codex App에는 사용자 정의 HUD 영역이 없습니다. 전체 대조 결과는 [호스트별 기능 목록](docs/HOST-PARITY.md)에 있습니다.
+Codex는 같은 10개 워크플로 진입점(`spec` 호환 별칭 포함), 내부 역할 3개, 공용 `frontend-fundamentals` 스킬을 제공합니다. Codex 전용 어댑터 13개는 Claude의 커맨드 메뉴와 모델 선택에서 숨기고, 공용 스킬은 두 호스트에서 계속 쓸 수 있습니다. 답변 스타일은 프로젝트 지침으로, 상태 표시는 Codex CLI 기본 상태 표시줄로 적용하며, 훅은 Codex 쓰기 이벤트를 처리합니다. Codex App에는 사용자 정의 HUD 영역이 없습니다. 전체 대조 결과는 [호스트별 기능 목록](docs/HOST-PARITY.md)에 있습니다.
 
 > **업데이트**는 릴리스(버전 범프)가 `main`에 머지될 때 배포됩니다 — 기능이 머지돼도 버전 문자열이 바뀌기 전에는 기존 설치에 도달하지 않습니다. Claude Code에서는 `/plugin update oh-my-joy@omj` 뒤 `/reload-plugins`를 실행합니다. Codex에서는 `codex plugin marketplace upgrade omj` 뒤 `codex plugin add oh-my-joy@omj`를 실행합니다. 어느 쪽이든 업데이트 뒤 새 세션/thread를 시작하세요.
 >
@@ -378,6 +378,7 @@ verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px�
 
 ## 트러블슈팅
 
+- **Claude에 같은 OMJ 커맨드가 두 개 보여요** — v0.11.0은 Claude 정본 커맨드와 Codex 어댑터를 Claude에 함께 노출합니다. 소스 수정은 Codex 전용 어댑터 13개를 숨기면서 Codex의 스킬 14개와 두 호스트가 공유하는 `frontend-fundamentals`는 유지합니다. 이미 설치한 v0.11.0에는 향후 릴리스가 필요하며, 그 뒤 `/plugin update oh-my-joy@omj`, `/reload-plugins`, 새 세션 순으로 갱신하세요. 소스 수정만으로 설치된 플러그인이 바뀌지는 않습니다.
 - **`/oh-my-joy:ralplan`이 코드를 하나도 안 바꿨어요** — 맞습니다. 읽기 전용 프라이머라 계획을 작성하고 최종 승인을 기다립니다. 승인 후에는 같은 세션이 ultragoal을 자동으로 실행합니다.
 - **승인 뒤 review와 verify가 제가 안 쳤는데 돌았어요** — 이것도 맞습니다. 승인한 플랜이 그것들을 이름 붙인 완료 절차로 끝나기 때문입니다. `/oh-my-joy:ship`은 절대 그 안에 없습니다.
 - **`/oh-my-joy:verify` / `/oh-my-joy:fix`가 브라우저 모드에서 아무것도 안 해요** — 캡처 백엔드 없음(playwright-cli도 playwright MCP도), dev 서버 미실행, 인증이 필요한 라우트, 또는 Plan 모드가 Bash를 막음. dev 서버 URL은 `--base <url>` > export된 `JOY_BASE_URL` > `http://localhost:3000` 순으로 결정되고, 인라인 `JOY_BASE_URL=… /oh-my-joy:verify` 접두는 적용되지 않습니다(슬래시 커맨드는 셸이 아닙니다). 인증 라우트는 `.omj/fe-context.md`에 `verifySetup`을 선언하거나 실행 전에 `export JOY_TEST_EMAIL=… JOY_TEST_PASSWORD=…` — **테스트 전용 계정**을 쓰고 `.omj/baselines/`는 gitignore하세요.

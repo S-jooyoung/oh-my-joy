@@ -1,4 +1,6 @@
 ---
+user-invocable: false
+disable-model-invocation: true
 name: ralplan
 description: "Plan coding tasks, Figma designs or PR feedback from current evidence. Read-only; critique the plan and hand approved work to ultragoal."
 license: MIT

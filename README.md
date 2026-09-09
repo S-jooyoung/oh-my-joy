@@ -82,7 +82,7 @@ $oh-my-joy:ralplan "Search input form — React Hook Form + Zod, mobile-first" /
 $oh-my-joy:ship "feat: search form"
 ```
 
-Codex exposes the same ten workflow entry points (including the `spec` compatibility alias) and three internal roles. Answer style uses project instructions, status indicators use the native Codex CLI footer, and hooks handle Codex write events. Codex App has no custom HUD slot. See the complete [host capability inventory](docs/HOST-PARITY.md).
+Codex exposes the same ten workflow entry points (including the `spec` compatibility alias), three internal roles, and the shared `frontend-fundamentals` skill. The 13 Codex-only adapters stay out of Claude's command menu and model selection; the shared skill remains available on both hosts. Answer style uses project instructions, status indicators use the native Codex CLI footer, and hooks handle Codex write events. Codex App has no custom HUD slot. See the complete [host capability inventory](docs/HOST-PARITY.md).
 
 > **Updates** ship when a release (version bump) lands on `main` — merged features don't reach existing installs until the version string changes. In Claude Code, run `/plugin update oh-my-joy@omj`, then `/reload-plugins`. In Codex, run `codex plugin marketplace upgrade omj` followed by `codex plugin add oh-my-joy@omj`. Start a new session/thread after either update.
 >
@@ -378,6 +378,7 @@ Command bodies are prompts, so "a small wording change" is a behavior change. OM
 
 ## Troubleshooting
 
+- **Claude shows two entries for the same OMJ command** — v0.11.0 exposes both the canonical Claude command and its Codex adapter to Claude. The source fix hides the 13 Codex-only adapters while keeping all 14 skills discoverable in Codex and `frontend-fundamentals` shared. Existing v0.11.0 installs need a future release, then `/plugin update oh-my-joy@omj`, `/reload-plugins`, and a new session; the source change alone does not update an installed plugin.
 - **`/oh-my-joy:ralplan` didn't change any code** — that's correct. It is a read-only primer: it drafts the plan and stops at final approval. After approval, the same session invokes ultragoal automatically.
 - **After approval, review and verify ran without me typing them** — also correct: the plan you approved ends with a completion procedure that names them. `/oh-my-joy:ship` is never part of it.
 - **`/oh-my-joy:verify` / `/oh-my-joy:fix` does nothing in browser mode** — no capture backend (neither playwright-cli nor playwright MCP), dev server not running, an auth-gated route, or your environment's Plan mode blocked Bash. The dev-server URL resolves as `--base <url>` > an exported `JOY_BASE_URL` > `http://localhost:3000`; an inline `JOY_BASE_URL=… /oh-my-joy:verify` prefix does not apply (slash commands are not a shell). For auth routes, declare `verifySetup` in `.omj/fe-context.md` or `export JOY_TEST_EMAIL=… JOY_TEST_PASSWORD=…` before running — **use a test-only account**, and gitignore `.omj/baselines/`.

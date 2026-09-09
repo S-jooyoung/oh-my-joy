@@ -253,7 +253,7 @@ function parseFrontmatterKeys(source) {
   return match[1]
     .split('\n')
     .filter((line) => line.trim() && !/^\s/.test(line))
-    .map((line) => /^([A-Za-z0-9_-]+):/.exec(line)?.[1])
+    .map((line) => /^([A-Za-z0-9_-]+)[ \t]*:/.exec(line)?.[1])
     .filter(Boolean);
 }
 
@@ -340,6 +340,16 @@ function checkCodexSkills() {
     const source = readFileSync(file, 'utf8');
     const keys = parseFrontmatterKeys(source);
     if (keys && !keys.includes('name')) fail(`skills/${name}/SKILL.md: "name" is required for Codex discovery`);
+    const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(source)?.[1] ?? '';
+    // Require one unquoted YAML boolean per flag; duplicate keys are ambiguous
+    // across loaders, and strings such as "false" do not establish this boundary.
+    for (const [key, expected] of [['user-invocable', 'false'], ['disable-model-invocation', 'true']]) {
+      const values = [...frontmatter.matchAll(new RegExp(`^${key}[ \\t]*:(.*)$`, 'gm'))]
+        .map(match => match[1].replace(/[ \t]+#.*$/, '').trim());
+      if (values.length !== 1 || values[0] !== expected) {
+        fail(`skills/${name}/SKILL.md: "${key}" must be ${expected} as a single YAML boolean to keep the Codex adapter hidden in Claude`);
+      }
+    }
     const nameMatch = /^---\r?\n[\s\S]*?^name:\s*["']?([^\r\n"']+)["']?\s*$/m.exec(source);
     if (nameMatch && nameMatch[1].trim() !== name) {
       fail(`skills/${name}/SKILL.md: name "${nameMatch[1].trim()}" must match its directory`);
@@ -350,6 +360,14 @@ function checkCodexSkills() {
     completeSources.set(name, source);
     for (const [label, pattern] of CLAUDE_ONLY_CODEX_TOKENS) {
       if (pattern.test(body)) fail(`skills/${name}/SKILL.md: Claude-only runtime token "${label}" is not valid in a Codex adapter`);
+    }
+  }
+
+  const sharedFile = path.join(adaptersDir, 'frontend-fundamentals', 'SKILL.md');
+  if (existsSync(sharedFile)) {
+    const keys = parseFrontmatterKeys(readFileSync(sharedFile, 'utf8')) ?? [];
+    for (const key of ['user-invocable', 'disable-model-invocation']) {
+      if (keys.includes(key)) fail(`skills/frontend-fundamentals/SKILL.md: "${key}" must be absent so the shared rubric remains available to both hosts`);
     }
   }
 

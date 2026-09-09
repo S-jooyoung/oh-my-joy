@@ -1,4 +1,6 @@
 ---
+user-invocable: false
+disable-model-invocation: true
 name: sync
 description: "Check or sync code tokens and Figma Variables, including extraction. Preserve aliases and ask before changing the conflict direction."
 license: MIT

@@ -1,4 +1,6 @@
 ---
+user-invocable: false
+disable-model-invocation: true
 name: spec
 description: "Compatibility alias for ralplan: the same reviewed plan for coding tasks, Figma designs and PR feedback."
 license: MIT
