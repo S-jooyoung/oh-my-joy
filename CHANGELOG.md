@@ -18,6 +18,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Fixed
 
+### Security
+
+## [0.11.1] - 2026-09-09
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
 - Claude Code no longer shows duplicate workflow entries: the 13 Codex-only adapters are hidden from Claude's menu and model invocation while all 14 skills, including the shared `frontend-fundamentals` rubric, remain discoverable in Codex.
 
 ### Security
@@ -445,7 +459,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.11.1...HEAD
+[0.11.1]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.8.1...v0.9.0
