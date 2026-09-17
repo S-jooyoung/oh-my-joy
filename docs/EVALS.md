@@ -4,8 +4,8 @@ OMJ's behavior is written in Markdown, so a "small wording change" in a command 
 
 ## What exists
 
-- **`evals/`** — one directory per case: `prompt.md` (frontmatter + the prompt the case sends) and `graders/*.md` (one grader per file). Fixture workspaces live in `evals/fixtures/<name>/`; a case's `scaffold_script` copies the fixture into the sandbox before the run.
-- **`npm run eval`** — runs the cases. It prefers Claude Code's native `claude plugin eval` (early access, enabled per organization; the runner detects "currently in early access" and falls back). The fallback, `scripts/eval-runner.mjs`, reads the same case files and drives `claude -p --plugin-dir . --output-format stream-json`, scoring the grader subset it understands (`regex`, `tool_used`, `file_exists`, `llm`), saving every run's final message and grader results as `results/<stamp>/<case>/run-N.md` and `run-N.json`, and writing the same `aggregate-result.json` shape (each arm carries an `outputPath` to its run). One case format, two runners, so switching to native later needs no rewrite. `tests/eval-runner.test.mjs` drives the runner against a stub `claude` (`OMJ_EVAL_CLAUDE_BIN`), so the harness itself is under test without spending tokens.
+- **`evals/`** — one directory per case: `prompt.md` (frontmatter + the prompt the case sends) and `graders/*.md` (one grader per file). Fixture workspaces live in `evals/fixtures/<name>/`; a case's `case.yaml` names a `scaffold.sh` that copies the fixture into the run's workspace.
+- **`npm run eval`** — runs the cases. It prefers Claude Code's native `claude plugin eval` (enabled per organization; the runner uses it only when a probe in an empty directory answers "No eval cases found", falls back on an early-access notice or an older CLI without the command, and `--fallback` forces the fallback). Natively it starts one `claude plugin eval` run per selected case, because native `--case` keeps only its last value, and overlaps up to `--jobs` of them (default 4, 1–8); each run gets `--trust-plugin --no-publish --ablation none`, `--scaffold` unless `--no-scaffold`, the case's own gated tools as `--allow-tools`, its own `--output-dir` under one stamp directory, `-j` for multi-run cases, a `runner.log`, and whatever remains of `--max-cost-usd`. Because a native ceiling cannot stop a run that is already the first in flight, the runner enforces the budget by reservation: a case starts only when spent + reserved + its estimate (the case's last native per-run cost, else `--run-cost-estimate`, times runs and arms) fits, waits for a running case to settle otherwise, and is recorded as not started when nothing is left to wait for. `summary.json` lists every case's exit code, cost, duration, and score with `jobs`, `startedAt`, `finishedAt`, and `wallSeconds`, and the exit code is the worst one. Native grants are coarse even within a run — a case that lists any granted Bash pattern gets Bash for simple commands, one that lists none gets none. Cases tagged `fallback-only` are skipped natively. The fallback, `scripts/eval-runner.mjs`, reads the same case files and drives `claude -p --plugin-dir . --output-format stream-json` with the native run's isolation: `--tools` withholds every built-in tool the case does not list, and `--setting-sources project --strict-mcp-config` keeps personal settings and MCP servers out. Its trace is one JSON line per main-thread text or tool call (subagent messages and tool results stay out), and an llm grader with `focus: trace` sees the first 12 and last 12 lines, as the native judge does. It scores the grader subset it understands (`regex`, `tool_used`, `tool_order`, `file_exists`, `llm`), saving every run's final message and grader results as `results/<stamp>/<case>/run-N.md` and `run-N.json`, and writing the same `aggregate-result.json` shape (each arm carries an `outputPath` to its run). One case format, two runners, so switching to native later needs no rewrite. `tests/eval-runner.test.mjs` drives the runner against a stub `claude` (`OMJ_EVAL_CLAUDE_BIN`), so the harness itself is under test without spending tokens.
 - **`tests/token-budget.test.mjs`** — the always-on description cost of every surface, ratcheted. It runs on every PR because it is free; the eval cases run on demand because they cost tokens.
 
 ## Discovery metadata budget
@@ -94,10 +94,31 @@ runs: 3
 max_turns: 12
 timeout_seconds: 300
 allowed_tools: [Read, Grep, Glob, Skill]
-scaffold_script: cp -R "$EVAL_FIXTURES/node-service/." .
 ---
 /oh-my-joy:ralplan "add a rate limiter to the public API — 100 requests per minute per API key"
 ```
+
+`prompt.md` accepts only the native keys (`schema_version`, `name`, `description`, `tags`, `plugins`, `runs`, `expected_outcome`, `model`, `max_turns`, `timeout_seconds`, `allowed_tools`, `append_system_prompt`, `env`); an unknown key is a load error in both runners. Workspace setup lives beside it:
+
+```yaml
+# evals/<case>/case.yaml
+schema_version: "1.1"
+name: spec-general-text
+context:
+  scaffold_script: scaffold.sh
+```
+
+```bash
+# evals/<case>/scaffold.sh — runs in the empty workspace; fixtures are found from the script's own path
+#!/usr/bin/env bash
+set -euo pipefail
+FIXTURES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../fixtures" && pwd)"
+cp -R "$FIXTURES/node-service/." .
+```
+
+A case tagged `fallback-only` depends on withholding `Agent`, which a native run always exposes; the native path skips it with a message (and exits 1 when it is the only case selected), so run it with `--fallback`.
+
+`style-korean-answer` carries the answer style inline in `append_system_prompt`, because a workspace settings file does not select a plugin output style in an eval run; `tests/eval-cases.test.mjs` keeps that copy identical to `output-styles/oh-my-joy.md`.
 
 `evals/<case>/graders/<grader>.md` — frontmatter selects the grader; the body carries a pattern or a rubric:
 
@@ -113,16 +134,20 @@ target: last_message
 ```md
 ---
 type: tool_used
-tool: Write
+tool: Bash
+input_match: "git push"
 max: 0
+min: 0
 ---
 ```
+
+`min` defaults to 1, so a never-called grader sets `min: 0`; it only means something for a tool the case lists, since an unlisted gated tool is withheld from the run.
 
 ```md
 ---
 type: llm
-criteria: The spec states verification commands taken from package.json scripts and lists at least three checkable acceptance criteria.
 ---
+The spec states verification commands taken from package.json scripts and lists at least three checkable acceptance criteria.
 ```
 
 Grader types: `regex` (`pattern`, `flags`, `match: contains | not_contains | count:N`, `target: last_message | trace | files`), `tool_used` (`tool`, `input_match`, `min`, `max` — `max: 0` means "never called"), `tool_order` (`before`, `after`), `file_exists` (`path`), `llm` (`criteria`, `focus`), `baseline`. The native runner supports all of them; the fallback runner supports the first four plus `llm`.
@@ -132,26 +157,27 @@ Grader types: `regex` (`pattern`, `flags`, `match: contains | not_contains | cou
 1. Before changing a command body, run its case once and keep the score: `npm run eval -- --case "review-*" --runs 1`. One run of one case is the unit of local work; the three-run suite is for a release.
 2. Change the body. If the change alters what the command promises, add or update the case that observes that promise — a case is the executable version of the body's output contract.
 3. Run again. Paste before and after into the PR's Test plan. A regression is a finding, not a formality.
-4. On a release, the release job runs the whole suite with a cost ceiling and records the pass rate next to the content hash in the release notes.
+4. On a release, the release job runs the whole suite with `--ablation with-without` and a cost ceiling, runs the `fallback-only` cases with `--fallback`, and records the pass rate next to the content hash in the release notes.
 
 ## Thresholds and cost
 
 - `npm run eval` passes `--threshold 0.8`: a case scores below 0.8 when at least one grader in more than one of its three runs fails. A grader the judge could not score (no parseable verdict after two attempts) is excluded from the mean and counted in `aggregates.judgeFailures`, so harness flakiness shows up as a number instead of a zero.
+- The fallback runner also reports run consistency. Each case carries `consistency: {runs, passedRuns, passAll, passAny}`, where a run passes when its own score reaches the threshold: `passAll` is pass^k (every run passed) and `passAny` is pass@k (at least one did). `aggregates.passAllRate` and `passAnyRate` average them over cases that started a run, and the console shows a `k-pass` column. A mean above the threshold can hide one failing run in three; pass^k exposes it. These numbers are informational — the exit code still follows the mean — they exist only in the fallback runner (the native delegation path writes its own aggregate), and they mean something only with two or more runs. When the cost ceiling stops a case early, k is the number of runs that started, next to `aggregates.ceilingHit`.
 - Measured on 2026-09-07: one run of a spec case costs about $1.3–2.6, a review or verify case $0.9–1.3 (the CLI's own estimate; on a subscription login it counts against the plan's usage instead of a bill). Budget about $2 per case per run.
 - `--max-cost-usd` is checked before a run starts, against the money already spent plus an estimate of the run (the case's previous run, else `--run-cost-estimate`, default 2). A run that started is always graded, judge calls included — an ungraded run is spend that bought nothing. When the budget is below one run's estimate, nothing starts and the runner says so; exit 2 in both cases, with whatever completed written out.
-- With `--ablation with-without` (the native default when a plugin resolves) each case also runs without the plugin, and the delta is the number that shows what OMJ adds. The fallback runner has no ablation arm.
+- `npm run eval` passes `--ablation none` natively so one local run costs one run; with `--ablation with-without` each case also runs without the plugin, and the delta is the number that shows what OMJ adds. The fallback runner has no ablation arm. Inside one case the native ceiling cannot stop a run already in flight; across cases the runner's reservation keeps the total within `--max-cost-usd`.
 - Cases that need MCP servers (the Figma track) are second-phase: they wait for recorded mocks under `evals/mocks/`.
-- The independent critique (two `critic` agents on a non-trivial plan) is exercised by hand before a release rather than by a case: it spawns subagents, so one run costs roughly three runs' worth, and the fixtures are two-file services that take the self-critique path. Run the spec on a three-file task with `Agent` allowed and read the saved `run-1.md` for `ready (independent: 2 lenses`.
+- The two-reviewer critique tier is exercised by hand before a release rather than by a case: it spawns two subagents, so one run costs roughly three runs' worth, and the case fixtures are small services whose plans take the self-check or one-critic tier (`ralplan-single-approval` accepts either and rejects an architect reader). Run ralplan on a task with a shape change or risk — for example one that adds a dependency — with `Agent` allowed, and read the result for `Critique: ready (independent: architect + critic`.
 - Interactive loops are outside the single-prompt harness: the interview's question rounds (and its ambiguity floor) and the stretch after approval (the execution rules) cannot be driven by one `claude -p` prompt. Those are exercised by self-application — a release that changes them records a transcript of the new bodies in use in its PR — while the gates they leave behind (`## Critique`, the re-review table, the evidence kinds) have cases.
 
 ## Cases by command
 
 | Command | Cases | What they pin |
 | --- | --- | --- |
-| `/oh-my-joy:ralplan` | `ralplan-single-approval`, `spec-general-text`, `spec-frontend-text`, `spec-critique-gate`, `spec-from-interview` | the two spec shapes, the approved goal units and handoff sections, read-only, the `## Critique` section with its decision record and simulated tasks, and an interview's requirements taken as input without re-asking |
+| `/oh-my-joy:ralplan` | `ralplan-single-approval`, `spec-general-text`, `spec-frontend-text`, `spec-critique-gate`, `spec-from-interview`, `ralplan-untrusted-comment` | an instruction embedded in external review text is rejected instead of widening delivery; the two spec shapes, the approved goal units and handoff sections, read-only, the `## Critique` section with its decision record and simulated tasks, and an interview's requirements taken as input without re-asking |
 | `/oh-my-joy:ultragoal` | `ultragoal-requires-plan` | rejects unapproved raw work without code or ledger mutation |
 | `/oh-my-joy:deep-interview` | `deep-interview-gate` | the suitability gate exits on concrete input without asking |
-| `/oh-my-joy:review` | `review-mixed-diff`, `review-rerun-delta` | both file classes with severities; a second pass reports prior findings first and only the delta |
+| `/oh-my-joy:review` | `review-mixed-diff`, `review-rerun-delta`, `review-verification-weakening`, `review-fail-closed` | both file classes with severities; a second pass reports prior findings first and only the delta; a skipped test and a loosened assertion are 🔴 `verification weakened`; `review-fail-closed` (fallback only, since a native run always exposes Agent) withholds Agent from a three-file diff and expects `Review: incomplete` with the session's own findings |
 | `/oh-my-joy:verify` | `verify-evidence-mode` | evidence rows with exit codes and an evidence kind, and a failing verdict on red |
 | `/oh-my-joy:ship` | `ship-on-shared-branch`, `ship-stops-on-red` | branches before committing, reuses an established base without a question, stops on failed verification |
 | `/oh-my-joy:fix` | `fix-commit-stops-on-failed-recheck` | explicit `--commit` does not bypass a failed final recheck; no staging, branch, or commit mutation |
@@ -163,7 +189,11 @@ Grader types: `regex` (`pattern`, `flags`, `match: contains | not_contains | cou
 cd "$(mktemp -d)" && claude plugin eval
 # "No eval cases found"                  → native runner available
 # "plugin eval is currently in early access" → fallback runner is used
+claude plugin eval . --case __none__ --trust-plugin --no-publish
+# prints every case file that fails to load before reporting no match; no ✗ lines means the suite loads
 ```
+
+On macOS, a native run executes Bash inside the OS sandbox, where `/usr/bin/git` (the Xcode `xcrun` shim) fails with exit 72 because it cannot write its cache (`couldn't create cache file … xcrun_db`). Cases that read a diff or commit then score low for environmental reasons. Put a standalone git first on `PATH` (for example Homebrew's) before trusting native scores of git-based cases, or run them with `--fallback`.
 
 The new goal-state helper is also exercised through real child processes in `tests/goal-state.test.mjs`: resume, lock/CAS contention, corrupted state, failed or stale proof, review failure, and incomplete PR readback all block false completion. These tests do not claim a live GitHub delivery; that requires an explicitly authorized PR and readback.
 

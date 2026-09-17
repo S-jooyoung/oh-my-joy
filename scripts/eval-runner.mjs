@@ -15,6 +15,7 @@
  *        [--model <model>] [--judge-model <model>] [--threshold 0..1]
  *        [--max-cost-usd <usd>] [--run-cost-estimate <usd>] [--json [path]]
  *        [--output-dir <dir>] [--eval-dir <dir>] [--no-scaffold] [--native | --fallback]
+ *        [--ablation none|with-without] [--jobs 1-8]
  *
  * Cost ceiling: a run starts only when the money already spent plus an estimate
  * of this run (the case's previous run, else --run-cost-estimate, default 2)
@@ -28,8 +29,8 @@
  * OMJ_EVAL_CLAUDE_BIN replaces the `claude` binary (the test suite points it at
  * a stub); OMJ_EVAL_TMPDIR replaces the workspace parent directory.
  */
-import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { createWriteStream, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -42,7 +43,7 @@ const DEFAULT_RUN_COST_ESTIMATE = 2;
 // --- arguments ---------------------------------------------------------------
 
 function parseArgs(argv) {
-  const args = { evalDir: 'evals', threshold: 0.8, scaffold: true, json: null, cases: [], tags: [], runCostEstimate: DEFAULT_RUN_COST_ESTIMATE };
+  const args = { evalDir: 'evals', threshold: 0.8, scaffold: true, json: null, cases: [], tags: [], runCostEstimate: DEFAULT_RUN_COST_ESTIMATE, jobs: 4 };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => argv[++i];
@@ -59,11 +60,14 @@ function parseArgs(argv) {
     else if (a === '--no-scaffold') args.scaffold = false;
     else if (a === '--native') args.mode = 'native';
     else if (a === '--fallback') args.mode = 'fallback';
+    else if (a === '--ablation') args.ablation = next();
+    else if (a === '--jobs') args.jobs = Number(next());
     else if (a === '--json') args.json = argv[i + 1] && !argv[i + 1].startsWith('--') ? next() : '-';
     else if (a === '--help' || a === '-h') args.help = true;
     else throw new Error(`unknown argument: ${a}`);
   }
   if (!(args.runCostEstimate > 0)) throw new Error('--run-cost-estimate must be a positive number');
+  if (!(Number.isInteger(args.jobs) && args.jobs >= 1 && args.jobs <= 8)) throw new Error('--jobs must be an integer from 1 to 8');
   return args;
 }
 
@@ -75,36 +79,198 @@ function nativeAvailable() {
     const result = spawnSync(CLAUDE_BIN, ['plugin', 'eval'], { cwd: probeDir, encoding: 'utf8' });
     const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
     if (result.error) return false;
-    return !/early access/i.test(output);
+    // Only a positive signal counts: an empty directory answers "No eval cases found".
+    // An early-access notice or an unknown-command error from an older CLI falls back.
+    return /No eval cases found/i.test(output);
   } finally {
     rmSync(probeDir, { recursive: true, force: true });
   }
 }
 
-function runNative(args) {
-  const passthrough = ['plugin', 'eval', REPO_ROOT, '--threshold', String(args.threshold), '--eval-dir', args.evalDir];
-  for (const c of args.cases) passthrough.push('--case', c);
-  for (const t of args.tags) passthrough.push('--tag', t);
-  if (args.runs) passthrough.push('--runs', String(args.runs));
-  if (args.model) passthrough.push('--model', args.model);
-  if (args.judgeModel) passthrough.push('--judge-model', args.judgeModel);
-  if (args.maxCostUsd) passthrough.push('--max-cost-usd', String(args.maxCostUsd));
-  if (args.outputDir) passthrough.push('--output-dir', args.outputDir);
-  if (args.json) passthrough.push('--json', ...(args.json === '-' ? [] : [args.json]));
-  if (args.scaffold) passthrough.push('--scaffold');
-  const result = spawnSync(CLAUDE_BIN, passthrough, { cwd: REPO_ROOT, stdio: 'inherit' });
-  return result.status ?? 1;
+// Tools a native run grants from a case's allowed_tools without --allow-tools.
+const NATIVE_READ_ONLY = new Set(['Read', 'Glob', 'Grep', 'NotebookRead', 'Skill', 'Agent', 'TodoWrite', 'TaskCreate', 'TaskGet', 'TaskList', 'TaskUpdate', 'TaskStop', 'TaskOutput']);
+
+async function runNative(args) {
+  // A native run always exposes Agent, so cases that depend on withholding it
+  // carry the `fallback-only` tag and are left to the fallback runner.
+  const selected = loadCases(args.evalDir, args);
+  const cases = selected.filter((c) => !(c.fields.tags ?? []).includes('fallback-only'));
+  for (const c of selected.filter((s) => !cases.includes(s))) console.error(`eval-runner: ${c.name} is fallback-only (it withholds Agent) — run it with --fallback`);
+  if (!cases.length) {
+    console.error('eval-runner: no native eval cases selected');
+    return 1;
+  }
+  // Native `--case` keeps only its last value, so each case is its own native
+  // run with its own gated tools as the grant (`--allow-tools` applies to a
+  // whole run). Up to --jobs runs overlap; they share one stamp directory and
+  // one budget. A native ceiling cannot stop a run that is already the first in
+  // flight, so the budget is enforced here by reservation: a case starts only
+  // when spent + reserved + its estimate fits, and otherwise waits for a running
+  // case to settle, or is not started when nothing is left to wait for.
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const resultsRoot = path.resolve(REPO_ROOT, args.evalDir, 'results');
+  const outRoot = args.outputDir ?? path.join(resultsRoot, stamp);
+  mkdirSync(outRoot, { recursive: true });
+  const previous = previousNativeCosts(resultsRoot);
+  const startedAt = new Date();
+  const rows = new Map();
+  let spent = 0;
+  let reserved = 0;
+  let worst = 0;
+  let notStarted = false;
+  const queue = [...cases];
+  const running = new Set();
+
+  const armsFor = () => (args.ablation === 'with-without' ? 2 : 1);
+  const runsFor = (testCase) => args.runs ?? Number(testCase.fields.runs ?? 3);
+  // Estimates are per run, so a case reserves runs × arms of them.
+  const estimateFor = (testCase) => (previous.get(testCase.name) ?? args.runCostEstimate) * runsFor(testCase) * armsFor();
+
+  const launch = (testCase, estimate) => {
+    const runs = runsFor(testCase);
+    const outputDir = path.join(outRoot, testCase.name);
+    mkdirSync(outputDir, { recursive: true });
+    const grants = [...new Set((testCase.fields.allowed_tools ?? []).filter((t) => !NATIVE_READ_ONLY.has(t)))];
+    const passthrough = ['plugin', 'eval', REPO_ROOT, '--case', testCase.name, '--threshold', String(args.threshold), '--eval-dir', args.evalDir, '--trust-plugin', '--no-publish', '--ablation', args.ablation ?? 'none', '--output-dir', outputDir];
+    if (grants.length) passthrough.push('--allow-tools', ...grants);
+    if (args.runs) passthrough.push('--runs', String(args.runs));
+    if (runs > 1) passthrough.push('-j', String(Math.min(runs, 3)));
+    if (args.model) passthrough.push('--model', args.model);
+    if (args.judgeModel) passthrough.push('--judge-model', args.judgeModel);
+    if (args.maxCostUsd) passthrough.push('--max-cost-usd', String(Number((args.maxCostUsd - spent - reserved).toFixed(2))));
+    if (args.scaffold) passthrough.push('--scaffold');
+    reserved += estimate;
+    const aggregatePath = path.join(outputDir, 'aggregate-result.json');
+    // A reused --output-dir must not lend an earlier run's aggregate to a run that writes none.
+    rmSync(aggregatePath, { force: true });
+    const log = createWriteStream(path.join(outputDir, 'runner.log'));
+    log.on('error', (error) => console.error(`eval-runner: ${testCase.name} log: ${error.message}`));
+    const child = spawn(CLAUDE_BIN, passthrough, { cwd: REPO_ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+    // Both streams feed one log, so neither pipe may end it; the close handler does.
+    child.stdout.pipe(log, { end: false });
+    child.stderr.pipe(log, { end: false });
+    console.error(`eval-runner: started ${testCase.name}`);
+    const done = new Promise((resolve) => {
+      child.on('error', (error) => {
+        console.error(`eval-runner: ${testCase.name} could not start: ${error.message}`);
+        log.write(`eval-runner: could not start: ${error.message}\n`);
+        resolve(1);
+      });
+      child.on('close', (code) => resolve(code ?? 1));
+    }).then(async (status) => {
+      await new Promise((resolve) => log.end(resolve));
+      let aggregate = null;
+      try {
+        aggregate = JSON.parse(readFileSync(aggregatePath, 'utf8'));
+      } catch {
+        /* the run wrote no aggregate */
+      }
+      const cost = Number(aggregate?.costUsd ?? 0);
+      reserved -= estimate;
+      spent += cost;
+      worst = Math.max(worst, status);
+      rows.set(testCase.name, {
+        name: testCase.name,
+        exitCode: status,
+        runs,
+        arms: armsFor(),
+        costUsd: cost,
+        durationSeconds: aggregate?.durationSeconds ?? null,
+        score: aggregate?.aggregates?.overallScore ?? null,
+        aggregate: aggregate ? path.relative(REPO_ROOT, aggregatePath) : null,
+        log: path.relative(REPO_ROOT, path.join(outputDir, 'runner.log')),
+      });
+      console.error(`eval-runner: finished ${testCase.name} (exit ${status}, $${cost.toFixed(2)})`);
+      running.delete(done);
+    });
+    running.add(done);
+  };
+
+  while (queue.length) {
+    const next = queue[0];
+    const estimate = estimateFor(next);
+    const fits = !args.maxCostUsd || spent + reserved + estimate <= args.maxCostUsd;
+    if (running.size < args.jobs && fits) {
+      queue.shift();
+      launch(next, estimate);
+      continue;
+    }
+    if (running.size) {
+      await Promise.race(running);
+      continue;
+    }
+    // Nothing is running and the next case still does not fit.
+    for (const c of queue) {
+      console.error(`eval-runner: budget $${args.maxCostUsd} cannot cover ${c.name} (estimate $${estimateFor(c).toFixed(2)}) — not started`);
+      rows.set(c.name, { name: c.name, notStarted: true, estimateUsd: estimateFor(c) });
+    }
+    notStarted = true;
+    break;
+  }
+  await Promise.all(running);
+
+  const finishedAt = new Date();
+  const summary = {
+    runner: 'native',
+    jobs: args.jobs,
+    startedAt: startedAt.toISOString(),
+    finishedAt: finishedAt.toISOString(),
+    wallSeconds: Math.round((finishedAt - startedAt) / 1000),
+    costUsd: spent,
+    cases: cases.filter((c) => rows.has(c.name)).map((c) => rows.get(c.name)),
+  };
+  writeFileSync(path.join(outRoot, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
+  if (args.json === '-') process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
+  else if (args.json) writeFileSync(args.json, `${JSON.stringify(summary, null, 2)}\n`);
+  console.log('');
+  console.log('case                         score   exit   seconds');
+  for (const c of summary.cases) {
+    if (c.notStarted) console.log(`${c.name.padEnd(28)}   —    not started (budget)`);
+    else console.log(`${c.name.padEnd(28)} ${c.score === null ? '  —  ' : c.score.toFixed(2).padStart(5)}   ${String(c.exitCode).padStart(4)}   ${c.durationSeconds ?? '—'}`);
+  }
+  console.log(`\nnative · jobs ${args.jobs} · wall ${summary.wallSeconds}s · cost $${spent.toFixed(2)} · results ${path.relative(REPO_ROOT, outRoot)}`);
+  if (notStarted || (args.maxCostUsd && spent > args.maxCostUsd)) worst = Math.max(worst, 2);
+  return worst;
+}
+
+/** The latest native cost per run of each case from earlier summary.json files, used as the reservation estimate. */
+function previousNativeCosts(resultsRoot) {
+  const costs = new Map();
+  if (!existsSync(resultsRoot)) return costs;
+  for (const stampDir of readdirSync(resultsRoot).sort()) {
+    const summaryPath = path.join(resultsRoot, stampDir, 'summary.json');
+    if (!existsSync(summaryPath)) continue;
+    try {
+      for (const row of JSON.parse(readFileSync(summaryPath, 'utf8')).cases ?? []) {
+        if (row.costUsd > 0) costs.set(row.name, row.costUsd / ((row.runs ?? 1) * (row.arms ?? 1)));
+      }
+    } catch {
+      /* an unreadable summary contributes nothing */
+    }
+  }
+  return costs;
 }
 
 // --- case loading --------------------------------------------------------------
 
-/** Minimal YAML subset: scalars, quoted scalars, inline [a, b] lists, `- item` lists. */
-function parseFrontmatter(source) {
-  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(source);
-  if (!match) return { fields: {}, body: source };
+// The case format is the native `claude plugin eval` format, so both runners
+// read the same files and reject the same keys.
+const PROMPT_KEYS = new Set(['schema_version', 'name', 'description', 'tags', 'plugins', 'runs', 'expected_outcome', 'model', 'max_turns', 'timeout_seconds', 'allowed_tools', 'append_system_prompt', 'env']);
+
+/** Minimal YAML subset: scalars, quoted scalars, inline [a, b] lists, `- item` lists, `|` block scalars. */
+function parseYamlSubset(text) {
   const fields = {};
   let listKey = null;
-  for (const raw of match[1].split('\n')) {
+  let blockKey = null;
+  for (const raw of text.split('\n')) {
+    if (blockKey) {
+      if (!raw.trim() || /^\s+/.test(raw)) {
+        fields[blockKey].push(raw.replace(/^ {2}/, ''));
+        continue;
+      }
+      fields[blockKey] = fields[blockKey].join('\n').trim();
+      blockKey = null;
+    }
     if (!raw.trim()) continue;
     const item = /^\s+-\s+(.*)$/.exec(raw);
     if (item && listKey) {
@@ -114,7 +280,12 @@ function parseFrontmatter(source) {
     const pair = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(raw);
     if (!pair) throw new Error(`unsupported frontmatter line: ${raw}`);
     const [, key, value] = pair;
-    if (value === '') {
+    if (/^[|>][+-]?$/.test(value.trim()) && value.trim() !== '|') throw new Error(`unsupported block scalar "${value.trim()}" for ${key}: use a plain |`);
+    if (value.trim() === '|') {
+      listKey = null;
+      blockKey = key;
+      fields[key] = [];
+    } else if (value === '') {
       listKey = key;
       fields[key] = [];
     } else if (/^\[.*\]$/.test(value.trim())) {
@@ -125,7 +296,39 @@ function parseFrontmatter(source) {
       fields[key] = unquote(value);
     }
   }
-  return { fields, body: match[2].trim() };
+  if (blockKey) fields[blockKey] = fields[blockKey].join('\n').trim();
+  return fields;
+}
+
+function parseFrontmatter(source) {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(source);
+  if (!match) return { fields: {}, body: source };
+  return { fields: parseYamlSubset(match[1]), body: match[2].trim() };
+}
+
+/** case.yaml in block form: top-level scalars plus one `context:` map of scalars. */
+function parseCaseYaml(source, file) {
+  const fields = {};
+  let section = null;
+  for (const raw of source.split('\n')) {
+    if (!raw.trim() || raw.trim().startsWith('#')) continue;
+    const top = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(raw);
+    if (top) {
+      section = top[2] === '' ? top[1] : null;
+      fields[top[1]] = top[2] === '' ? {} : unquote(top[2]);
+      continue;
+    }
+    const nested = /^ {2}([A-Za-z0-9_-]+):\s*(.+)$/.exec(raw);
+    if (!nested || !section) throw new Error(`${file}: unsupported case.yaml line: ${raw}`);
+    fields[section][nested[1]] = unquote(nested[2].replace(/\s+#.*$/, ''));
+  }
+  for (const key of Object.keys(fields.context ?? {})) {
+    if (key !== 'scaffold_script') throw new Error(`${file}: context.${key} is unsupported by the fallback runner`);
+  }
+  for (const key of Object.keys(fields)) {
+    if (!['schema_version', 'name', 'context'].includes(key)) throw new Error(`${file}: ${key} is unsupported by the fallback runner`);
+  }
+  return fields;
 }
 
 function unquote(value) {
@@ -168,7 +371,13 @@ function loadCases(evalDir, filters) {
     const promptPath = path.join(dir, 'prompt.md');
     if (!existsSync(promptPath)) continue;
     const { fields, body } = parseFrontmatter(readFileSync(promptPath, 'utf8'));
-    const name = fields.name ?? entry;
+    for (const key of Object.keys(fields)) {
+      if (!PROMPT_KEYS.has(key)) throw new Error(`${promptPath}: unknown frontmatter key "${key}"`);
+    }
+    const casePath = path.join(dir, 'case.yaml');
+    const caseYaml = existsSync(casePath) ? parseCaseYaml(readFileSync(casePath, 'utf8'), casePath) : {};
+    const scaffoldScript = caseYaml.context?.scaffold_script ? path.join(dir, caseYaml.context.scaffold_script) : null;
+    const name = fields.name ?? caseYaml.name ?? entry;
     if (filters.cases.length && !filters.cases.some((glob) => globMatch(glob, name))) continue;
     if (filters.tags.length && !(fields.tags ?? []).some((t) => filters.tags.includes(t))) continue;
     const gradersDir = path.join(dir, 'graders');
@@ -181,7 +390,7 @@ function loadCases(evalDir, filters) {
             return { name: f.replace(/\.md$/, ''), ...parsed.fields, body: parsed.body };
           })
       : [];
-    cases.push({ name, dir, fields, prompt: body, graders, fixturesDir: path.join(root, 'fixtures') });
+    cases.push({ name, dir, fields, prompt: body, graders, scaffoldScript });
   }
   return cases;
 }
@@ -208,30 +417,34 @@ function listFiles(dir, prefix = '') {
 function runCase(testCase, args, budget) {
   const workspace = mkdtempSync(path.join(WORK_PARENT, `omj-eval-${testCase.name}-`));
   try {
-    if (args.scaffold && testCase.fields.scaffold_script) {
-      const scaffold = spawnSync('bash', ['-euo', 'pipefail', '-c', testCase.fields.scaffold_script], {
-        cwd: workspace,
-        env: { ...process.env, EVAL_FIXTURES: testCase.fixturesDir },
-        encoding: 'utf8',
-      });
+    if (args.scaffold && testCase.scaffoldScript) {
+      const scaffold = spawnSync('bash', [testCase.scaffoldScript], { cwd: workspace, encoding: 'utf8', env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' } });
       if (scaffold.status !== 0) throw new Error(`scaffold failed for ${testCase.name}: ${scaffold.stderr}`);
     }
     const before = new Set(listFiles(workspace));
 
     const cli = ['-p', testCase.prompt, '--plugin-dir', REPO_ROOT, '--output-format', 'stream-json', '--verbose'];
     const allowed = testCase.fields.allowed_tools ?? [];
+    // Native runs withhold every tool a case does not allow and load no personal
+    // settings or MCP servers. `--tools` withholds the rest of the built-in set
+    // (pre-approval alone left Agent callable), and the setting/MCP flags keep the
+    // user's own configuration out of the run.
+    const toolNames = [...new Set(allowed.map((tool) => tool.replace(/\(.*$/, '').trim()))];
+    cli.push('--tools', ...(toolNames.length ? toolNames : ['']), '--setting-sources', 'project', '--strict-mcp-config');
     if (allowed.length) cli.push('--allowedTools', ...allowed);
     if (testCase.fields.max_turns) cli.push('--max-turns', String(testCase.fields.max_turns));
     const model = args.model ?? testCase.fields.model;
     if (model) cli.push('--model', model);
-    if (testCase.fields.append_system_prompt_file) {
-      cli.push('--append-system-prompt-file', path.join(REPO_ROOT, testCase.fields.append_system_prompt_file));
-    }
+    if (testCase.fields.append_system_prompt) cli.push('--append-system-prompt', testCase.fields.append_system_prompt);
     const timeout = Number(testCase.fields.timeout_seconds ?? 300) * 1000;
     const run = spawnSync(CLAUDE_BIN, cli, { cwd: workspace, encoding: 'utf8', input: '', timeout, maxBuffer: 64 * 1024 * 1024 });
 
     const toolCalls = [];
     const assistantText = [];
+    // The trace mirrors the native one: one JSON line per main-thread message
+    // block (assistant text or tool call); subagent messages and tool results
+    // stay out, so a trace grader cannot match text a reviewer agent quoted.
+    const traceLines = [];
     let lastMessage = '';
     let cost = 0;
     for (const line of (run.stdout ?? '').split('\n')) {
@@ -244,8 +457,12 @@ function runCase(testCase, args, budget) {
       }
       if (event.type === 'assistant') {
         for (const block of event.message?.content ?? []) {
+          // tool_used graders count subagent calls too, so a forbidden call made by a delegated agent still fails the case.
           if (block.type === 'tool_use') toolCalls.push({ name: block.name, input: JSON.stringify(block.input ?? {}) });
           if (block.type === 'text') assistantText.push(block.text);
+          if (!event.parent_tool_use_id && (block.type === 'text' || block.type === 'tool_use')) {
+            traceLines.push(JSON.stringify(block.type === 'text' ? { text: block.text } : { tool: block.name, input: block.input ?? {} }));
+          }
         }
       }
       if (event.type === 'result') {
@@ -257,7 +474,7 @@ function runCase(testCase, args, budget) {
     budget.spent += cost;
 
     const after = listFiles(workspace).filter((f) => !before.has(f));
-    const context = { lastMessage, trace: JSON.stringify({ toolCalls, assistantText }), files: after, toolCalls, workspace };
+    const context = { lastMessage, trace: traceLines.join('\n'), traceLines, files: after, toolCalls, workspace };
     const graded = testCase.graders.map((grader) => gradeOne(grader, context, args, budget));
     const scored = graded.filter((g) => g.score !== null);
     const score = scored.length ? scored.reduce((s, g) => s + g.score, 0) / scored.length : 0;
@@ -341,7 +558,8 @@ function gradeOne(grader, context, args, budget) {
     if (type === 'tool_used') {
       const inputRe = grader.input_match ? new RegExp(grader.input_match) : null;
       const count = context.toolCalls.filter((c) => c.name === grader.tool && (!inputRe || inputRe.test(c.input))).length;
-      const min = grader.min !== undefined ? Number(grader.min) : grader.max !== undefined ? 0 : 1;
+      // Native semantics: min defaults to 1 even when max is set.
+      const min = grader.min !== undefined ? Number(grader.min) : 1;
       const max = grader.max !== undefined ? Number(grader.max) : Infinity;
       const pass = count >= min && count <= max;
       return { name: grader.name, type, score: pass ? 1 : 0, details: `${grader.tool} called ${count}× (min ${min}, max ${max === Infinity ? '∞' : max})` };
@@ -367,7 +585,11 @@ function gradeOne(grader, context, args, budget) {
         '</rubric>',
         '',
         '<answer>',
-        context.lastMessage.slice(0, 20000),
+        // `focus: trace` shows the judge the first 12 and last 12 trace messages, as the native judge sees them.
+        (grader.focus === 'trace'
+          ? (context.traceLines.length > 24 ? [...context.traceLines.slice(0, 12), '…', ...context.traceLines.slice(-12)] : context.traceLines).join('\n')
+          : context.lastMessage
+        ).slice(0, 20000),
         '</answer>',
       ].join('\n');
       let verdict = null;
@@ -389,12 +611,13 @@ function gradeOne(grader, context, args, budget) {
 
 // --- main ----------------------------------------------------------------------
 
-function main() {
+async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
     console.log(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 30).join('\n'));
     return 0;
   }
+  if (args.ablation && !['none', 'with-without'].includes(args.ablation)) throw new Error('--ablation must be none or with-without');
   const useNative = args.mode === 'native' || (args.mode !== 'fallback' && nativeAvailable());
   if (useNative) {
     console.error('eval-runner: native `claude plugin eval` available — delegating');
@@ -441,13 +664,16 @@ function main() {
       console.error(`  ${testCase.name} run ${i + 1}/${runs}: ${run.score.toFixed(2)} ($${run.cost.toFixed(2)})${run.timedOut ? ' (timed out)' : ''}`);
     }
     const score = arms.length ? arms.reduce((s, r) => s + r.score, 0) / arms.length : 0;
-    results.push({ name: testCase.name, score, passed: arms.length > 0 && score >= args.threshold, arms });
+    const passedRuns = arms.filter((a) => a.passed).length;
+    const consistency = { runs: arms.length, passedRuns, passAll: arms.length > 0 && passedRuns === arms.length, passAny: passedRuns > 0 };
+    results.push({ name: testCase.name, score, passed: arms.length > 0 && score >= args.threshold, consistency, arms });
     if (ceilingHit) break;
   }
   if (ceilingHit && runsStarted === 0) {
     console.error(`eval-runner: budget $${args.maxCostUsd} is below one run's estimate ($${args.runCostEstimate}) — raise --max-cost-usd or lower --run-cost-estimate`);
   }
 
+  const ranCases = results.filter((r) => r.consistency.runs > 0);
   const aggregate = {
     schemaVersion: '1.1',
     runner: 'fallback',
@@ -458,11 +684,14 @@ function main() {
       name: r.name,
       score: r.score,
       passed: r.passed,
+      consistency: r.consistency,
       arms: { with: r.arms.map((a) => ({ graders: a.graders, passed: a.passed, cost: a.cost, aborted: a.timedOut ? 'timeout' : null, outputPath: a.outputPath })) },
     })),
     aggregates: {
       passRate: results.length ? results.filter((r) => r.passed).length / results.length : 0,
       meanScore: results.length ? results.reduce((s, r) => s + r.score, 0) / results.length : 0,
+      passAllRate: ranCases.length ? ranCases.filter((r) => r.consistency.passAll).length / ranCases.length : 0,
+      passAnyRate: ranCases.length ? ranCases.filter((r) => r.consistency.passAny).length / ranCases.length : 0,
       costUsd: budget.spent,
       ceilingHit,
       judgeRetries: budget.judgeRetries,
@@ -474,19 +703,20 @@ function main() {
   else if (args.json) writeFileSync(args.json, `${JSON.stringify(aggregate, null, 2)}\n`);
 
   console.log('');
-  console.log('case                         score   verdict');
-  for (const r of results) console.log(`${r.name.padEnd(28)} ${r.score.toFixed(2).padStart(5)}   ${r.passed ? 'pass' : 'FAIL'}`);
-  console.log(`\npass rate ${(aggregate.aggregates.passRate * 100).toFixed(0)}% · mean ${aggregate.aggregates.meanScore.toFixed(2)} · cost $${budget.spent.toFixed(2)} · results ${path.relative(REPO_ROOT, outDir)}`);
+  console.log('case                         score   k-pass   verdict');
+  for (const r of results) console.log(`${r.name.padEnd(28)} ${r.score.toFixed(2).padStart(5)}   ${`${r.consistency.passedRuns}/${r.consistency.runs}`.padStart(6)}   ${r.passed ? 'pass' : 'FAIL'}`);
+  console.log(`\npass rate ${(aggregate.aggregates.passRate * 100).toFixed(0)}% · mean ${aggregate.aggregates.meanScore.toFixed(2)} · pass^k ${(aggregate.aggregates.passAllRate * 100).toFixed(0)}% · pass@k ${(aggregate.aggregates.passAnyRate * 100).toFixed(0)}% · cost $${budget.spent.toFixed(2)} · results ${path.relative(REPO_ROOT, outDir)}`);
 
   if (ceilingHit) return 2;
   return results.every((r) => r.passed) ? 0 : 1;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  try {
-    process.exit(main());
-  } catch (error) {
-    console.error(`eval-runner: ${error.message}`);
-    process.exit(1);
-  }
+  main().then(
+    (code) => process.exit(code),
+    (error) => {
+      console.error(`eval-runner: ${error.message}`);
+      process.exit(1);
+    },
+  );
 }

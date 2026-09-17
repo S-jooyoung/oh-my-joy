@@ -3,9 +3,8 @@ name: spec-from-interview
 tags: [spec, general, interview]
 runs: 3
 max_turns: 14
-timeout_seconds: 300
-allowed_tools: [Read, Grep, Glob, Skill]
-scaffold_script: cp -R "$EVAL_FIXTURES/node-service/." .
+timeout_seconds: 900
+allowed_tools: [Read, Grep, Glob, Skill, AskUserQuestion]
 ---
 The deep interview just closed with these requirements. Take them as the input and build the implementation spec.
 

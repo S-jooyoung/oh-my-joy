@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: "ralplan|approved plan|approve.*plan"
+pattern: "ralplan|approved plan|approve.*plan|approv\\w*\\s+(this|the)\\s+plan"
 flags: "i"
 match: contains
 target: last_message

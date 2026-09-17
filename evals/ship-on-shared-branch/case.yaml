@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: ship-on-shared-branch
+context:
+  scaffold_script: scaffold.sh

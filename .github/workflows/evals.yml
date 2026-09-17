@@ -46,6 +46,8 @@ jobs:
           ARGS=(--threshold 0.8 --runs "${{ github.event.inputs.runs || '1' }}" --max-cost-usd 15 --json evals/results/latest.json)
           if [ -n "${{ github.event.inputs.case }}" ]; then ARGS+=(--case "${{ github.event.inputs.case }}"); fi
           npm run eval -- "${ARGS[@]}"
+          # A native run always exposes Agent, so fallback-only cases run through the claude -p runner.
+          if [ -z "${{ github.event.inputs.case }}" ]; then npm run eval -- --fallback --tag fallback-only --threshold 0.8 --runs "${{ github.event.inputs.runs || '1' }}" --max-cost-usd 5; fi
 
       - name: Upload results
         if: always()
