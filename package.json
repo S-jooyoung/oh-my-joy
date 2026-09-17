@@ -1,6 +1,6 @@
 {
   "name": "oh-my-joy",
-  "version": "0.11.1",
+  "version": "0.12.0",
   "private": true,
   "type": "module",
   "description": "Standalone Claude Code and Codex workflows with a Node-built-in goal evidence helper and validation suite; no runtime dependencies.",

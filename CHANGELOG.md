@@ -10,6 +10,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.12.0] - 2026-09-17
+
+### Added
+
 - `npm run eval` runs native cases in parallel (`--jobs`, default 4) with a reserved budget, per-case `runner.log`, and a `summary.json` carrying wall-clock and per-case durations.
 - The `review-fail-closed` eval case withholds `Agent` from a three-file diff and expects `Review: incomplete` with the session's own findings. It is tagged `fallback-only`, because a native run always exposes `Agent`.
 - The fallback eval runner reports run consistency: each case carries `consistency` (`runs`, `passedRuns`, `passAll` for pass^k, `passAny` for pass@k), the aggregate adds `passAllRate` and `passAnyRate`, and the console shows a `k-pass` column. The exit code still follows the mean score.
@@ -474,7 +488,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.11.1...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.9.0...v0.10.0
