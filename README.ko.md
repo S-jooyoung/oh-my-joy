@@ -92,7 +92,7 @@ Codex는 같은 10개 워크플로 진입점(`spec` 호환 별칭 포함), 내�
 > | --- | --- |
 > | `figma-implementer` (에이전트) | `implementer` — 같은 실행자에 프론트엔드 모드와 범용 모드가 생겼고, 이제 모든 Dispatch 행의 팀원 타입 |
 >
-> `/oh-my-joy:ralplan`은 최종 승인 전에 `## Critique` 섹션(결정 기록, 당신의 파일에 대한 시뮬레이션, ready 판정 — 사소하지 않은 계획은 새 컨텍스트의 read-only `critic` 둘이 추가로 반박)으로 끝나고, `/oh-my-joy:deep-interview`는 종료 브리지로 요구사항을 `ralplan`에 넘기며, 완료 절차는 승인부터 보고까지 질문하지 않습니다 — 블로커는 분류해서 보고합니다. 이 v0.9 기능은 새 ralplan 진입점에서도 유지합니다.
+> `/oh-my-joy:ralplan`은 최종 승인 전에 `## Critique` 섹션(결정 기록, 당신의 파일에 대한 시뮬레이션, ready 판정 — 계획 규모에 맞춘 새 컨텍스트의 read-only `critic` 반박)으로 끝나고, `/oh-my-joy:deep-interview`는 종료 브리지로 요구사항을 `ralplan`에 넘기며, 완료 절차는 승인부터 보고까지 질문하지 않습니다 — 블로커는 분류해서 보고합니다. 이 v0.9 기능은 새 ralplan 진입점에서도 유지합니다.
 >
 > **v0.7에서 업그레이드하셨나요?** v0.8.0은 척추를 범용화하고 표면을 줄였습니다:
 >
@@ -197,9 +197,9 @@ OMJ 소스 저장소에서 Claude Code는 `/release`, Codex는 `$oh-my-joy:relea
 | 단계 | 게이트 | 확인하는 것 |
 | --- | --- | --- |
 | `/oh-my-joy:deep-interview` | 명확성 — 목표가 흐릿할 때만; 구체적인 입력은 다음 행부터 | 모호도가 임계값 이하, 점수가 그 아래로 내려갈 수 없는 하한 포함; 끝나면 요구사항을 `ralplan`에 넘김(추가 명령 입력 없이 자동 연결) |
-| `/oh-my-joy:ralplan` | 실현 가능성 | 비판: 자기 점검(결정 기록, 실제 파일에 대한 시뮬레이션), 사소하지 않은 계획은 새 컨텍스트의 `critic` 둘이 반박, ready 판정 |
+| `/oh-my-joy:ralplan` | 실현 가능성 | 비판: 자기 점검(결정 기록, 실제 파일에 대한 시뮬레이션), 계획 규모에 맞춘 새 컨텍스트의 `critic` 반박(파일 2개 이하는 없음, 3~5개는 하나, 더 크거나 호환을 깨거나 위험한 계획은 둘), ready 판정 |
 | 승인 (ExitPlanMode) | 동의 | 스펙과 비판을 읽습니다; 아직 아무것도 돌지 않음 |
-| 구현 | 증거, 질문 없음 | 블로커는 `resolvable` 또는 `human-only`로 분류; 가정은 기록 |
+| 구현 | 증거, 질문 없음 | 블로커는 `resolvable` 또는 `human-only`로 분류; 가정은 기록; goal 리뷰에 🔴가 있으면 다시 리뷰하고, 🟡 수정은 goal 완료 뒤 반영해 최종 리뷰가 확인 |
 | `/oh-my-joy:review` | 델타 래칫 | 수용 기준을 diff에 대조, 사소하지 않은 diff는 독립 `critic` 패스(실행할 수 없으면 fail-closed); 검증 약화는 blocker; 2회차는 바뀐 것만 보고 |
 | `/oh-my-joy:verify` | 종류별 증거 | test report · command replay · browser capture, 각각 exit code와 함께 |
 | `/oh-my-joy:ship` | 당신의 것 | 검증 명령, 커밋, push, PR |
@@ -276,7 +276,7 @@ verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px�
 | --- | --- | --- | --- | --- |
 | **`/oh-my-joy:spec`** | 호환 | ralplan의 별칭; 기존 Figma·범용 작업 호출 유지 | 기존 프롬프트 | `/oh-my-joy:spec "검색 추가"` |
 | **`/oh-my-joy:ultragoal`** | 승인 후 | 승인된 계획 실행, 목표 근거 기록, 리뷰·검증·재개; `resume <slug>`, `status <slug>` 지원 | 승인된 작업 또는 중단된 실행 | `/oh-my-joy:ultragoal resume checkout` |
-| **`/oh-my-joy:ralplan`** | 당신 | 입력(큰 프레임은 섹션 워크로 읽는 Figma 링크, 프론트엔드 텍스트, 범용 텍스트)을 읽고, 구현 스펙(Plan)을 쓰고, 실제 코드에 대해 비판하고(`## Critique`: 결정 기록, 시뮬레이션, ready 판정; 사소하지 않은 계획은 새 컨텍스트의 `critic` 둘이 반박), 실행 레인과 완료 절차를 기록하고 멈춤(read-only). 세션에 있는 인터뷰 요구사항도 입력으로 받음. 생략된 verify 라우트는 추론; 검증 가능한 목표가 없는 텍스트는 인터뷰로 안내 | 구체적인 모든 작업의 시작점 | `/oh-my-joy:ralplan https://figma.com/design/abc?node-id=1-2 /settings/profile` |
+| **`/oh-my-joy:ralplan`** | 당신 | 입력(큰 프레임은 섹션 워크로 읽는 Figma 링크, 프론트엔드 텍스트, 범용 텍스트)을 읽고, 구현 스펙(Plan)을 쓰고, 실제 코드에 대해 비판하고(`## Critique`: 결정 기록, 시뮬레이션, ready 판정; 새 컨텍스트의 `critic` 반박은 계획 규모에 맞춤: 파일 2개 이하는 없음, 3~5개는 하나, 더 크거나 호환을 깨거나 위험한 계획은 둘), 실행 레인과 완료 절차를 기록하고 멈춤(read-only). 세션에 있는 인터뷰 요구사항도 입력으로 받음. 생략된 verify 라우트는 추론; 검증 가능한 목표가 없는 텍스트는 인터뷰로 안내 | 구체적인 모든 작업의 시작점 | `/oh-my-joy:ralplan https://figma.com/design/abc?node-id=1-2 /settings/profile` |
 | **`/oh-my-joy:deep-interview`** | 당신 | 모호한 아이디어를 한 라운드 한 질문의 소크라테스식 인터뷰로 스펙(네이티브 Plan)으로 만듦. 가중 모호도 점수(`--threshold N`%, 기본 20) — 토폴로지 고정, 최약 차원 타깃, 온톨로지 추적, 모호도 하한, 재진술/클로저 이중 게이트(read-only); 종료 브리지로 끝남 — 요구사항을 `ralplan`에 자동 전달하며 해결되지 않은 조사 전제는 명시합니다. 이미 구체적인 입력은 즉시 종료, Figma 링크는 `ralplan`으로 | 목표 자체가 아직 흐릿할 때 | `/oh-my-joy:deep-interview "사내 지식 베이스 — 아직 흐릿함"` |
 | **`/oh-my-joy:ship`** | 당신 | 검증 명령 실행(전부 exit 0이어야 함), 브랜치에서 프로젝트 컨벤션·언어로 커밋, push, 증거 표를 본문에 붙인 PR 생성(레포에 PR 템플릿이 있으면 그 형식). `--base <ref>`로 PR base 지정, 없으면 이미 명확하게 정해진 base를 재사용하고 대상이 불명확할 때만 한 번 물음. 공유 브랜치(`main`, `develop` …)에는 직접 커밋하지 않음: 변경이 있으면 먼저 갈라 나오고, 깨끗한 `develop`에서는 승격 PR을 엶. git/gh/typecheck만 사전 승인 — 테스트 러너는 일부러 권한 프롬프트를 거침 | 마지막 단계, 항상 당신이 침 | `/oh-my-joy:ship "feat(checkout): summary panel"` |
 | **`/oh-my-joy:review`** | 플랜 | 변경 diff를 리뷰하고 보고만 — 프론트엔드 파일은 FF 4기준 + a11y · Figma fidelity · vercel · Next.js(Context7); 그 외 파일은 정확성·단순함·일관성·테스트 커버리지; 승인된 스펙의 수용 기준을 diff에 대조; 사소하지 않은 diff는 새 컨텍스트의 독립 `critic` 패스이며, 그 패스를 돌릴 수 없으면 리포트에 `Review: incomplete`를 표시; 테스트 skip·assertion 완화·검사 설정 완화는 `verification weakened`로 지적; 같은 변경에 대한 2회차는 델타를 보고(이전 finding의 해결 여부, 그다음 바뀐 것만). 인자 없음 = 미커밋 + 스테이징 vs HEAD; `--base <ref>` = 브랜치 전체 | 구현 직후(플랜이 실행), 또는 누구의 diff든 | `/oh-my-joy:review --base main` |
@@ -292,7 +292,7 @@ verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px�
 
 ### 번들 에이전트, 답변 스타일, opt-in 부가 기능
 
-- **`critic`** (에이전트) — `ralplan`이 사소하지 않은 계획에(두 인스턴스: architect 렌즈와 critic 렌즈), `review`가 사소하지 않은 diff에 띄우는 read-only 리뷰어. 그 자료를 쓰지 않은 새 컨텍스트에서 읽고 판정과 finding만 돌려주며 편집하지 않음; 정확히 `Read`, `Grep`, `Glob`만 선언(테스트로 고정). 직접 치지 않음.
+- **`critic`** (에이전트) — `ralplan`이 계획 규모에 맞춰(파일 3~5개는 critic 렌즈 인스턴스 하나, 더 크거나 호환을 깨거나 위험한 계획은 architect 렌즈와 critic 렌즈 두 인스턴스), `review`가 사소하지 않은 diff에 띄우는 read-only 리뷰어. 그 자료를 쓰지 않은 새 컨텍스트에서 읽고 판정과 finding만 돌려주며 편집하지 않음; 정확히 `Read`, `Grep`, `Glob`만 선언(테스트로 고정). 직접 치지 않음.
 - **`implementer`** (에이전트) — **승인된 OMJ 스펙**을 5단계 루프(Clarify → Context → Plan → Generate → Evaluate)로 프론트엔드 모드(uSpec, Figma, 라우트) 또는 범용 모드로 구현하는 inline 레인 실행자이자, 모든 Dispatch 행의 팀원 타입: 행마다 인스턴스 하나, 그 행의 파일만 편집, 실행 중 질문 없음, 블로커 분류, 증거와 함께 완료 보고. 스펙 없는 입력은 거절(플랜 게이트 우회 없음).
 - **`design-qa`** (에이전트) — **검사만** 하는 기계적 게이트: 타입체크, 린트, 하드코딩 토큰, Figma fidelity, a11y 기본, 그리고 fe-context에 선언된 경우에만 Story/i18n 검사. 쓰기 도구 미선언(테스트로 고정).
 - **OMJ 답변 스타일** (`output-styles/oh-my-joy.md`, opt-in) — 자연스러운 모국어 답변, 초보 개발자도 이해할 설명, 승인된 다음 단계의 자동 진행. 한국어 규칙은 [fluent-korean](https://github.com/snflkd/fluent-korean)에서 재작성했으며 [`NOTICE.md`](NOTICE.md)에 출처를 기록했습니다. Claude Code는 setup이나 `/config`의 **Output style**에서 선택합니다. Codex setup은 같은 본문을 `.omj/answer-style.md`에 복사하고 실제 적용되는 프로젝트 `AGENTS.md` 또는 `AGENTS.override.md`에 연결하며 기존 지침을 보존합니다. 선택 뒤 새 세션을 시작하세요.
@@ -372,7 +372,7 @@ verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px�
 
 ## OMJ는 어떻게 발전하나
 
-커맨드 본문은 프롬프트라서 "사소한 문구 수정"도 동작 변경입니다. OMJ는 이를 측정합니다: `evals/`에 커맨드별 행동 케이스가 있고(조직에 활성화돼 있으면 네이티브 `claude plugin eval`, 아니면 같은 케이스 파일을 읽는 `claude -p` 폴백 러너), `npm run eval`이 임계값으로 채점하며, 커맨드 본문을 바꾸면 그것을 관찰하는 케이스를 추가하거나 갱신합니다. 실행마다 실제 세션이 돌기 때문에, 바꾼 본문의 케이스만 한 번(`--case <name> --runs 1`) 돌리고 3회 스위트는 릴리스 때만 씁니다. 러너는 실행 전마다 비용 상한을 검사하고 모든 실행의 출력을 읽을 수 있게 저장합니다. 매 PR에서는 [`tests/token-budget.test.mjs`](tests/token-budget.test.mjs)가 always-on description 비용을 래칫 예산 아래로 유지해 표면이 조용히 늘어나지 못하게 합니다. 이 루프는 [docs/EVALS.md](docs/EVALS.md)에 적혀 있습니다.
+커맨드 본문은 프롬프트라서 "사소한 문구 수정"도 동작 변경입니다. OMJ는 이를 측정합니다: `evals/`에 커맨드별 행동 케이스가 있고(조직에 활성화돼 있으면 네이티브 `claude plugin eval`, 아니거나 `--fallback`을 주면 같은 네이티브 형식 케이스 파일과 같은 도구 제한을 쓰는 `claude -p` 러너), `npm run eval`이 임계값으로 채점하며, 커맨드 본문을 바꾸면 그것을 관찰하는 케이스를 추가하거나 갱신합니다. 실행마다 실제 세션이 돌기 때문에, 바꾼 본문의 케이스만 한 번(`--case <name> --runs 1`) 돌리고 3회 스위트는 릴리스 때만 씁니다. 러너는 실행 전마다 비용 상한을 검사하고 모든 실행의 출력을 읽을 수 있게 저장합니다. 매 PR에서는 [`tests/token-budget.test.mjs`](tests/token-budget.test.mjs)가 always-on description 비용을 래칫 예산 아래로 유지해 표면이 조용히 늘어나지 못하게 합니다. 이 루프는 [docs/EVALS.md](docs/EVALS.md)에 적혀 있습니다.
 
 ---
 

@@ -40,4 +40,4 @@ Verdict: CLEAR | REVISE | BLOCK        # lens: architect | critic · pass N
 🟢 …
 ```
 
-`BLOCK` means execution would guess or the shape is wrong; `REVISE` means the plan works with the listed changes; `CLEAR` means no finding above 🟢. A pass with nothing to report says so in one line rather than inventing a finding. Findings name the section or `file:line`, never a paraphrase of the whole document, so the caller can act on each one.
+`BLOCK` means execution would guess or the shape is wrong; `REVISE` means the plan works with the listed changes; `CLEAR` means no finding above 🟢. A caller that records a pass/fail receipt maps `CLEAR` and a `REVISE` with only 🟡 findings to pass, and any 🔴 or `BLOCK` to fail. A pass with nothing to report says so in one line rather than inventing a finding. Findings name the section or `file:line`, never a paraphrase of the whole document, so the caller can act on each one.

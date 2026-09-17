@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: "git commit[\\s\\S]*[가-힣]"
+pattern: "\"command\":\"(?:[^\"\\\\]|\\\\.)*git commit(?:[^\"\\\\]|\\\\.)*[가-힣]"
 match: contains
 target: trace
 ---

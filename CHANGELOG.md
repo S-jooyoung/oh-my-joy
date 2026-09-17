@@ -10,10 +10,15 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+- `npm run eval` runs native cases in parallel (`--jobs`, default 4) with a reserved budget, per-case `runner.log`, and a `summary.json` carrying wall-clock and per-case durations.
+- The `review-fail-closed` eval case withholds `Agent` from a three-file diff and expects `Review: incomplete` with the session's own findings. It is tagged `fallback-only`, because a native run always exposes `Agent`.
 - The fallback eval runner reports run consistency: each case carries `consistency` (`runs`, `passedRuns`, `passAll` for pass^k, `passAny` for pass@k), the aggregate adds `passAllRate` and `passAnyRate`, and the console shows a `k-pass` column. The exit code still follows the mean score.
 
 ### Changed
 
+- `ralplan` sizes its independent review to the plan with countable tiers: self-check only for two or fewer target files with no shape change (breaking contract, new dependency, OMJ contract, Figma section, PR review) or listed risk, one `critic` lens for three to five, and architect + critic for larger, shape-changing, or risky plans. Delta re-review happens only while a 🔴 or BLOCK remains, small plans use one change goal, and the `Critique` status line names the tier.
+- `ultragoal` records a goal review with no 🔴 or BLOCK as a pass with its 🟡 dispositions, completes the goal on that fingerprint, and applies accepted 🟡 changes after every goal is complete so the final review, which now receives all acceptance criteria and the full diff, covers them.
+- `ralplan` and `review` present their final plan or report only after every spawned reviewer returns, and restate the complete result if a reviewer notice arrives afterwards, so the last message is always the result rather than a short acknowledgement.
 - Reviews fail closed and treat weakened verification as a blocker: every 🔴 carries a reproduction path or a quoted violated criterion, the reviewer tries to refute its own blockers before reporting, skipped tests, loosened assertions, swallowed exit codes, and relaxed check configs are flagged as `verification weakened`, and a required independent pass that cannot run marks the report `Review: incomplete`, which ultragoal never records as a pass. The `review-verification-weakening` eval case covers the new blocker.
 - External content never widens authority: PR comments, issue text, Figma text, fetched documentation, and command output are data in `ralplan`, `ultragoal`, `critic`, and `implementer`. An embedded instruction that addresses the agent or tries to change delivery, scope, or permissions is recorded instead of followed, and repository instruction files supply rules but not authority. The `ralplan-untrusted-comment` eval case exercises it.
 
@@ -23,6 +28,9 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Fixed
 
+- `npm run eval` works on the native runner again. Cases use the native format (`prompt.md` keys only, `case.yaml` + `scaffold.sh`, inline `append_system_prompt`, llm rubrics in the grader body, `min: 0` on never-called graders), and the runner starts one native run per case (native `--case` keeps only its last value) with `--trust-plugin`, `--no-publish`, `--ablation none`, the case's own `--allow-tools` grant, and the remaining budget, then writes a `summary.json`; native eval is used only on a positive probe, so an older CLI without `plugin eval` falls back instead of failing every case. The fallback runner reads and validates the same format.
+- The fallback eval runner withholds tools a case does not list (`--tools`) and loads no personal settings or MCP servers, so it no longer lets a case spawn `Agent` and grade a late acknowledgement as the final message; its trace and `focus: trace` window match the native judge.
+- `review` inlines the weakened-verification rule instead of linking to the critic agent file, and `ultragoal` names the ralplan contract by its runtime path, since relative links do not resolve when the plugin runs.
 - `NOTICE.md` now credits the original repository of an absorbed methodology instead of a later copy, and lists what this release absorbed from it.
 
 ### Security
