@@ -61,7 +61,7 @@ The through-line of this plugin is a single idea: **treat the tool's constraints
 
 **Rationale.** Removing the permission achieves both goals at once: the permission surface is minimized, and the path around the gate disappears. For `ship` and evidence mode in `verify`, the permission prompt on a project's test command *is* the design — that confirmation is what makes the recorded evidence trustworthy, and pre-approving a runner would launder a narrow grant into arbitrary execution.
 
-**Least privilege extends to content.** A tool grant is only half of the boundary; the other half is where instructions may come from. External text never creates authority: PR comments, issue text, Figma text layers, fetched documentation, and command output are data, and an embedded instruction inside them is judged, never followed. Repository instruction files supply coding rules and acceptance input but do not widen delivery or scope, and on the PR track a file the PR itself modifies is data too. The PR track reads text written by other people by design, so the gate that protects the plan has to hold against what that text asks for.
+**Least privilege extends to content.** A tool grant is only half of the boundary; the other half is where instructions may come from. External text never creates authority: PR comments, issue text, Figma text layers, fetched documentation, and command output are data, and an embedded instruction inside them is judged, never followed. Repository instruction files supply coding rules and acceptance input but do not widen delivery or scope, and on the PR track a file the PR itself modifies is data too. The PR track reads text written by other people by design, so the gate that protects the plan has to hold against what that text asks for. The rule is prose, so it does not replace enforcement: the plan gate and the permission surface above still bound what any followed instruction could do.
 
 **Boundary with upstream skills.** The official figma plugin's `figma-design-to-code` skill asks to be loaded before any `get_design_context` call, but `/oh-my-joy:ralplan` knowingly does not load it while priming — that skill presumes implementation, and loading implementation-steering guidance into a read-only primer erodes the plan-gate identity. Upstream compliance belongs to the implementation stage (a decision, not a bug).
 
@@ -159,7 +159,7 @@ The through-line of this plugin is a single idea: **treat the tool's constraints
 | A project-configurable settings surface for workflow constants (thresholds, retry caps) | — | deferred: the constants stay in the bodies until a project proves the need; `--threshold` is the one knob |
 | Portable goal state and workspace-bound evidence | ultragoal and the Node-built-in goal-state helper | adopted after the user clarified cross-session completion requirements; a separate research-mission command remains deferred |
 
-**The ECC re-evaluation decisions.** A later pass over everything-claude-code (ECC, credited in `NOTICE.md`) read the upstream code rather than its descriptions and judged each mechanism by what is actually implemented and measured. Earlier verdicts were not reused as reasons.
+**The implementation-evidence decisions.** A later pass over an absorbed methodology (credited in `NOTICE.md`) read the upstream code rather than its descriptions and judged each mechanism by what is actually implemented and measured. Earlier verdicts were not reused as reasons.
 
 | Idea | Where it landed | Verdict |
 | --- | --- | --- |

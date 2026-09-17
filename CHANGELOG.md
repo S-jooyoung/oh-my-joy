@@ -23,7 +23,7 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Fixed
 
-- `NOTICE.md` now credits the upstream everything-claude-code repository (`affaan-m/ECC`) instead of a later copy, and lists the methodologies absorbed from it in this release.
+- `NOTICE.md` now credits the original repository of an absorbed methodology instead of a later copy, and lists what this release absorbed from it.
 
 ### Security
 
