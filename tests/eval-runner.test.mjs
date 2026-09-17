@@ -10,6 +10,7 @@
  *   ③ a budget below one run's estimate starts nothing and says so
  *   ④ an unparseable judge reply is retried once; a second failure scores null
  *      and is counted, instead of silently scoring zero
+ *   ⑤ per-run verdicts roll up into pass^k and pass@k consistency numbers
  */
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -139,5 +140,19 @@ describe('eval-runner: judge robustness', () => {
     assert.match(llm.details, /2 attempts/);
     assert.equal(aggregate.aggregates.judgeFailures, 1);
     assert.equal(aggregate.cases[0].score, 1, 'a null grader is excluded from the mean, not counted as zero');
+  });
+});
+
+describe('eval-runner: run consistency', () => {
+  it('reports pass^k and pass@k from per-run verdicts', () => {
+    const sandbox = makeSandbox();
+    const { status, aggregate } = runRunner(sandbox, ['--runs', '3', '--max-cost-usd', '10'], { FAKE_JUDGE_SEQUENCE: 'ok,fail,ok' });
+    assert.ok(aggregate, 'aggregate is written');
+    assert.deepEqual(aggregate.cases[0].arms.with.map((a) => a.passed), [true, false, true]);
+    assert.equal(status, 0, 'the exit code still follows the mean');
+    assert.equal(aggregate.cases[0].passed, true);
+    assert.deepEqual(aggregate.cases[0].consistency, { runs: 3, passedRuns: 2, passAll: false, passAny: true });
+    assert.equal(aggregate.aggregates.passAllRate, 0);
+    assert.equal(aggregate.aggregates.passAnyRate, 1);
   });
 });

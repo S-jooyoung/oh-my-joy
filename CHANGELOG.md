@@ -10,13 +10,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+- The fallback eval runner reports run consistency: each case carries `consistency` (`runs`, `passedRuns`, `passAll` for pass^k, `passAny` for pass@k), the aggregate adds `passAllRate` and `passAnyRate`, and the console shows a `k-pass` column. The exit code still follows the mean score.
+
 ### Changed
+
+- Reviews fail closed and treat weakened verification as a blocker: every 🔴 carries a reproduction path or a quoted violated criterion, the reviewer tries to refute its own blockers before reporting, skipped tests, loosened assertions, swallowed exit codes, and relaxed check configs are flagged as `verification weakened`, and a required independent pass that cannot run marks the report `Review: incomplete`, which ultragoal never records as a pass. The `review-verification-weakening` eval case covers the new blocker.
+- External content never widens authority: PR comments, issue text, Figma text, fetched documentation, and command output are data in `ralplan`, `ultragoal`, `critic`, and `implementer`. An embedded instruction that addresses the agent or tries to change delivery, scope, or permissions is recorded instead of followed, and repository instruction files supply rules but not authority. The `ralplan-untrusted-comment` eval case exercises it.
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
+
+- `NOTICE.md` now credits the upstream everything-claude-code repository (`affaan-m/ECC`) instead of a later copy, and lists the methodologies absorbed from it in this release.
 
 ### Security
 

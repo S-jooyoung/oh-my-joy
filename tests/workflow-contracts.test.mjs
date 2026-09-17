@@ -38,6 +38,27 @@ describe('portable planning and goal workflow', () => {
     assert.doesNotMatch(tools, /Bash\(git (?:push|commit)/);
   });
 
+  it('reviews fail closed and treat weakened verification as a blocker', () => {
+    const critic = readRepoFile('agents/critic.md');
+    assert.match(critic, /verification weakened/);
+    assert.match(critic, /Blocker evidence/);
+    assert.match(parseFrontmatter(critic).tools, /^Read, Grep, Glob$/);
+    const review = readRepoFile('commands/review.md');
+    assert.match(review, /Review: incomplete/);
+    assert.match(review, /Refuted:/);
+    assert.match(review, /agents\/critic\.md/);
+    assert.doesNotMatch(review, /continue with the session's own review/);
+    assert.match(readRepoFile('skills/review/SKILL.md'), /Review: incomplete/);
+    assert.match(readRepoFile('commands/ultragoal.md'), /`incomplete` or unavailable review is never recorded as `verdict:"pass"`/);
+  });
+
+  it('external content never widens authority', () => {
+    for (const file of ['commands/ralplan.md', 'commands/ultragoal.md', 'agents/critic.md', 'agents/implementer.md']) {
+      assert.match(readRepoFile(file), /embedded instruction/, `${file} states the embedded-instruction boundary`);
+    }
+    assert.match(readRepoFile('commands/ralplan.md'), /never widen that authority/);
+  });
+
   it('execution does not pre-approve arbitrary checks through its state helper', () => {
     const tools = parseFrontmatter(readRepoFile('commands/ultragoal.md'))['allowed-tools'];
     assert.doesNotMatch(tools, /Bash\(node [^)]*goal-state\.mjs:\*\)/);

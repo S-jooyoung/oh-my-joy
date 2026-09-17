@@ -7,7 +7,7 @@
  *                                          result whose text and cost come from
  *                                          FAKE_RUN_TEXT / FAKE_RUN_COST
  *   `-p … --output-format json`         → one judge reply; FAKE_JUDGE_SEQUENCE is a
- *                                          comma-separated list of `ok` / `garbage`
+ *                                          comma-separated list of `ok` / `fail` / `garbage`
  *                                          consumed in order, counted in a file
  *                                          under FAKE_STATE_DIR so separate
  *                                          processes see the same sequence
@@ -44,7 +44,11 @@ if (format === 'json') {
   const n = existsSync(counterPath) ? Number(readFileSync(counterPath, 'utf8')) : 0;
   writeFileSync(counterPath, String(n + 1));
   const kind = sequence[Math.min(n, sequence.length - 1)];
-  const reply = kind === 'ok' ? '{"pass": true, "reason": "the answer meets the rubric"}' : 'I could not reach a verdict about this answer.';
+  const replies = {
+    ok: '{"pass": true, "reason": "the answer meets the rubric"}',
+    fail: '{"pass": false, "reason": "the answer misses the rubric"}',
+  };
+  const reply = replies[kind] ?? 'I could not reach a verdict about this answer.';
   process.stdout.write(`${JSON.stringify([{ type: 'system' }, { type: 'result', result: reply, total_cost_usd: 0.01 }])}\n`);
   process.exit(0);
 }

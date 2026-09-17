@@ -441,13 +441,16 @@ function main() {
       console.error(`  ${testCase.name} run ${i + 1}/${runs}: ${run.score.toFixed(2)} ($${run.cost.toFixed(2)})${run.timedOut ? ' (timed out)' : ''}`);
     }
     const score = arms.length ? arms.reduce((s, r) => s + r.score, 0) / arms.length : 0;
-    results.push({ name: testCase.name, score, passed: arms.length > 0 && score >= args.threshold, arms });
+    const passedRuns = arms.filter((a) => a.passed).length;
+    const consistency = { runs: arms.length, passedRuns, passAll: arms.length > 0 && passedRuns === arms.length, passAny: passedRuns > 0 };
+    results.push({ name: testCase.name, score, passed: arms.length > 0 && score >= args.threshold, consistency, arms });
     if (ceilingHit) break;
   }
   if (ceilingHit && runsStarted === 0) {
     console.error(`eval-runner: budget $${args.maxCostUsd} is below one run's estimate ($${args.runCostEstimate}) — raise --max-cost-usd or lower --run-cost-estimate`);
   }
 
+  const ranCases = results.filter((r) => r.consistency.runs > 0);
   const aggregate = {
     schemaVersion: '1.1',
     runner: 'fallback',
@@ -458,11 +461,14 @@ function main() {
       name: r.name,
       score: r.score,
       passed: r.passed,
+      consistency: r.consistency,
       arms: { with: r.arms.map((a) => ({ graders: a.graders, passed: a.passed, cost: a.cost, aborted: a.timedOut ? 'timeout' : null, outputPath: a.outputPath })) },
     })),
     aggregates: {
       passRate: results.length ? results.filter((r) => r.passed).length / results.length : 0,
       meanScore: results.length ? results.reduce((s, r) => s + r.score, 0) / results.length : 0,
+      passAllRate: ranCases.length ? ranCases.filter((r) => r.consistency.passAll).length / ranCases.length : 0,
+      passAnyRate: ranCases.length ? ranCases.filter((r) => r.consistency.passAny).length / ranCases.length : 0,
       costUsd: budget.spent,
       ceilingHit,
       judgeRetries: budget.judgeRetries,
@@ -474,9 +480,9 @@ function main() {
   else if (args.json) writeFileSync(args.json, `${JSON.stringify(aggregate, null, 2)}\n`);
 
   console.log('');
-  console.log('case                         score   verdict');
-  for (const r of results) console.log(`${r.name.padEnd(28)} ${r.score.toFixed(2).padStart(5)}   ${r.passed ? 'pass' : 'FAIL'}`);
-  console.log(`\npass rate ${(aggregate.aggregates.passRate * 100).toFixed(0)}% · mean ${aggregate.aggregates.meanScore.toFixed(2)} · cost $${budget.spent.toFixed(2)} · results ${path.relative(REPO_ROOT, outDir)}`);
+  console.log('case                         score   k-pass   verdict');
+  for (const r of results) console.log(`${r.name.padEnd(28)} ${r.score.toFixed(2).padStart(5)}   ${`${r.consistency.passedRuns}/${r.consistency.runs}`.padStart(6)}   ${r.passed ? 'pass' : 'FAIL'}`);
+  console.log(`\npass rate ${(aggregate.aggregates.passRate * 100).toFixed(0)}% · mean ${aggregate.aggregates.meanScore.toFixed(2)} · pass^k ${(aggregate.aggregates.passAllRate * 100).toFixed(0)}% · pass@k ${(aggregate.aggregates.passAnyRate * 100).toFixed(0)}% · cost $${budget.spent.toFixed(2)} · results ${path.relative(REPO_ROOT, outDir)}`);
 
   if (ceilingHit) return 2;
   return results.every((r) => r.passed) ? 0 : 1;

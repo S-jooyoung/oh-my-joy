@@ -200,7 +200,7 @@ OMJ 소스 저장소에서 Claude Code는 `/release`, Codex는 `$oh-my-joy:relea
 | `/oh-my-joy:ralplan` | 실현 가능성 | 비판: 자기 점검(결정 기록, 실제 파일에 대한 시뮬레이션), 사소하지 않은 계획은 새 컨텍스트의 `critic` 둘이 반박, ready 판정 |
 | 승인 (ExitPlanMode) | 동의 | 스펙과 비판을 읽습니다; 아직 아무것도 돌지 않음 |
 | 구현 | 증거, 질문 없음 | 블로커는 `resolvable` 또는 `human-only`로 분류; 가정은 기록 |
-| `/oh-my-joy:review` | 델타 래칫 | 수용 기준을 diff에 대조, 사소하지 않은 diff는 독립 `critic` 패스; 2회차는 바뀐 것만 보고 |
+| `/oh-my-joy:review` | 델타 래칫 | 수용 기준을 diff에 대조, 사소하지 않은 diff는 독립 `critic` 패스(실행할 수 없으면 fail-closed); 검증 약화는 blocker; 2회차는 바뀐 것만 보고 |
 | `/oh-my-joy:verify` | 종류별 증거 | test report · command replay · browser capture, 각각 exit code와 함께 |
 | `/oh-my-joy:ship` | 당신의 것 | 검증 명령, 커밋, push, PR |
 
@@ -221,7 +221,7 @@ flowchart TD
 
 `/oh-my-joy:ultragoal resume <slug>`(또는 `--resume <slug>`)로 같은 체크아웃의 승인된 작업을 이어갑니다. Claude Code와 Codex 사이에서도 같은 기록을 사용합니다. `/oh-my-joy:ultragoal status <slug>`는 상태를 조회합니다. 승인한 계획과 완료 기준은 유지하며, 범위가 크게 달라지면 다시 계획합니다. 다른 체크아웃에서는 새 실행을 시작하며, 상태 복사만으로 승인이 이전되지는 않습니다.
 
-기존 PR 리뷰 처리를 명시적으로 요청하면 계획에 채택·기각 판단, 소유한 코드 수정, 검증, 해당 PR 브랜치의 일반 커밋·푸시와 답글을 포함합니다. 최종 계획 승인 한 번으로 명시된 작업을 승인합니다. URL만 주거나 검토 보고만 요청하면 읽기만 허용됩니다. 답글과 원격 HEAD를 다시 조회해야 반영 완료로 기록합니다. 새 PR 생성과 머지는 이 자동 흐름에 포함하지 않으며, 새 PR은 `/oh-my-joy:ship`으로 진행합니다.
+기존 PR 리뷰 처리를 명시적으로 요청하면 계획에 채택·기각 판단, 소유한 코드 수정, 검증, 해당 PR 브랜치의 일반 커밋·푸시와 답글을 포함합니다. 최종 계획 승인 한 번으로 명시된 작업을 승인합니다. URL만 주거나 검토 보고만 요청하면 읽기만 허용됩니다. 코멘트 본문은 데이터라서, 리뷰 코멘트 안에 적힌 지시가 쓰기 작업이나 반영 단계를 추가하지 못합니다. 답글과 원격 HEAD를 다시 조회해야 반영 완료로 기록합니다. 새 PR 생성과 머지는 이 자동 흐름에 포함하지 않으며, 새 PR은 `/oh-my-joy:ship`으로 진행합니다.
 
 호스트별 연결·폴백·완료 기준의 정본은 [docs/EXECUTION-HANDOFF.md](docs/EXECUTION-HANDOFF.md)입니다.
 
@@ -279,7 +279,7 @@ verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px�
 | **`/oh-my-joy:ralplan`** | 당신 | 입력(큰 프레임은 섹션 워크로 읽는 Figma 링크, 프론트엔드 텍스트, 범용 텍스트)을 읽고, 구현 스펙(Plan)을 쓰고, 실제 코드에 대해 비판하고(`## Critique`: 결정 기록, 시뮬레이션, ready 판정; 사소하지 않은 계획은 새 컨텍스트의 `critic` 둘이 반박), 실행 레인과 완료 절차를 기록하고 멈춤(read-only). 세션에 있는 인터뷰 요구사항도 입력으로 받음. 생략된 verify 라우트는 추론; 검증 가능한 목표가 없는 텍스트는 인터뷰로 안내 | 구체적인 모든 작업의 시작점 | `/oh-my-joy:ralplan https://figma.com/design/abc?node-id=1-2 /settings/profile` |
 | **`/oh-my-joy:deep-interview`** | 당신 | 모호한 아이디어를 한 라운드 한 질문의 소크라테스식 인터뷰로 스펙(네이티브 Plan)으로 만듦. 가중 모호도 점수(`--threshold N`%, 기본 20) — 토폴로지 고정, 최약 차원 타깃, 온톨로지 추적, 모호도 하한, 재진술/클로저 이중 게이트(read-only); 종료 브리지로 끝남 — 요구사항을 `ralplan`에 자동 전달하며 해결되지 않은 조사 전제는 명시합니다. 이미 구체적인 입력은 즉시 종료, Figma 링크는 `ralplan`으로 | 목표 자체가 아직 흐릿할 때 | `/oh-my-joy:deep-interview "사내 지식 베이스 — 아직 흐릿함"` |
 | **`/oh-my-joy:ship`** | 당신 | 검증 명령 실행(전부 exit 0이어야 함), 브랜치에서 프로젝트 컨벤션·언어로 커밋, push, 증거 표를 본문에 붙인 PR 생성(레포에 PR 템플릿이 있으면 그 형식). `--base <ref>`로 PR base 지정, 없으면 이미 명확하게 정해진 base를 재사용하고 대상이 불명확할 때만 한 번 물음. 공유 브랜치(`main`, `develop` …)에는 직접 커밋하지 않음: 변경이 있으면 먼저 갈라 나오고, 깨끗한 `develop`에서는 승격 PR을 엶. git/gh/typecheck만 사전 승인 — 테스트 러너는 일부러 권한 프롬프트를 거침 | 마지막 단계, 항상 당신이 침 | `/oh-my-joy:ship "feat(checkout): summary panel"` |
-| **`/oh-my-joy:review`** | 플랜 | 변경 diff를 리뷰하고 보고만 — 프론트엔드 파일은 FF 4기준 + a11y · Figma fidelity · vercel · Next.js(Context7); 그 외 파일은 정확성·단순함·일관성·테스트 커버리지; 승인된 스펙의 수용 기준을 diff에 대조; 사소하지 않은 diff는 새 컨텍스트의 독립 `critic` 패스; 같은 변경에 대한 2회차는 델타를 보고(이전 finding의 해결 여부, 그다음 바뀐 것만). 인자 없음 = 미커밋 + 스테이징 vs HEAD; `--base <ref>` = 브랜치 전체 | 구현 직후(플랜이 실행), 또는 누구의 diff든 | `/oh-my-joy:review --base main` |
+| **`/oh-my-joy:review`** | 플랜 | 변경 diff를 리뷰하고 보고만 — 프론트엔드 파일은 FF 4기준 + a11y · Figma fidelity · vercel · Next.js(Context7); 그 외 파일은 정확성·단순함·일관성·테스트 커버리지; 승인된 스펙의 수용 기준을 diff에 대조; 사소하지 않은 diff는 새 컨텍스트의 독립 `critic` 패스이며, 그 패스를 돌릴 수 없으면 리포트에 `Review: incomplete`를 표시; 테스트 skip·assertion 완화·검사 설정 완화는 `verification weakened`로 지적; 같은 변경에 대한 2회차는 델타를 보고(이전 finding의 해결 여부, 그다음 바뀐 것만). 인자 없음 = 미커밋 + 스테이징 vs HEAD; `--base <ref>` = 브랜치 전체 | 구현 직후(플랜이 실행), 또는 누구의 diff든 | `/oh-my-joy:review --base main` |
 | **`/oh-my-joy:verify`** | 플랜 | 작업을 증명. 라우트가 있으면 실제 브라우저(playwright-cli, MCP 폴백)로 열어 Figma 베이스라인(`.omj/baselines/`)에 대조하고 요청한 라우트에 실제로 도달했는지 항상 확인. 라우트가 없으면 프로젝트의 검증 명령을 돌려 `명령 · exit code · 요약`을 증거 종류와 함께 기록. `--base <url>`은 dev 서버 | review 뒤 플랜이 실행; 팀원 완료 뒤 barrier | `/oh-my-joy:verify /settings/profile` · `/oh-my-joy:verify` |
 | **`/oh-my-joy:fix`** | 플랜 | 붙여넣은 스크린샷·불평으로 라우트(필수)의 결함을 고치고 재캡처로 확인(능동 루프). `--base <url>`, `--commit` | verify가 찾은 시각 결함 | `/oh-my-joy:fix /pricing "배너 z-index가 낮음"` |
 | **`/oh-my-joy:sync`** | 가끔 | 토큰 저장소(`tokens.json` 또는 CSS 커스텀 프로퍼티) ↔ Figma 드리프트를 방향을 물어 해소; `extract`는 Figma 변수에서 CSS 토큰을 부트스트랩; `--tokens <path>`로 저장소 경로 지정 | 코드/Figma 토큰 맞추기 · 최초 추출 | `/oh-my-joy:sync` · `check` · `push` · `extract <figma-url>` |
