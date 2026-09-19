@@ -10,6 +10,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.13.0] - 2026-09-20
+
+### Added
+
 - Eval cases for the shared `frontend-fundamentals` skill: eight `ff-*` plain requests on a new `ff-smells` fixture — six that should trigger the skill (refactor, review, new component, restraint, hook split; one task in Korean and English) and two should-not-trigger guards (a Node script and an API route handler) — measured with and without the plugin.
 - Eval cases for `setup`, which had none: `setup-check-readonly`, `setup-check-bare-project`, `setup-help`, and the `setup-neg-install-question` guard.
 - Eval cases for `sync`, which had none: `sync-check-no-figma`, `sync-push-no-figma`, and the `sync-neg-token-question` guard.
@@ -500,7 +514,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.10.0...v0.11.0
