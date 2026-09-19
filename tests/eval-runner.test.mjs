@@ -361,6 +361,60 @@ describe('eval-runner: native delegation', () => {
     assert.match(stderr, /needs-no-agent is fallback-only/);
   });
 
+  it('runs an ablation-tagged case with and without the plugin when --ablation is omitted, and reports its Δ without failing on it', () => {
+    const sandbox = makeSandbox({ runs: 1 });
+    addCase(sandbox, 'uplift-case', 'tags: [skill, ablation]\nallowed_tools: [Read]');
+    addCase(sandbox, 'crashed-uplift', 'tags: [ablation]\nallowed_tools: [Read]');
+    const { status, runs, summary } = runNativeRunner(sandbox, ['--runs', '1'], { FAKE_NATIVE_FAIL: 'uplift-case', FAKE_NATIVE_DELTA: '0.4' });
+    assert.equal(runs['uplift-case'].argv[runs['uplift-case'].argv.indexOf('--ablation') + 1], 'with-without');
+    assert.equal(runs['sample-case'].argv[runs['sample-case'].argv.indexOf('--ablation') + 1], 'none');
+    const row = (name) => summary.cases.find((c) => c.name === name);
+    assert.deepEqual({ mode: row('uplift-case').mode, arms: row('uplift-case').arms, delta: row('uplift-case').delta, exitCode: row('uplift-case').exitCode }, { mode: 'with-without', arms: 2, delta: 0.4, exitCode: 1 });
+    assert.deepEqual({ mode: row('sample-case').mode, arms: row('sample-case').arms, delta: row('sample-case').delta }, { mode: 'none', arms: 1, delta: null });
+    assert.equal(status, 0, 'an ablation run that wrote its aggregate does not fail the suite');
+
+    const crash = runNativeRunner(sandbox, ['--case', 'crashed-uplift', '--runs', '1'], { FAKE_NATIVE_CRASH: 'crashed-uplift' });
+    assert.equal(crash.summary.cases[0].aggregate, null);
+    assert.equal(crash.status, 1, 'an ablation run that wrote no aggregate still fails the suite');
+
+    const partial = runNativeRunner(sandbox, ['--case', 'uplift-case', '--runs', '1'], { FAKE_NATIVE_PARTIAL: 'uplift-case' });
+    assert.equal(partial.status, 2, 'a ceiling-stopped ablation run is not hidden');
+  });
+
+  it('reserves both arms for an ablation-tagged case', () => {
+    const sandbox = makeSandbox({ runs: 1 });
+    rmSync(path.join(sandbox.evalDir, 'sample-case'), { recursive: true });
+    addCase(sandbox, 'uplift-case', 'tags: [ablation]\nruns: 3\nallowed_tools: [Read]');
+    // 3 runs × 2 arms × $1 = $6: a $5 cap starts nothing, although one arm would fit.
+    const { status, runs, stderr } = runNativeRunner(sandbox, ['--max-cost-usd', '5', '--run-cost-estimate', '1']);
+    assert.equal(status, 2);
+    assert.deepEqual(Object.keys(runs), []);
+    assert.match(stderr, /estimate \$6\.00/);
+  });
+
+  it('respects an explicit --ablation none for an ablation-tagged case', () => {
+    const sandbox = makeSandbox({ runs: 1 });
+    addCase(sandbox, 'uplift-case', 'tags: [ablation]\nallowed_tools: [Read]');
+    const { status, runs, summary } = runNativeRunner(sandbox, ['--ablation', 'none', '--runs', '1'], { FAKE_NATIVE_FAIL: 'uplift-case' });
+    assert.equal(runs['uplift-case'].argv[runs['uplift-case'].argv.indexOf('--ablation') + 1], 'none');
+    const row = summary.cases.find((c) => c.name === 'uplift-case');
+    assert.deepEqual({ mode: row.mode, arms: row.arms, delta: row.delta }, { mode: 'none', arms: 1, delta: null });
+    assert.equal(status, 1, 'a single-arm run is a pass/fail case again');
+  });
+
+  it('leaves ablation-tagged cases out of the fallback runner, which has no without-plugin arm', () => {
+    const sandbox = makeSandbox({ runs: 1 });
+    addCase(sandbox, 'uplift-case', 'tags: [ablation]\nallowed_tools: [Read]');
+    const { status, stderr, aggregate } = runRunner(sandbox, ['--max-cost-usd', '10']);
+    assert.equal(status, 0);
+    assert.match(stderr, /uplift-case is an ablation case .* run it natively/);
+    assert.deepEqual(aggregate.suite.cases, ['sample-case']);
+
+    const only = runRunner(sandbox, ['--case', 'uplift-case', '--max-cost-usd', '10']);
+    assert.equal(only.status, 1);
+    assert.match(only.stderr, /no fallback eval cases selected/);
+  });
+
   it('falls back when the native probe gives no positive signal', () => {
     const sandbox = makeSandbox({ runs: 1 });
     mkdirSync(sandbox.work, { recursive: true });

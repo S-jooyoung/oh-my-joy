@@ -1,9 +1,10 @@
-# Behavioral evals — on demand and on release, never per PR.
+# Behavioral evals — on demand, never per PR.
 #
 # The cases under evals/ drive real Claude sessions, so a run costs tokens and
 # needs an API key. CI keeps the free gates (npm test, validate-plugin) on every
-# PR and reserves this workflow for a manual trigger and for published releases,
-# where the pass rate is attached to the release as an artifact.
+# PR and reserves this workflow for a manual trigger; results are uploaded as a
+# workflow artifact. The `release: published` trigger stays declared, but a
+# Release that release-tag.yml creates with GITHUB_TOKEN does not start it.
 name: Evals
 
 on:
@@ -14,7 +15,7 @@ on:
         required: false
         default: ''
       runs:
-        description: 'Runs per case (1 for a quick check, 3 before a release)'
+        description: 'Runs per case (1 fits the $45 ceiling; run a three-run release suite locally with a higher --max-cost-usd)'
         required: false
         default: '1'
   release:
@@ -41,9 +42,11 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           set -euo pipefail
-          # One run per case costs about $1–2.6; eight cases at one run fit a $15 ceiling,
-          # which the runner checks before each run starts (docs/EVALS.md).
-          ARGS=(--threshold 0.8 --runs "${{ github.event.inputs.runs || '1' }}" --max-cost-usd 15 --json evals/results/latest.json)
+          # At one run per case, the single-arm cases (about $1.5 a run) plus the
+          # `ablation`-tagged cases, which run with and without the plugin and report a Δ
+          # instead of a pass, fit a $45 ceiling that the runner checks before each case
+          # starts; three runs need more, and the cases that do not fit stay unstarted.
+          ARGS=(--threshold 0.8 --runs "${{ github.event.inputs.runs || '1' }}" --max-cost-usd 45 --json evals/results/latest.json)
           if [ -n "${{ github.event.inputs.case }}" ]; then ARGS+=(--case "${{ github.event.inputs.case }}"); fi
           npm run eval -- "${ARGS[@]}"
           # A native run always exposes Agent, so fallback-only cases run through the claude -p runner.

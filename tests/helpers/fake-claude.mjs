@@ -6,7 +6,12 @@
  *                                          with FAKE_NATIVE=1 it succeeds and records a
  *                                          run's argv and times as FAKE_STATE_DIR/native-<case>.json
  *                                          after FAKE_NATIVE_DELAY_MS, with an aggregate
- *                                          costing FAKE_NATIVE_COST
+ *                                          costing FAKE_NATIVE_COST (a with-without run
+ *                                          also reports meanDelta FAKE_NATIVE_DELTA);
+ *                                          cases named in FAKE_NATIVE_FAIL exit 1 with
+ *                                          an aggregate, those in FAKE_NATIVE_CRASH
+ *                                          exit 1 without one, and those in
+ *                                          FAKE_NATIVE_PARTIAL write a partial one
  *   `-p … --output-format stream-json`  → one canned run: a Read tool call, then a
  *                                          result whose text and cost come from
  *                                          FAKE_RUN_TEXT / FAKE_RUN_COST
@@ -42,13 +47,17 @@ if (argv[0] === 'plugin' && argv[1] === 'eval') {
     writeFileSync(record, JSON.stringify({ argv, startedAt }));
     await new Promise((resolve) => setTimeout(resolve, Number(process.env.FAKE_NATIVE_DELAY_MS ?? 0)));
     writeFileSync(record, JSON.stringify({ argv, startedAt, endedAt: Date.now() }));
+    const named = (variable) => (process.env[variable] ?? '').split(',').includes(caseName);
+    if (named('FAKE_NATIVE_CRASH')) process.exit(1);
     if (argv.includes('--output-dir')) {
       const outputDir = argv[argv.indexOf('--output-dir') + 1];
       mkdirSync(outputDir, { recursive: true });
       const cost = Number(process.env.FAKE_NATIVE_COST ?? '0.5');
-      writeFileSync(path.join(outputDir, 'aggregate-result.json'), JSON.stringify({ schemaVersion: 1, costUsd: cost, durationSeconds: 1, cases: [], aggregates: { casesTotal: 1, casesPassed: 1, overallScore: 1, overallPassRate: 1 } }));
+      const aggregates = { casesTotal: 1, casesPassed: 1, overallScore: 1, overallPassRate: 1 };
+      if (argv[argv.indexOf('--ablation') + 1] === 'with-without') aggregates.meanDelta = Number(process.env.FAKE_NATIVE_DELTA ?? '0.25');
+      writeFileSync(path.join(outputDir, 'aggregate-result.json'), JSON.stringify({ schemaVersion: 1, costUsd: cost, durationSeconds: 1, partial: named('FAKE_NATIVE_PARTIAL'), cases: [], aggregates }));
     }
-    process.exit(0);
+    process.exit(named('FAKE_NATIVE_FAIL') ? 1 : 0);
   }
   process.stdout.write('plugin eval is currently in early access\n');
   process.exit(1);

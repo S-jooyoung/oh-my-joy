@@ -17,6 +17,12 @@
  *        [--output-dir <dir>] [--eval-dir <dir>] [--no-scaffold] [--native | --fallback]
  *        [--ablation none|with-without] [--jobs 1-8]
  *
+ * Ablation: without --ablation, a case tagged `ablation` runs natively with and
+ * without the plugin and every other case runs with it only; an explicit
+ * --ablation applies to every selected case. An ablation case reports a Δ, not
+ * a pass, so a run that wrote its aggregate leaves the exit code alone. The
+ * fallback runner has no without-plugin arm and skips ablation cases.
+ *
  * Cost ceiling: a run starts only when the money already spent plus an estimate
  * of this run (the case's previous run, else --run-cost-estimate, default 2)
  * stays within --max-cost-usd. A run that did start is always graded — the
@@ -24,7 +30,8 @@
  * kind of spend that buys nothing.
  *
  * Exit codes: 0 every case at or above the threshold · 1 below the threshold or a
- * load error · 2 the cost ceiling stopped a run (partial results written).
+ * load error · 2 the cost ceiling stopped a run (partial results written). A
+ * with-without case counts only when its aggregate is missing or partial.
  *
  * OMJ_EVAL_CLAUDE_BIN replaces the `claude` binary (the test suite points it at
  * a stub); OMJ_EVAL_TMPDIR replaces the workspace parent directory.
@@ -121,17 +128,19 @@ async function runNative(args) {
   const queue = [...cases];
   const running = new Set();
 
-  const armsFor = () => (args.ablation === 'with-without' ? 2 : 1);
+  // An explicit --ablation wins; otherwise the case's `ablation` tag picks the mode.
+  const ablationFor = (testCase) => args.ablation ?? ((testCase.fields.tags ?? []).includes('ablation') ? 'with-without' : 'none');
+  const armsFor = (testCase) => (ablationFor(testCase) === 'with-without' ? 2 : 1);
   const runsFor = (testCase) => args.runs ?? Number(testCase.fields.runs ?? 3);
   // Estimates are per run, so a case reserves runs × arms of them.
-  const estimateFor = (testCase) => (previous.get(testCase.name) ?? args.runCostEstimate) * runsFor(testCase) * armsFor();
+  const estimateFor = (testCase) => (previous.get(testCase.name) ?? args.runCostEstimate) * runsFor(testCase) * armsFor(testCase);
 
   const launch = (testCase, estimate) => {
     const runs = runsFor(testCase);
     const outputDir = path.join(outRoot, testCase.name);
     mkdirSync(outputDir, { recursive: true });
     const grants = [...new Set((testCase.fields.allowed_tools ?? []).filter((t) => !NATIVE_READ_ONLY.has(t)))];
-    const passthrough = ['plugin', 'eval', REPO_ROOT, '--case', testCase.name, '--threshold', String(args.threshold), '--eval-dir', args.evalDir, '--trust-plugin', '--no-publish', '--ablation', args.ablation ?? 'none', '--output-dir', outputDir];
+    const passthrough = ['plugin', 'eval', REPO_ROOT, '--case', testCase.name, '--threshold', String(args.threshold), '--eval-dir', args.evalDir, '--trust-plugin', '--no-publish', '--ablation', ablationFor(testCase), '--output-dir', outputDir];
     if (grants.length) passthrough.push('--allow-tools', ...grants);
     if (args.runs) passthrough.push('--runs', String(args.runs));
     if (runs > 1) passthrough.push('-j', String(Math.min(runs, 3)));
@@ -166,17 +175,25 @@ async function runNative(args) {
         /* the run wrote no aggregate */
       }
       const cost = Number(aggregate?.costUsd ?? 0);
+      const mode = ablationFor(testCase);
       reserved -= estimate;
       spent += cost;
-      worst = Math.max(worst, status);
+      // Δ is a measurement, not a verdict: an ablation run that wrote its
+      // aggregate does not fail the suite. One that wrote none (a load error or
+      // a crash) still does, and a partial aggregate (a ceiling stopped the run)
+      // reports the ceiling whatever the mode.
+      if (!(mode === 'with-without' && aggregate)) worst = Math.max(worst, status);
+      if (aggregate?.partial) worst = Math.max(worst, 2);
       rows.set(testCase.name, {
         name: testCase.name,
         exitCode: status,
+        mode,
         runs,
-        arms: armsFor(),
+        arms: armsFor(testCase),
         costUsd: cost,
         durationSeconds: aggregate?.durationSeconds ?? null,
         score: aggregate?.aggregates?.overallScore ?? null,
+        delta: aggregate?.aggregates?.meanDelta ?? null,
         aggregate: aggregate ? path.relative(REPO_ROOT, aggregatePath) : null,
         log: path.relative(REPO_ROOT, path.join(outputDir, 'runner.log')),
       });
@@ -223,10 +240,11 @@ async function runNative(args) {
   if (args.json === '-') process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
   else if (args.json) writeFileSync(args.json, `${JSON.stringify(summary, null, 2)}\n`);
   console.log('');
-  console.log('case                         score   exit   seconds');
+  console.log('case                         score       Δ   exit   seconds');
+  const fixed = (value) => (value === null ? '—' : value.toFixed(2)).padStart(5);
   for (const c of summary.cases) {
     if (c.notStarted) console.log(`${c.name.padEnd(28)}   —    not started (budget)`);
-    else console.log(`${c.name.padEnd(28)} ${c.score === null ? '  —  ' : c.score.toFixed(2).padStart(5)}   ${String(c.exitCode).padStart(4)}   ${c.durationSeconds ?? '—'}`);
+    else console.log(`${c.name.padEnd(28)} ${fixed(c.score)}   ${fixed(c.delta)}   ${String(c.exitCode).padStart(4)}   ${c.durationSeconds ?? '—'}`);
   }
   console.log(`\nnative · jobs ${args.jobs} · wall ${summary.wallSeconds}s · cost $${spent.toFixed(2)} · results ${path.relative(REPO_ROOT, outRoot)}`);
   if (notStarted || (args.maxCostUsd && spent > args.maxCostUsd)) worst = Math.max(worst, 2);
@@ -614,7 +632,8 @@ function gradeOne(grader, context, args, budget) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
-    console.log(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 30).join('\n'));
+    const lines = readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n');
+    console.log(lines.slice(1, lines.indexOf(' */')).join('\n'));
     return 0;
   }
   if (args.ablation && !['none', 'with-without'].includes(args.ablation)) throw new Error('--ablation must be none or with-without');
@@ -625,9 +644,12 @@ async function main() {
   }
   console.error('eval-runner: native plugin eval not enabled — running the fallback runner (claude -p)');
 
-  const cases = loadCases(args.evalDir, args);
+  // The fallback has no without-plugin arm, so an ablation case has nothing to compare.
+  const selected = loadCases(args.evalDir, args);
+  const cases = selected.filter((c) => !(c.fields.tags ?? []).includes('ablation'));
+  for (const c of selected.filter((s) => !cases.includes(s))) console.error(`eval-runner: ${c.name} is an ablation case (it needs the without-plugin arm) — run it natively`);
   if (!cases.length) {
-    console.error('eval-runner: no eval cases found');
+    console.error(selected.length ? 'eval-runner: no fallback eval cases selected' : 'eval-runner: no eval cases found');
     return 1;
   }
 

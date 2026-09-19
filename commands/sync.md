@@ -16,7 +16,7 @@ Target file: the active tab of the Figma desktop app. `use_figma` and `get_varia
 
 - `sync` (default, bare `/oh-my-joy:sync`) — compute drift and ask the direction per class.
 - `check` — read-only drift report, no edits, no questions.
-- `push` — bulk create/update the token store into the active tab's Variables without questions (explicit code-wins).
+- `push` — bulk create/update the token store into the active tab's Variables without questions (explicit code-wins). If Figma is unconnected or unauthorized, advise "start the desktop app and open the target file as the active tab (duplicate viewer files)" and stop: say that nothing was pushed, and leave the store untouched.
 - `extract <figma-url>` — Figma → code bootstrap: all variables of the active tab become CSS custom properties in new token files.
 - `--tokens <path>` — the token store. When omitted, follow the token-system detection order in `references/fe-acceptance.md`; `sync`/`push`/`extract` target file-based stores only (`.json` as DTCG, `.css` as custom properties). Tailwind config themes may be detected but are not sync targets; bootstrap those with `extract`.
 
@@ -65,7 +65,7 @@ Flattening a semantic token into raw hex when pulling Figma values into code bre
 
 ## check procedure (read-only)
 
-1. Read the store and the active tab's variables via `get_variable_defs`.
+1. Read the store and the active tab's variables via `get_variable_defs`. If Figma is unconnected or unauthorized, advise "start the desktop app and open the target file as the active tab (duplicate viewer files)" and stop there: say that the Figma side could not be read and report nothing further (no drift counts, classes, or store inventory), because a report built from one side would pass for a drift result.
 2. Output the drift report: code-only, Figma-only, value mismatches. No edits, no questions.
 3. For Figma-only tokens, include a "token code suggestions" block — copy-pastable CSS or DTCG snippets with the reference-preservation rules applied.
 4. Close with "run `/oh-my-joy:sync` to resolve by choosing directions, or `/oh-my-joy:sync push` to push code as is".
