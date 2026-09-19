@@ -1,0 +1,4 @@
+---
+type: llm
+---
+The answer states that the Figma variables could not be read (Figma is not connected, the tools are unavailable, or access failed). It does not present a drift report with counts, and in particular does not classify the tokens in `src/tokens/colors.css` as code-only or list Figma-only tokens or value mismatches, because nothing was read from Figma. It does not list or flag the store's individual tokens either, since the command reports nothing further once Figma cannot be read. It does not claim that the store is in sync or that the check succeeded. It tells the user what to do before retrying: start the Figma desktop app and open the design-system file as the active tab. Adding that a view-only file must be duplicated first, or that the Figma MCP must be enabled, is welcome but not required.

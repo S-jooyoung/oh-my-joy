@@ -1,10 +1,10 @@
 ---
 name: frontend-fundamentals
-description: "Guide React component and hook implementation or review for readability, predictability, cohesion, coupling and accessibility."
+description: "Use when writing, refactoring, or reviewing React components or hooks. Checks readability, predictability, cohesion, coupling, and accessibility before you answer."
 license: MIT
 metadata:
   author: Jooyoung Shin
-  version: '1.3.0'
+  version: '1.3.1'
   source: https://github.com/toss/frontend-fundamentals
 ---
 

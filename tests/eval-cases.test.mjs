@@ -38,13 +38,21 @@ function toolNames(value) {
 
 describe('eval cases use the native case format', () => {
   it('finds the suite', () => {
-    assert.ok(cases.length >= 16, `expected the eval suite, found ${cases.length} cases`);
+    assert.ok(cases.length >= 32, `expected the eval suite, found ${cases.length} cases`);
   });
 
   for (const name of cases) {
     const dir = path.join(EVALS, name);
-    const { keys } = frontmatter(path.join(dir, 'prompt.md'));
+    const { keys, body } = frontmatter(path.join(dir, 'prompt.md'));
     const allowed = toolNames(keys.find((k) => k.key === 'allowed_tools')?.value ?? '[]');
+    const tags = toolNames(keys.find((k) => k.key === 'tags')?.value ?? '[]');
+
+    if (tags.has('ablation')) {
+      it(`${name}: an ablation case sends a plain request, not a command`, () => {
+        // The without-plugin arm has no OMJ command, so a slash prompt there measures nothing.
+        assert.doesNotMatch(body, /^\//);
+      });
+    }
 
     it(`${name}: prompt.md uses only native frontmatter keys`, () => {
       for (const { key } of keys) assert.ok(PROMPT_KEYS.includes(key), `unknown key "${key}"`);

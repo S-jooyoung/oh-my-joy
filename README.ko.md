@@ -306,6 +306,7 @@ verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px�
 - `/oh-my-joy:sync` (기본 `sync`) — 대화형 조정, 방향을 물음.
 - `/oh-my-joy:sync check` — read-only 드리프트 보고 + Figma 전용 토큰의 "제안 토큰 코드" 블록.
 - `/oh-my-joy:sync push` — 질문 없이 code→Figma 일괄 적용(명시적 code-wins).
+- Figma에 연결할 수 없으면 `sync`·`check`·`push`는 데스크톱 앱을 켜고 대상 파일을 활성 탭으로 열라고 안내한 뒤 멈춥니다. `check`는 Figma 쪽을 읽지 못했다고만 말하고 그 이상은 보고하지 않으며, `push`는 아무것도 push하지 않고 저장소도 건드리지 않습니다.
 - `/oh-my-joy:sync extract <figma-url>` — Figma 변수 전부를 CSS 커스텀 프로퍼티로 추출(`/`→`-` 명명, primitive→semantic `var()` 참조 보존, 매핑 표는 프로젝트의 `docs/design-tokens.md`에).
 
 > 두 저장소 형식을 모두 지원합니다: `tokens.json`(DTCG)과 CSS 커스텀 프로퍼티(`*.css`). Figma 변수 접근에는 **편집 권한**이 필요합니다 — viewer로 공유된 파일은 먼저 복제하세요.
@@ -372,7 +373,7 @@ verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px�
 
 ## OMJ는 어떻게 발전하나
 
-커맨드 본문은 프롬프트라서 "사소한 문구 수정"도 동작 변경입니다. OMJ는 이를 측정합니다: `evals/`에 커맨드별 행동 케이스가 있고(조직에 활성화돼 있으면 네이티브 `claude plugin eval`, 아니거나 `--fallback`을 주면 같은 네이티브 형식 케이스 파일과 같은 도구 제한을 쓰는 `claude -p` 러너), `npm run eval`이 임계값으로 채점하며, 커맨드 본문을 바꾸면 그것을 관찰하는 케이스를 추가하거나 갱신합니다. 실행마다 실제 세션이 돌기 때문에, 바꾼 본문의 케이스만 한 번(`--case <name> --runs 1`) 돌리고 3회 스위트는 릴리스 때만 씁니다. 러너는 실행 전마다 비용 상한을 검사하고 모든 실행의 출력을 읽을 수 있게 저장합니다. 매 PR에서는 [`tests/token-budget.test.mjs`](tests/token-budget.test.mjs)가 always-on description 비용을 래칫 예산 아래로 유지해 표면이 조용히 늘어나지 못하게 합니다. 이 루프는 [docs/EVALS.md](docs/EVALS.md)에 적혀 있습니다.
+커맨드 본문은 프롬프트라서 "사소한 문구 수정"도 동작 변경입니다. OMJ는 이를 측정합니다: `evals/`에 커맨드별 행동 케이스가 있고(조직에 활성화돼 있으면 네이티브 `claude plugin eval`, 아니거나 `--fallback`을 주면 같은 네이티브 형식 케이스 파일과 같은 도구 제한을 쓰는 `claude -p` 러너), `npm run eval`이 임계값으로 채점하며, 커맨드 본문을 바꾸면 그것을 관찰하는 케이스를 추가하거나 갱신합니다. `ablation` 태그가 붙은 자연어 요청 케이스(`frontend-fundamentals` 스킬과 `setup`/`sync`가 발동하면 안 되는 guard)는 플러그인 없이도 한 번 더 돌아서, 합격 여부 대신 플러그인이 더해 주는 차이(Δ)를 보고합니다. `npm run eval`은 이 모드를 태그로 고릅니다. 실행마다 실제 세션이 돌기 때문에, 바꾼 본문의 케이스만 한 번(`--case <name> --runs 1`) 돌리고 3회 스위트는 릴리스 때만 씁니다. 러너는 실행 전마다 비용 상한을 검사하고 모든 실행의 출력을 읽을 수 있게 저장합니다. 옵션 없는 `claude plugin eval .`도 스위트를 불러오지만, 빈 workspace에서 비용 상한 없이 돕니다. 케이스를 직접 돌릴 때 줄 flag는 [docs/EVALS.md](docs/EVALS.md)에 있습니다. 매 PR에서는 [`tests/token-budget.test.mjs`](tests/token-budget.test.mjs)가 always-on description 비용을 래칫 예산 아래로 유지해 표면이 조용히 늘어나지 못하게 합니다. 이 루프는 [docs/EVALS.md](docs/EVALS.md)에 적혀 있습니다.
 
 ---
 

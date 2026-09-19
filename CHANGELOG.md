@@ -10,13 +10,25 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+- Eval cases for the shared `frontend-fundamentals` skill: eight `ff-*` plain requests on a new `ff-smells` fixture — six that should trigger the skill (refactor, review, new component, restraint, hook split; one task in Korean and English) and two should-not-trigger guards (a Node script and an API route handler) — measured with and without the plugin.
+- Eval cases for `setup`, which had none: `setup-check-readonly`, `setup-check-bare-project`, `setup-help`, and the `setup-neg-install-question` guard.
+- Eval cases for `sync`, which had none: `sync-check-no-figma`, `sync-push-no-figma`, and the `sync-neg-token-question` guard.
+- `docs/EVALS.md` documents what a bare `claude plugin eval .` does and the flags for running one case directly.
+
 ### Changed
+
+- The `frontend-fundamentals` description (1.3.1) now opens with its trigger — "Use when writing, refactoring, or reviewing React components or hooks" — and ends with "before you answer". Under ablation the skill fired in 17 of 18 should-trigger runs (0 of 18 before) and in none of the 6 guard runs; the mean Δ moved from +0.10 to +0.03, both within noise, so `docs/EVALS.md` records the trigger as fixed and the uplift as not yet shown.
+- `npm run eval` picks the ablation mode per case: a case tagged `ablation` runs with and without the plugin and every other case with it only, unless `--ablation` is given explicitly. Summary rows carry `mode` and `delta`, a Δ does not change the exit code (a partial or missing aggregate still does), and the fallback runner skips `ablation` cases.
+- The `Evals` workflow's native step runs under `--max-cost-usd 45` (one run per case) instead of 15, and its comments no longer claim a release trigger that never starts it.
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
+
+- `sync check` and `sync push` now say what happens when Figma is unreachable, as the `sync` procedure already did: they stop after the desktop-app and active-tab guidance, `check` says the Figma side could not be read and reports nothing further, and `push` pushes nothing and leaves the store untouched. The Codex adapter follows the same rule.
+- `docs/EVALS.md` no longer claims a release job runs the eval suite: a Release that `release-tag.yml` creates with `GITHUB_TOKEN` does not start the `Evals` workflow's `release: published` trigger. It also says why no Figma mock can exist and gives a $0 load check (`--max-cost-usd 0`) that, unlike `--case __none__`, validates graders.
 
 ### Security
 

@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: ff-neg-node-script
+context:
+  scaffold_script: scaffold.sh
