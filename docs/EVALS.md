@@ -24,7 +24,7 @@ The descriptions preserve the following routing contract:
 
 | Skill | Trigger | Role | Authority boundary |
 | --- | --- | --- | --- |
-| `deep-interview` | Fuzzy intent or an explicit requirements interview | Clarify one question per round, then hand requirements to ralplan | Read-only; does not implement |
+| `deep-interview` | Fuzzy intent or an explicit requirements interview | Clarify one question per active component per round, up to four, then hand requirements to ralplan | Read-only; does not implement |
 | `ralplan` | Concrete code, Figma, requirements, or PR-review planning | Produce one critiqued, decision-complete plan | Read-only; stops at native approval |
 | `ultragoal` | An approved OMJ plan or its resume | Execute and record the approved goals through final evidence | No scope expansion; delivery only when the plan authorized it |
 | `review` | Working-tree, branch, or PR diff review | Report correctness, FF, accessibility, and test findings | Report-only; does not edit or resolve delivery |
@@ -168,7 +168,7 @@ Grader types: `regex` (`pattern`, `flags`, `match: contains | not_contains | cou
 - `npm run eval` passes `--ablation none` natively so one local run costs one run; with `--ablation with-without` each case also runs without the plugin, and the delta is the number that shows what OMJ adds. The fallback runner has no ablation arm. Inside one case the native ceiling cannot stop a run already in flight; across cases the runner's reservation keeps the total within `--max-cost-usd`.
 - Cases that need MCP servers (the Figma track) are second-phase: they wait for recorded mocks under `evals/mocks/`.
 - The two-reviewer critique tier is exercised by hand before a release rather than by a case: it spawns two subagents, so one run costs roughly three runs' worth, and the case fixtures are small services whose plans take the self-check or one-critic tier (`ralplan-single-approval` accepts either and rejects an architect reader). Run ralplan on a task with a shape change or risk — for example one that adds a dependency — with `Agent` allowed, and read the result for `Critique: ready (independent: architect + critic`.
-- Interactive loops are outside the single-prompt harness: the interview's question rounds (and its ambiguity floor) and the stretch after approval (the execution rules) cannot be driven by one `claude -p` prompt. Those are exercised by self-application — a release that changes them records a transcript of the new bodies in use in its PR — while the gates they leave behind (`## Critique`, the re-review table, the evidence kinds) have cases.
+- Interactive loops are outside the single-prompt harness: the interview's question rounds (and its ambiguity floor) and the stretch after approval (the execution rules) cannot be driven by one `claude -p` prompt. Measured on 2026-09-22 with a fuzzy interview prompt: the session does reach `AskUserQuestion` — it issues the Round 0 topology question — but the harness disables the tool, so the session degrades to plain text and stops waiting for an answer that never arrives. Round 1 and everything after it are unreachable at any `max_turns`, so a case cannot assert what a later round asks. Those are exercised by self-application — a release that changes them records a transcript of the new bodies in use in its PR — while the gates they leave behind (`## Critique`, the re-review table, the evidence kinds) have cases.
 
 ## Cases by command
 

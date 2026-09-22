@@ -13,7 +13,7 @@ _"거의 항상 Plan 모드"인 습관과 충돌하지 않는 Plan 네이티브 
 
 | 당신의 입력 | 진입 커맨드 |
 | --- | --- |
-| 흐릿함 — 댈 파일도, 검사할 기준도 없음 | `/oh-my-joy:deep-interview` — 한 라운드에 한 질문; 끝나면 요구사항을 `/oh-my-joy:ralplan`에 넘김(추가 명령 입력 없이 자동 연결) |
+| 흐릿함 — 댈 파일도, 검사할 기준도 없음 | `/oh-my-joy:deep-interview` — 라운드마다 활성 컴포넌트당 한 질문, 최대 4개; 끝나면 요구사항을 `/oh-my-joy:ralplan`에 넘김(추가 명령 입력 없이 자동 연결) |
 | 구체적 — Figma 링크, 말로 된 작업, 파일명 | `/oh-my-joy:ralplan` — 코드나 디자인을 읽고, 계획을 세우고, 비판함(사소하지 않은 계획은 독립 critic이 반박) |
 
 둘 다 같은 방식으로 끝납니다: `## Critique` 섹션, 실행 레인, 완료 절차. 잘못 고르면 서로 상대를 가리킵니다.
@@ -167,7 +167,7 @@ OMJ 소스 저장소에서 Claude Code는 `/release`, Codex는 `$oh-my-joy:relea
 
 ```
 /oh-my-joy:deep-interview "알림 시스템 개편 — 어디서 시작할지 모르겠음"
-  → 모호도 점수가 통과할 때까지 한 라운드에 한 질문 → 종료 브리지가 요구사항을 /oh-my-joy:ralplan에 넘김(추가 명령 입력 없이 자동 연결)
+  → 모호도 점수가 통과할 때까지 라운드마다 갭이 남은 활성 컴포넌트당 한 질문(최대 4개) → 종료 브리지가 요구사항을 /oh-my-joy:ralplan에 넘김(추가 명령 입력 없이 자동 연결)
   → ## Critique가 붙은 스펙이 곧 플랜 → 승인 → 같은 완료 절차
 /oh-my-joy:ship
 ```
@@ -277,7 +277,7 @@ verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px�
 | **`/oh-my-joy:spec`** | 호환 | ralplan의 별칭; 기존 Figma·범용 작업 호출 유지 | 기존 프롬프트 | `/oh-my-joy:spec "검색 추가"` |
 | **`/oh-my-joy:ultragoal`** | 승인 후 | 승인된 계획 실행, 목표 근거 기록, 리뷰·검증·재개; `resume <slug>`, `status <slug>` 지원 | 승인된 작업 또는 중단된 실행 | `/oh-my-joy:ultragoal resume checkout` |
 | **`/oh-my-joy:ralplan`** | 당신 | 입력(큰 프레임은 섹션 워크로 읽는 Figma 링크, 프론트엔드 텍스트, 범용 텍스트)을 읽고, 구현 스펙(Plan)을 쓰고, 실제 코드에 대해 비판하고(`## Critique`: 결정 기록, 시뮬레이션, ready 판정; 새 컨텍스트의 `critic` 반박은 계획 규모에 맞춤: 파일 2개 이하는 없음, 3~5개는 하나, 더 크거나 호환을 깨거나 위험한 계획은 둘), 실행 레인과 완료 절차를 기록하고 멈춤(read-only). 세션에 있는 인터뷰 요구사항도 입력으로 받음. 생략된 verify 라우트는 추론; 검증 가능한 목표가 없는 텍스트는 인터뷰로 안내 | 구체적인 모든 작업의 시작점 | `/oh-my-joy:ralplan https://figma.com/design/abc?node-id=1-2 /settings/profile` |
-| **`/oh-my-joy:deep-interview`** | 당신 | 모호한 아이디어를 한 라운드 한 질문의 소크라테스식 인터뷰로 스펙(네이티브 Plan)으로 만듦. 가중 모호도 점수(`--threshold N`%, 기본 20) — 토폴로지 고정, 최약 차원 타깃, 온톨로지 추적, 모호도 하한, 재진술/클로저 이중 게이트(read-only); 종료 브리지로 끝남 — 요구사항을 `ralplan`에 자동 전달하며 해결되지 않은 조사 전제는 명시합니다. 이미 구체적인 입력은 즉시 종료, Figma 링크는 `ralplan`으로 | 목표 자체가 아직 흐릿할 때 | `/oh-my-joy:deep-interview "사내 지식 베이스 — 아직 흐릿함"` |
+| **`/oh-my-joy:deep-interview`** | 당신 | 모호한 아이디어를 소크라테스식 인터뷰로 스펙(네이티브 Plan)으로 만듦. 가중 모호도 점수(`--threshold N`%, 기본 20) — 라운드마다 갭이 남은 활성 컴포넌트당 한 질문을 한 호출에 최대 4개까지 묻고 같은 컴포넌트의 다음 질문은 앞 답을 기다리므로, 라운드 캡이 묶는 것은 질문 수가 아니라 왕복 수입니다. 토폴로지 고정, 최약 차원 타깃, 온톨로지 추적, 모호도 하한, 재진술/클로저 이중 게이트(read-only); 종료 브리지로 끝남 — 요구사항을 `ralplan`에 자동 전달하며 해결되지 않은 조사 전제는 명시합니다. 이미 구체적인 입력은 즉시 종료, Figma 링크는 `ralplan`으로 | 목표 자체가 아직 흐릿할 때 | `/oh-my-joy:deep-interview "사내 지식 베이스 — 아직 흐릿함"` |
 | **`/oh-my-joy:ship`** | 당신 | 검증 명령 실행(전부 exit 0이어야 함), 브랜치에서 프로젝트 컨벤션·언어로 커밋, push, 증거 표를 본문에 붙인 PR 생성(레포에 PR 템플릿이 있으면 그 형식). `--base <ref>`로 PR base 지정, 없으면 이미 명확하게 정해진 base를 재사용하고 대상이 불명확할 때만 한 번 물음. 공유 브랜치(`main`, `develop` …)에는 직접 커밋하지 않음: 변경이 있으면 먼저 갈라 나오고, 깨끗한 `develop`에서는 승격 PR을 엶. git/gh/typecheck만 사전 승인 — 테스트 러너는 일부러 권한 프롬프트를 거침 | 마지막 단계, 항상 당신이 침 | `/oh-my-joy:ship "feat(checkout): summary panel"` |
 | **`/oh-my-joy:review`** | 플랜 | 변경 diff를 리뷰하고 보고만 — 프론트엔드 파일은 FF 4기준 + a11y · Figma fidelity · vercel · Next.js(Context7); 그 외 파일은 정확성·단순함·일관성·테스트 커버리지; 승인된 스펙의 수용 기준을 diff에 대조; 사소하지 않은 diff는 새 컨텍스트의 독립 `critic` 패스이며, 그 패스를 돌릴 수 없으면 리포트에 `Review: incomplete`를 표시; 테스트 skip·assertion 완화·검사 설정 완화는 `verification weakened`로 지적; 같은 변경에 대한 2회차는 델타를 보고(이전 finding의 해결 여부, 그다음 바뀐 것만). 인자 없음 = 미커밋 + 스테이징 vs HEAD; `--base <ref>` = 브랜치 전체 | 구현 직후(플랜이 실행), 또는 누구의 diff든 | `/oh-my-joy:review --base main` |
 | **`/oh-my-joy:verify`** | 플랜 | 작업을 증명. 라우트가 있으면 실제 브라우저(playwright-cli, MCP 폴백)로 열어 Figma 베이스라인(`.omj/baselines/`)에 대조하고 요청한 라우트에 실제로 도달했는지 항상 확인. 라우트가 없으면 프로젝트의 검증 명령을 돌려 `명령 · exit code · 요약`을 증거 종류와 함께 기록. `--base <url>`은 dev 서버 | review 뒤 플랜이 실행; 팀원 완료 뒤 barrier | `/oh-my-joy:verify /settings/profile` · `/oh-my-joy:verify` |

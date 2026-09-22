@@ -12,6 +12,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Changed
 
+- `/oh-my-joy:deep-interview` asks one question per active component each round — up to four in a single `AskUserQuestion` call, lowest-scoring first, the rest waiting for the next round — instead of one question per round. A component whose weakest dimension has no gap left drops out of the round, so the batch shrinks as the interview converges; a component's next question still waits for its last answer; the ambiguity floor counts answers rather than rounds; the ontology ratio is compared answer by answer; the confirmation-drift check is scoped to one component; and the round report names which components were asked and which are waiting.
+
 ### Deprecated
 
 ### Removed

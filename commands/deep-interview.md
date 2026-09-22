@@ -1,14 +1,14 @@
 ---
-description: General-purpose deep interview that turns vague ideas into decision-complete requirements via Socratic one-question rounds and an ambiguity score, then automatically hands them to ralplan without a second routing question. Exits at once on already-concrete input; Figma and concrete work go directly to ralplan
+description: General-purpose deep interview that turns vague ideas into decision-complete requirements via Socratic rounds that cover up to four active components at once and an ambiguity score, then automatically hands them to ralplan without a second routing question. Exits at once on already-concrete input; Figma and concrete work go directly to ralplan
 argument-hint: "[idea description [--threshold N]]"
 allowed-tools: Read, Grep, Glob, Skill, AskUserQuestion
 ---
 
 # /oh-my-joy:deep-interview — Requirement-clarification interview
 
-Dig into a vague idea one question per round. Once ambiguity drops below the threshold and the closure audit passes, hand the requirements directly to `/oh-my-joy:ralplan`, which produces the one plan the user approves. This command writes no code and creates no files; materializing anything belongs to `ultragoal` after approval.
+Dig into a vague idea round by round, covering up to four components that still have a gap. Once ambiguity drops below the threshold and the closure audit passes, hand the requirements directly to `/oh-my-joy:ralplan`, which produces the one plan the user approves. This command writes no code and creates no files; materializing anything belongs to `ultragoal` after approval.
 
-The tools are `Read`/`Grep`/`Glob` for brownfield facts, `AskUserQuestion` for interview questions, and `Skill` for invoking `ralplan` at the exit bridge. Asking one question per round is deliberate: each question depends on the previous answer. Three bounds keep it finite: a hard cap of 20 rounds, early exit allowed after round 3, and "stop" honored at any time.
+The tools are `Read`/`Grep`/`Glob` for brownfield facts, `AskUserQuestion` for interview questions, and `Skill` for invoking `ralplan` at the exit bridge. A round asks one question per active component that still has a gap, up to four in one call, because the topology gate below confirms those components succeed or fail independently; inside a component the next question still waits for the last answer, which is where the dependency actually lives. Three bounds keep it finite: a hard cap of 20 rounds, early exit allowed after round 3, and "stop" honored at any time — those rounds bound the round-trips the user sits through, not the number of questions asked.
 
 ## Arguments
 
@@ -33,17 +33,17 @@ Before scoring anything, pin down the shape of the scope once: extract 1–6 top
 
 Each round:
 
-1. Target — among active components × dimensions (goal, constraints, success criteria, and context when brownfield), pick the lowest-scoring pair. Rotate when several are similarly weak.
-2. One question — state in one sentence why this point is the current bottleneck, then ask an assumption-exposing question via `AskUserQuestion` with choices plus free input. One question per round, never a batch.
-3. Score — update the 0.0–1.0 per-dimension scores and gaps from the answer and compute ambiguity:
+1. Target — among active components × dimensions (goal, constraints, success criteria, and context when brownfield), take every component whose lowest-scoring dimension still has a gap and pick that dimension. A component with no gap left drops out of the round, so the batch shrinks as the interview converges and no question is spent on a dimension that is already settled. When more than four components qualify, the lowest-scoring ones go first and the rest wait for the next round. When none qualifies and the reported ambiguity still sits above the threshold, the floor is what holds it: target whatever the floor is made of — a disputed fact to re-confirm, an active component with an unscored dimension — so a round is never spent asking nothing.
+2. Ask — state in one sentence why these points are the current bottleneck, then ask one assumption-exposing question per selected component in a single `AskUserQuestion` call, at most four because that is what one call carries, each with choices plus free input and the option the evidence favors listed first. Two questions about the same component never share a round, because the second would have to guess at the first one's answer.
+3. Score — update the 0.0–1.0 per-dimension scores and gaps from this round's answers and compute ambiguity:
    - greenfield: `1 − (goal×0.40 + constraints×0.30 + success criteria×0.30)`
    - brownfield: `1 − (goal×0.35 + constraints×0.25 + success criteria×0.25 + context×0.15)`
    - An answer that contradicts earlier statements or widens the scope may lower a dimension's score; ambiguity is not monotonic.
-   - Floor: the ledger sets a floor the reported ambiguity cannot drop below — 10 points for each fact the user disputed and has not re-confirmed, 5 for each active component with an unscored dimension, and 5 × (rounds answered by assumption ÷ rounds scored). Report `max(computed, floor)` and show the floor whenever it binds, so the interview cannot close by under-reporting what is still open.
-4. Ontology — extract the key entities (nouns) and compare with the previous round. Stability ratio = (kept + renamed) / total; renames count as convergence. If entities keep shifting, stop asking detail questions and ask "what is this thing essentially?" instead.
-5. Report — the score table (dimension, score, gap), the ambiguity, and the next target.
+   - Floor: the ledger sets a floor the reported ambiguity cannot drop below — 10 points for each fact the user disputed and has not re-confirmed, 5 for each active component with an unscored dimension, and 5 × (answers taken by assumption ÷ answers scored). Report `max(computed, floor)` and show the floor whenever it binds, so the interview cannot close by under-reporting what is still open.
+4. Ontology — extract the key entities (nouns) and compare with the previous round. Stability ratio = (kept + renamed) / total; renames count as convergence. A round carrying several answers is compared answer by answer, so drift is the ratio staying low across them rather than one dip when several new nouns arrive at once. If entities keep shifting, stop asking detail questions and ask "what is this thing essentially?" instead.
+5. Report — the score table (dimension, score, gap), the ambiguity, which components this round asked about, and which are waiting for the next round.
 
-Cadence: after round 3, if the user says "good enough, proceed", show the residual gaps with a warning and allow early exit. At round 10, confirm whether to continue; round 20 is the hard cap. Those two are the only continuation questions — an ordinary round never ends with "shall I continue?", because the gate decides continuation and a per-round consent prompt turns the score into friction. After three consecutive confirmation questions ("is X right?"), the next round asks a question that exposes an assumption: confirmations verify what is known, and the ambiguity lives in what is assumed.
+Cadence: after round 3, if the user says "good enough, proceed", show the residual gaps with a warning and allow early exit. At round 10, confirm whether to continue; round 20 is the hard cap. Those two are the only continuation questions — an ordinary round never ends with "shall I continue?", because the gate decides continuation and a per-round consent prompt turns the score into friction. After three consecutive confirmation questions ("is X right?") about one component, that component's next question exposes an assumption: confirmations verify what is known, and the ambiguity lives in what is assumed.
 
 ## Exit gates
 
