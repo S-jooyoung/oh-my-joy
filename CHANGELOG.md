@@ -10,13 +10,36 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+- `experiment` goals in `ralplan` and `ultragoal`, for requests whose success is a measured number. The plan fixes the metric, an evaluator that prints `METRIC <name>=<value>`, the files trials may edit, the sealed files, the guards, and a trial budget. The helper's new `trial` operation runs the evaluator itself (repeats default to three and must be at least three unless the metric is deterministic, with a noise band from the baseline spread), keeps a change only when it measurably improves and every guard passes, restores the scope from snapshots otherwise, treats a sealed or out-of-scope edit as invalid, and stops at the budget, a plateau, or a target the user named. A failing goal review at the best state admits a `repair` trial.
+- Research report goals end in `Verdict: conclusive | inconclusive` with evidence rows and caveats.
+- Defect plans in `ralplan`: the symptom, the root cause at the origin (or ranked hypotheses with the observation that settles each), a reproduction check, and a fix at the origin; `ultragoal` records the check failing before the fix and passing after it.
+- `ralplan` adds a review focus that turns up to five implied inputs into acceptance criteria.
+- `critic` and `review` report a `symptom patch` (🟡, 🔴 when the plan named the root cause) and, on experiment goals, `metric gaming` (🔴); a reviewer puts execution evidence it cannot produce on a `Declined to judge` line.
+- The goal-state helper's `verify` accepts `timeoutSeconds` (a timeout records exit 124), and every command it runs is ended with its whole process group on timeout, interruption, or exit (on POSIX).
+- `status` reports `flakyChecks` and, for experiment goals, `experimentStatus` with `atBest`, `trialsLeft`, and `pendingTrial`.
+- `close` accepts `reuseGoalReview: true` for a single-goal plan whose workspace has not changed since its passing review.
+- Eval cases `ralplan-experiment-plan`, `ralplan-defect-root-cause`, and `ship-on-detached-head` with the `node-bench` and `node-defect` fixtures, and `tests/fixtures/goal-state-v2.mjs`, a frozen copy of the 0.13.0 helper for the compatibility test.
+
 ### Changed
+
+- The goal-state ledger is schema version 3. Version 2 ledgers resume and close with their original rules, and an older helper refuses a version 3 ledger instead of misreading it.
+- `deep-interview` asks up to three questions in one round when none depends on another's answer; the round caps count calls, while the assumption floor and the confirmation streak count questions.
+- `ultragoal` runs the plan's local verification commands that are free of cost or external effects once before the first edit and attributes failures that already exist: a failure the plan owns is expected, a mixed rerun is flaky, an environment cause goes through the resolvable-blocker procedure, and a deterministic failure outside the plan blocks for the user.
+- `ultragoal` blocks a goal whose review fails three times since its last start or resume as not converging.
+- Reviewer prompts in `ralplan`, `review`, and `ultragoal` carry facts only and never say what to leave unflagged, cap a severity, or argue for the plan.
+- `ralplan` plans record decisions rather than code.
+- `ralplan` compares the draft with the requirements, constraints, and non-goals before the self-check.
+- `critic` treats the approved plan's silence about an input as no permission and judges what a reasonable user of the change would meet.
+- `implementer` tests one hypothesis per attempt and reports a blocker after the third failed attempt at the same failure.
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
+
+- `ship` and `fix --commit` create a branch before committing on a detached HEAD, and a clean detached HEAD with commits ahead of the base ships them without an empty commit.
+- A helper verification command that leaves a background process behind no longer keeps the helper waiting, and output larger than 10 MB no longer fails the run.
 
 ### Security
 

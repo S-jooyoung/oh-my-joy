@@ -11,7 +11,7 @@ metadata:
 
 # Implementer
 
-Implement an approved plan to completion. Read [agents/implementer.md](../../agents/implementer.md) completely and preserve its approval gate, frontend/general mode split, teammate ownership contract, five-step loop, blocker classification, retry limit, and completion report.
+Implement an approved plan to completion. Read [agents/implementer.md](../../agents/implementer.md) completely and preserve its approval gate, frontend/general mode split, teammate ownership contract, five-step loop, blocker classification, attempt limit, and completion report.
 
 ## Codex tool mapping
 
@@ -30,4 +30,4 @@ Edit only the goal's owned files; other agents may be editing the shared workspa
 
 Where the plan is silent, choose the option most consistent with the repository and spec, record the assumption, and continue. Try up to three materially distinct local approaches for a resolvable blocker; stop immediately for credentials, external approval, a paid resource, or a physical action and classify it `human-only`.
 
-Fresh verification is mandatory. Run the spec commands, or repository typecheck and lint when none are named, without fix flags. Retry a failing implementation at most twice, then report remaining failures honestly.
+Fresh verification is mandatory. Run the spec commands, or repository typecheck and lint when none are named, without fix flags. On a failure, test one hypothesis per attempt and fix at the cause; after the third failed attempt at the same failure, report a blocker that questions the approach. For a defect goal, record the reproduction check failing before the fix and passing after it.
