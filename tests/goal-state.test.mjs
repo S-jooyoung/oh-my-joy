@@ -1,13 +1,14 @@
 import { after, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
+import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { hostname, tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { repoPath } from './helpers/repo.mjs';
 
 const SCRIPT = repoPath('scripts', 'goal-state.mjs');
+const V2_SCRIPT = repoPath('tests', 'fixtures', 'goal-state-v2.mjs');
 const roots = [];
 after(() => roots.forEach((root) => rmSync(root, { recursive: true, force: true })));
 
@@ -29,8 +30,8 @@ function makeRepo() {
   return root;
 }
 
-function run(root, verb, input, slug = 'demo') {
-  const result = spawnSync('node', [SCRIPT, verb, '--slug', slug], {
+function run(root, verb, input, slug = 'demo', script = SCRIPT) {
+  const result = spawnSync('node', [script, verb, '--slug', slug], {
     cwd: root,
     input: input === undefined ? '' : JSON.stringify(input),
     encoding: 'utf8',
@@ -81,7 +82,7 @@ describe('goal-state durable lifecycle', () => {
     assert.equal(created.code, 0, created.stderr);
     const snapshotPath = path.join(root, '.omj/goals/demo/goals.json');
     const snapshot = JSON.parse(readFileSync(snapshotPath, 'utf8'));
-    assert.equal(snapshot.schemaVersion, 2);
+    assert.equal(snapshot.schemaVersion, 3);
     assert.match(snapshot.planHash, /^[0-9a-f]{64}$/);
     assert.equal(snapshot.identity.worktreeRoot, git(root, 'rev-parse', '--show-toplevel'));
 
@@ -392,5 +393,522 @@ describe('goal-state PR receipts', () => {
     });
     closed = run(root, 'close', { expectedRevision: result.json.revision });
     assert.equal(closed.code, 0, closed.stderr);
+  });
+});
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const alive = (pid) => {
+  try { process.kill(pid, 0); return true; } catch (error) { return error.code !== 'ESRCH'; }
+};
+async function waitGone(pid, ms) {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    if (!alive(pid)) return true;
+    await sleep(25);
+  }
+  return !alive(pid);
+}
+
+const BENCH = `import { readFileSync } from 'node:fs';
+const value = readFileSync('src/value.txt', 'utf8').trim();
+if (value === 'boom') process.exit(3);
+if (value === 'sleep') setTimeout(() => {}, 5000);
+else if (value !== 'silent') console.log('METRIC cost=' + Number(value));
+`;
+
+function makeExperimentRepo() {
+  const root = makeRepo();
+  mkdirSync(path.join(root, 'src'));
+  mkdirSync(path.join(root, 'bench'));
+  mkdirSync(path.join(root, 'test'));
+  writeFileSync(path.join(root, 'src/value.txt'), '100\n');
+  writeFileSync(path.join(root, 'bench/bench.mjs'), BENCH);
+  writeFileSync(path.join(root, 'test/check.mjs'), "import { readFileSync } from 'node:fs';\nprocess.exit(Number(readFileSync('src/value.txt', 'utf8')) >= 0 ? 0 : 1);\n");
+  git(root, 'add', '.');
+  git(root, 'commit', '-qm', 'experiment fixture');
+  return root;
+}
+
+const experimentGoal = (overrides = {}) => ({
+  id: 'E1',
+  title: 'Lower cost',
+  objective: 'Lower the cost metric',
+  kind: 'experiment',
+  acceptance: ['best cost is recorded against the baseline'],
+  experiment: {
+    metric: { name: 'cost', direction: 'lower', deterministic: true },
+    evaluator: { argv: ['node', 'bench/bench.mjs'], repeats: 1, timeoutSeconds: 30 },
+    guards: [{ argv: ['node', 'test/check.mjs'] }],
+    scope: ['src/'],
+    sealed: ['bench/', 'test/'],
+    maxTrials: 5,
+    ...overrides,
+  },
+});
+
+const setValue = (root, value) => writeFileSync(path.join(root, 'src/value.txt'), `${value}\n`);
+const trial = (root, revision, hypothesis, extra = {}) => run(root, 'trial', { expectedRevision: revision, goalId: 'E1', hypothesis, ...extra });
+const expStatus = (root) => run(root, 'status').json;
+
+function startExperiment(root, overrides) {
+  let result = run(root, 'init', { brief: '# Approved plan\n', goals: [experimentGoal(overrides)] });
+  assert.equal(result.code, 0, result.stderr);
+  result = run(root, 'start', { expectedRevision: result.json.revision, goalId: 'E1' });
+  assert.equal(result.code, 0, result.stderr);
+  return result.json.revision;
+}
+
+function baseline(root, overrides) {
+  const result = trial(root, startExperiment(root, overrides), 'baseline');
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.json.decision, 'baseline');
+  return result.json.revision;
+}
+
+function completeExperiment(root, revision) {
+  let result = run(root, 'verify', { expectedRevision: revision, scope: { goalId: 'E1' }, argv: ['node', 'test/check.mjs'] });
+  assert.equal(result.code, 0, result.stderr);
+  result = run(root, 'review', { expectedRevision: result.json.revision, scope: { goalId: 'E1' }, reviewer: 'critic-agent', verdict: 'pass', summary: 'No metric gaming.' });
+  assert.equal(result.code, 0, result.stderr);
+  return run(root, 'complete', { expectedRevision: result.json.revision, goalId: 'E1', acceptanceEvidence: [{ criterion: 'best cost is recorded against the baseline', evidence: 'trial table in the ledger' }] });
+}
+
+describe('goal-state experiment goals', () => {
+  it('rejects invalid experiment configurations at init', () => {
+    const root = makeExperimentRepo();
+    writeFileSync(path.join(root, '.gitignore'), 'ignored/\n');
+    git(root, 'add', '.gitignore');
+    git(root, 'commit', '-qm', 'ignore');
+    const cases = [
+      [{ metric: { name: 'cost', direction: 'sideways', deterministic: true } }, /direction must be lower or higher/],
+      [{ metric: { name: 'cost', direction: 'lower' }, evaluator: { argv: ['node', 'bench/bench.mjs'], repeats: 1 } }, /repeats of 3 or more/],
+      [{ scope: ['bench/bench.mjs'] }, /scope and sealed overlap/],
+      [{ scope: ['ignored/x.txt'] }, /ignored by git/],
+      [{ scope: ['src'] }, /directory entries end with \//],
+      [{ scope: ['src/fast'], sealed: ['src/fast/fixtures/'] }, /scope and sealed overlap/],
+      [{ guards: [] }, /at least one guard/],
+      [{ maxTrials: undefined }, /maxTrials must be an integer/],
+    ];
+    for (const [overrides, pattern] of cases) {
+      const result = run(root, 'init', { brief: '# Approved plan\n', goals: [experimentGoal(overrides)] });
+      assert.equal(result.code, 1, `expected ${pattern} to reject`);
+      assert.match(result.stderr, pattern);
+    }
+    const misplaced = run(root, 'init', { brief: '# Approved plan\n', goals: [{ ...goals(false)[0], experiment: experimentGoal().experiment }] });
+    assert.match(misplaced.stderr, /only valid on experiment goals/);
+  });
+
+  it('keeps a measured improvement and restores the scope exactly on discard', () => {
+    const root = makeExperimentRepo();
+    let revision = baseline(root);
+    setValue(root, 80);
+    let result = trial(root, revision, 'lower the value');
+    assert.equal(result.json.decision, 'keep', result.stderr);
+    assert.equal(result.json.best.value, 80);
+    setValue(root, 90);
+    writeFileSync(path.join(root, 'src/extra.txt'), 'created during the trial\n');
+    chmodSync(path.join(root, 'src/value.txt'), 0o755);
+    result = trial(root, result.json.revision, 'raise it again');
+    assert.equal(result.json.decision, 'discard', result.stderr);
+    assert.equal(result.json.restored, true);
+    assert.equal(readFileSync(path.join(root, 'src/value.txt'), 'utf8'), '80\n');
+    assert.equal(statSync(path.join(root, 'src/value.txt')).mode & 0o777, 0o644);
+    assert.equal(existsSync(path.join(root, 'src/extra.txt')), false);
+    const kept = JSON.parse(readFileSync(path.join(root, '.omj/goals/demo', result.json.artifact), 'utf8'));
+    assert.equal(Buffer.from(kept.candidate.files['src/value.txt'].base64, 'base64').toString(), '90\n');
+    assert.ok(kept.candidate.files['src/extra.txt']);
+    assert.equal(expStatus(root).experimentStatus.E1.atBest, true);
+    revision = result.json.revision;
+    assert.equal(completeExperiment(root, revision).code, 0);
+  });
+
+  it('binds the baseline to the starting scope, rebinds on resume, and refuses trials after HEAD moves', () => {
+    const root = makeExperimentRepo();
+    let revision = startExperiment(root);
+    setValue(root, 500);
+    const degraded = trial(root, revision, 'baseline');
+    assert.equal(degraded.code, 1);
+    assert.match(degraded.stderr, /scope changed since the goal started/);
+    let result = run(root, 'block', { expectedRevision: revision, goalId: 'E1', reason: 'the user fixes the starting code' });
+    setValue(root, 120);
+    result = run(root, 'resume', { expectedRevision: result.json.revision, goalId: 'E1' });
+    result = trial(root, result.json.revision, 'baseline');
+    assert.equal(result.json.decision, 'baseline', result.stderr);
+    assert.equal(result.json.value, 120);
+    writeFileSync(path.join(root, 'app.txt'), 'moved\n');
+    git(root, 'commit', '-qam', 'move HEAD');
+    const moved = trial(root, result.json.revision, 'after the move');
+    assert.match(moved.stderr, /HEAD moved since baseline/);
+
+    const other = makeExperimentRepo();
+    revision = startExperiment(other);
+    writeFileSync(path.join(other, 'notes.txt'), 'outside the scope\n');
+    assert.equal(trial(other, revision, 'baseline').json.decision, 'baseline');
+  });
+
+  it('treats sealed and out-of-scope edits as invalid and restores sealed files', () => {
+    const root = makeExperimentRepo();
+    writeFileSync(path.join(root, 'bench/data.json'), '{"n":1}\n');
+    let revision = baseline(root);
+    writeFileSync(path.join(root, 'bench/bench.mjs'), 'console.log("METRIC cost=1")\n');
+    writeFileSync(path.join(root, 'bench/data.json'), '{"n":2}\n');
+    setValue(root, 50);
+    let result = trial(root, revision, 'rewrite the benchmark');
+    assert.equal(result.json.decision, 'invalid', result.stderr);
+    assert.match(result.json.reason, /sealed file changed: bench\//);
+    assert.equal(readFileSync(path.join(root, 'bench/bench.mjs'), 'utf8'), BENCH);
+    assert.equal(readFileSync(path.join(root, 'bench/data.json'), 'utf8'), '{"n":1}\n');
+    assert.equal(readFileSync(path.join(root, 'src/value.txt'), 'utf8'), '100\n');
+    assert.equal(result.json.restored, true);
+    const invalid = JSON.parse(readFileSync(path.join(root, '.omj/goals/demo', result.json.artifact), 'utf8'));
+    assert.equal(Buffer.from(invalid.sealedCandidate.files['bench/data.json'].base64, 'base64').toString(), '{"n":2}\n');
+    writeFileSync(path.join(root, 'app.txt'), 'outside edit\n');
+    setValue(root, 60);
+    result = trial(root, result.json.revision, 'edit outside');
+    assert.equal(result.json.decision, 'invalid');
+    assert.match(result.json.reason, /edit outside scope: app\.txt/);
+    assert.equal(result.json.restored, false);
+    revision = result.json.revision;
+    assert.equal(expStatus(root).experimentStatus.E1.atBest, false);
+  });
+
+  it('records crashes, timeouts, and guard failures and restores the scope', () => {
+    const root = makeExperimentRepo();
+    let revision = baseline(root, { evaluator: { argv: ['node', 'bench/bench.mjs'], repeats: 1, timeoutSeconds: 1 } });
+    for (const [value, pattern] of [['boom', /evaluator exited 3/], ['silent', /no METRIC cost= line/], ['sleep', /evaluator timed out/]]) {
+      setValue(root, value);
+      const started = Date.now();
+      const result = trial(root, revision, `try ${value}`);
+      assert.equal(result.json.decision, 'crash', result.stderr);
+      assert.match(result.json.reason, pattern);
+      assert.equal(readFileSync(path.join(root, 'src/value.txt'), 'utf8'), '100\n');
+      assert.ok(Date.now() - started < 4500);
+      revision = result.json.revision;
+    }
+    setValue(root, -10);
+    const guarded = trial(root, revision, 'negative cost');
+    assert.equal(guarded.json.decision, 'guard_failed', guarded.stderr);
+    assert.equal(readFileSync(path.join(root, 'src/value.txt'), 'utf8'), '100\n');
+  });
+
+  it('discards an improvement within the baseline spread when repeats are three', () => {
+    const root = makeExperimentRepo();
+    const counter = path.join(mkdtempSync(path.join(tmpdir(), 'omj-jitter-')), 'count');
+    roots.push(path.dirname(counter));
+    writeFileSync(path.join(root, 'bench/jitter.mjs'), `import { readFileSync, writeFileSync } from 'node:fs';
+let n = 0;
+try { n = Number(readFileSync(${JSON.stringify(counter)}, 'utf8')); } catch {}
+writeFileSync(${JSON.stringify(counter)}, String(n + 1));
+console.log('METRIC cost=' + (Number(readFileSync('src/value.txt', 'utf8')) + [0, 5, -5][n % 3]));
+`);
+    let revision = baseline(root, { metric: { name: 'cost', direction: 'lower' }, evaluator: { argv: ['node', 'bench/jitter.mjs'], repeats: 3, timeoutSeconds: 30 } });
+    assert.equal(expStatus(root).experiments.E1.baseline.spread, 10);
+    setValue(root, 97);
+    let result = trial(root, revision, 'small change');
+    assert.equal(result.json.decision, 'discard', result.stderr);
+    assert.equal(result.json.threshold, 10);
+    setValue(root, 85);
+    result = trial(root, result.json.revision, 'large change');
+    assert.equal(result.json.decision, 'keep', result.stderr);
+  });
+
+  it('stops on max_trials, plateau, and no_baseline, and completes at a baseline that meets the target', () => {
+    let root = makeExperimentRepo();
+    let revision = baseline(root, { maxTrials: 1 });
+    setValue(root, 110);
+    let result = trial(root, revision, 'worse');
+    assert.equal(result.json.stopReason, 'max_trials');
+    assert.match(trial(root, result.json.revision, 'one more').stderr, /experiment stopped: max_trials/);
+
+    root = makeExperimentRepo();
+    revision = baseline(root, { patience: 1 });
+    setValue(root, 110);
+    result = trial(root, revision, 'worse');
+    assert.equal(result.json.stopReason, 'plateau');
+    assert.match(trial(root, result.json.revision, 'again').stderr, /experiment stopped: plateau/);
+
+    root = makeExperimentRepo();
+    setValue(root, 'boom');
+    git(root, 'commit', '-qam', 'broken starting code');
+    revision = startExperiment(root);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      result = trial(root, revision, 'baseline');
+      assert.equal(result.json.decision, 'crash');
+      revision = result.json.revision;
+    }
+    assert.equal(result.json.stopReason, 'no_baseline');
+    assert.match(trial(root, revision, 'baseline').stderr, /experiment stopped: no_baseline/);
+
+    root = makeExperimentRepo();
+    revision = baseline(root, { target: 150 });
+    assert.equal(expStatus(root).experiments.E1.stopReason, 'target');
+    assert.equal(completeExperiment(root, revision).code, 0);
+  });
+
+  it('allows a repair only after a failing review at the best state', () => {
+    const root = makeExperimentRepo();
+    let revision = baseline(root);
+    setValue(root, 80);
+    let result = trial(root, revision, 'cache the answer');
+    assert.equal(result.json.decision, 'keep');
+    revision = result.json.revision;
+    setValue(root, 90);
+    const early = trial(root, revision, 'honest version', { repair: true });
+    assert.match(early.stderr, /failing goal review at the best state/);
+    revision = run(root, 'review', { expectedRevision: revision, scope: { goalId: 'E1' }, reviewer: 'critic-agent', verdict: 'fail', summary: 'a failing review of an unmeasured edit' }).json.revision;
+    assert.match(trial(root, revision, 'honest version', { repair: true }).stderr, /failing goal review at the best state/, 'a failing review away from the best fingerprint does not admit a repair');
+    setValue(root, 80);
+    revision = run(root, 'review', { expectedRevision: revision, scope: { goalId: 'E1' }, reviewer: 'critic-agent', verdict: 'fail', summary: 'first reading' }).json.revision;
+    revision = run(root, 'review', { expectedRevision: revision, scope: { goalId: 'E1' }, reviewer: 'critic-agent', verdict: 'pass', summary: 'second reading' }).json.revision;
+    setValue(root, 90);
+    assert.match(trial(root, revision, 'honest version', { repair: true }).stderr, /failing goal review at the best state/, 'a later pass at the best fingerprint withdraws the repair');
+    setValue(root, 80);
+    result = run(root, 'review', { expectedRevision: revision, scope: { goalId: 'E1' }, reviewer: 'critic-agent', verdict: 'fail', summary: 'metric gaming: cached answer' });
+    setValue(root, 90);
+    result = trial(root, result.json.revision, 'honest version', { repair: true });
+    assert.equal(result.json.decision, 'repair', result.stderr);
+    assert.equal(result.json.best.value, 90);
+    assert.equal(completeExperiment(root, result.json.revision).code, 0);
+  });
+
+  it('refuses completion away from the best state, without trials, or below the target', () => {
+    let root = makeExperimentRepo();
+    let revision = baseline(root);
+    assert.match(completeExperiment(root, revision).stderr, /at least one trial after the baseline/);
+
+    root = makeExperimentRepo();
+    revision = baseline(root);
+    setValue(root, 80);
+    revision = trial(root, revision, 'lower').json.revision;
+    setValue(root, 70);
+    assert.match(completeExperiment(root, revision).stderr, /not at the best measured state/);
+
+    root = makeExperimentRepo();
+    revision = baseline(root, { target: 10, maxTrials: 1 });
+    setValue(root, 80);
+    const result = trial(root, revision, 'lower');
+    assert.equal(result.json.stopReason, 'max_trials');
+    assert.match(completeExperiment(root, result.json.revision).stderr, /misses the approved target/);
+  });
+
+  it('refuses to close after an experiment scope or sealed file changes', () => {
+    for (const [file, content, pattern] of [['src/value.txt', '75\n', /scope changed after its best/], ['test/check.mjs', 'process.exit(0)\n', /sealed files changed/]]) {
+      const root = makeExperimentRepo();
+      let revision = baseline(root);
+      setValue(root, 80);
+      revision = trial(root, revision, 'lower').json.revision;
+      let result = completeExperiment(root, revision);
+      assert.equal(result.code, 0, result.stderr);
+      writeFileSync(path.join(root, file), content);
+      revision = finalProof(root, result.json.revision);
+      result = run(root, 'close', { expectedRevision: revision });
+      assert.equal(result.code, 1);
+      assert.match(result.stderr, pattern);
+    }
+  });
+
+  it('recovers interrupted trials without spending budget', async () => {
+    const root = makeExperimentRepo();
+    let revision = baseline(root, { maxTrials: 1 });
+    const sleeper = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 20000)'], { detached: true, stdio: 'ignore' });
+    const exited = new Promise((resolve) => sleeper.on('exit', resolve));
+    const marker = path.join(root, '.omj/goals/demo/trial.pending.json');
+    writeFileSync(marker, JSON.stringify({ goalId: 'E1', n: 1, repair: false, hypothesis: 'hung', pgid: sleeper.pid, startedAt: new Date().toISOString() }));
+    setValue(root, 70);
+    assert.equal(expStatus(root).experimentStatus.E1.pendingTrial.hypothesis, 'hung');
+    assert.match(run(root, 'complete', { expectedRevision: revision, goalId: 'E1', acceptanceEvidence: [] }).stderr, /pending trial names this goal/);
+    let result = trial(root, revision, 'next idea');
+    assert.equal(result.json.recovered, true, result.stderr);
+    assert.equal(result.json.reason, 'interrupted');
+    assert.equal(result.json.trialsLeft, 1);
+    assert.equal(readFileSync(path.join(root, 'src/value.txt'), 'utf8'), '100\n');
+    assert.equal(existsSync(marker), false);
+    await Promise.race([exited, sleep(2000)]);
+    assert.notEqual(sleeper.signalCode ?? sleeper.exitCode, null, 'the recorded process group was killed');
+
+    writeFileSync(marker, JSON.stringify({ goalId: 'E1', n: 0, repair: false, hypothesis: 'old', pgid: null }));
+    result = trial(root, result.json.revision, 'recover the stale marker');
+    assert.equal(result.json.alreadyRecorded, true, result.stderr);
+    assert.equal(existsSync(marker), false);
+    setValue(root, 110);
+    result = trial(root, result.json.revision, 'worse');
+    assert.equal(result.json.decision, 'discard', result.stderr);
+    assert.equal(result.json.stopReason, 'max_trials');
+    revision = run(root, 'review', { expectedRevision: result.json.revision, scope: { goalId: 'E1' }, reviewer: 'critic-agent', verdict: 'fail', summary: 'blocking finding' }).json.revision;
+    writeFileSync(marker, JSON.stringify({ goalId: 'E1', n: expStatus(root).experiments.E1.trials.length, repair: true, hypothesis: 'repair', pgid: null }));
+    result = trial(root, revision, 'repair', { repair: true });
+    assert.equal(result.json.recovered, true, result.stderr);
+    const status = run(root, 'status');
+    assert.equal(status.code, 0, status.stderr);
+    assert.equal(status.json.experiments.E1.trials.at(-1).repair, true);
+
+    const fresh = makeExperimentRepo();
+    revision = startExperiment(fresh);
+    writeFileSync(path.join(fresh, '.omj/goals/demo/trial.pending.json'), JSON.stringify({ goalId: 'E1', n: 0, repair: false, hypothesis: 'baseline', pgid: null }));
+    result = trial(fresh, revision, 'baseline');
+    assert.equal(result.json.recovered, true, result.stderr);
+    assert.equal(expStatus(fresh).experiments.E1.baselineFailures, 0);
+    result = trial(fresh, result.json.revision, 'baseline');
+    assert.equal(result.json.decision, 'baseline');
+
+    writeFileSync(path.join(fresh, '.omj/goals/demo/trial.pending.json'), JSON.stringify({ goalId: 'E1', n: expStatus(fresh).experiments.E1.trials.length, repair: false, hypothesis: 'broke the helper', pgid: null, error: 'restore failed: EACCES' }));
+    result = trial(fresh, result.json.revision, 'recover');
+    assert.equal(result.json.reason, 'helper error: restore failed: EACCES', result.stderr);
+    assert.equal(result.json.trialsLeft, 4, 'a helper error is counted like a crash');
+  });
+
+  it('kills the command group when the runner receives SIGTERM', { skip: process.platform === 'win32' }, async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'omj-runner-'));
+    roots.push(dir);
+    const marker = path.join(dir, 'marker.json');
+    writeFileSync(marker, JSON.stringify({ goalId: 'E1', n: 0, pgid: null }));
+    const spec = path.join(dir, 'spec.json');
+    writeFileSync(spec, JSON.stringify({
+      argv: [process.execPath, '-e', 'setTimeout(() => {}, 20000)'], cwd: dir, timeoutMs: null,
+      stdoutPath: path.join(dir, 'out'), stderrPath: path.join(dir, 'err'), resultPath: path.join(dir, 'result.json'), markerPath: marker,
+    }));
+    const runner = spawn(process.execPath, [SCRIPT, '__run', spec], { stdio: 'ignore' });
+    let pgid = null;
+    for (let attempt = 0; attempt < 80 && !pgid; attempt += 1) {
+      await sleep(25);
+      pgid = JSON.parse(readFileSync(marker, 'utf8')).pgid;
+    }
+    assert.ok(pgid, 'the runner records the command pgid');
+    runner.kill('SIGTERM');
+    assert.ok(await waitGone(pgid, 2000), 'the command group ends with the runner');
+  });
+
+  it('rejects a tampered snapshot or trial artifact', () => {
+    const root = makeExperimentRepo();
+    let revision = baseline(root);
+    setValue(root, 80);
+    const kept = trial(root, revision, 'lower');
+    const state = expStatus(root);
+    const snapshot = state.experiments.E1.best.snapshot.artifact;
+    appendFileSync(path.join(root, '.omj/goals/demo', snapshot), ' ');
+    assert.match(run(root, 'status').stderr, /artifact missing or tampered/);
+
+    const other = makeExperimentRepo();
+    revision = baseline(other);
+    const recorded = expStatus(other).experiments.E1.trials[0].artifact;
+    appendFileSync(path.join(other, '.omj/goals/demo', recorded), ' ');
+    assert.match(run(other, 'status').stderr, /artifact missing or tampered/);
+    assert.equal(kept.code, 0);
+  });
+});
+
+describe('goal-state final review reuse, timeouts, and flaky reporting', () => {
+  function completeSingle(root) {
+    let result = init(root, { second: false });
+    const revision = passGoal(root, result.json.revision, 'G1');
+    result = run(root, 'verify', { expectedRevision: revision, scope: 'final', argv: ['node', '-e', 'process.exit(0)'] });
+    assert.equal(result.code, 0, result.stderr);
+    return result.json.revision;
+  }
+
+  it('reuses the single goal review only when explicitly flagged and nothing changed', () => {
+    let root = makeRepo();
+    let revision = completeSingle(root);
+    assert.match(run(root, 'close', { expectedRevision: revision }).stderr, /final independent review/);
+    let closed = run(root, 'close', { expectedRevision: revision, reuseGoalReview: true });
+    assert.equal(closed.code, 0, closed.stderr);
+    assert.equal(closed.json.finalReview.reused, true);
+    assert.equal(run(root, 'status').json.closed, true);
+
+    root = makeRepo();
+    let result = init(root);
+    revision = passGoal(root, result.json.revision, 'G1');
+    revision = passGoal(root, revision, 'G2');
+    revision = run(root, 'verify', { expectedRevision: revision, scope: 'final', argv: ['node', '-e', 'process.exit(0)'] }).json.revision;
+    assert.match(run(root, 'close', { expectedRevision: revision, reuseGoalReview: true }).stderr, /exactly one goal/);
+
+    root = makeRepo();
+    revision = completeSingle(root);
+    writeFileSync(path.join(root, 'app.txt'), 'edited after the goal review\n');
+    revision = run(root, 'verify', { expectedRevision: revision, scope: 'final', argv: ['node', '-e', 'process.exit(0)'] }).json.revision;
+    assert.match(run(root, 'close', { expectedRevision: revision, reuseGoalReview: true }).stderr, /unchanged since the goal review/);
+
+    root = makeRepo();
+    revision = completeSingle(root);
+    revision = run(root, 'review', { expectedRevision: revision, scope: 'final', reviewer: 'final-reviewer', verdict: 'fail', summary: 'blocking finding' }).json.revision;
+    assert.match(run(root, 'close', { expectedRevision: revision, reuseGoalReview: true }).stderr, /a final review exists/);
+  });
+
+  it('times out a command and does not wait for a lingering grandchild', async () => {
+    const root = makeRepo();
+    let result = init(root, { second: false });
+    result = run(root, 'start', { expectedRevision: result.json.revision, goalId: 'G1' });
+    let started = Date.now();
+    result = run(root, 'verify', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, argv: ['node', '-e', 'setTimeout(() => {}, 5000)'], timeoutSeconds: 1 });
+    assert.equal(result.json.exitCode, 124, result.stderr);
+    assert.equal(result.json.timedOut, true);
+    assert.ok(Date.now() - started < 4500);
+    started = Date.now();
+    result = run(root, 'verify', {
+      expectedRevision: result.json.revision,
+      scope: { goalId: 'G1' },
+      argv: ['node', '-e', "const c = require('node:child_process').spawn(process.execPath, ['-e', 'setTimeout(() => {}, 5000)'], { stdio: 'inherit' }); c.unref(); console.log(c.pid);"],
+    });
+    assert.equal(result.json.exitCode, 0, result.stderr);
+    assert.ok(Date.now() - started < 4000, 'the helper returns without waiting for the grandchild');
+    if (process.platform !== 'win32') {
+      const recorded = JSON.parse(readFileSync(path.join(root, '.omj/goals/demo', result.json.artifact), 'utf8'));
+      assert.ok(await waitGone(Number(recorded.stdout.trim()), 500), 'the grandchild in the command group is gone');
+    }
+  });
+
+  it('reports a command that failed and then passed on the same fingerprint', () => {
+    const root = makeRepo();
+    const flag = path.join(mkdtempSync(path.join(tmpdir(), 'omj-flaky-')), 'flag');
+    roots.push(path.dirname(flag));
+    writeFileSync(flag, 'fail');
+    const argv = ['node', '-e', `process.exit(require('node:fs').readFileSync(${JSON.stringify(flag)}, 'utf8') === 'pass' ? 0 : 1)`];
+    let result = init(root, { second: false });
+    result = run(root, 'start', { expectedRevision: result.json.revision, goalId: 'G1' });
+    result = run(root, 'verify', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, argv });
+    assert.equal(result.json.exitCode, 1);
+    writeFileSync(flag, 'pass');
+    result = run(root, 'verify', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, argv });
+    assert.equal(result.json.exitCode, 0);
+    const flaky = run(root, 'status').json.flakyChecks;
+    assert.equal(flaky.length, 1);
+    assert.deepEqual(flaky[0].exitCodes, [1, 0]);
+  });
+});
+
+describe('goal-state schema v2 compatibility', () => {
+  it('resumes and closes a ledger written by the 0.13.0 helper with v2 semantics', () => {
+    const root = makeRepo();
+    let result = run(root, 'init', { brief: '# Approved plan\n', goals: goals(false) }, 'demo', V2_SCRIPT);
+    assert.equal(result.code, 0, result.stderr);
+    result = run(root, 'start', { expectedRevision: result.json.revision, goalId: 'G1' }, 'demo', V2_SCRIPT);
+    result = run(root, 'verify', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, argv: ['node', '-e', 'process.exit(0)'] }, 'demo', V2_SCRIPT);
+    assert.equal(result.code, 0, result.stderr);
+    const snapshotPath = path.join(root, '.omj/goals/demo/goals.json');
+    const written = JSON.parse(readFileSync(snapshotPath, 'utf8'));
+    assert.equal(written.schemaVersion, 2);
+
+    const status = run(root, 'status');
+    assert.equal(status.code, 0, status.stderr);
+    assert.equal(status.json.snapshotStatus, 'ok');
+    assert.equal(status.json.schemaVersion, 2);
+    const derivedKeys = Object.keys(status.json).filter((key) => !['snapshotStatus', 'flakyChecks'].includes(key)).sort();
+    assert.deepEqual(derivedKeys, Object.keys(written).sort());
+    assert.match(run(root, 'trial', { expectedRevision: result.json.revision, goalId: 'G1', hypothesis: 'x' }).stderr, /schema v3/);
+
+    result = run(root, 'review', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, reviewer: 'independent-reviewer', verdict: 'pass', summary: 'No blocking findings.' });
+    result = run(root, 'complete', { expectedRevision: result.json.revision, goalId: 'G1', acceptanceEvidence: [{ criterion: 'first behavior works', evidence: 'verified' }] });
+    assert.equal(result.code, 0, result.stderr);
+    result = run(root, 'verify', { expectedRevision: result.json.revision, scope: 'final', argv: ['node', '-e', 'process.exit(0)'] });
+    assert.match(run(root, 'close', { expectedRevision: result.json.revision, reuseGoalReview: true }).stderr, /schema v3/);
+    const revision = run(root, 'review', { expectedRevision: result.json.revision, scope: 'final', reviewer: 'final-reviewer', verdict: 'pass', summary: 'Final diff passes review.' }).json.revision;
+    const closed = run(root, 'close', { expectedRevision: revision });
+    assert.equal(closed.code, 0, closed.stderr);
+    const after = JSON.parse(readFileSync(snapshotPath, 'utf8'));
+    assert.equal(after.schemaVersion, 2);
+    assert.deepEqual(Object.keys(after).sort(), Object.keys(written).sort());
+    const oldStatus = run(root, 'status', undefined, 'demo', V2_SCRIPT);
+    assert.equal(oldStatus.json.closed, true);
+    assert.equal(oldStatus.json.snapshotStatus, 'ok', 'the 0.13.0 helper reads the snapshot the new helper wrote as unchanged');
   });
 });

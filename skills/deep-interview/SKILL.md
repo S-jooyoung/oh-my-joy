@@ -16,7 +16,7 @@ Turn a vague idea into verifiable requirements without implementing it. This is 
 ## Codex tool mapping
 
 - Use repository search/read tools (`rg`, `rg --files`, and file reads) for brownfield facts. Ask nothing the repository already answers.
-- Use Codex structured user input when it is available. Ask exactly one material question per round, with mutually exclusive choices and free-form input. If structured input is unavailable, ask one concise plain-text question and end the turn.
+- Use Codex structured user input when it is available. Ask one material question per round, or up to three in the same structured request when each targets a different component × dimension pair and no answer could change another, with mutually exclusive choices and free-form input. If structured input is unavailable, ask one concise plain-text question and end the turn.
 - Invoke the installed `oh-my-joy:ralplan` skill automatically at the exit bridge. Do not ask a final routing question or require the user to repeat the command. If invocation is unavailable, read and perform the canonical ralplan workflow in the current context.
 - Do not edit files, apply patches, run side-effectful commands, or spawn implementation agents.
 

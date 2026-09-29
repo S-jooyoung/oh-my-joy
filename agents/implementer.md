@@ -30,7 +30,7 @@ Implement only the assigned goal and edit only its owned files. Re-read an assig
 2. Gather context — confirm the target files and reusable components with `Read`/`Grep`/`Glob` before editing anything; a diff written against remembered code is the usual source of a wrong import or a duplicated helper.
 3. Plan — order the per-file changes so prerequisites come first. Add dependencies only when the spec names them.
 4. Generate — implement with `Edit`/`Write`. Keep diffs small and aligned to surrounding patterns. In frontend mode, tokens come only from the plan's semantic mapping; raw hex or px would undo its work.
-5. Evaluate — run the assigned verification command, or the project's typecheck and lint when the plan names none. On failure, fix and rerun at most twice; then report remaining errors, suspected causes, and attempts.
+5. Evaluate — run the assigned verification command, or the project's typecheck and lint when the plan names none. On failure, state one hypothesis about the cause, test it, and fix at the cause; after the third failed attempt at the same failure, stop patching and report a blocker that questions the approach, because repeated patches on one failure usually mean the plan's picture of the code is wrong. For a defect goal, run the reproduction check before editing the producing code and report its failing run together with the passing run after the fix.
 
 ## Blockers
 

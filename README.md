@@ -13,7 +13,7 @@ _A Plan-native workflow that doesn't fight your "almost always in Plan mode" hab
 
 | Your input | Enter with |
 | --- | --- |
-| Fuzzy — no file to name, no criterion you could check | `/oh-my-joy:deep-interview` — one question per round; at the end it automatically hands the requirements to `/oh-my-joy:ralplan` |
+| Fuzzy — no file to name, no criterion you could check | `/oh-my-joy:deep-interview` — short question rounds (independent questions share a round); at the end it automatically hands the requirements to `/oh-my-joy:ralplan` |
 | Concrete — a Figma link, a task in words, file names | `/oh-my-joy:ralplan` — reads the code or the design, builds the plan, critiques it (an independent critic on non-trivial plans) |
 
 Both end the same way: a `## Critique` section, the execution lane, the completion procedure. Pick the wrong one and it points you to the other.
@@ -125,7 +125,7 @@ Inside the OMJ source checkout, use `/release` in Claude Code or `$oh-my-joy:rel
 
 ## How to use OMJ
 
-Six situations cover most days. Each is the exact sequence you type; every spec critiques itself before you see it, and everything between approval and ship happens on its own because the approved plan says so.
+Eight situations cover most days. Each is the exact sequence you type; every spec critiques itself before you see it, and everything between approval and ship happens on its own because the approved plan says so.
 
 **1. One Figma screen**
 
@@ -167,7 +167,7 @@ Six situations cover most days. Each is the exact sequence you type; every spec 
 
 ```
 /oh-my-joy:deep-interview "notification system overhaul — not sure where to start"
-  → one question per round until the ambiguity score passes → the exit bridge hands the requirements to /oh-my-joy:ralplan (automatically, without another handoff question)
+  → short question rounds (up to three independent questions at once) until the ambiguity score passes → the exit bridge hands the requirements to /oh-my-joy:ralplan (automatically, without another handoff question)
   → the spec, with its ## Critique, is the plan → approve → the same completion procedure
 /oh-my-joy:ship
 ```
@@ -177,6 +177,25 @@ Six situations cover most days. Each is the exact sequence you type; every spec 
 ```
 /oh-my-joy:fix /pricing "banner z-index too low"        edit → re-capture → confirm
 /oh-my-joy:sync                                         you pick the direction per drift class
+```
+
+**7. Make a number better — latency, bundle size, a score**
+
+```
+/oh-my-joy:ralplan "make lookupAll in src/items.mjs faster — npm run bench prints lookup_ms; keep the tests green"
+  → the plan fixes the metric, the evaluator, the files trials may edit, the sealed files (benchmark and tests), the guards, and a trial budget → approve
+  → ultragoal records a baseline, then tries one idea per trial: the helper runs the evaluator, keeps a change only when the number measurably improves and the tests pass, and restores the files otherwise
+  → it stops at the budget, a plateau, or your target → review → report with every trial (automatic)
+/oh-my-joy:ship "perf(items): faster lookupAll"
+```
+
+**8. A bug**
+
+```
+/oh-my-joy:ralplan "formatAmount('1,000') throws TypeError: Cannot read properties of undefined (reading 'toFixed')"
+  → the plan traces the failure back to where the wrong value is produced and names a reproduction check
+  → approve → the check is recorded failing, the fix lands at the cause, the check is recorded passing → review → report (automatic)
+/oh-my-joy:ship "fix(format): parse thousands separators"
 ```
 
 Every command also works on its own — a colleague's diff (`/oh-my-joy:review --base main`), a re-check (`/oh-my-joy:verify /checkout`), tokens only (`/oh-my-joy:sync check`).
@@ -275,11 +294,11 @@ Say verify reports a defect — the submit button clips its label at 360px. The 
 | Command | Tier | What it does | When to use | Example |
 | --- | --- | --- | --- | --- |
 | **`/oh-my-joy:spec`** | compatibility | Alias for ralplan; existing Figma and general-task calls keep working | Existing prompts | `/oh-my-joy:spec "add search"` |
-| **`/oh-my-joy:ultragoal`** | after approval | Execute the approved plan, record goal evidence, review, verify, and resume; `resume <slug>` and `status <slug>` | Approved work or an interrupted run | `/oh-my-joy:ultragoal resume checkout` |
+| **`/oh-my-joy:ultragoal`** | after approval | Execute the approved plan, record goal evidence, review, verify, and resume; `resume <slug>` and `status <slug>`. An experiment goal keeps a change only when the helper measures an improvement and every guard passes, or when a failing review calls for a repair | Approved work or an interrupted run | `/oh-my-joy:ultragoal resume checkout` |
 | **`/oh-my-joy:ralplan`** | you | Read the input (Figma link with a section walk for large frames, frontend text, or general text), author the implementation spec (Plan), critique it against the real code (`## Critique`: decision record, simulated tasks, ready verdict; independent `critic` readings in fresh contexts sized to the plan: none for two or fewer files, one for three to five, two for larger, breaking, or risky plans), record the execution lane and the completion procedure, then stop (read-only). Also takes an interview's requirements from the session as input. Infers the verify route when omitted; sends text with no verifiable target to the interview | The starting point for every concrete task | `/oh-my-joy:ralplan https://figma.com/design/abc?node-id=1-2 /settings/profile` |
-| **`/oh-my-joy:deep-interview`** | you | Socratic one-question-per-round interview that turns a vague idea into a spec (native Plan) gated by a weighted ambiguity score (`--threshold N`%, default 20) — topology lock, weakest-dimension targeting, ontology tracking, an ambiguity floor, restate/closure double gate (read-only); ends with an exit bridge — automatically hand the requirements to `ralplan`; unresolved research prerequisites stay explicit. Exits immediately on already-concrete input and routes Figma links to `ralplan` | When the goal itself is still fuzzy | `/oh-my-joy:deep-interview "internal knowledge base — still fuzzy"` |
-| **`/oh-my-joy:ship`** | you | Run the verification commands (every one must exit 0), commit on a branch with your conventions and language, push, and open the PR with the evidence table in its body (your PR template when the repo has one). `--base <ref>` picks the PR base; otherwise ship reuses an unambiguous established base and asks only when the target remains unclear. Never commits on a shared branch (`main`, `develop`, …): with changes it branches off first, on a clean `develop` it opens the promotion PR. Pre-approves only git/gh/typecheck — test runners go through the permission prompt on purpose | The last step, always typed by you | `/oh-my-joy:ship "feat(checkout): summary panel"` |
-| **`/oh-my-joy:review`** | the plan | Review the changed diff and report only — frontend files against the FF 4 criteria + a11y · Figma fidelity · vercel · Next.js (Context7); every other file for correctness, simplicity, consistency, and test coverage; an approved spec's acceptance criteria are checked against the diff; non-trivial diffs get an independent `critic` pass in a fresh context, and the report says `Review: incomplete` when that pass cannot run; skipped tests, loosened assertions, or relaxed check configs are flagged as `verification weakened`; a second pass on the same change reports the delta (prior findings resolved or not, then only what changed). No args = uncommitted + staged vs HEAD; `--base <ref>` = the whole branch | Right after implementing (the plan runs it), or on anyone's diff | `/oh-my-joy:review --base main` |
+| **`/oh-my-joy:deep-interview`** | you | Socratic interview in short question rounds (up to three independent questions at once) that turns a vague idea into a spec (native Plan) gated by a weighted ambiguity score (`--threshold N`%, default 20) — topology lock, weakest-dimension targeting, ontology tracking, an ambiguity floor, restate/closure double gate (read-only); ends with an exit bridge — automatically hand the requirements to `ralplan`; unresolved research prerequisites stay explicit. Exits immediately on already-concrete input and routes Figma links to `ralplan` | When the goal itself is still fuzzy | `/oh-my-joy:deep-interview "internal knowledge base — still fuzzy"` |
+| **`/oh-my-joy:ship`** | you | Run the verification commands (every one must exit 0), commit on a branch with your conventions and language, push, and open the PR with the evidence table in its body (your PR template when the repo has one). `--base <ref>` picks the PR base; otherwise ship reuses an unambiguous established base and asks only when the target remains unclear. Never commits on a shared branch (`main`, `develop`, …) or a detached HEAD: with changes it branches off first, a clean detached HEAD with commits ahead ships them on a new branch, and on a clean `develop` it opens the promotion PR. Pre-approves only git/gh/typecheck — test runners go through the permission prompt on purpose | The last step, always typed by you | `/oh-my-joy:ship "feat(checkout): summary panel"` |
+| **`/oh-my-joy:review`** | the plan | Review the changed diff and report only — frontend files against the FF 4 criteria + a11y · Figma fidelity · vercel · Next.js (Context7); every other file for correctness, simplicity, consistency, and test coverage; an approved spec's acceptance criteria are checked against the diff; non-trivial diffs get an independent `critic` pass in a fresh context, and the report says `Review: incomplete` when that pass cannot run; skipped tests, loosened assertions, or relaxed check configs are flagged as `verification weakened`; a guard added where a failure surfaces while the producing code stays wrong is a `symptom patch`, and a kept experiment change that games the evaluator is `metric gaming`; a second pass on the same change reports the delta (prior findings resolved or not, then only what changed). No args = uncommitted + staged vs HEAD; `--base <ref>` = the whole branch | Right after implementing (the plan runs it), or on anyone's diff | `/oh-my-joy:review --base main` |
 | **`/oh-my-joy:verify`** | the plan | Prove the work. With a route: open it in a real browser (playwright-cli, MCP fallback) and check it against the Figma baseline (`.omj/baselines/`), always asserting the page actually reached the route. Without a route: run the project's verification commands and record `command · exit code · summary` with the evidence kind. `--base <url>` sets the dev server | The plan runs it after review; also the barrier after teammates finish | `/oh-my-joy:verify /settings/profile` · `/oh-my-joy:verify` |
 | **`/oh-my-joy:fix`** | the plan | Fix defects on a route (required) from a pasted screenshot and/or a complaint, then re-capture to confirm (active loop). `--base <url>`, `--commit` | Visual defects verify found | `/oh-my-joy:fix /pricing "banner z-index too low"` |
 | **`/oh-my-joy:sync`** | occasional | Reconcile drift between the token store (`tokens.json` or CSS custom properties) ↔ Figma by asking you the direction; `extract` bootstraps CSS tokens from Figma variables; `--tokens <path>` overrides the store path | Aligning code/Figma tokens · first extraction | `/oh-my-joy:sync` · `check` · `push` · `extract <figma-url>` |
@@ -292,7 +311,7 @@ Say verify reports a defect — the submit button clips its label at 360px. The 
 
 ### Bundled agents, answer style, and opt-in extras
 
-- **`critic`** (agent) — a read-only reviewer that `ralplan` spawns sized to the plan (one critic-lens instance for three to five files, or two instances — architect lens and critic lens — for larger, shape-changing, or risky plans) and `review` spawns for non-trivial diffs, in a fresh context that did not write the material. Returns a verdict and findings, edits nothing; declares exactly `Read`, `Grep`, `Glob` (pinned by tests). Never typed.
+- **`critic`** (agent) — a read-only reviewer that `ralplan` spawns sized to the plan (one critic-lens instance for three to five files, or two instances — architect lens and critic lens — for larger, shape-changing, or risky plans) and `review` spawns for non-trivial diffs, in a fresh context that did not write the material. Returns a verdict and findings, edits nothing; declares exactly `Read`, `Grep`, `Glob` (pinned by tests). Evidence it cannot produce without running code goes on a `Declined to judge` line instead of a guess. Never typed.
 - **`implementer`** (agent) — implements an **approved OMJ spec** through a 5-step loop (Clarify → Context → Plan → Generate → Evaluate) in frontend mode (uSpec, Figma, a route) or general mode, as the inline-lane executor and as the teammate type for every Dispatch row: one instance per row, editing only that row's files, asking nothing mid-run, classifying blockers, and reporting completion with evidence. Refuses spec-less input (no plan-gate bypass).
 - **`design-qa`** (agent) — a mechanical gate that only **checks**: typecheck, lint, hardcoded tokens, Figma fidelity, a11y basics, plus Story/i18n checks only when declared in fe-context. Declares no write tools (pinned by tests).
 - **OMJ answer style** (`output-styles/oh-my-joy.md`, opt-in) — natural answers in your language, learner-friendly explanations, and automatic approved handoffs; Korean writing rules are adapted from [fluent-korean](https://github.com/snflkd/fluent-korean) and credited in [`NOTICE.md`](NOTICE.md). Claude Code selects it in setup or **Output style** in `/config`. Codex setup copies the same body into `.omj/answer-style.md` and links it from the effective project `AGENTS.md` or `AGENTS.override.md`, preserving existing instructions. Start a new session after selection.
@@ -330,7 +349,7 @@ Missing ones never crash — OMJ **skips + guides** instead.
 
 ## What OMJ writes into your repo
 
-- `.omj/goals/<slug>/` — approved brief, versioned goals, append-only event ledger, and verification artifacts written by ultragoal. Keep these local; do not commit private PR feedback or command output.
+- `.omj/goals/<slug>/` — approved brief, versioned goals, append-only event ledger, and verification artifacts written by ultragoal, plus trial results and scope snapshots for experiment goals. Keep these local; do not commit private PR feedback or command output.
 - `.omj/fe-context.md` — your project's declarations (acceptance axes, token path, verify setup, `verifyCommands`). **Meant to be committed.**
 - `.omj/baselines/` — capture baselines. Gitignore this directory and `.omj/goals/`; ignoring `.omj/` wholesale would also lose the committed fe-context.
 - Selected hook copies in `.claude/hooks/` or `.codex/hooks/`, plus host-specific registration — only when selected in setup.
