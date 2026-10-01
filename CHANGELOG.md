@@ -10,6 +10,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.15.0] - 2026-10-01
+
+### Added
+
 - Eval cases `review-symptom-patch` and `review-metric-gaming` with the `review-symptom-*` and `review-gaming-*` fixtures; each diff carries a near-miss hunk that a clean-control grader checks is not flagged.
 - `tests/goal-state.test.mjs` covers a restore failure recorded as `helper error:`, a helper error before the baseline, a missing evaluator `cwd`, and an oversized uncommitted sealed set failing before the trial marker.
 
@@ -569,7 +583,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.11.1...v0.12.0
