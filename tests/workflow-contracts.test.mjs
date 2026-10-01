@@ -107,11 +107,11 @@ describe('portable planning and goal workflow', () => {
 
   it('experiment goals, defect plans, and converging reviews are pinned in bodies and adapters', () => {
     const pins = {
-      'commands/ralplan.md': ['Plans record decisions, not code', 'Review focus', 'Defect plans', 'failing before the fix and passing after it', 'Experiment goals', 'METRIC <name>=<value>', 'Verdict: conclusive | inconclusive', 'correct any drift', 'what to leave unflagged', 'at least one commit', 'such a plan is still `ready`', '`maxTrials` 1–100'],
+      'commands/ralplan.md': ['Plans record decisions, not code', 'Review focus', 'Defect plans', 'failing before the fix and passing after it', 'Experiment goals', 'METRIC <name>=<value>', 'Verdict: conclusive | inconclusive', 'correct any drift', 'what to leave unflagged', 'at least one commit', 'such a plan is still `ready`', '`maxTrials` 1–100', 'at least two viable options', 'at least one guard', 'each name the files they touch'],
       'skills/ralplan/SKILL.md': ['plans record decisions, not code', 'review focus', 'failing before the fix and passing after it', '`experiment` goals', 'Verdict: conclusive | inconclusive', 'correct any drift', 'what to leave unflagged'],
-      'commands/ultragoal.md': ['`trial`', 'repair:true', 'reuseGoalReview:true', 'review not converging', 'Before the first edit', 'fails for the reason the plan names', 'what to leave unflagged', 'pendingTrial', 'atBest', 'never parallelized', 'closes only with an evidence artifact', 'recorded as a follow-up', 'free of cost or external effects'],
-      'skills/ultragoal/SKILL.md': ['`trial`', 'repair:true', 'reuseGoalReview:true', 'review not converging', 'Before the first edit', 'what to leave unflagged', 'pendingTrial', 'failing before the fix and passing after it', 'closes only with an evidence artifact', 'recorded as a follow-up'],
-      'docs/EXECUTION-HANDOFF.md': ['`experiment` goal', '`trial`', 'review not converging', 'reuseGoalReview:true', 'what to leave unflagged', 'Experiment goals also stay with the lead', 'recorded as a follow-up', 'on Windows only the direct child'],
+      'commands/ultragoal.md': ['`trial`', 'repair:true', 'reuseGoalReview:true', 'review not converging', 'Before the first edit', 'fails for the reason the plan names', 'what to leave unflagged', 'pendingTrial', 'atBest', 'never parallelized', 'closes only with an evidence artifact', 'recorded as a follow-up', 'free of cost or external effects', 'helper error'],
+      'skills/ultragoal/SKILL.md': ['`trial`', 'repair:true', 'reuseGoalReview:true', 'review not converging', 'Before the first edit', 'what to leave unflagged', 'pendingTrial', 'failing before the fix and passing after it', 'closes only with an evidence artifact', 'recorded as a follow-up', 'helper error'],
+      'docs/EXECUTION-HANDOFF.md': ['`experiment` goal', '`trial`', 'review not converging', 'reuseGoalReview:true', 'what to leave unflagged', 'Experiment goals also stay with the lead', 'recorded as a follow-up', 'on Windows only the direct child', 'helper error'],
       'agents/critic.md': ['`symptom patch`', '`metric gaming`', 'Declined to judge', 'silence about an input is not permission', 'stays a finding'],
       'skills/critic/SKILL.md': ['`symptom patch`', '`metric gaming`', 'Declined to judge', 'silence about an input is not permission'],
       'commands/review.md': ['`symptom patch`', '`metric gaming`', 'Declined to judge', 'what to leave unflagged'],
@@ -120,7 +120,7 @@ describe('portable planning and goal workflow', () => {
       'skills/implementer/SKILL.md': ['third failed attempt', 'reproduction check'],
       'commands/deep-interview.md': ['up to three questions in total'],
       'skills/deep-interview/SKILL.md': ['up to three'],
-      'commands/ship.md': ['detached HEAD', 'no new commit — shipped the commits already ahead of the base'],
+      'commands/ship.md': ['detached HEAD', 'no new commit — shipped the commits already ahead of the base', 'in a command of its own'],
       'skills/ship/SKILL.md': ['detached HEAD'],
       'commands/fix.md': ['HEAD is detached'],
       'skills/fix/SKILL.md': ['detached HEAD'],
