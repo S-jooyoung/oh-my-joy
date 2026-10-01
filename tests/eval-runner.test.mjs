@@ -15,7 +15,7 @@
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -69,6 +69,21 @@ function runRunner(sandbox, extraArgs, env = {}, { scaffold = false } = {}) {
   const aggregate = existsSync(jsonPath) ? JSON.parse(readFileSync(jsonPath, 'utf8')) : null;
   return { status: result.status, stdout: result.stdout, stderr: result.stderr, aggregate };
 }
+
+describe('eval-runner: entry point', () => {
+  it('prints the same help through a symlinked scripts directory', { skip: process.platform === 'win32' }, () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'omj-linked-'));
+    roots.push(dir);
+    symlinkSync(repoPath('scripts'), path.join(dir, 'linked'));
+    const help = (script) => spawnSync(process.execPath, [script, '--help'], { encoding: 'utf8' });
+    const real = help(SCRIPT);
+    const linked = help(path.join(dir, 'linked', 'eval-runner.mjs'));
+    assert.equal(real.status, 0, real.stderr);
+    assert.equal(linked.status, real.status);
+    assert.equal(linked.stdout, real.stdout);
+    assert.match(linked.stdout, /eval-runner\.mjs — behavioral evals/);
+  });
+});
 
 describe('eval-runner: run outputs are saved', () => {
   it('writes run-N.md and run-N.json per run and links them from the aggregate', () => {

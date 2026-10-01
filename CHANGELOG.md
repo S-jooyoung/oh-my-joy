@@ -10,13 +10,27 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+- `verify` in the goal-state helper accepts `reuse:true` on a final check whose argv and cwd already passed stably on the current fingerprint, recording that pass instead of running the command again (schema v3 ledgers only; it refuses when any run of that command that ended on the fingerprint failed or changed the workspace), and every executed `verify` returns an `excerpt` of the last output lines plus the runner's `error`.
+- Eval cases `review-blind-spots`, `review-plan-constraints`, `verify-zero-tests`, `ship-stops-on-zero-tests`, `ralplan-risk-premortem` (fallback-only), and `spec-from-interview-residual`, with the `review-blind-*`, `review-constraints-changes`, and `node-zero-tests` fixtures; the blind-spot diff carries a near-miss conditional skip that a clean-control grader checks is not flagged.
+- Tests run the helper, the inventory generator, and the eval runner through a symlinked path, and cover final-proof reuse, its refusals, and the output excerpt.
+
 ### Changed
+
+- `review` and the `critic` diff rules also check security (a committed secret, untrusted input reaching a shell, SQL, path, fetch, or HTML sink, a missing authorization check, a protection turned off by default), callers outside the diff that a changed contract breaks, the approved plan's Constraints, and unreached or unfinished code; a conditional skip counts as `verification weakened` only when its condition holds in any environment where the plan's verification or CI runs; blocker evidence also accepts a quoted Constraint and a secret's masked location; the working-tree review reads untracked new files (`Bash(git ls-files:*)`).
+- `verify`, `ship`, and the implementer report treat a test command that ran zero tests, or that skipped or missed a named test, as failing even with exit 0. `verify` runs each discovered command on its own, exactly as discovered, and a command that never ran is a missing row that fails the verdict; `ship` stops on it the same way.
+- `ralplan`: a Risk plan's review focus covers how the shipped change can fail; a goal that adds a local check names the violation it must catch and shows the check failing before it passes; an interview's `Residual gaps` become assumptions with chosen defaults.
+- `deep-interview` asks only when two plausible answers would change the requirements differently, and an early exit or the round cap hands `Residual gaps` to ralplan.
+- `ultragoal`: a passing goal review is a checkpoint and the next goal starts in the same turn; the final reviewer also receives the plan's Constraints and Non-goals, and goal and final reviewers receive untracked new files with the diff; the report marks a reused final proof; acceptance evidence treats a test command that reports zero tests, or a skipped or missing named test, as a failure even with exit 0.
+- Codex setup merges the hook registration without moving existing entries, because Codex keys hook trust by position.
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
+
+- `scripts/goal-state.mjs`, `scripts/generate-inventory.mjs`, and `scripts/eval-runner.mjs` ran nothing and exited 0 when invoked through a symlinked path, such as a symlinked `~/.claude`; they now compare real paths.
+- The Codex ultragoal adapter treats an existing native goal, including a completed one from an earlier run, as occupying the thread instead of calling `create_goal`, and says once that `/goal clear` frees it; a `get_goal` error now means unavailable rather than absent.
 
 ### Security
 

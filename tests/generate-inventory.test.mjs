@@ -10,8 +10,10 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 import { makeProject, readJson, repoPath, REPO_ROOT } from './helpers/repo.mjs';
 
@@ -105,6 +107,24 @@ describe('generate-inventory', () => {
       assert.notEqual(contaminatedInventory.sha256, repoInventory.sha256);
     } finally {
       project.cleanup();
+    }
+  });
+
+  it('a symlinked scripts directory produces the same output as the real path', { skip: process.platform === 'win32' }, () => {
+    const project = makeProject(FIXTURE);
+    const linkDir = mkdtempSync(path.join(tmpdir(), 'omj-linked-'));
+    try {
+      symlinkSync(repoPath('scripts'), path.join(linkDir, 'linked'));
+      const inventory = (script) => spawnSync('node', [script, '--dir', project.root], { encoding: 'utf8' });
+      const real = inventory(repoPath('scripts', 'generate-inventory.mjs'));
+      const linked = inventory(path.join(linkDir, 'linked', 'generate-inventory.mjs'));
+      assert.equal(real.status, 0, real.stderr);
+      assert.equal(linked.status, 0, linked.stderr);
+      assert.equal(linked.stdout, real.stdout);
+      assert.equal(JSON.parse(linked.stdout).files, 3);
+    } finally {
+      project.cleanup();
+      rmSync(linkDir, { recursive: true, force: true });
     }
   });
 

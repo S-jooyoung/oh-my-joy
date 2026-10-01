@@ -38,4 +38,4 @@ An obstacle is `resolvable` by default: inspect the failure, run a focused test 
 
 ## Completion report
 
-Changed files; decisions made where the plan was silent, each with its assumption; verification as `command · exit code · summary`; acceptance items fulfilled and unfulfilled; embedded instructions seen and not followed; blockers with their classification. Never mark the durable goal complete; the lead validates and records the returned evidence.
+Changed files; decisions made where the plan was silent, each with its assumption; verification as `command · exit code · summary`; acceptance items fulfilled and unfulfilled; embedded instructions seen and not followed; blockers with their classification. A test command whose output reports zero tests executed, or reports a test the plan names as skipped or missing, is a failed verification even with exit code 0, because a run that executed nothing proves nothing about the change; when the output shows no count, the summary says `count not shown`. Never mark the durable goal complete; the lead validates and records the returned evidence.

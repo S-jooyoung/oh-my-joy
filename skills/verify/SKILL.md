@@ -18,7 +18,8 @@ Run verification outside Plan mode because commands, browsers, screenshots, and 
 ## Evidence mode
 
 - Discover commands from the approved ralplan, then `.omj/fe-context.md` `verifyCommands:`, then `package.json` scripts `typecheck`, `lint`, and `test`. Do not guess when none are declared.
-- Run commands with the Codex terminal tool and capture the exact command, exit code, and concise result. Failing rows come first. Never expose secrets or personal data.
+- Run each discovered command by itself, exactly as discovered, with the Codex terminal tool (it reports the exit code; a chained or rewritten form may not match the approval), and capture the exact command, exit code, and concise result. A command that did not run is a missing row, not a result inferred from its script. Failing rows come first. Never expose secrets or personal data.
+- A test command's row fails even with exit code 0 when its output reports zero tests executed or reports a test the approved plan names as skipped or missing; when the output shows no count, exit code 0 passes with `count not shown` in the summary. A discovered command that never ran fails the verdict.
 - If the plan records a route, explicitly report that browser verification is still owed.
 
 ## Browser mode

@@ -23,7 +23,8 @@ import {
 import path from 'node:path';
 import { hostname, tmpdir, uptime } from 'node:os';
 import { StringDecoder } from 'node:string_decoder';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+import { stripVTControlCharacters } from 'node:util';
 
 export const SCHEMA_VERSION = 3;
 const SUPPORTED_SCHEMA_VERSIONS = new Set([2, 3]);
@@ -37,6 +38,8 @@ const EVENT_TYPES = new Set([
 const TRIAL_DECISIONS = new Set(['baseline', 'keep', 'discard', 'guard_failed', 'crash', 'invalid', 'repair']);
 const SELF = fileURLToPath(import.meta.url);
 const VERIFY_TAIL = 1_000_000;
+const EXCERPT_LINES = 20;
+const EXCERPT_CHARS = 2_000;
 const TRIAL_TAIL = 20_000;
 const SNAPSHOT_LIMIT = 2 * 1024 * 1024;
 const CANDIDATE_LIMIT = 256 * 1024;
@@ -747,6 +750,9 @@ function readTail(file, chars) {
   }
 }
 
+const outputExcerpt = (text) =>
+  stripVTControlCharacters(text).replace(/\r\n/g, '\n').split('\n').filter((line) => line.trim()).slice(-EXCERPT_LINES).join('\n').slice(-EXCERPT_CHARS);
+
 function lastMetric(file, name) {
   const escaped = name.replace(/[.*+?^$()|[\]\\{}-]/g, '\\$&');
   const pattern = new RegExp('^METRIC\\s+' + escaped + '=(\\S+)\\s*$');
@@ -1148,6 +1154,24 @@ function markHelperError(slug, error) {
   } catch {}
 }
 
+function reuseProof(slug, state, scope, input) {
+  if (scope !== 'final') fail('reuse is only valid for final scope');
+  if (state.schemaVersion < 3) fail('reuse requires a schema v3 ledger');
+  safeCwd(input.cwd);
+  const cwd = input.cwd ?? '.';
+  const key = canonical({ argv: input.argv, cwd });
+  const fingerprint = workspaceFingerprint();
+  const candidates = state.proofs.filter((proof) => proof.kind === 'command' && proof.fingerprint === fingerprint.sha256 && canonical({ argv: proof.argv, cwd: proof.cwd }) === key);
+  if (!candidates.length || candidates.some((proof) => proof.exitCode !== 0 || !proof.stable)) fail('no stable pass of this command on the current fingerprint');
+  const source = candidates.at(-1);
+  const proof = {
+    kind: 'command', scope, argv: input.argv, cwd, artifact: source.artifact, artifactHash: source.artifactHash,
+    exitCode: source.exitCode, stable: source.stable, fingerprint: fingerprint.sha256, headSha: source.headSha, reused: true,
+  };
+  const next = append(slug, state, { type: 'proof_recorded', proof }).state;
+  return ok({ artifact: proof.artifact, exitCode: proof.exitCode, stable: proof.stable, timedOut: false, revision: next.revision, fingerprint: proof.fingerprint, reused: true });
+}
+
 function init(slug, input) {
   if (existsSync(rootFor(slug))) fail(`.omj/goals/${slug}/ already exists`);
   if (typeof input.brief !== 'string' || !input.brief.trim()) fail('brief is required');
@@ -1215,6 +1239,8 @@ function mutate(slug, verb, input) {
     const scope = requireScope(input, state);
     validateArgv(input.argv);
     const timeoutSeconds = optionalTimeout(input.timeoutSeconds);
+    if (input.reuse != null && typeof input.reuse !== 'boolean') fail('reuse must be a boolean');
+    if (input.reuse === true) return reuseProof(slug, state, scope, input);
     const before = workspaceFingerprint();
     const run = runCommand(input.argv, input.cwd, { timeoutSeconds });
     const after = workspaceFingerprint();
@@ -1230,7 +1256,10 @@ function mutate(slug, verb, input) {
       exitCode: run.exitCode, stable: before.sha256 === after.sha256, fingerprint: after.sha256, headSha: after.headSha,
     };
     const next = append(slug, state, { type: 'proof_recorded', proof }).state;
-    return ok({ artifact: file.path, exitCode: run.exitCode, stable: proof.stable, timedOut: run.timedOut, revision: next.revision, fingerprint: after.sha256 });
+    return ok({
+      artifact: file.path, exitCode: run.exitCode, stable: proof.stable, timedOut: run.timedOut, revision: next.revision, fingerprint: after.sha256, reused: false,
+      excerpt: { stdout: outputExcerpt(run.stdout), stderr: outputExcerpt(run.stderr) }, ...(run.error ? { error: run.error.slice(0, 500) } : {}),
+    });
   }
   if (verb === 'evidence') {
     const scope = requireScope(input, state);
@@ -1407,7 +1436,11 @@ function main() {
   return withLock(slug, () => verb === 'init' ? init(slug, input) : mutate(slug, verb, input));
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+function invokedDirectly() {
+  try { return realpathSync(process.argv[1]) === realpathSync(SELF); } catch { return false; }
+}
+
+if (invokedDirectly()) {
   try { main(); } catch (error) {
     if (error.message !== '__goal_state_failure__') {
       process.stderr.write(`goal-state: ${error.message}\n`);

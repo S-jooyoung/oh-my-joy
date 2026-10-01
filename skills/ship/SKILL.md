@@ -17,7 +17,8 @@ Read [the canonical ship command](../../commands/ship.md) completely before acti
 
 - Treat a direct `$oh-my-joy:ship` invocation or an explicit current request to ship, push, or create the PR as authorization for the requested external actions. Hypothetical discussion and dry runs remain read-only.
 - Use repository reads and the terminal for inspection, verification, git, and GitHub CLI operations. Use native structured user input only when the canonical base-resolution rules leave multiple genuine remote shared-branch candidates.
-- Verification must complete successfully before any push. Preserve the canonical shared-branch and explicit-staging safeguards: never commit or push the implementation directly from a shared branch or a detached HEAD. Never use `git add .`, `git add -A`, hook bypasses, AI signatures, or `Co-Authored-By` trailers.
+- Verification must complete successfully before any push. A test command's row fails even with exit code 0 when its output reports zero tests executed or reports a test the approved plan names as skipped or missing, and any failing row, or a command that never ran, stops the run before the commit; output with no count passes on exit 0 with `count not shown` in the summary.
+- Preserve the canonical shared-branch and explicit-staging safeguards: never commit or push the implementation directly from a shared branch or a detached HEAD. Never use `git add .`, `git add -A`, hook bypasses, AI signatures, or `Co-Authored-By` trailers.
 - An ordinary fast-forward push to an existing remote feature branch is allowed by a shipping request. If the push would be non-fast-forward or the histories have diverged, stop and report the conflict. Never force-push or overwrite divergent remote history.
 - Preserve the repository PR template and language, include actual verification evidence, and read back the created PR URL and visible metadata before reporting completion.
 
