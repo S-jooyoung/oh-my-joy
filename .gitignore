@@ -12,6 +12,7 @@ node_modules/
 # OMJ operational state — self-application (dogfood) artifacts, never commit
 .omj/goals/
 .omj/baselines/
+.omj/research/
 
 # eval run output
 evals/results/
