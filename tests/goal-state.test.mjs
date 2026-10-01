@@ -575,7 +575,7 @@ describe('goal-state experiment goals', () => {
   it('records crashes, timeouts, and guard failures and restores the scope', () => {
     const root = makeExperimentRepo();
     let revision = baseline(root, { evaluator: { argv: ['node', 'bench/bench.mjs'], repeats: 1, timeoutSeconds: 1 } });
-    for (const [value, pattern] of [['boom', /evaluator exited 3/], ['silent', /no METRIC cost= line/], ['sleep', /evaluator timed out/]]) {
+    for (const [value, pattern] of [['boom', /evaluator exited 3/], ['silent', /no METRIC cost= line/], ['abc', /METRIC cost= value is not a finite number: NaN/], ['sleep', /evaluator timed out/]]) {
       setValue(root, value);
       const started = Date.now();
       const result = trial(root, revision, `try ${value}`);
@@ -589,6 +589,69 @@ describe('goal-state experiment goals', () => {
     const guarded = trial(root, revision, 'negative cost');
     assert.equal(guarded.json.decision, 'guard_failed', guarded.stderr);
     assert.equal(readFileSync(path.join(root, 'src/value.txt'), 'utf8'), '100\n');
+  });
+
+  it('fails before the marker when the evaluator cwd does not exist', () => {
+    const root = makeExperimentRepo();
+    const revision = startExperiment(root, { evaluator: { argv: ['node', 'bench/bench.mjs'], cwd: 'missing', repeats: 1, timeoutSeconds: 30 } });
+    const result = trial(root, revision, 'baseline');
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /cwd must name an existing directory/);
+    assert.equal(existsSync(path.join(root, '.omj/goals/demo/trial.pending.json')), false);
+    assert.equal(expStatus(root).experiments.E1.trials.length, 0);
+  });
+
+  it('records a restore failure as a helper error that spends budget', { skip: process.platform === 'win32' || process.getuid?.() === 0 }, () => {
+    const root = makeExperimentRepo();
+    const marker = path.join(root, '.omj/goals/demo/trial.pending.json');
+    const valueFile = path.join(root, 'src/value.txt');
+    let revision = baseline(root);
+    setValue(root, 80);
+    let result = trial(root, revision, 'lower the value');
+    assert.equal(result.json.decision, 'keep', result.stderr);
+    revision = result.json.revision;
+    setValue(root, 90);
+    chmodSync(valueFile, 0o444);
+    result = trial(root, revision, 'raise it again');
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /EACCES/);
+    assert.equal(existsSync(marker), true);
+    assert.match(JSON.parse(readFileSync(marker, 'utf8')).error, /EACCES/);
+    assert.match(expStatus(root).experimentStatus.E1.pendingTrial.error, /EACCES/);
+    result = trial(root, revision, 'retry while read-only');
+    assert.equal(result.code, 1);
+    assert.equal(existsSync(marker), true);
+    chmodSync(valueFile, 0o644);
+    result = trial(root, revision, 'recover');
+    assert.equal(result.json.recovered, true, result.stderr);
+    assert.equal(result.json.decision, 'crash');
+    assert.match(result.json.reason, /^helper error: EACCES/);
+    assert.equal(result.json.trialsLeft, 3);
+    assert.equal(expStatus(root).experiments.E1.nonKeepStreak, 1);
+    assert.equal(readFileSync(valueFile, 'utf8'), '80\n');
+    assert.equal(existsSync(marker), false);
+  });
+
+  it('fails before the marker when uncommitted sealed files exceed the snapshot limit', () => {
+    const root = makeExperimentRepo();
+    writeFileSync(path.join(root, 'bench/big.bin'), Buffer.alloc(2 * 1024 * 1024 + 1));
+    const revision = startExperiment(root);
+    const result = trial(root, revision, 'baseline');
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /uncommitted sealed files exceed 2097152 bytes/);
+    assert.equal(existsSync(path.join(root, '.omj/goals/demo/trial.pending.json')), false);
+    assert.equal(expStatus(root).experiments.E1.trials.length, 0);
+  });
+
+  it('counts a helper error before the baseline toward no_baseline', () => {
+    const root = makeExperimentRepo();
+    const revision = startExperiment(root);
+    writeFileSync(path.join(root, '.omj/goals/demo/trial.pending.json'), JSON.stringify({ goalId: 'E1', n: 0, repair: false, hypothesis: 'baseline', pgid: null, error: 'restore failed: EACCES' }));
+    const result = trial(root, revision, 'baseline');
+    assert.equal(result.json?.reason, 'helper error: restore failed: EACCES', result.stderr);
+    const exp = expStatus(root).experiments.E1;
+    assert.equal(exp.baselineFailures, 1);
+    assert.equal(exp.stopReason, null);
   });
 
   it('discards an improvement within the baseline spread when repeats are three', () => {

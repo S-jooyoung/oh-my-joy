@@ -10,13 +10,27 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+- Eval cases `review-symptom-patch` and `review-metric-gaming` with the `review-symptom-*` and `review-gaming-*` fixtures; each diff carries a near-miss hunk that a clean-control grader checks is not flagged.
+- `tests/goal-state.test.mjs` covers a restore failure recorded as `helper error:`, a helper error before the baseline, a missing evaluator `cwd`, and an oversized uncommitted sealed set failing before the trial marker.
+
 ### Changed
+
+- `ralplan`'s `## Critique` decision record names at least two viable options and why the chosen one won, or one line on why only one survives, and each simulated task names the files it touches.
+- `ralplan` states that an experiment needs at least one guard and at least one scope and sealed entry, with a minimal guard for repositories without tests.
+- The goal-state helper's crash reason separates a missing `METRIC <name>=` line from a value that is not a finite number.
+- `ship` creates its branch with `git checkout -b` in a command of its own, the form its `allowed-tools` pre-approves.
+- The `spec-critique-gate` decision grader accepts simulated tasks as a list or a table and follows the body's proceed-or-gap wording.
+- The design principles record that the research-mission command deferred in v0.9.0 was later declined.
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
+
+- `ultragoal`, its Codex adapter, the execution handoff, and the design principles distinguish a `helper error:` trial recovery from `interrupted`: it is a crash that spends budget and patience and, before a baseline, counts toward `no_baseline`, so its cause is fixed before the next trial.
+- The `ship-on-shared-branch` eval case puts `/oh-my-joy:ship` on its first line and passes the established-base context through `append_system_prompt`; with the context first, `claude -p` sent the command as plain text and the case never loaded the ship contract.
+- The design principles limit process-group cleanup to timeout, the command's own exit, and the runner receiving SIGINT, SIGTERM, or SIGHUP, and record that a SIGKILL from the host can orphan a `verify` command and that interrupted-trial recovery can name a reused pid, since its boot check covers only reuse across a reboot.
 
 ### Security
 
@@ -29,7 +43,8 @@ History prior to 0.6.0 is preserved in Korean.
 - Defect plans in `ralplan`: the symptom, the root cause at the origin (or ranked hypotheses with the observation that settles each), a reproduction check, and a fix at the origin; `ultragoal` records the check failing before the fix and passing after it.
 - `ralplan` adds a review focus that turns up to five implied inputs into acceptance criteria.
 - `critic` and `review` report a `symptom patch` (🟡, 🔴 when the plan named the root cause) and, on experiment goals, `metric gaming` (🔴); a reviewer puts execution evidence it cannot produce on a `Declined to judge` line.
-- The goal-state helper's `verify` accepts `timeoutSeconds` (a timeout records exit 124), and every command it runs is ended with its whole process group on timeout, interruption, or exit (on POSIX).
+- The goal-state helper's `verify` accepts `timeoutSeconds`; a timeout records exit 124.
+- Every command the goal-state helper runs is started in its own process group and ended with it on timeout, on the command's own exit, or when the helper's runner receives SIGINT, SIGTERM, or SIGHUP (on POSIX).
 - `status` reports `flakyChecks` and, for experiment goals, `experimentStatus` with `atBest`, `trialsLeft`, and `pendingTrial`.
 - `close` accepts `reuseGoalReview: true` for a single-goal plan whose workspace has not changed since its passing review.
 - Eval cases `ralplan-experiment-plan`, `ralplan-defect-root-cause`, and `ship-on-detached-head` with the `node-bench` and `node-defect` fixtures, and `tests/fixtures/goal-state-v2.mjs`, a frozen copy of the 0.13.0 helper for the compatibility test.
@@ -53,7 +68,10 @@ History prior to 0.6.0 is preserved in Korean.
 ### Fixed
 
 - `ship` and `fix --commit` create a branch before committing on a detached HEAD, and a clean detached HEAD with commits ahead of the base ships them without an empty commit.
-- A helper verification command that leaves a background process behind no longer keeps the helper waiting, and output larger than 10 MB no longer fails the run.
+- A helper verification command that leaves a background process behind no longer keeps the helper waiting.
+- Helper verification output larger than 10 MB no longer fails the run.
+- The helper's git calls accept up to 64 MiB of output instead of the 1 MiB default, so a large diff or untracked set no longer fails fingerprinting.
+- The helper replays the ledger with a new event before appending it, so an event that fails validation is refused instead of being written into the ledger.
 
 ### Security
 

@@ -751,7 +751,7 @@ function lastMetric(file, name) {
   const escaped = name.replace(/[.*+?^$()|[\]\\{}-]/g, '\\$&');
   const pattern = new RegExp('^METRIC\\s+' + escaped + '=(\\S+)\\s*$');
   let fd;
-  try { fd = openSync(file, 'r'); } catch { return null; }
+  try { fd = openSync(file, 'r'); } catch { return { raw: null, value: null }; }
   let found = null;
   let rest = '';
   try {
@@ -774,7 +774,7 @@ function lastMetric(file, name) {
     closeSync(fd);
   }
   const value = found === null ? NaN : Number(found);
-  return Number.isFinite(value) ? value : null;
+  return { raw: found, value: Number.isFinite(value) ? value : null };
 }
 
 function runCommand(argv, cwd, { timeoutSeconds = null, tail = VERIFY_TAIL, markerPath = null, metricName = null } = {}) {
@@ -794,6 +794,7 @@ function runCommand(argv, cwd, { timeoutSeconds = null, tail = VERIFY_TAIL, mark
     const result = existsSync(spec.resultPath)
       ? JSON.parse(readFileSync(spec.resultPath, 'utf8'))
       : { exitCode: 1, signal: runner.signal ?? null, timedOut: false, error: 'runner produced no result' };
+    const parsed = metricName ? lastMetric(spec.stdoutPath, metricName) : null;
     return {
       exitCode: result.exitCode,
       signal: result.signal ?? null,
@@ -801,7 +802,8 @@ function runCommand(argv, cwd, { timeoutSeconds = null, tail = VERIFY_TAIL, mark
       error: result.error ?? null,
       stdout: readTail(spec.stdoutPath, tail),
       stderr: readTail(spec.stderrPath, tail),
-      metric: metricName ? lastMetric(spec.stdoutPath, metricName) : null,
+      metric: parsed?.value ?? null,
+      metricRaw: parsed?.raw ?? null,
     };
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -1054,7 +1056,7 @@ function runTrial(slug, state, input) {
     const before = workspaceFingerprint().sha256;
     const run = runCommand(command.argv, command.cwd, { tail: TRIAL_TAIL, markerPath: markerFor(slug), ...options });
     const stable = before === workspaceFingerprint().sha256;
-    return { argv: command.argv, cwd: command.cwd, exitCode: run.exitCode, signal: run.signal, timedOut: run.timedOut, error: run.error, stable, metric: run.metric, stdout: run.stdout, stderr: run.stderr };
+    return { argv: command.argv, cwd: command.cwd, exitCode: run.exitCode, signal: run.signal, timedOut: run.timedOut, error: run.error, stable, metric: run.metric, metricRaw: run.metricRaw, stdout: run.stdout, stderr: run.stderr };
   };
   if (!decision) {
     for (let index = 0; index < config.evaluator.repeats; index += 1) {
@@ -1063,7 +1065,10 @@ function runTrial(slug, state, input) {
       if (!run.stable) { decision = 'invalid'; reason = 'evaluator changed the workspace'; break; }
       if (run.exitCode !== 0 || run.metric === null) {
         decision = 'crash';
-        reason = run.timedOut ? 'evaluator timed out' : run.exitCode !== 0 ? `evaluator exited ${run.exitCode}` : `no METRIC ${config.metric.name}= line`;
+        reason = run.timedOut ? 'evaluator timed out'
+          : run.exitCode !== 0 ? `evaluator exited ${run.exitCode}`
+            : run.metricRaw === null ? `no METRIC ${config.metric.name}= line`
+              : `METRIC ${config.metric.name}= value is not a finite number: ${run.metricRaw.slice(0, 80)}`;
         break;
       }
       values.push(run.metric);
