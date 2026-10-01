@@ -53,10 +53,10 @@ function init(root, options = {}) {
   return run(root, 'init', { brief: '# Approved plan\n', goals: options.goals ?? goals(options.second), pr: options.pr });
 }
 
-function passGoal(root, revision, goalId) {
+function passGoal(root, revision, goalId, argv = ['node', '-e', 'console.log("verified")']) {
   let result = run(root, 'start', { expectedRevision: revision, goalId });
   assert.equal(result.code, 0, result.stderr);
-  result = run(root, 'verify', { expectedRevision: result.json.revision, scope: { goalId }, argv: ['node', '-e', 'console.log("verified")'] });
+  result = run(root, 'verify', { expectedRevision: result.json.revision, scope: { goalId }, argv });
   assert.equal(result.code, 0, result.stderr);
   assert.equal(result.json.exitCode, 0);
   result = run(root, 'review', { expectedRevision: result.json.revision, scope: { goalId }, reviewer: 'independent-reviewer', verdict: 'pass', summary: 'No blocking findings.' });
@@ -151,6 +151,29 @@ describe('goal-state durable lifecycle', () => {
       scope: { goalId: 'G1' },
       argv: ['node', '-e', 'process.exit(0)'],
     }).json.fingerprint);
+  });
+
+  it('runs through a symlinked scripts directory exactly as through the real path', { skip: process.platform === 'win32' }, () => {
+    const linkDir = mkdtempSync(path.join(tmpdir(), 'omj-linked-'));
+    roots.push(linkDir);
+    symlinkSync(repoPath('scripts'), path.join(linkDir, 'linked'));
+    const linked = path.join(linkDir, 'linked', 'goal-state.mjs');
+    const root = makeRepo();
+    const real = run(root, 'status', undefined, 'Bad!');
+    const viaLink = run(root, 'status', undefined, 'Bad!', linked);
+    assert.equal(real.code, 1);
+    assert.equal(viaLink.code, 1);
+    assert.match(viaLink.stderr, /--slug allows/);
+    assert.equal(viaLink.stderr, real.stderr);
+    let result = run(root, 'init', { brief: '# Approved plan\n', goals: goals(false) }, 'demo', linked);
+    assert.equal(result.code, 0, result.stderr);
+    result = run(root, 'status', undefined, 'demo', linked);
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(result.json.revision, 1);
+    result = run(root, 'start', { expectedRevision: 1, goalId: 'G1' }, 'demo', linked);
+    result = run(root, 'verify', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, argv: ['node', '-e', 'console.log("ran")'] }, 'demo', linked);
+    assert.equal(result.json?.exitCode, 0, result.stderr);
+    assert.equal(result.json.excerpt.stdout, 'ran');
   });
 });
 
@@ -902,9 +925,10 @@ describe('goal-state final review reuse, timeouts, and flaky reporting', () => {
     let result = init(root, { second: false });
     result = run(root, 'start', { expectedRevision: result.json.revision, goalId: 'G1' });
     let started = Date.now();
-    result = run(root, 'verify', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, argv: ['node', '-e', 'setTimeout(() => {}, 5000)'], timeoutSeconds: 1 });
+    result = run(root, 'verify', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, argv: ['node', '-e', 'console.log("waiting"); setTimeout(() => {}, 5000)'], timeoutSeconds: 1 });
     assert.equal(result.json.exitCode, 124, result.stderr);
     assert.equal(result.json.timedOut, true);
+    assert.deepEqual(result.json.excerpt, { stdout: 'waiting', stderr: '' });
     assert.ok(Date.now() - started < 4500);
     started = Date.now();
     result = run(root, 'verify', {
@@ -936,6 +960,177 @@ describe('goal-state final review reuse, timeouts, and flaky reporting', () => {
     const flaky = run(root, 'status').json.flakyChecks;
     assert.equal(flaky.length, 1);
     assert.deepEqual(flaky[0].exitCodes, [1, 0]);
+  });
+});
+
+describe('goal-state final proof reuse', () => {
+  function counterCommand() {
+    const counter = path.join(mkdtempSync(path.join(tmpdir(), 'omj-counter-')), 'count');
+    roots.push(path.dirname(counter));
+    return { counter, argv: ['node', '-e', `require('node:fs').appendFileSync(${JSON.stringify(counter)}, 'x')`] };
+  }
+
+  function refuses(root, input, pattern) {
+    const revision = run(root, 'status').json.revision;
+    const result = run(root, 'verify', { expectedRevision: revision, ...input });
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, pattern);
+    assert.equal(run(root, 'status').json.revision, revision, 'a refusal appends nothing');
+  }
+
+  const noStablePass = /no stable pass of this command on the current fingerprint/;
+
+  it('records an earlier stable pass as the final proof without running the command again', () => {
+    const root = makeRepo();
+    const { counter, argv } = counterCommand();
+    const revision = passGoal(root, init(root, { second: false }).json.revision, 'G1', argv);
+    assert.equal(statSync(counter).size, 1);
+    const [source] = run(root, 'status').json.proofs;
+    let result = run(root, 'verify', { expectedRevision: revision, scope: 'final', argv, reuse: true });
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(result.json.reused, true);
+    assert.equal(result.json.artifact, source.artifact);
+    assert.equal('excerpt' in result.json, false);
+    assert.equal(statSync(counter).size, 1, 'the command did not run again');
+    const ledger = readFileSync(path.join(root, '.omj/goals/demo/ledger.jsonl'), 'utf8').trimEnd().split('\n');
+    assert.deepEqual(JSON.parse(ledger.at(-1)).proof, { ...source, scope: 'final', reused: true });
+    result = run(root, 'review', { expectedRevision: result.json.revision, scope: 'final', reviewer: 'final-reviewer', verdict: 'pass', summary: 'Final diff passes review.' });
+    const closed = run(root, 'close', { expectedRevision: result.json.revision });
+    assert.equal(closed.code, 0, closed.stderr);
+  });
+
+  it('runs the final command when reuse is absent and rejects a non-boolean reuse', () => {
+    const root = makeRepo();
+    const { counter, argv } = counterCommand();
+    passGoal(root, init(root, { second: false }).json.revision, 'G1', argv);
+    refuses(root, { scope: 'final', argv, reuse: 'yes' }, /reuse must be a boolean/);
+    const result = run(root, 'verify', { expectedRevision: run(root, 'status').json.revision, scope: 'final', argv });
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(result.json.reused, false);
+    assert.equal(statSync(counter).size, 2);
+  });
+
+  it('refuses reuse for another cwd or a changed workspace', () => {
+    const root = makeRepo();
+    const { argv } = counterCommand();
+    passGoal(root, init(root, { second: false }).json.revision, 'G1', argv);
+    mkdirSync(path.join(root, 'sub'));
+    refuses(root, { scope: 'final', argv, cwd: 'sub', reuse: true }, noStablePass);
+    writeFileSync(path.join(root, 'app.txt'), 'edited after the goal\n');
+    refuses(root, { scope: 'final', argv, reuse: true }, noStablePass);
+    writeFileSync(path.join(root, 'app.txt'), 'base\n');
+    const result = run(root, 'verify', { expectedRevision: run(root, 'status').json.revision, scope: 'final', argv, cwd: '.', reuse: true });
+    assert.equal(result.json?.reused, true, result.stderr);
+  });
+
+  it('refuses reuse when any run of the command failed on the current fingerprint', () => {
+    const root = makeRepo();
+    const flag = path.join(mkdtempSync(path.join(tmpdir(), 'omj-flaky-')), 'flag');
+    roots.push(path.dirname(flag));
+    writeFileSync(flag, 'fail');
+    const argv = ['node', '-e', `process.exit(require('node:fs').readFileSync(${JSON.stringify(flag)}, 'utf8') === 'pass' ? 0 : 1)`];
+    let result = init(root, { second: false });
+    result = run(root, 'start', { expectedRevision: result.json.revision, goalId: 'G1' });
+    result = run(root, 'verify', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, argv });
+    assert.equal(result.json.exitCode, 1);
+    writeFileSync(flag, 'pass');
+    result = run(root, 'verify', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, argv });
+    assert.equal(result.json.exitCode, 0);
+    result = run(root, 'review', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, reviewer: 'reviewer', verdict: 'pass', summary: 'Reviewed.' });
+    result = run(root, 'complete', { expectedRevision: result.json.revision, goalId: 'G1', acceptanceEvidence: [{ criterion: 'first behavior works', evidence: 'covered by the recorded proof' }] });
+    assert.equal(result.code, 0, result.stderr);
+    refuses(root, { scope: 'final', argv, reuse: true }, noStablePass);
+  });
+
+  it('refuses reuse when a run of the command changed the workspace on the current fingerprint', () => {
+    const root = makeRepo();
+    const argv = ['node', '-e', "const fs = require('node:fs'); if (!fs.existsSync('out.txt')) fs.writeFileSync('out.txt', 'x')"];
+    let result = init(root, { second: false });
+    result = run(root, 'start', { expectedRevision: result.json.revision, goalId: 'G1' });
+    result = run(root, 'verify', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, argv });
+    assert.equal(result.json.stable, false);
+    const changed = result.json.fingerprint;
+    result = run(root, 'verify', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, argv });
+    assert.equal(result.json.stable, true);
+    assert.equal(result.json.fingerprint, changed, 'both runs end on the same fingerprint');
+    result = run(root, 'review', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, reviewer: 'reviewer', verdict: 'pass', summary: 'Reviewed.' });
+    result = run(root, 'complete', { expectedRevision: result.json.revision, goalId: 'G1', acceptanceEvidence: [{ criterion: 'first behavior works', evidence: 'covered by the recorded proof' }] });
+    assert.equal(result.code, 0, result.stderr);
+    refuses(root, { scope: 'final', argv, reuse: true }, noStablePass);
+  });
+
+  it('refuses reuse at goal scope and on a schema v2 ledger', () => {
+    const argv = ['node', '-e', 'process.exit(0)'];
+    const root = makeRepo();
+    let result = init(root, { second: false });
+    result = run(root, 'start', { expectedRevision: result.json.revision, goalId: 'G1' });
+    run(root, 'verify', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, argv });
+    refuses(root, { scope: { goalId: 'G1' }, argv, reuse: true }, /reuse is only valid for final scope/);
+
+    const old = makeRepo();
+    const v2 = (verb, input) => run(old, verb, input, 'demo', V2_SCRIPT);
+    result = v2('init', { brief: '# Approved plan\n', goals: goals(false) });
+    result = v2('start', { expectedRevision: result.json.revision, goalId: 'G1' });
+    result = v2('verify', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, argv });
+    result = v2('review', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, reviewer: 'reviewer', verdict: 'pass', summary: 'Reviewed.' });
+    result = v2('complete', { expectedRevision: result.json.revision, goalId: 'G1', acceptanceEvidence: [{ criterion: 'first behavior works', evidence: 'verified' }] });
+    assert.equal(result.code, 0, result.stderr);
+    refuses(old, { scope: 'final', argv, reuse: true }, /reuse requires a schema v3 ledger/);
+  });
+});
+
+describe('goal-state verification output excerpts', () => {
+  function activeGoal(root) {
+    const result = run(root, 'start', { expectedRevision: init(root, { second: false }).json.revision, goalId: 'G1' });
+    assert.equal(result.code, 0, result.stderr);
+    return result.json.revision;
+  }
+
+  const verifyG1 = (root, revision, argv) => run(root, 'verify', { expectedRevision: revision, scope: { goalId: 'G1' }, argv });
+
+  it('keeps the last 20 non-empty lines without ANSI escapes and leaves the artifact raw', () => {
+    const root = makeRepo();
+    const colored = "for (let i = 1; i <= 100; i += 1) process.stdout.write(`\\u001b[3${i % 8}mline ${i}\\u001b[0m\\r\\n\\r\\n`); process.exit(3)";
+    const result = verifyG1(root, activeGoal(root), ['node', '-e', colored]);
+    assert.equal(result.json.exitCode, 3, result.stderr);
+    assert.equal(result.json.reused, false);
+    const { stdout, stderr } = result.json.excerpt;
+    const lines = stdout.split('\n');
+    assert.equal(lines.length, 20);
+    assert.equal(lines[0], 'line 81');
+    assert.equal(lines.at(-1), 'line 100');
+    assert.doesNotMatch(stdout, /[\u001b\r]/);
+    assert.ok(stdout.length <= 2000);
+    assert.equal(stderr, '');
+    const recorded = JSON.parse(readFileSync(path.join(root, '.omj/goals/demo', result.json.artifact), 'utf8'));
+    assert.match(recorded.stdout, /\u001b\[31mline 97\u001b\[0m\r\n/);
+    assert.equal('excerpt' in recorded, false);
+  });
+
+  it('cuts a long line to its last 2,000 characters and shows the output of a passing command', () => {
+    const root = makeRepo();
+    const line = `${'x'.repeat(5_000)}${'y'.repeat(4_990)}tail-of-it`;
+    let result = verifyG1(root, activeGoal(root), ['node', '-e', `process.stdout.write(${JSON.stringify(line)})`]);
+    assert.equal(result.json.excerpt.stdout, line.slice(-2_000));
+    result = verifyG1(root, result.json.revision, ['node', '-e', 'console.log("# tests 1"); console.error("a warning")']);
+    assert.equal(result.json.exitCode, 0);
+    assert.match(result.json.excerpt.stdout, /^# tests 1$/m);
+    assert.equal(result.json.excerpt.stderr, 'a warning');
+    assert.equal('error' in result.json, false);
+  });
+
+  it('returns the runner error, cut to 500 characters, when the command cannot start', () => {
+    const root = makeRepo();
+    let result = verifyG1(root, activeGoal(root), ['omj-no-such-binary-xyz']);
+    assert.notEqual(result.json.exitCode, 0);
+    assert.match(result.json.error, /omj-no-such-binary-xyz/);
+    assert.deepEqual(result.json.excerpt, { stdout: '', stderr: '' });
+    const missing = path.join(tmpdir(), 'omj-no-such-dir', 'd'.repeat(200), 'd'.repeat(200), 'd'.repeat(200), 'omj-no-such-binary-xyz');
+    result = verifyG1(root, result.json.revision, [missing]);
+    assert.notEqual(result.json.exitCode, 0);
+    assert.equal(result.json.error.length, 500);
+    const recorded = JSON.parse(readFileSync(path.join(root, '.omj/goals/demo', result.json.artifact), 'utf8'));
+    assert.ok(recorded.error.length > 500, 'the artifact keeps the full error');
   });
 });
 

@@ -4,7 +4,7 @@ tags: [review, re-review]
 runs: 3
 max_turns: 14
 timeout_seconds: 300
-allowed_tools: [Read, Grep, Glob, Skill, "Bash(git diff:*)", "Bash(git rev-parse:*)"]
+allowed_tools: [Read, Grep, Glob, Skill, "Bash(git diff:*)", "Bash(git rev-parse:*)", "Bash(git ls-files:*)"]
 ---
 I fixed some of the findings from the earlier review. Here is that report:
 

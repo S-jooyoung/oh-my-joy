@@ -132,6 +132,37 @@ describe('portable planning and goal workflow', () => {
     assert.doesNotMatch(readRepoFile('commands/deep-interview.md'), /never a batch/);
   });
 
+  it('review blind spots, live test evidence, final proof reuse, and interview residual gaps are pinned in bodies and adapters', () => {
+    const diffRules = ['committed secret', 'callers outside the diff', '`unreached code`'];
+    const pins = {
+      'agents/critic.md': [...diffRules, 'Plan constraints', "in any environment where the plan's verification or the repository's CI runs", 'a quoted Constraint'],
+      'commands/review.md': [...diffRules, 'Plan constraints', "in any environment where the plan's verification or the repository's CI runs", 'a quoted Constraint', 'git ls-files --others --exclude-standard'],
+      'skills/critic/SKILL.md': diffRules,
+      'skills/review/SKILL.md': [...diffRules, 'git ls-files --others --exclude-standard'],
+      'commands/verify.md': ['zero tests'],
+      'skills/verify/SKILL.md': ['zero tests'],
+      'commands/ship.md': ['zero tests'],
+      'skills/ship/SKILL.md': ['zero tests'],
+      'agents/implementer.md': ['zero tests'],
+      'skills/implementer/SKILL.md': ['zero tests'],
+      'commands/ralplan.md': ['how the shipped change can fail', 'the violation each must catch', '`Residual gaps`', 'no safe default'],
+      'skills/ralplan/SKILL.md': ['how the shipped change can fail', 'violation each must catch', 'Residual gaps'],
+      'commands/deep-interview.md': ['two plausible answers', '`Residual gaps`'],
+      'skills/deep-interview/SKILL.md': ['two plausible answers', 'Residual gaps'],
+      'commands/ultragoal.md': ['reuse:true', '`reused`', '`excerpt`', 'checkpoint, not a report', 'zero tests', 'Constraints and Non-goals'],
+      'skills/ultragoal/SKILL.md': ['reuse:true', '/goal clear', 'zero tests'],
+      'docs/EXECUTION-HANDOFF.md': ['/goal clear', 'reuse:true', 'zero tests'],
+      'docs/CODEX-SETUP.md': ['by its position'],
+      'skills/setup/SKILL.md': ['position'],
+    };
+    for (const [file, phrases] of Object.entries(pins)) {
+      const body = readRepoFile(file);
+      for (const phrase of phrases) assert.ok(body.includes(phrase), `${file} pins "${phrase}"`);
+    }
+    assert.doesNotMatch(readRepoFile('skills/deep-interview/SKILL.md'), /stop and report residual ambiguity/);
+    assert.match(parseFrontmatter(readRepoFile('commands/review.md'))['allowed-tools'], /Bash\(git ls-files:\*\)/);
+  });
+
   it('execution does not pre-approve arbitrary checks through its state helper', () => {
     const tools = parseFrontmatter(readRepoFile('commands/ultragoal.md'))['allowed-tools'];
     assert.doesNotMatch(tools, /Bash\(node [^)]*goal-state\.mjs:\*\)/);

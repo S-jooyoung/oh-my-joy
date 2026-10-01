@@ -16,7 +16,7 @@ Turn a vague idea into verifiable requirements without implementing it. This is 
 ## Codex tool mapping
 
 - Use repository search/read tools (`rg`, `rg --files`, and file reads) for brownfield facts. Ask nothing the repository already answers.
-- Use Codex structured user input when it is available. Ask one material question per round, or up to three in the same structured request when each targets a different component × dimension pair and no answer could change another, with mutually exclusive choices and free-form input. If structured input is unavailable, ask one concise plain-text question and end the turn.
+- Use Codex structured user input when it is available. Ask only when two plausible answers would change the requirements differently (scope, an acceptance criterion, or a constraint); otherwise record the likely answer as an exposed assumption. Ask one material question per round, or up to three in the same structured request when each targets a different component × dimension pair and no answer could change another, with mutually exclusive choices and free-form input. If structured input is unavailable, ask one concise plain-text question and end the turn.
 - Invoke the installed `oh-my-joy:ralplan` skill automatically at the exit bridge. Do not ask a final routing question or require the user to repeat the command. If invocation is unavailable, read and perform the canonical ralplan workflow in the current context.
 - Do not edit files, apply patches, run side-effectful commands, or spawn implementation agents.
 
@@ -28,6 +28,6 @@ Requirements are not an implementation plan. `ralplan` always owns planning and 
 
 - If repository tools are unavailable, continue as a greenfield interview and label repository context as unverified.
 - If the session cannot invoke or read the planner, print the exact `$oh-my-joy:ralplan` invocation.
-- At round 20, stop and report residual ambiguity rather than extending the interview.
+- An early exit after round 3 or the round-20 cap goes through the exit bridge with the restated goal and a Residual gaps row naming each open gap, rather than extending the interview; an explicit stop ends without a handoff.
 
 Use `$oh-my-joy:deep-interview <idea> [--threshold N]`. Empty input prints usage and stops.

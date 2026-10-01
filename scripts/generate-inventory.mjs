@@ -20,9 +20,9 @@
  */
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 const EXCLUDED_DIRS = new Set(['.git', 'node_modules', '.omc', '.omj', '.omx']);
 const EXCLUDED_FILES = new Set(['.DS_Store']);
@@ -87,4 +87,12 @@ function main() {
   process.stdout.write(`${JSON.stringify(buildInventory(root, files), null, 2)}\n`);
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) main();
+function invokedDirectly() {
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (invokedDirectly()) main();
