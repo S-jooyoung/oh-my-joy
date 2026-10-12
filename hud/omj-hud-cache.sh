@@ -8,6 +8,37 @@
 # shell read + cat of the last rendered line. A single background Node refresh
 # updates the session-scoped cache for the next frame.
 
+# Fast path: read stdin and check cache before expensive file/lock operations.
+fp_in=
+fp_min=${OMJ_HUD_MIN_REFRESH_SECONDS:-15}
+if [ "$fp_min" -gt 0 ] 2>/dev/null; then
+  fp_nl='
+'
+  while IFS= read -r fp_l; do fp_in=$fp_in$fp_l$fp_nl; done
+  fp_in=$fp_in$fp_l
+  fp_id=
+  case $fp_in in
+    *\"session_id\":\"*)
+      fp_id=${fp_in##*\"session_id\":\"}
+      fp_id=${fp_id%%\"*}
+      case $fp_id in *[!A-Za-z0-9_.-]*) fp_id= ;; esac ;;
+  esac
+  if [ -n "$fp_id" ]; then
+    case $0 in */*) fp_dir=${0%/*} ;; *) fp_dir=. ;; esac
+    fp_out=${OMJ_HUD_CACHE_DIR:-${CLAUDE_CONFIG_DIR:-$fp_dir/..}/.omj-hud-cache}/statusline.$fp_id.txt
+    if [ -s "$fp_out" ]; then
+      fp_mt=$(stat -c %Y "$fp_out" 2>/dev/null || stat -f %m "$fp_out" 2>/dev/null)
+      fp_now=$(date +%s 2>/dev/null)
+      if [ "${fp_mt:-0}" -gt 0 ] 2>/dev/null && [ "${fp_now:-0}" -gt 0 ] 2>/dev/null \
+        && [ $((fp_now - fp_mt)) -lt "$fp_min" ]; then
+        if { while IFS= read -r fp_l; do printf '%s\n' "$fp_l"; done; printf '%s' "$fp_l"; } < "$fp_out"; then
+          exit 0
+        fi
+      fi
+    fi
+  fi
+fi
+
 case "$0" in
   */*) SCRIPT_DIR=${0%/*} ;;
   *) SCRIPT_DIR=. ;;
@@ -18,6 +49,14 @@ CACHE_DIR=${OMJ_HUD_CACHE_DIR:-"$CONFIG_DIR/.omj-hud-cache"}
 HUD_SCRIPT=${1:-"$SCRIPT_DIR/omj-hud.mjs"}
 INPUT_TMP="$CACHE_DIR/stdin.$$.tmp"
 LOCK_STALE_SECONDS=${OMJ_HUD_LOCK_STALE_SECONDS:-10}
+# A live owner pid keeps a lock only up to this age, so a hung render cannot hold it forever.
+LOCK_MAX_SECONDS=${OMJ_HUD_LOCK_MAX_SECONDS:-300}
+CACHE_TTL_SECONDS=${OMJ_HUD_CACHE_TTL_SECONDS:-604800}
+# Global cleanup is a whole-directory sweep shared by every session, so it runs on an
+# interval instead of on every render. 0 forces a sweep (used by the tests).
+SWEEP_INTERVAL_SECONDS=${OMJ_HUD_SWEEP_INTERVAL_SECONDS:-300}
+SWEEP_STAMP="$CACHE_DIR/sweep.stamp"
+SWEEP_LOCK="$CACHE_DIR/sweep.lock"
 
 mkdir -p "$CACHE_DIR" 2>/dev/null || {
   printf '[OMJ] Starting...\n'
@@ -35,36 +74,195 @@ file_mtime() {
 
 is_stale_path() {
   path=$1
+  max_age=${2:-$LOCK_STALE_SECONDS}
   now=$(date +%s 2>/dev/null || printf '0')
   path_mtime=$(file_mtime "$path")
   [ -n "$path_mtime" ] || return 1
   [ "$now" -gt 0 ] || return 1
-  [ $((now - path_mtime)) -gt "$LOCK_STALE_SECONDS" ] || return 1
+  [ $((now - path_mtime)) -gt "$max_age" ] || return 1
 }
 
-cleanup_empty_temp_files() {
-  for temp_path in "$CACHE_DIR"/stdin.*.tmp "$CACHE_DIR"/statusline.*.tmp "$CACHE_DIR"/statusline.*.err; do
+is_numeric_pid() {
+  case "$1" in
+    ''|*[!0-9]*) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+is_pid_alive() {
+  pid=$1
+  is_numeric_pid "$pid" || return 1
+  if kill -0 "$pid" 2>/dev/null; then
+    return 0
+  fi
+  if command -v ps >/dev/null 2>&1; then
+    ps -p "$pid" >/dev/null 2>&1 && return 0
+  fi
+  return 1
+}
+
+read_lock_pid() {
+  lock_path=$1
+  if [ -f "$lock_path/pid" ]; then
+    awk 'NR==1{print $1}' "$lock_path/pid" 2>/dev/null | tr -d '\r\n'
+    return 0
+  fi
+  if [ -f "$lock_path" ] && [ ! -d "$lock_path" ]; then
+    awk 'NR==1{print $1}' "$lock_path" 2>/dev/null | tr -d '\r\n'
+  fi
+}
+
+is_lock_stale() {
+  lock_path=$1
+  if [ ! -e "$lock_path" ]; then
+    return 1
+  fi
+  lock_pid=$(read_lock_pid "$lock_path")
+  if [ -n "$lock_pid" ]; then
+    if is_numeric_pid "$lock_pid"; then
+      if is_pid_alive "$lock_pid"; then
+        is_stale_path "$lock_path" "$LOCK_MAX_SECONDS" || return 1
+        return 0
+      fi
+      is_stale_path "$lock_path" || return 1
+      return 0
+    fi
+    is_stale_path "$lock_path" || return 1
+    return 0
+  fi
+  is_stale_path "$lock_path"
+}
+
+write_lock_pid() {
+  lock_path=$1
+  printf '%s\n' "$$" > "$lock_path/pid" 2>/dev/null || :
+}
+
+acquire_lock_owned() {
+  lock_path=$1
+  if mkdir "$lock_path" 2>/dev/null; then
+    write_lock_pid "$lock_path"
+    return 0
+  fi
+  return 1
+}
+
+release_lock_if_owned() {
+  lock_path=$1
+  owner_pid=$2
+  if [ ! -d "$lock_path" ]; then
+    return 0
+  fi
+  current_pid=$(read_lock_pid "$lock_path")
+  if [ -n "$current_pid" ] && [ -n "$owner_pid" ]; then
+    if [ "$current_pid" = "$owner_pid" ]; then
+      rm -rf "$lock_path" 2>/dev/null || :
+      return 0
+    fi
+    return 0
+  fi
+  if [ -z "$current_pid" ]; then
+    if [ -n "$owner_pid" ]; then
+      return 0
+    fi
+    if is_stale_path "$lock_path"; then
+      rm -rf "$lock_path" 2>/dev/null || :
+    fi
+  fi
+}
+
+# Temp files are named stdin.<pid>.tmp and statusline.<key>.<pid>.tmp|.err: the field
+# before the extension is the writing shell's pid. A live writer keeps its file whatever
+# its age; a non-numeric field falls back to the age rule alone.
+is_orphan_temp_file() {
+  temp_owner=${1##*/}
+  temp_owner=${temp_owner%.*}
+  temp_owner=${temp_owner##*.}
+  is_pid_alive "$temp_owner" && return 1
+  is_stale_path "$1"
+}
+
+cleanup_stale_temp_files() {
+  for temp_path in "$CACHE_DIR"/stdin.*.tmp "$CACHE_DIR"/statusline.*.tmp; do
     [ -f "$temp_path" ] || continue
-    [ -s "$temp_path" ] && continue
-    is_stale_path "$temp_path" || continue
+    is_orphan_temp_file "$temp_path" || continue
     rm -f "$temp_path" 2>/dev/null || :
+  done
+}
+
+cleanup_stale_err_files() {
+  for err_path in "$CACHE_DIR"/statusline.*.err; do
+    [ -f "$err_path" ] || continue
+    is_orphan_temp_file "$err_path" || continue
+    rm -f "$err_path" 2>/dev/null || :
   done
 }
 
 cleanup_stale_render_locks() {
   for stale_lock_dir in "$CACHE_DIR"/render.*.lock; do
     [ -d "$stale_lock_dir" ] || continue
-    is_stale_path "$stale_lock_dir" || continue
+    is_lock_stale "$stale_lock_dir" || continue
     rm -rf "$stale_lock_dir" 2>/dev/null || :
   done
 }
 
-cleanup_empty_temp_files
-cleanup_stale_render_locks
+# One find invocation per name pattern instead of date+stat+head per file. The session
+# caches carry no pid-aware or ownership semantics, only the TTL, so age is the whole
+# predicate and find can evaluate it without spawning anything per file. Temp files are
+# included as the backstop for one whose pid was reused by an unrelated live process.
+cleanup_stale_session_caches() {
+  ttl_minutes=$((CACHE_TTL_SECONDS / 60))
+  [ "$ttl_minutes" -ge 1 ] || ttl_minutes=1
+  find "$CACHE_DIR" -maxdepth 1 -type f \
+    \( -name 'stdin.*.json' -o -name 'statusline.*.txt' -o -name 'stderr.*.log' \
+    -o -name 'stdin.*.tmp' -o -name 'statusline.*.tmp' -o -name 'statusline.*.err' \) \
+    -mmin +"$ttl_minutes" -exec rm -f {} + 2>/dev/null || :
+}
+
+# True when the shared sweep stamp is younger than the interval, i.e. another session
+# already swept recently and this render must not repeat the whole-directory scan.
+sweep_is_fresh() {
+  [ "$SWEEP_INTERVAL_SECONDS" -gt 0 ] 2>/dev/null || return 1
+  [ -f "$SWEEP_STAMP" ] || return 1
+  now=$(date +%s 2>/dev/null || printf '0')
+  [ "$now" -gt 0 ] || return 1
+  stamp_mtime=$(file_mtime "$SWEEP_STAMP")
+  [ -n "$stamp_mtime" ] || return 1
+  [ $((now - stamp_mtime)) -lt "$SWEEP_INTERVAL_SECONDS" ]
+}
+
+# Interval-gated and mutually exclusive across concurrent wrappers: overlapping renders
+# used to run the same sweep simultaneously, which is what made a dozen wrappers pile up.
+run_global_cleanup() {
+  sweep_is_fresh && return 0
+  if [ "$SWEEP_INTERVAL_SECONDS" -gt 0 ] 2>/dev/null; then
+    acquire_lock_owned "$SWEEP_LOCK" || {
+      is_lock_stale "$SWEEP_LOCK" || return 0
+      rm -rf "$SWEEP_LOCK" 2>/dev/null || :
+      acquire_lock_owned "$SWEEP_LOCK" || return 0
+    }
+    # Stamp before sweeping so a crash mid-sweep still backs off instead of hot-looping.
+    : > "$SWEEP_STAMP" 2>/dev/null || :
+  fi
+
+  cleanup_stale_temp_files
+  cleanup_stale_err_files
+  cleanup_stale_render_locks
+  cleanup_stale_session_caches
+
+  [ "$SWEEP_INTERVAL_SECONDS" -gt 0 ] 2>/dev/null && rm -rf "$SWEEP_LOCK" 2>/dev/null
+  return 0
+}
+
+run_global_cleanup
 
 # Capture Claude's current statusLine stdin first so rendered output can be
 # scoped per session/worktree instead of leaking across concurrent sessions.
-cat > "$INPUT_TMP" 2>/dev/null || :
+if [ -n "$fp_in" ]; then
+  printf '%s' "$fp_in" > "$INPUT_TMP" 2>/dev/null || :
+else
+  cat > "$INPUT_TMP" 2>/dev/null || :
+fi
 
 extract_json_string() {
   key=$1
@@ -99,8 +297,7 @@ SESSION_KEY=$(printf '%s' "$SESSION_KEY" | sed 's/[^A-Za-z0-9_.-]/_/g')
 INPUT_FILE="$CACHE_DIR/stdin.$SESSION_KEY.json"
 OUTPUT_FILE="$CACHE_DIR/statusline.$SESSION_KEY.txt"
 LOCK_DIR="$CACHE_DIR/render.$SESSION_KEY.lock"
-NODE_STDOUT_TMP="$CACHE_DIR/statusline.$SESSION_KEY.$$.tmp"
-NODE_STDERR_TMP="$CACHE_DIR/statusline.$SESSION_KEY.$$.err"
+STDERR_LOG="$CACHE_DIR/stderr.$SESSION_KEY.log"
 
 if [ -s "$INPUT_TMP" ]; then
   mv "$INPUT_TMP" "$INPUT_FILE" 2>/dev/null || cp "$INPUT_TMP" "$INPUT_FILE" 2>/dev/null || :
@@ -108,24 +305,38 @@ fi
 rm -f "$INPUT_TMP" 2>/dev/null || :
 
 try_acquire_lock() {
-  if mkdir "$LOCK_DIR" 2>/dev/null; then
+  if acquire_lock_owned "$LOCK_DIR"; then
     return 0
   fi
   if [ ! -d "$LOCK_DIR" ]; then
     return 1
   fi
-  is_stale_path "$LOCK_DIR" || return 1
+  is_lock_stale "$LOCK_DIR" || return 1
   rm -rf "$LOCK_DIR" 2>/dev/null || :
-  mkdir "$LOCK_DIR" 2>/dev/null
+  acquire_lock_owned "$LOCK_DIR"
 }
 
 refresh_cache() {
+  # $$ stays the parent wrapper's pid inside the background subshell, and that wrapper
+  # exits right away; the child's PPID is the shell actually running this render.
+  REFRESH_PID=$(exec sh -c 'echo "$PPID"')
+  NODE_STDOUT_TMP="$CACHE_DIR/statusline.$SESSION_KEY.$REFRESH_PID.tmp"
+  NODE_STDERR_TMP="$CACHE_DIR/statusline.$SESSION_KEY.$REFRESH_PID.err"
+  RENDER_OK=0
+  if [ -d "$LOCK_DIR" ]; then
+    printf '%s\n' "$REFRESH_PID" > "$LOCK_DIR/pid" 2>/dev/null || :
+  fi
+
+  # stderr.<key>.log holds the latest render that wrote stderr; a later render that
+  # succeeds without stderr removes it, and a render with neither leaves it alone.
   cleanup_refresh_artifacts() {
-    rm -f "$NODE_STDOUT_TMP" 2>/dev/null || :
-    if [ ! -s "$NODE_STDERR_TMP" ]; then
-      rm -f "$NODE_STDERR_TMP" 2>/dev/null || :
+    if [ -s "$NODE_STDERR_TMP" ]; then
+      mv -f "$NODE_STDERR_TMP" "$STDERR_LOG" 2>/dev/null || :
+    elif [ "$RENDER_OK" = 1 ]; then
+      rm -f "$STDERR_LOG" 2>/dev/null || :
     fi
-    rm -rf "$LOCK_DIR" 2>/dev/null || :
+    rm -f "$NODE_STDOUT_TMP" "$NODE_STDERR_TMP" 2>/dev/null || :
+    release_lock_if_owned "$LOCK_DIR" "$REFRESH_PID"
   }
 
   trap 'cleanup_refresh_artifacts' EXIT
@@ -145,17 +356,26 @@ refresh_cache() {
   # Keep the last good line if rendering fails or returns empty output.
   if [ -s "$NODE_STDOUT_TMP" ]; then
     mv "$NODE_STDOUT_TMP" "$OUTPUT_FILE" 2>/dev/null || cp "$NODE_STDOUT_TMP" "$OUTPUT_FILE" 2>/dev/null || :
+    RENDER_OK=1
   fi
 
-  rm -f "$NODE_STDOUT_TMP" "$NODE_STDERR_TMP" 2>/dev/null || :
-  rm -rf "$LOCK_DIR" 2>/dev/null || :
+  cleanup_refresh_artifacts
   trap - EXIT HUP INT TERM
 }
 
 # Hot path: return immediately from the last successful render for this session.
 if [ -s "$OUTPUT_FILE" ]; then
   cat "$OUTPUT_FILE" 2>/dev/null || printf '[OMJ] Starting...\n'
-  # Refresh in background for the next frame.
+
+  # Skip refresh if cache is younger than the minimum refresh age.
+  min_age=${OMJ_HUD_MIN_REFRESH_SECONDS:-15}
+  now=$(date +%s 2>/dev/null || printf '0')
+  out_mtime=$(file_mtime "$OUTPUT_FILE")
+  if [ "$min_age" -gt 0 ] 2>/dev/null && [ "$now" -gt 0 ] && [ -n "$out_mtime" ] \
+    && [ $((now - out_mtime)) -lt "$min_age" ]; then
+    exit 0
+  fi
+
   if try_acquire_lock; then
     if [ "${OMJ_HUD_SYNC_REFRESH:-0}" = "1" ]; then
       refresh_cache
@@ -166,10 +386,6 @@ if [ -s "$OUTPUT_FILE" ]; then
   exit 0
 fi
 
-# First render for this session: do a synchronous refresh so the user
-# sees the real HUD from the first frame. Claude Code v2.1.x does not
-# re-poll the statusLine until user interaction, so an async background
-# refresh leaves the pane stuck on "[OMJ] Starting..." until they type.
 if [ -s "$INPUT_FILE" ] && try_acquire_lock; then
   refresh_cache
   if [ -s "$OUTPUT_FILE" ]; then

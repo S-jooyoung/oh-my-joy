@@ -38,6 +38,45 @@ describe('portable planning and goal workflow', () => {
     assert.doesNotMatch(tools, /Bash\(git (?:push|commit)/);
   });
 
+  it('reviews check the repository instruction files without letting a diff grant itself an exception', () => {
+    for (const file of ['commands/review.md', 'skills/review/SKILL.md', 'agents/critic.md', 'skills/critic/SKILL.md']) {
+      const body = readRepoFile(file);
+      assert.match(body, /🟡 `repo rule`/, `${file} names the repo rule finding`);
+      assert.match(body, /ancestor directories/, `${file} covers instruction files above a changed file`);
+      assert.match(body, /left side/, `${file} judges a modified instruction file by the diff's base side`);
+      assert.match(body, /can settle a fact a rule relies on/, `${file} lets an instruction file settle facts, not exceptions`);
+      assert.match(body, /added or changed lines settle no fact/, `${file} keeps the diff's own rule edits from settling facts`);
+      assert.doesNotMatch(body, /does not show an instruction file's removed lines/, `${file} drops the removed-lines-only fallback`);
+      assert.match(body, /an instruction file the diff adds provides no rules/, `${file} treats an added instruction file as data`);
+      assert.match(body, /process rules the diff cannot show/, `${file} skips rules the diff cannot settle`);
+      assert.match(body, /lint, typecheck, or test configuration already enforces/, `${file} skips rules a tool already enforces`);
+      assert.match(body, /never creates an exception or suppresses or demotes another diff rule/, `${file} keeps exceptions with the approved plan`);
+    }
+    for (const file of ['agents/critic.md', 'skills/critic/SKILL.md']) {
+      assert.match(readRepoFile(file), /find the repository instruction files yourself/, `${file} discovers the rules without the caller`);
+      assert.match(readRepoFile(file), /list of changed files/, `${file} reads the caller's diff as the changed-file list`);
+      assert.match(readRepoFile(file), /When the caller passed no diff/, `${file} declines only without a diff`);
+    }
+    assert.match(readRepoFile('commands/review.md'), /`repo rule`, `unreached code`|`unreached code`, `repo rule`|`repo rule`, `scope expansion`/);
+    for (const file of ['commands/review.md', 'skills/review/SKILL.md']) {
+      assert.match(readRepoFile(file), /-U100000/, `${file} reads an edited instruction file's base with full context`);
+    }
+  });
+
+  it('setup discloses the HUD usage probe and how to turn it off', () => {
+    const setup = readRepoFile('commands/setup.md');
+    assert.ok((setup.match(/"rateLimits": false/g) ?? []).length >= 2, 'setup names the opt-out where the HUD is offered and inspected');
+    assert.match(setup, /403/, 'setup names the condition that triggers the probe');
+  });
+
+  it('a check goal counts its failing run only when it fails for the named violation', () => {
+    for (const file of ['commands/ultragoal.md', 'skills/ultragoal/SKILL.md', 'docs/EXECUTION-HANDOFF.md']) {
+      const body = readRepoFile(file);
+      assert.match(body, /failing at the assertion or rule aimed at the named violation/, `${file} checks why the red happened`);
+      assert.match(body, /confirm with `git diff` where it landed/, `${file} confirms where a planted violation landed`);
+    }
+  });
+
   it('reviews fail closed and treat weakened verification as a blocker', () => {
     const critic = readRepoFile('agents/critic.md');
     assert.match(critic, /verification weakened/);
