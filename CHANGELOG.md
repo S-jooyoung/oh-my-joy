@@ -10,13 +10,23 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+- Eval case `review-repo-rules` with the `review-rules-base` and `review-rules-changes` fixtures: a rule in `src/AGENTS.md` broken by an epoch timestamp, an exception the diff adds to that file, and an ISO timestamp as the clean control.
+
 ### Changed
+
+- `review` and the `critic` diff rules check the diff against the repository's instruction files (`CLAUDE.md` and `AGENTS.md` at the root and above each changed file, plus `.omj/fe-context.md` and its `contextDocs`) and report a broken rule as a 🟡 `repo rule` that quotes it. The reviewer finds the files itself, so goal and final reviews in `ultragoal` apply them too; process rules and tool-enforced rules are skipped; an instruction file can settle a fact a rule relies on (intended console output is not debug output) but never grants an exception, suppresses or demotes another finding, or waives a 🔴 rule; an edited rule file is judged by the diff's base side (`review` rereads it with `git diff -U100000`, the critic reads the caller's diff as the changed-file list) with the relaxation reported, and a rule file the diff adds provides no rules; a critic given no diff declines to judge the instruction files.
+- `ultragoal`: a goal that adds a check counts its failing run only when the output shows the check failing at the assertion or rule aimed at the named violation; a planted violation is anchored on unique text and confirmed with `git diff` before the run.
+- The vendored HUD is regenerated from the latest upstream release with the same rebrand list (11 display and install-check lines, now listed in `hud/README.md` with the esbuild version, 0.27.2, and the reproduction procedure). The cache wrapper ports the upstream stdin fast path, pid-owned locks, and interval-gated cache sweep under `OMJ_HUD_*` names. `hud/README.md` records the release's new side effects: when the usage endpoint answers 403, a one-token rate-limit request (at most once per usage poll window, default 90 s, and off with `rateLimits: false`); `CLAUDE_CODE_OAUTH_TOKEN` as a credential source; an optional `better-sqlite3` load; and HUD state outside a git repository moving to `~/.omc/state/`. Rerun `/oh-my-joy:setup` to update the installed HUD copy.
+- `setup` names the HUD's usage request on a 403 and its `"rateLimits": false` opt-out in the inspection row, the install option, and the update notice, and `--check` says it during inspection.
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
+
+- HUD cache wrapper: the render lock and temp files record the pid of the shell actually running the render, not the wrapper that exits at once; the cache sweep skips temp files whose writer is still alive, so a slow render's output is no longer deleted mid-write; a lock held by a live pid is reclaimed after `OMJ_HUD_LOCK_MAX_SECONDS` (default 300), so a hung render cannot block refreshes forever; a failing render's stderr is kept in `stderr.<key>.log` until the next clean successful render; the 7-day TTL also covers leftover temp files and stderr logs. `hud/README.md` corrects the version-label and `CLAUDE_CONFIG_DIR` diagnostic-path limitations and lists the local wrapper changes to keep when re-porting. New test file `tests/hud-cache-wrapper.test.mjs` runs these cases under `sh` and `dash`.
+- The HUD diagnostic (run with empty stdin) checks the path setup installs, `~/.claude/omj-hud/omj-hud.mjs`, so an installed HUD no longer reports `HUD script: MISSING`.
 
 ### Security
 

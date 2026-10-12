@@ -31,13 +31,13 @@ Detect each item and print a table with present / missing / optional:
 | `.omj/fe-context.md` | project acceptance, token, verification declarations | `test -f .omj/fe-context.md` — optional; scaffolding proposed below |
 | Token store | target of `/oh-my-joy:sync` | detect in the order of `references/fe-acceptance.md` (fe-context `tokensPath` → `shared/tokens/tokens.json` → CSS-based systems). Only `/oh-my-joy:sync` needs a file store; `/oh-my-joy:ralplan` works without one |
 | Token-guard hooks (opt-in) | on-save hardcoding and Story warnings | `.claude/hooks/check-design-tokens.mjs` exists in the project |
-| OMJ HUD statusline (opt-in) | model, usage, and context statusLine (user-global) | `grep omj-hud ~/.claude/settings.json` |
+| OMJ HUD statusline (opt-in) | model, usage, and context statusLine (user-global); when the usage endpoint answers 403 it sends a one-token model request about every 90 seconds that counts against your usage, off with `"omcHud": {"elements": {"rateLimits": false}}` in `~/.claude/settings.json` | `grep omj-hud ~/.claude/settings.json` |
 
-Figma needs more than the plugin: Dev Mode MCP has to be enabled in the Figma desktop app, and viewer-permission files deny access, so a Duplicate is needed — say so during inspection. If the `claude` CLI is unavailable, skip detection and point to `/mcp` and `/plugin` for manual checks.
+Figma needs more than the plugin: Dev Mode MCP has to be enabled in the Figma desktop app, and viewer-permission files deny access, so a Duplicate is needed — say so during inspection. Say the HUD row's usage note during inspection as well, since the request it describes spends the user's quota. If the `claude` CLI is unavailable, skip detection and point to `/mcp` and `/plugin` for manual checks.
 
 ## Step 2 — Install and scaffold (missing items, not with `--check`)
 
-Gather the missing items into one `AskUserQuestion` (multiSelect) — "pick the items to install or create now" — bundling dependencies and scaffolding into at most two questions and never repeating per-item prompts. Execute only the selected items; for the rest, print the manual commands.
+Gather the missing items into one `AskUserQuestion` (multiSelect) — "pick the items to install or create now" — bundling dependencies and scaffolding into at most two questions and never repeating per-item prompts. The HUD option's description carries the usage note from its inspection row, because selecting it is the consent. Execute only the selected items; for the rest, print the manual commands.
 
 - Figma MCP → `claude plugin install figma@claude-plugins-official`, plus "enable Dev Mode MCP in the Figma desktop app".
 - Context7 → `claude plugin install context7-plugin@context7-marketplace`.
@@ -56,7 +56,7 @@ Gather the missing items into one `AskUserQuestion` (multiSelect) — "pick the 
   1. `mkdir -p ~/.claude/omj-hud && cp -R "${CLAUDE_PLUGIN_ROOT}/hud/". ~/.claude/omj-hud/` (a copy, for the same reasons as the hooks).
   2. `Edit` `~/.claude/settings.json` to set `statusLine` to `{"type": "command", "command": "sh ~/.claude/omj-hud/omj-hud-cache.sh ~/.claude/omj-hud/omj-hud.mjs"}`; warn before overwriting an existing custom statusLine.
   3. Smoke-check by piping `{"session_id":"setup-check"}` into `sh ~/.claude/omj-hud/omj-hud-cache.sh ~/.claude/omj-hud/omj-hud.mjs` and confirming a rendered line.
-  4. On rerun, if `${CLAUDE_PLUGIN_ROOT}/hud/` differs from the copy (`diff -r`), announce "HUD update available" and overwrite only on consent. Attribution and limitations: `hud/README.md`, `NOTICE.md`.
+  4. On rerun, if `${CLAUDE_PLUGIN_ROOT}/hud/` differs from the copy (`diff -r`), announce "HUD update available" with the same usage note (a copy from before the 403 request existed does not send it, and `"rateLimits": false` turns it off) and overwrite only on consent. Attribution and limitations: `hud/README.md`, `NOTICE.md`.
 
 Plugin installs and hook registrations take effect from the next session — say so after installing.
 

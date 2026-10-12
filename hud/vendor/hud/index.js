@@ -1,17 +1,19 @@
 #!/usr/bin/env node
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/stdin.js
-import { existsSync as existsSync2, readFileSync as readFileSync2, statSync, writeFileSync as writeFileSync2, mkdirSync as mkdirSync2 } from "fs";
+// v5.6.2/dist/hud/stdin.js
+import { existsSync as existsSync2, readFileSync as readFileSync2, statSync as statSync2, writeFileSync as writeFileSync2, mkdirSync as mkdirSync2 } from "fs";
 import { dirname as dirname2, join as join3 } from "path";
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/lib/worktree-paths.js
+// v5.6.2/dist/lib/worktree-paths.js
 import { createHash } from "crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { execFileSync } from "child_process";
-import { existsSync, mkdirSync, readFileSync, realpathSync, readdirSync, writeFileSync, unlinkSync } from "fs";
+import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, realpathSync, readdirSync, writeFileSync, unlinkSync, statSync } from "fs";
 import { homedir as homedir2, tmpdir } from "os";
 import { resolve, normalize as normalize2, relative, sep as sep2, join as join2, isAbsolute, basename, dirname } from "path";
+import { pathToFileURL } from "url";
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/utils/config-dir.js
+// v5.6.2/dist/utils/config-dir.js
 import { join, normalize, parse, sep } from "path";
 import { homedir } from "os";
 function stripTrailingSep(p) {
@@ -41,12 +43,12 @@ function getUpdateCheckCachePath() {
   return join(getOmcConfigDir(), "update-check.json");
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/utils/encode-project-path.js
+// v5.6.2/dist/utils/encode-project-path.js
 function encodeProjectPath(projectPath) {
   return projectPath.replace(/[^a-zA-Z0-9]/g, "-");
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/lib/worktree-paths.js
+// v5.6.2/dist/lib/worktree-paths.js
 var WORKSPACE_MARKER = ".omc-workspace";
 var OmcPaths = {
   ROOT: ".omc",
@@ -67,8 +69,32 @@ var OmcPaths = {
 };
 var MAX_WORKTREE_CACHE_SIZE = 8;
 var worktreeCacheMap = /* @__PURE__ */ new Map();
-var toplevelCacheMap = /* @__PURE__ */ new Map();
+var gitTopLevelCacheMap = /* @__PURE__ */ new Map();
 var superprojectCacheMap = /* @__PURE__ */ new Map();
+var canonicalWorkingDirectoryRoots = /* @__PURE__ */ new WeakMap();
+var GIT_PROBE_ENVIRONMENT_KEYS = [
+  "PATH",
+  "GIT_DIR",
+  "GIT_WORK_TREE",
+  "GIT_COMMON_DIR",
+  "GIT_EXEC_PATH",
+  "GIT_CEILING_DIRECTORIES",
+  "GIT_DISCOVERY_ACROSS_FILESYSTEM",
+  "GIT_CONFIG_SYSTEM",
+  "GIT_CONFIG_GLOBAL",
+  "GIT_CONFIG_NOSYSTEM",
+  "GIT_CONFIG_COUNT",
+  "GIT_CONFIG_PARAMETERS",
+  "GIT_INDEX_FILE",
+  "HOME",
+  "XDG_CONFIG_HOME"
+];
+var MAX_GIT_MARKER_BYTES = 4096;
+function gitProbeEnvironmentSignature() {
+  const fixedEntries = GIT_PROBE_ENVIRONMENT_KEYS.map((key) => JSON.stringify([key, process.env[key] !== void 0, process.env[key] ?? ""]));
+  const dynamicEntries = Object.keys(process.env).filter((key) => /^GIT_CONFIG_(?:KEY|VALUE)_\d+$/.test(key)).sort().map((key) => JSON.stringify([key, process.env[key] !== void 0, process.env[key] ?? ""]));
+  return [...fixedEntries, ...dynamicEntries].join("\0");
+}
 var workspaceCacheMap = /* @__PURE__ */ new Map();
 function findWorkspaceRoot(startDir) {
   if (process.env.OMC_DISABLE_MULTIREPO === "1")
@@ -141,10 +167,13 @@ function isDefinitiveNonGitError(error) {
 function resolveSuperprojectRoot(cwd) {
   const cacheKey = resolve(cwd);
   if (superprojectCacheMap.has(cacheKey)) {
-    const cached = superprojectCacheMap.get(cacheKey) ?? null;
+    const cached = superprojectCacheMap.get(cacheKey);
+    if (isStateRootCacheEntryValid(cacheKey, cached)) {
+      superprojectCacheMap.delete(cacheKey);
+      superprojectCacheMap.set(cacheKey, cached);
+      return cached.root;
+    }
     superprojectCacheMap.delete(cacheKey);
-    superprojectCacheMap.set(cacheKey, cached);
-    return cached;
   }
   let anchor = null;
   let probeCwd = cacheKey;
@@ -157,7 +186,11 @@ function resolveSuperprojectRoot(cwd) {
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
         windowsHide: true,
-        timeout: 5e3
+        timeout: 5e3,
+        // Force English error text so isDefinitiveNonGitError's stderr match is
+        // locale-independent (localized git output otherwise fails to match
+        // and mis-classifies a plain "not a repository" as a generic failure).
+        env: { ...process.env, LC_ALL: "C" }
       }).trim();
     } catch (error) {
       completed = depth === 0 && isDefinitiveNonGitError(error);
@@ -176,49 +209,588 @@ function resolveSuperprojectRoot(cwd) {
       if (oldest !== void 0)
         superprojectCacheMap.delete(oldest);
     }
-    superprojectCacheMap.set(cacheKey, anchor);
+    superprojectCacheMap.set(cacheKey, createStateRootCacheEntry(cacheKey, anchor));
   }
   return anchor;
+}
+var SENSITIVE_DIR_BASENAMES = /* @__PURE__ */ new Set([
+  ".ssh",
+  ".gnupg",
+  ".aws",
+  ".azure",
+  ".gcloud",
+  ".kube",
+  "ssh",
+  ".pki",
+  ".config",
+  ".claude",
+  ".claude.json",
+  ".codex",
+  ".gemini",
+  ".cursor",
+  ".vscode",
+  ".ollama",
+  ".docker",
+  ".npm",
+  ".cache",
+  ".local",
+  "desktop",
+  "documents",
+  "downloads",
+  "pictures",
+  "photos",
+  "music",
+  "movies",
+  "videos",
+  "public",
+  "library"
+]);
+function sensitiveAbsoluteRoots() {
+  const roots = [];
+  const temp = (() => {
+    try {
+      return resolve(tmpdir());
+    } catch {
+      return null;
+    }
+  })();
+  if (temp)
+    roots.push(temp);
+  if (process.platform === "win32") {
+    const home = (() => {
+      try {
+        return resolve(homedir2());
+      } catch {
+        return null;
+      }
+    })();
+    roots.push("C:\\Windows", "C:\\Program Files", "C:\\Program Files (x86)", "C:\\ProgramData");
+    const drive = (home && /^[a-zA-Z]:/.exec(home))?.[0];
+    if (drive)
+      roots.push(`${drive}\\Windows`, `${drive}\\Program Files`, `${drive}\\Program Files (x86)`, `${drive}\\ProgramData`);
+  } else {
+    roots.push("/var", "/usr", "/etc", "/opt", "/private/var");
+  }
+  return roots;
+}
+function isFilesystemRoot(dir) {
+  return dirname(dir) === dir;
+}
+function isWithinPath(ancestor, candidate) {
+  const rel = relative(ancestor, candidate);
+  return rel === "" || !rel.startsWith(`..${sep2}`) && rel !== ".." && !isAbsolute(rel);
+}
+function isSensitiveStateLocation(dir) {
+  let candidate;
+  try {
+    candidate = resolve(dir);
+    try {
+      candidate = realpathSync(candidate);
+    } catch {
+    }
+  } catch {
+    return true;
+  }
+  const home = (() => {
+    try {
+      const path3 = resolve(homedir2());
+      try {
+        return realpathSync(path3);
+      } catch {
+        return path3;
+      }
+    } catch {
+      return null;
+    }
+  })();
+  let cursor = candidate;
+  for (; ; ) {
+    const name = basename(cursor);
+    const lowerName = name.toLowerCase();
+    if (home && cursor === candidate && (cursor === home || process.platform === "win32" && cursor.toLowerCase() === home.toLowerCase()))
+      return true;
+    if (name.startsWith(".") && name !== OmcPaths.ROOT)
+      return true;
+    if (SENSITIVE_DIR_BASENAMES.has(lowerName))
+      return true;
+    if (isFilesystemRoot(cursor))
+      break;
+    cursor = dirname(cursor);
+  }
+  if (candidate === "/tmp" || candidate === "/private/tmp")
+    return true;
+  if (isFilesystemRoot(candidate))
+    return true;
+  return sensitiveAbsoluteRoots().some((root) => {
+    const normalizedCandidate = process.platform === "win32" ? candidate.toLowerCase() : candidate;
+    let canonicalRoot = root;
+    try {
+      canonicalRoot = realpathSync(root);
+    } catch {
+    }
+    const normalizedRoot = process.platform === "win32" ? canonicalRoot.toLowerCase() : canonicalRoot;
+    return normalizedCandidate === normalizedRoot || isWithinPath(normalizedRoot, normalizedCandidate);
+  });
+}
+function resolveNonGitFallbackRoot() {
+  const home = resolve(homedir2());
+  if (isFilesystemRoot(home)) {
+    throw new Error("Cannot resolve a safe non-git OMC state root: home resolves to the filesystem root.");
+  }
+  return home;
+}
+function resolveNonGitStateAnchor(startDir) {
+  try {
+    const current = resolve(startDir || process.cwd());
+    const workspaceRoot = findWorkspaceRoot(current);
+    if (workspaceRoot && !isSensitiveStateLocation(workspaceRoot))
+      return workspaceRoot;
+    if (isSensitiveStateLocation(current))
+      return resolveNonGitFallbackRoot();
+    return resolveNonGitFallbackRoot();
+  } catch {
+    return resolveNonGitFallbackRoot();
+  }
 }
 function resolveStateAnchorRoot(worktreeRoot) {
   if (worktreeRoot)
     return resolveSuperprojectRoot(worktreeRoot) || worktreeRoot;
-  return getWorktreeRoot() || process.cwd();
+  return getWorktreeRoot() || resolveNonGitStateAnchor();
 }
-function getGitTopLevel(cwd) {
-  const effectiveCwd = cwd || process.cwd();
-  if (toplevelCacheMap.has(effectiveCwd)) {
-    const root = toplevelCacheMap.get(effectiveCwd);
-    toplevelCacheMap.delete(effectiveCwd);
-    toplevelCacheMap.set(effectiveCwd, root);
-    return root || null;
+var worktreePathRenderScope = new AsyncLocalStorage();
+var projectIdentifierOperationScope = new AsyncLocalStorage();
+function withWorktreePathRenderScope(fn) {
+  return worktreePathRenderScope.run({ gitTopLevelProbes: /* @__PURE__ */ new Map(), projectIdentifiers: /* @__PURE__ */ new Map() }, fn);
+}
+var gitShowToplevelProbeForTests;
+function gitErrorStderr(error) {
+  if (!error || typeof error !== "object") {
+    return "";
   }
-  try {
-    const root = execFileSync("git", ["rev-parse", "--show-toplevel"], {
-      cwd: effectiveCwd,
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-      windowsHide: true,
-      timeout: 5e3
-    }).trim();
-    if (toplevelCacheMap.size >= MAX_WORKTREE_CACHE_SIZE) {
-      const oldest = toplevelCacheMap.keys().next().value;
-      if (oldest !== void 0)
-        toplevelCacheMap.delete(oldest);
+  const err = error;
+  if (Buffer.isBuffer(err.stderr)) {
+    return err.stderr.toString("utf8");
+  }
+  if (typeof err.stderr === "string") {
+    return err.stderr;
+  }
+  return typeof err.message === "string" ? err.message : "";
+}
+function isGitCommandPath(path3) {
+  if (typeof path3 !== "string" || path3.length === 0) {
+    return false;
+  }
+  const base = basename(path3);
+  return base === "git" || base === "git.exe" || base === "git.cmd" || base === "git.bat";
+}
+function isConfirmedGitExecutableNotFound(error) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const err = error;
+  if (err.code !== "ENOENT") {
+    return false;
+  }
+  if (err.killed === true) {
+    return false;
+  }
+  if (typeof err.status === "number") {
+    return false;
+  }
+  if (typeof err.signal === "string" && err.signal.length > 0) {
+    return false;
+  }
+  const syscall = typeof err.syscall === "string" ? err.syscall.toLowerCase() : "";
+  if (!syscall.includes("spawn")) {
+    return false;
+  }
+  return syscall.includes("git") || isGitCommandPath(err.path);
+}
+function isNotAGitRepositoryError(error) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const err = error;
+  if (err.code === "ENOENT" || err.code === "ETIMEDOUT" || err.code === "EACCES") {
+    return false;
+  }
+  if (typeof err.signal === "string" && err.signal.length > 0) {
+    return false;
+  }
+  const stderr = gitErrorStderr(error);
+  return err.status === 128 && /(?:not a git repository|must be run in a work tree)/i.test(stderr);
+}
+function formatGitProbeDetail(error) {
+  if (!error || typeof error !== "object") {
+    return String(error);
+  }
+  const err = error;
+  if (err.code === "ENOENT") {
+    return "git executable not found";
+  }
+  if (err.code === "EACCES") {
+    return "git executable not accessible";
+  }
+  if (err.code === "ETIMEDOUT" || err.killed === true) {
+    return "git probe timed out";
+  }
+  if (typeof err.signal === "string" && err.signal.length > 0) {
+    return `git killed by ${err.signal}`;
+  }
+  const stderr = gitErrorStderr(error).trim();
+  if (stderr.length > 0) {
+    return stderr.split("\n")[0] ?? stderr;
+  }
+  if (typeof err.message === "string" && err.message.length > 0) {
+    return err.message;
+  }
+  if (typeof err.status === "number") {
+    return `git exited ${err.status}`;
+  }
+  return "unknown git probe failure";
+}
+function findGitMetadataDir(start) {
+  let current = start;
+  for (; ; ) {
+    if (existsSync(join2(current, ".git"))) {
+      return current;
     }
-    toplevelCacheMap.set(effectiveCwd, root);
-    return root;
+    const parent = dirname(current);
+    if (parent === current) {
+      return null;
+    }
+    current = parent;
+  }
+}
+function expandPathForCompare(path3) {
+  const normalized = resolve(path3);
+  try {
+    return realpathSync.native(normalized);
+  } catch {
+    try {
+      return realpathSync(normalized);
+    } catch {
+      return null;
+    }
+  }
+}
+function canonicalizeExistingPath(path3) {
+  try {
+    return realpathSync(resolve(path3));
   } catch {
     return null;
   }
 }
+function sameCanonicalPath(left, right) {
+  const a = expandPathForCompare(left);
+  const b = expandPathForCompare(right);
+  if (!a || !b) {
+    return false;
+  }
+  if (a === b) {
+    return true;
+  }
+  if (process.platform !== "win32") {
+    return false;
+  }
+  const fold = (value) => value.replaceAll("/", "\\").toLowerCase();
+  return fold(a) === fold(b);
+}
+function isCredibleGitWorktreeRoot(root) {
+  try {
+    if (!statSync(root).isDirectory()) {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+  const rootReal = canonicalizeExistingPath(root);
+  if (!rootReal) {
+    return false;
+  }
+  const metadataDir = findGitMetadataDir(rootReal);
+  return metadataDir !== null && sameCanonicalPath(metadataDir, rootReal);
+}
+function classifyGitShowToplevelStdout(stdout, cwd) {
+  const root = stdout.trim();
+  if (root.length === 0 || !isAbsolute(root) || !isCredibleGitWorktreeRoot(root)) {
+    return { status: "probe_failed", detail: "malformed git toplevel output" };
+  }
+  const cwdReal = canonicalizeExistingPath(cwd);
+  if (!cwdReal) {
+    return { status: "probe_failed", detail: "malformed git toplevel output" };
+  }
+  const metadataDir = findGitMetadataDir(cwdReal);
+  if (!metadataDir || !sameCanonicalPath(metadataDir, root)) {
+    return { status: "probe_failed", detail: "malformed git toplevel output" };
+  }
+  return { status: "ok", root: canonicalizeExistingPath(metadataDir) ?? metadataDir };
+}
+function classifyGitShowToplevelError(error) {
+  if (isNotAGitRepositoryError(error)) {
+    return { status: "not_a_repository" };
+  }
+  if (isConfirmedGitExecutableNotFound(error)) {
+    return { status: "git_missing" };
+  }
+  return { status: "probe_failed", detail: formatGitProbeDetail(error) };
+}
+function runGitShowToplevel(cwd) {
+  if (gitShowToplevelProbeForTests) {
+    const result = gitShowToplevelProbeForTests(cwd);
+    return Buffer.isBuffer(result) ? result.toString("utf8") : result;
+  }
+  return execFileSync("git", ["rev-parse", "--show-toplevel"], {
+    cwd,
+    encoding: "utf-8",
+    stdio: ["pipe", "pipe", "pipe"],
+    windowsHide: true,
+    timeout: 5e3,
+    // Force English error text so isNotAGitRepositoryError's stderr match is
+    // locale-independent (localized git output otherwise fails to match and
+    // mis-classifies a plain "not a repository" as probe_failed, which then
+    // fails closed and breaks callers such as the HUD statusline).
+    env: { ...process.env, LC_ALL: "C" }
+  });
+}
+function probeGitTopLevel(cwd) {
+  const scope = worktreePathRenderScope.getStore();
+  const scopeKey = scope ? canonicalizeExistingPath(cwd) ?? resolve(cwd) : null;
+  if (scope && scopeKey) {
+    const cached = scope.gitTopLevelProbes.get(scopeKey);
+    if (cached)
+      return cached;
+  }
+  let result;
+  try {
+    result = classifyGitShowToplevelStdout(runGitShowToplevel(cwd), cwd);
+  } catch (error) {
+    result = classifyGitShowToplevelError(error);
+  }
+  if (scope && scopeKey) {
+    scope.gitTopLevelProbes.set(scopeKey, result);
+  }
+  return result;
+}
+function gitMetadataFileSignature(path3) {
+  try {
+    const metadata = statSync(path3);
+    return [
+      path3,
+      metadata.dev,
+      metadata.ino,
+      metadata.mode,
+      metadata.size,
+      metadata.mtimeMs,
+      metadata.ctimeMs
+    ].join(":");
+  } catch {
+    return `${path3}:missing`;
+  }
+}
+function readGitMarker(path3) {
+  let descriptor;
+  try {
+    if (!lstatSync(path3).isFile())
+      return null;
+    descriptor = openSync(path3, "r");
+    const buffer = Buffer.alloc(MAX_GIT_MARKER_BYTES);
+    const bytesRead = readSync(descriptor, buffer, 0, buffer.length, 0);
+    return buffer.toString("utf8", 0, bytesRead);
+  } catch {
+    return null;
+  } finally {
+    if (descriptor !== void 0)
+      closeSync(descriptor);
+  }
+}
+function commonGitDirectorySignature(linkedGitDir) {
+  const commondirPath = join2(linkedGitDir, "commondir");
+  try {
+    if (!existsSync(commondirPath))
+      return `${commondirPath}:absent`;
+    const marker = readGitMarker(commondirPath);
+    if (marker === null)
+      return `${commondirPath}:unreadable`;
+    const commonDir = canonicalizeExistingPath(resolve(linkedGitDir, marker.trim()));
+    if (!commonDir || !statSync(commonDir).isDirectory()) {
+      return `${commondirPath}:invalid:${marker}`;
+    }
+    return [
+      commonDir,
+      gitMetadataFileSignature(commonDir),
+      gitMetadataFileSignature(join2(commonDir, "HEAD")),
+      gitMetadataFileSignature(join2(commonDir, "index")),
+      gitMetadataFileSignature(join2(commonDir, "config"))
+    ].join(":");
+  } catch {
+    return `${commondirPath}:invalid`;
+  }
+}
+function getGitMetadataSnapshot(cwd) {
+  const metadataDir = findGitMetadataDir(canonicalizeExistingPath(cwd) ?? resolve(cwd));
+  if (!metadataDir)
+    return null;
+  const canonicalDirectory = canonicalizeExistingPath(metadataDir);
+  if (!canonicalDirectory)
+    return null;
+  const gitPath = join2(canonicalDirectory, ".git");
+  try {
+    const metadata = statSync(gitPath);
+    const marker = metadata.isFile() ? readGitMarker(gitPath) : "";
+    if (marker === null)
+      return null;
+    let metadataPath = gitPath;
+    let linkedGitDirSignature = "";
+    if (metadata.isFile()) {
+      const gitDirMatch = /^\s*gitdir:\s*(.+?)\s*$/im.exec(marker);
+      if (!gitDirMatch?.[1])
+        return null;
+      const linkedGitDir = resolve(canonicalDirectory, gitDirMatch[1].trim());
+      const linkedGitDirReal = canonicalizeExistingPath(linkedGitDir);
+      if (!linkedGitDirReal || !statSync(linkedGitDirReal).isDirectory())
+        return null;
+      metadataPath = linkedGitDirReal;
+      linkedGitDirSignature = [
+        linkedGitDirReal,
+        gitMetadataFileSignature(linkedGitDirReal),
+        gitMetadataFileSignature(join2(linkedGitDirReal, "HEAD")),
+        gitMetadataFileSignature(join2(linkedGitDirReal, "index")),
+        gitMetadataFileSignature(join2(linkedGitDirReal, "config")),
+        gitMetadataFileSignature(join2(linkedGitDirReal, "config.worktree")),
+        gitMetadataFileSignature(join2(linkedGitDirReal, "commondir")),
+        gitMetadataFileSignature(join2(linkedGitDirReal, "gitdir")),
+        commonGitDirectorySignature(linkedGitDirReal)
+      ].join(":");
+    }
+    const gitPathReal = canonicalizeExistingPath(gitPath) ?? resolve(gitPath);
+    const metadataPathReal = canonicalizeExistingPath(metadataPath) ?? resolve(metadataPath);
+    const signature = [
+      gitPathReal,
+      gitMetadataFileSignature(gitPath),
+      marker,
+      linkedGitDirSignature,
+      metadataPathReal,
+      gitMetadataFileSignature(join2(metadataPathReal, "HEAD")),
+      gitMetadataFileSignature(join2(metadataPathReal, "index")),
+      gitMetadataFileSignature(join2(metadataPathReal, "config")),
+      gitMetadataFileSignature(join2(metadataPathReal, "config.worktree"))
+    ].join(":");
+    return { directory: canonicalDirectory, signature };
+  } catch {
+    return null;
+  }
+}
+function getGitTopologySignature(cwd) {
+  const start = canonicalizeExistingPath(cwd) ?? resolve(cwd);
+  const signatures = [];
+  let cursor = start;
+  for (; ; ) {
+    const gitPath = join2(cursor, ".git");
+    if (existsSync(gitPath)) {
+      let metadataPath = gitPath;
+      let marker = "";
+      try {
+        if (statSync(gitPath).isFile()) {
+          marker = readGitMarker(gitPath) ?? "<unreadable>";
+          const gitDirMatch = /^\s*gitdir:\s*(.+?)\s*$/im.exec(marker);
+          if (gitDirMatch?.[1])
+            metadataPath = resolve(cursor, gitDirMatch[1].trim());
+        }
+      } catch {
+      }
+      const metadataReal = canonicalizeExistingPath(metadataPath) ?? resolve(metadataPath);
+      signatures.push([
+        cursor,
+        gitMetadataFileSignature(gitPath),
+        marker,
+        gitMetadataFileSignature(join2(metadataReal, "HEAD")),
+        gitMetadataFileSignature(join2(metadataReal, "index")),
+        gitMetadataFileSignature(join2(metadataReal, "config")),
+        gitMetadataFileSignature(join2(metadataReal, "config.worktree")),
+        commonGitDirectorySignature(metadataReal)
+      ].join(":"));
+    }
+    const parent = dirname(cursor);
+    if (parent === cursor)
+      break;
+    cursor = parent;
+  }
+  return signatures.join("|");
+}
+function createStateRootCacheEntry(cwd, root) {
+  return {
+    root,
+    metadataSignature: getGitMetadataSnapshot(cwd)?.signature ?? null,
+    topologySignature: getGitTopologySignature(cwd),
+    environmentSignature: gitProbeEnvironmentSignature()
+  };
+}
+function isStateRootCacheEntryValid(cwd, entry) {
+  return entry.metadataSignature === (getGitMetadataSnapshot(cwd)?.signature ?? null) && entry.topologySignature === getGitTopologySignature(cwd) && entry.environmentSignature === gitProbeEnvironmentSignature();
+}
+function isGitTopLevelCacheEntryValid(cwd, cached) {
+  const current = getGitMetadataSnapshot(cwd);
+  if (!current || current.signature !== cached.metadataSignature)
+    return false;
+  if (cached.topologySignature !== getGitTopologySignature(cwd))
+    return false;
+  if (cached.environmentSignature !== gitProbeEnvironmentSignature())
+    return false;
+  if (!sameCanonicalPath(current.directory, cached.metadataDir))
+    return false;
+  if (!sameCanonicalPath(current.directory, cached.root))
+    return false;
+  return isCredibleGitWorktreeRoot(cached.root);
+}
+function cacheGitTopLevel(key, root, cwd) {
+  const metadata = getGitMetadataSnapshot(cwd);
+  if (!metadata || !sameCanonicalPath(metadata.directory, root))
+    return;
+  if (gitTopLevelCacheMap.size >= MAX_WORKTREE_CACHE_SIZE) {
+    const oldest = gitTopLevelCacheMap.keys().next().value;
+    if (oldest !== void 0)
+      gitTopLevelCacheMap.delete(oldest);
+  }
+  gitTopLevelCacheMap.set(key, {
+    root,
+    metadataDir: metadata.directory,
+    metadataSignature: metadata.signature,
+    topologySignature: getGitTopologySignature(cwd),
+    environmentSignature: gitProbeEnvironmentSignature()
+  });
+}
+function getGitTopLevel(cwd) {
+  const effectiveCwd = cwd || process.cwd();
+  const key = canonicalizeExistingPath(effectiveCwd) ?? resolve(effectiveCwd);
+  const cached = gitTopLevelCacheMap.get(key);
+  if (cached) {
+    if (isGitTopLevelCacheEntryValid(effectiveCwd, cached)) {
+      gitTopLevelCacheMap.delete(key);
+      gitTopLevelCacheMap.set(key, cached);
+      return cached.root;
+    }
+    gitTopLevelCacheMap.delete(key);
+  }
+  const probe = probeGitTopLevel(effectiveCwd);
+  if (probe.status !== "ok")
+    return null;
+  cacheGitTopLevel(key, probe.root, effectiveCwd);
+  return probe.root;
+}
+function formatGitProbeFailedMessage(workingDirectory) {
+  return `workingDirectory '${workingDirectory}' git probe failed and was not used. Cross-repository access is not permitted; pass a path inside the current repository or start the session there.`;
+}
 function getWorktreeRoot(cwd) {
   const effectiveCwd = cwd || process.cwd();
   if (worktreeCacheMap.has(effectiveCwd)) {
-    const root2 = worktreeCacheMap.get(effectiveCwd);
+    const cached = worktreeCacheMap.get(effectiveCwd);
+    if (isStateRootCacheEntryValid(effectiveCwd, cached) && cached.root !== null && isCredibleGitWorktreeRoot(cached.root)) {
+      worktreeCacheMap.delete(effectiveCwd);
+      worktreeCacheMap.set(effectiveCwd, cached);
+      return cached.root;
+    }
     worktreeCacheMap.delete(effectiveCwd);
-    worktreeCacheMap.set(effectiveCwd, root2);
-    return root2 || null;
   }
   const root = resolveSuperprojectRoot(effectiveCwd) || getGitTopLevel(effectiveCwd);
   if (!root) {
@@ -230,7 +802,7 @@ function getWorktreeRoot(cwd) {
       worktreeCacheMap.delete(oldest);
     }
   }
-  worktreeCacheMap.set(effectiveCwd, root);
+  worktreeCacheMap.set(effectiveCwd, createStateRootCacheEntry(effectiveCwd, root));
   return root;
 }
 function validatePath(inputPath) {
@@ -242,31 +814,79 @@ function validatePath(inputPath) {
   }
 }
 var dualDirWarnings = /* @__PURE__ */ new Set();
+function discoverCentralizedDirFromSettings() {
+  const candidates = [];
+  try {
+    candidates.push(join2(getClaudeConfigDir(), "settings.json"));
+  } catch {
+  }
+  try {
+    const cw = process.cwd();
+    candidates.push(join2(cw, ".claude", "settings.json"));
+    candidates.push(join2(cw, ".claude", "settings.local.json"));
+  } catch {
+  }
+  for (const p of candidates) {
+    try {
+      const raw = readFileSync(p, "utf-8");
+      const parsed = JSON.parse(raw);
+      const env = parsed?.env;
+      const val = env?.OMC_STATE_DIR;
+      if (typeof val === "string" && val.trim())
+        return val.trim();
+    } catch {
+    }
+  }
+  return null;
+}
 function getProjectIdentifier(worktreeRoot) {
   const root = worktreeRoot || getGitTopLevel() || process.cwd();
+  const operationScope = projectIdentifierOperationScope.getStore();
+  const operationScopeKey = operationScope ? canonicalizeExistingPath(root) ?? resolve(root) : null;
+  if (operationScope && operationScopeKey) {
+    const cached = operationScope.get(operationScopeKey);
+    if (cached !== void 0)
+      return cached;
+  }
+  const scope = worktreePathRenderScope.getStore();
+  const scopeKey = scope ? canonicalizeExistingPath(root) ?? resolve(root) : null;
+  if (scope && scopeKey) {
+    const cached = scope.projectIdentifiers.get(scopeKey);
+    if (cached !== void 0)
+      return cached;
+  }
   const workspaceRoot = findWorkspaceRoot(root);
   if (workspaceRoot) {
     const cfg = readWorkspaceMarkerConfig(workspaceRoot);
     if (cfg.id && typeof cfg.id === "string" && cfg.id.trim()) {
       const safeId = cfg.id.trim().replace(/[^a-zA-Z0-9_-]/g, "_");
       const hash3 = createHash("sha256").update(safeId).digest("hex").slice(0, 16);
-      return `${safeId}-${hash3}`;
+      const identifier3 = `${safeId}-${hash3}`;
+      if (operationScope && operationScopeKey)
+        operationScope.set(operationScopeKey, identifier3);
+      if (scope && scopeKey)
+        scope.projectIdentifiers.set(scopeKey, identifier3);
+      return identifier3;
     }
     const hash2 = createHash("sha256").update(workspaceRoot).digest("hex").slice(0, 16);
     const dirName2 = basename(workspaceRoot).replace(/[^a-zA-Z0-9_-]/g, "_");
-    return `${dirName2}-${hash2}`;
+    const identifier2 = `${dirName2}-${hash2}`;
+    if (operationScope && operationScopeKey)
+      operationScope.set(operationScopeKey, identifier2);
+    if (scope && scopeKey)
+      scope.projectIdentifiers.set(scopeKey, identifier2);
+    return identifier2;
   }
-  let source;
+  let remoteUrl = "";
   try {
-    const remoteUrl = execFileSync("git", ["remote", "get-url", "origin"], {
+    remoteUrl = execFileSync("git", ["remote", "get-url", "origin"], {
       cwd: root,
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
-      windowsHide: true
+      windowsHide: true,
+      timeout: 5e3
     }).trim();
-    source = remoteUrl || root;
   } catch {
-    source = root;
   }
   let primaryRoot = root;
   try {
@@ -287,15 +907,23 @@ function getProjectIdentifier(worktreeRoot) {
     }
   } catch {
   }
+  const source = remoteUrl || primaryRoot;
   const hash = createHash("sha256").update(source).digest("hex").slice(0, 16);
   const dirName = basename(primaryRoot).replace(/[^a-zA-Z0-9_-]/g, "_");
-  return `${dirName}-${hash}`;
+  const identifier = `${dirName}-${hash}`;
+  if (operationScope && operationScopeKey)
+    operationScope.set(operationScopeKey, identifier);
+  if (scope && scopeKey)
+    scope.projectIdentifiers.set(scopeKey, identifier);
+  return identifier;
 }
 function getOmcRoot(worktreeRoot) {
   const customDir = process.env.OMC_STATE_DIR;
   if (customDir) {
     const root2 = worktreeRoot || getGitTopLevel() || process.cwd();
-    const projectId = getProjectIdentifier(root2);
+    const workspaceRoot = findWorkspaceRoot(root2);
+    const gitTopLevel = getGitTopLevel(root2);
+    const projectId = !gitTopLevel && !workspaceRoot ? "non-git" : getProjectIdentifier(root2);
     const centralizedPath = join2(customDir, projectId);
     const legacyPath = join2(root2, OmcPaths.ROOT);
     const warningKey = `${legacyPath}:${centralizedPath}`;
@@ -306,10 +934,48 @@ function getOmcRoot(worktreeRoot) {
     return centralizedPath;
   }
   const workspaceAnchor = findWorkspaceRoot(worktreeRoot);
-  if (workspaceAnchor) {
+  if (workspaceAnchor && !isSensitiveStateLocation(workspaceAnchor)) {
+    try {
+      const legacyPathW = join2(workspaceAnchor, OmcPaths.ROOT);
+      const discoveredCentral = discoverCentralizedDirFromSettings();
+      if (discoveredCentral) {
+        const wsCfg = readWorkspaceMarkerConfig(workspaceAnchor);
+        let projectIdW;
+        if (wsCfg.id && typeof wsCfg.id === "string" && wsCfg.id.trim()) {
+          const safeId = wsCfg.id.trim().replace(/[^a-zA-Z0-9_-]/g, "_");
+          projectIdW = `${safeId}-${createHash("sha256").update(safeId).digest("hex").slice(0, 16)}`;
+        } else {
+          projectIdW = `${basename(workspaceAnchor).replace(/[^a-zA-Z0-9_-]/g, "_")}-${createHash("sha256").update(workspaceAnchor).digest("hex").slice(0, 16)}`;
+        }
+        const centralizedPathW = join2(discoveredCentral, projectIdW);
+        const warningKeyW = `${legacyPathW}:${centralizedPathW}`;
+        if (!dualDirWarnings.has(warningKeyW) && existsSync(legacyPathW) && existsSync(centralizedPathW)) {
+          dualDirWarnings.add(warningKeyW);
+          console.warn(`[omc] Both legacy state dir (${legacyPathW}) and centralized state dir (${centralizedPathW}) exist. Using legacy dir (OMC_STATE_DIR not set in this process). Set OMC_STATE_DIR via settings.json env to use centralized dir consistently.`);
+        }
+      }
+    } catch {
+    }
     return join2(workspaceAnchor, OmcPaths.ROOT);
   }
   const root = resolveStateAnchorRoot(worktreeRoot);
+  if (!getGitTopLevel(root)) {
+    return join2(resolveNonGitStateAnchor(root), OmcPaths.ROOT);
+  }
+  try {
+    const legacyPath = join2(root, OmcPaths.ROOT);
+    const discoveredCentral = discoverCentralizedDirFromSettings();
+    if (discoveredCentral) {
+      const projectId = getProjectIdentifier(root);
+      const centralizedPath = join2(discoveredCentral, projectId);
+      const warningKey = `${legacyPath}:${centralizedPath}`;
+      if (!dualDirWarnings.has(warningKey) && existsSync(legacyPath) && existsSync(centralizedPath)) {
+        dualDirWarnings.add(warningKey);
+        console.warn(`[omc] Both legacy state dir (${legacyPath}) and centralized state dir (${centralizedPath}) exist. Using legacy dir (OMC_STATE_DIR not set in this process). Set OMC_STATE_DIR via settings.json env to use centralized dir consistently.`);
+      }
+    }
+  } catch {
+  }
   return join2(root, OmcPaths.ROOT);
 }
 function resolveOmcPath(relativePath, worktreeRoot) {
@@ -450,7 +1116,8 @@ function resolveTranscriptPath(transcriptPath, cwd) {
       cwd: effectiveCwd,
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
-      windowsHide: true
+      windowsHide: true,
+      timeout: 5e3
     }).trim();
     const absoluteCommonDir = resolve(effectiveCwd, gitCommonDir);
     let mainRepoRoot = dirname(absoluteCommonDir);
@@ -465,7 +1132,8 @@ function resolveTranscriptPath(transcriptPath, cwd) {
       cwd: effectiveCwd,
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
-      windowsHide: true
+      windowsHide: true,
+      timeout: 5e3
     }).trim();
     if (mainRepoRoot !== worktreeTop) {
       const sessionFile = basename(transcriptPath);
@@ -483,8 +1151,59 @@ function resolveTranscriptPath(transcriptPath, cwd) {
   }
   return transcriptPath;
 }
+function callerVisibleTrustedRootLabel(trustedRoot) {
+  const label = basename(trustedRoot);
+  return label.length > 0 ? label : "current repository";
+}
+function formatOutsideTrustedRootMessage(workingDirectory, trustedRoot) {
+  return `workingDirectory '${workingDirectory}' is outside the trusted worktree root '${callerVisibleTrustedRootLabel(trustedRoot)}'.`;
+}
+function attachCanonicalWorkingDirectoryRoots(target, providedRoot, trustedRoot) {
+  canonicalWorkingDirectoryRoots.set(target, { providedRoot, trustedRoot });
+}
+function canonicalRootAliases(root) {
+  if (root.length === 0) {
+    return [];
+  }
+  const aliases = /* @__PURE__ */ new Set([root]);
+  try {
+    aliases.add(pathToFileURL(root).href);
+  } catch {
+  }
+  try {
+    const real = realpathSync(root);
+    aliases.add(real);
+    aliases.add(pathToFileURL(real).href);
+  } catch {
+  }
+  if (sep2 === "\\") {
+    aliases.add(root.replaceAll("\\", "/"));
+  }
+  return [...aliases].sort((a, b) => b.length - a.length);
+}
+function redactCanonicalRoots(text, providedRoot, trustedRoot) {
+  let redacted = text;
+  const roots = [...canonicalRootAliases(providedRoot), ...canonicalRootAliases(trustedRoot)].sort((a, b) => b.length - a.length);
+  for (const root of roots) {
+    redacted = redacted.split(root).join("<redacted>");
+  }
+  return redacted;
+}
+function redactErrorStack(stack, providedRoot, trustedRoot) {
+  const newline = stack.includes("\r\n") ? "\r\n" : "\n";
+  const lines = stack.split(/\r?\n/);
+  if (lines.length <= 1) {
+    return stack;
+  }
+  const [header, ...frames] = lines;
+  return [header, ...frames.map((frame) => redactCanonicalRoots(frame, providedRoot, trustedRoot))].join(newline);
+}
 function validateWorkingDirectory(workingDirectory) {
-  const trustedRoot = getGitTopLevel(process.cwd()) || process.cwd();
+  const trustedProbe = probeGitTopLevel(process.cwd());
+  if (trustedProbe.status === "probe_failed" || trustedProbe.status === "git_missing") {
+    throw new Error(formatGitProbeFailedMessage(process.cwd()));
+  }
+  const trustedRoot = trustedProbe.status === "ok" ? trustedProbe.root : process.cwd();
   if (!workingDirectory) {
     return trustedRoot;
   }
@@ -495,8 +1214,9 @@ function validateWorkingDirectory(workingDirectory) {
   } catch {
     trustedRootReal = trustedRoot;
   }
-  const providedRoot = getGitTopLevel(resolved);
-  if (providedRoot) {
+  const providedProbe = probeGitTopLevel(resolved);
+  if (providedProbe.status === "ok") {
+    const providedRoot = providedProbe.root;
     let providedRootReal;
     try {
       providedRootReal = realpathSync(providedRoot);
@@ -513,6 +1233,9 @@ function validateWorkingDirectory(workingDirectory) {
     }
     return providedRoot;
   }
+  if (providedProbe.status === "probe_failed" || providedProbe.status === "git_missing") {
+    throw new Error(formatGitProbeFailedMessage(workingDirectory));
+  }
   let resolvedReal;
   try {
     resolvedReal = realpathSync(resolved);
@@ -521,12 +1244,43 @@ function validateWorkingDirectory(workingDirectory) {
   }
   const rel = relative(trustedRootReal, resolvedReal);
   if (rel.startsWith("..") || isAbsolute(rel)) {
-    throw new Error(`workingDirectory '${workingDirectory}' is outside the trusted worktree root '${trustedRoot}'.`);
+    throw new Error(formatOutsideTrustedRootMessage(workingDirectory, trustedRoot));
   }
-  return trustedRoot;
+  if (trustedRootReal === resolvedReal) {
+    return trustedRoot;
+  }
+  if (trustedProbe.status === "ok") {
+    return trustedRoot;
+  }
+  return resolvedReal;
 }
+var ForeignWorkingDirectoryError = class extends Error {
+  callerLabel;
+  constructor(providedRoot, trustedRoot, callerLabel) {
+    super(`workingDirectory '${callerLabel}' belongs to a different repository than '${callerVisibleTrustedRootLabel(trustedRoot)}' and was not used. Cross-repository access is not permitted; pass a path inside the current repository or start the session there.`);
+    this.name = "ForeignWorkingDirectoryError";
+    this.callerLabel = callerLabel;
+    attachCanonicalWorkingDirectoryRoots(this, providedRoot, trustedRoot);
+    Object.defineProperty(this, "stack", {
+      value: redactErrorStack(this.stack ?? `${this.name}: ${this.message}`, providedRoot, trustedRoot),
+      enumerable: false,
+      configurable: true,
+      writable: true
+    });
+  }
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      callerLabel: this.callerLabel
+    };
+  }
+  [/* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom")]() {
+    return this.stack ?? `${this.name}: ${this.message}`;
+  }
+};
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/stdin.js
+// v5.6.2/dist/hud/stdin.js
 var TRANSIENT_CONTEXT_PERCENT_TOLERANCE = 3;
 var SESSION_ID_ENV_VARS = ["CLAUDE_SESSION_ID", "CLAUDECODE_SESSION_ID"];
 function normalizeCandidate(value) {
@@ -566,29 +1320,37 @@ function readStdinCache() {
     try {
       if (!existsSync2(p))
         return null;
-      return JSON.parse(readFileSync2(p, "utf-8"));
+      return parseCachedStdin(readFileSync2(p, "utf-8"));
     } catch {
       return null;
     }
   };
-  const scoped = tryRead(scopedPath);
-  if (scoped)
-    return scoped;
   const legacyPath = resolveOmcPath("state/hud-stdin-cache.json", root);
   if (scopedPath !== legacyPath) {
-    return null;
+    return tryRead(scopedPath);
   }
-  return readMostRecentSessionCache(root);
+  return readMostRecentCache(root, legacyPath);
 }
-function readMostRecentSessionCache(root) {
+function parseCachedStdin(raw) {
+  const parsed = JSON.parse(raw);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    return null;
+  return parsed;
+}
+function readMostRecentCache(root, legacyPath) {
   let sessionIds;
   try {
     sessionIds = listSessionIds(root);
   } catch {
     return null;
   }
-  let bestPath = null;
-  let bestMtime = -Infinity;
+  const candidates = [];
+  try {
+    const st = statSync2(legacyPath);
+    if (st.isFile())
+      candidates.push({ path: legacyPath, mtimeMs: st.mtimeMs });
+  } catch {
+  }
   for (const sid of sessionIds) {
     let candidate;
     try {
@@ -597,23 +1359,23 @@ function readMostRecentSessionCache(root) {
       continue;
     }
     try {
-      const st = statSync(candidate);
+      const st = statSync2(candidate);
       if (!st.isFile())
         continue;
-      if (st.mtimeMs > bestMtime) {
-        bestMtime = st.mtimeMs;
-        bestPath = candidate;
-      }
+      candidates.push({ path: candidate, mtimeMs: st.mtimeMs });
     } catch {
     }
   }
-  if (!bestPath)
-    return null;
-  try {
-    return JSON.parse(readFileSync2(bestPath, "utf-8"));
-  } catch {
-    return null;
+  candidates.sort((a, b) => b.mtimeMs - a.mtimeMs || a.path.localeCompare(b.path));
+  for (const candidate of candidates) {
+    try {
+      const parsed = parseCachedStdin(readFileSync2(candidate.path, "utf-8"));
+      if (parsed)
+        return parsed;
+    } catch {
+    }
   }
+  return null;
 }
 async function readStdin() {
   if (process.stdin.isTTY) {
@@ -761,12 +1523,12 @@ function getModelName(stdin) {
   return displayName || getModelId(stdin);
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/transcript.js
-import { createReadStream, existsSync as existsSync3, statSync as statSync2, openSync, readSync, closeSync } from "fs";
+// v5.6.2/dist/hud/transcript.js
+import { createReadStream, existsSync as existsSync3, statSync as statSync3, openSync as openSync2, readSync as readSync2, closeSync as closeSync2 } from "fs";
 import { createInterface } from "readline";
 import { basename as basename2 } from "path";
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/agent-kind.js
+// v5.6.2/dist/hud/agent-kind.js
 var WRAPPER_TAGS = [
   { tag: "task-notification", kind: "subagent" },
   { tag: "teammate-message", kind: "teammate" },
@@ -825,7 +1587,7 @@ function parseIncomingAgentWrapper(content, sessionId) {
   }
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/transcript.js
+// v5.6.2/dist/hud/transcript.js
 var MAX_TAIL_BYTES = 4 * 1024 * 1024;
 var MAX_AGENT_MAP_SIZE = 100;
 var PERMISSION_TOOLS = [
@@ -859,7 +1621,7 @@ async function parseTranscript(transcriptPath, options) {
   }
   let cacheKey = null;
   try {
-    const stat = statSync2(transcriptPath);
+    const stat = statSync3(transcriptPath);
     cacheKey = `${transcriptPath}:${stat.size}:${stat.mtimeMs}`;
     const cached = transcriptCache.get(transcriptPath);
     if (cached?.cacheKey === cacheKey) {
@@ -879,7 +1641,7 @@ async function parseTranscript(transcriptPath, options) {
   let sessionTotalsReliable = false;
   const observedSessionIds = /* @__PURE__ */ new Set();
   try {
-    const stat = statSync2(transcriptPath);
+    const stat = statSync3(transcriptPath);
     const fileSize = stat.size;
     if (fileSize > MAX_TAIL_BYTES) {
       const lines = readTailLines(transcriptPath, fileSize, MAX_TAIL_BYTES);
@@ -999,12 +1761,12 @@ function finalizeTranscriptResult(result, options, pendingPermissions) {
 function readTailLines(filePath, fileSize, maxBytes) {
   const startOffset = Math.max(0, fileSize - maxBytes);
   const bytesToRead = fileSize - startOffset;
-  const fd = openSync(filePath, "r");
+  const fd = openSync2(filePath, "r");
   const buffer = Buffer.alloc(bytesToRead);
   try {
-    readSync(fd, buffer, 0, bytesToRead, startOffset);
+    readSync2(fd, buffer, 0, bytesToRead, startOffset);
   } finally {
-    closeSync(fd);
+    closeSync2(fd);
   }
   const content = buffer.toString("utf8");
   const lines = content.split("\n");
@@ -1241,11 +2003,11 @@ function getNumericUsageValue(value) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/state.js
+// v5.6.2/dist/hud/state.js
 import { existsSync as existsSync6, readFileSync as readFileSync6, mkdirSync as mkdirSync5, unlinkSync as unlinkSync4 } from "fs";
 import { join as join6 } from "path";
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/lib/atomic-write.js
+// v5.6.2/dist/lib/atomic-write.js
 import * as fsSync from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
@@ -1276,27 +2038,156 @@ function writeAllSync(fd, content, label) {
     throw new Error(`${label} size verification failed`);
   }
 }
-function atomicWriteFileSync(filePath, content) {
+function verifyPrivateTempFile(fd, tempPath, label, operations) {
+  const fdStats = descriptorStats(fd, operations);
+  let pathStats;
+  try {
+    pathStats = pathnameStats(tempPath, operations);
+  } catch {
+    throw new Error(`${label} temporary file was replaced before rename`);
+  }
+  const isWindows2 = process.platform === "win32";
+  const isPrivateRegularSingleLink = (stats) => stats.isFile() && (isWindows2 ? Number(stats.nlink) <= 1 : Number(stats.nlink) === 1) && (isWindows2 || (Number(stats.mode) & 511) === 384);
+  if (!isPrivateRegularSingleLink(fdStats) || !isPrivateRegularSingleLink(pathStats)) {
+    throw new Error(`${label} temporary file must be a private regular single-link file`);
+  }
+  if (!sameFileIdentity(fileIdentityOf(fdStats), fileIdentityOf(pathStats))) {
+    throw new Error(`${label} temporary file was replaced before rename`);
+  }
+}
+function verifyPublishedFile(fd, filePath, label, operations) {
+  const fdStats = descriptorStats(fd, operations);
+  let pathStats;
+  try {
+    pathStats = pathnameStats(filePath, operations);
+  } catch {
+    throw new Error(`${label} target was replaced at publication`);
+  }
+  if (!pathStats.isFile() || !sameFileIdentity(fileIdentityOf(fdStats), fileIdentityOf(pathStats))) {
+    throw new Error(`${label} target was replaced at publication`);
+  }
+}
+function preservePriorTarget(filePath, operations) {
+  const backupPath = `${filePath}.rollback.${crypto.randomUUID()}`;
+  try {
+    const stats = (operations?.lstat ?? fsSync.lstatSync)(filePath);
+    const isWindows2 = process.platform === "win32";
+    if (!stats.isFile() || (isWindows2 ? stats.nlink > 1 : stats.nlink !== 1)) {
+      return null;
+    }
+    (operations?.link ?? fsSync.linkSync)(filePath, backupPath);
+    return backupPath;
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      try {
+        (operations?.unlink ?? fsSync.unlinkSync)(backupPath);
+      } catch {
+      }
+    }
+    return null;
+  }
+}
+function descriptorStats(fd, operations) {
+  return operations ? fsSync.fstatSync(fd) : fsSync.fstatSync(fd, { bigint: true });
+}
+function pathnameStats(filePath, operations) {
+  return operations ? operations.lstat(filePath) : fsSync.lstatSync(filePath, { bigint: true });
+}
+function fileIdentityOf(stats) {
+  return { dev: BigInt(stats.dev), ino: BigInt(stats.ino) };
+}
+function sameFileIdentity(a, b) {
+  if (a.ino !== b.ino)
+    return false;
+  const isWindows2 = process.platform === "win32";
+  if (isWindows2 && (a.dev === 0n || b.dev === 0n)) {
+    return true;
+  }
+  return a.dev === b.dev;
+}
+function currentFileIdentity(filePath, operations) {
+  try {
+    return fileIdentityOf(pathnameStats(filePath, operations));
+  } catch {
+    return null;
+  }
+}
+function descriptorIdentity(fd, operations) {
+  try {
+    return fileIdentityOf(descriptorStats(fd, operations));
+  } catch {
+    return null;
+  }
+}
+function rollbackPriorTarget(filePath, backupPath, expectedIdentity, operations) {
+  if (expectedIdentity === null)
+    return;
+  const current = currentFileIdentity(filePath, operations);
+  if (current === null)
+    return;
+  if (expectedIdentity !== null && !sameFileIdentity(current, expectedIdentity)) {
+    return;
+  }
+  try {
+    if (backupPath === null) {
+      (operations?.unlink ?? fsSync.unlinkSync)(filePath);
+    } else {
+      (operations?.rename ?? fsSync.renameSync)(backupPath, filePath);
+    }
+  } catch {
+  }
+}
+function removeBackup(backupPath, operations) {
+  if (backupPath === null)
+    return;
+  try {
+    (operations?.unlink ?? fsSync.unlinkSync)(backupPath);
+  } catch {
+  }
+}
+function atomicWriteFileSync(filePath, content, hooks, operations) {
+  if (operations && (!filePath || path.basename(filePath) !== filePath || filePath === "." || filePath === ".."))
+    throw new RangeError("contained atomic write requires a basename");
   const dir = path.dirname(filePath);
   const base = path.basename(filePath);
   const tempPath = path.join(dir, `.${base}.tmp.${crypto.randomUUID()}`);
   let fd = null;
   let success = false;
+  let backupPath = null;
   try {
-    ensureDirSync(dir);
-    fd = fsSync.openSync(tempPath, "wx", 384);
+    if (!operations)
+      ensureDirSync(dir);
+    fd = operations ? operations.open(tempPath, fsSync.constants.O_CREAT | fsSync.constants.O_EXCL | fsSync.constants.O_WRONLY, 384) : fsSync.openSync(tempPath, "wx", 384);
     writeAllSync(fd, content, "atomic write");
     fsSync.fsyncSync(fd);
+    verifyPrivateTempFile(fd, tempPath, "atomic write", operations);
+    backupPath = preservePriorTarget(filePath, operations);
+    hooks?.beforeRename?.();
+    (operations?.rename ?? fsSync.renameSync)(tempPath, filePath);
+    let publishedIdentity = null;
+    try {
+      verifyPublishedFile(fd, filePath, "atomic write", operations);
+      publishedIdentity = descriptorIdentity(fd, operations);
+      hooks?.afterRename?.();
+      verifyPublishedFile(fd, filePath, "atomic write", operations);
+    } catch (error) {
+      rollbackPriorTarget(filePath, backupPath, publishedIdentity, operations);
+      throw error;
+    }
     fsSync.closeSync(fd);
     fd = null;
-    fsSync.renameSync(tempPath, filePath);
     success = true;
+    removeBackup(backupPath, operations);
     try {
-      const dirFd = fsSync.openSync(dir, "r");
-      try {
-        fsSync.fsyncSync(dirFd);
-      } finally {
-        fsSync.closeSync(dirFd);
+      if (operations) {
+        operations.sync();
+      } else {
+        const dirFd = fsSync.openSync(dir, "r");
+        try {
+          fsSync.fsyncSync(dirFd);
+        } finally {
+          fsSync.closeSync(dirFd);
+        }
       }
     } catch {
     }
@@ -1309,30 +2200,31 @@ function atomicWriteFileSync(filePath, content) {
     }
     if (!success) {
       try {
-        fsSync.unlinkSync(tempPath);
+        (operations?.unlink ?? fsSync.unlinkSync)(tempPath);
       } catch {
       }
+      removeBackup(backupPath, operations);
     }
   }
 }
-function atomicWriteJsonSync(filePath, data) {
+function atomicWriteJsonSync(filePath, data, hooks, operations) {
   const jsonContent = JSON.stringify(data, null, 2);
-  atomicWriteFileSync(filePath, jsonContent);
+  atomicWriteFileSync(filePath, jsonContent, hooks, operations);
 }
 var ATOMIC_BATCH_MAX_CONTENT_BYTES = 1024 * 1024;
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/mission-board.js
+// v5.6.2/dist/hud/mission-board.js
 import { copyFileSync, existsSync as existsSync5, mkdirSync as mkdirSync4, readFileSync as readFileSync5, readdirSync as readdirSync2, renameSync as renameSync2 } from "node:fs";
 import { join as join5 } from "node:path";
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/lib/file-lock.js
-import { openSync as openSync3, closeSync as closeSync3, unlinkSync as unlinkSync3, writeSync as writeSync2, readFileSync as readFileSync4, statSync as statSync3, constants as fsConstants } from "fs";
+// v5.6.2/dist/lib/file-lock.js
+import { openSync as openSync4, closeSync as closeSync4, unlinkSync as unlinkSync3, writeSync as writeSync2, readFileSync as readFileSync4, statSync as statSync4, constants as fsConstants } from "fs";
 import * as path2 from "path";
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/platform/index.js
+// v5.6.2/dist/platform/index.js
 import { readFileSync as readFileSync3 } from "fs";
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/platform/process-utils.js
+// v5.6.2/dist/platform/process-utils.js
 import { execFileSync as execFileSync2, execFile, spawnSync } from "child_process";
 import { promisify } from "util";
 var execFileAsync = promisify(execFile);
@@ -1350,7 +2242,7 @@ function isProcessAlive(pid) {
   }
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/platform/index.js
+// v5.6.2/dist/platform/index.js
 var PLATFORM = process.platform;
 function isWSL() {
   if (process.env.WSLENV !== void 0) {
@@ -1364,12 +2256,12 @@ function isWSL() {
   }
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/lib/file-lock.js
+// v5.6.2/dist/lib/file-lock.js
 var DEFAULT_STALE_LOCK_MS = 3e4;
 var DEFAULT_RETRY_DELAY_MS = 50;
 function isLockStale(lockPath, staleLockMs) {
   try {
-    const stat = statSync3(lockPath);
+    const stat = statSync4(lockPath);
     const ageMs = Date.now() - stat.mtimeMs;
     if (ageMs < staleLockMs)
       return false;
@@ -1391,13 +2283,13 @@ function lockPathFor(filePath) {
 function tryAcquireSync(lockPath, staleLockMs) {
   ensureDirSync(path2.dirname(lockPath));
   try {
-    const fd = openSync3(lockPath, fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_WRONLY, 384);
+    const fd = openSync4(lockPath, fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_WRONLY, 384);
     try {
       const payload = JSON.stringify({ pid: process.pid, timestamp: Date.now() });
       writeSync2(fd, payload, null, "utf-8");
     } catch (writeErr) {
       try {
-        closeSync3(fd);
+        closeSync4(fd);
       } catch {
       }
       try {
@@ -1415,13 +2307,13 @@ function tryAcquireSync(lockPath, staleLockMs) {
         } catch {
         }
         try {
-          const fd = openSync3(lockPath, fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_WRONLY, 384);
+          const fd = openSync4(lockPath, fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_WRONLY, 384);
           try {
             const payload = JSON.stringify({ pid: process.pid, timestamp: Date.now() });
             writeSync2(fd, payload, null, "utf-8");
           } catch (writeErr) {
             try {
-              closeSync3(fd);
+              closeSync4(fd);
             } catch {
             }
             try {
@@ -1467,7 +2359,7 @@ function acquireFileLockSync(lockPath, opts) {
 }
 function releaseFileLockSync(handle) {
   try {
-    closeSync3(handle.fd);
+    closeSync4(handle.fd);
   } catch {
   }
   try {
@@ -1520,7 +2412,7 @@ async function withFileLock(lockPath, fn, opts) {
   }
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/utils/string-width.js
+// v5.6.2/dist/utils/string-width.js
 function isCJKCharacter(codePoint) {
   return (
     // CJK Unified Ideographs (Chinese characters)
@@ -1608,7 +2500,7 @@ function truncateToWidthNoSuffix(str, maxWidth) {
   return result;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/team/worker-canonicalization.js
+// v5.6.2/dist/team/worker-canonicalization.js
 function hasText(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
@@ -1699,7 +2591,7 @@ function canonicalizeWorkers(workers) {
   };
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/mission-board.js
+// v5.6.2/dist/hud/mission-board.js
 var DEFAULT_CONFIG = {
   enabled: false,
   maxMissions: 2,
@@ -1990,7 +2882,7 @@ function renderMissionBoard(state, rawConfig = DEFAULT_CONFIG) {
   return lines;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/types.js
+// v5.6.2/dist/hud/types.js
 var DEFAULT_HUD_LABELS = {
   context: "ctx",
   tokens: "tok",
@@ -2054,6 +2946,7 @@ var DEFAULT_ELEMENT_ORDER = {
   main: [
     "omcLabel",
     "model",
+    "claudeLabel",
     "enterpriseCost",
     "rateLimits",
     "customBuckets",
@@ -2074,7 +2967,7 @@ var DEFAULT_ELEMENT_ORDER = {
     "lastTool",
     "sessionSummary"
   ],
-  detail: ["missionBoard", "agents", "contextWarning", "payloadWarning", "todos"]
+  detail: ["missionBoard", "agents", "contextWarning", "payloadWarning", "updateHint", "todos"]
 };
 var DEFAULT_HUD_USAGE_POLL_INTERVAL_MS = 90 * 1e3;
 var DEFAULT_HUD_CONFIG = {
@@ -2383,7 +3276,7 @@ var PRESET_CONFIGS = {
   }
 };
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/background-cleanup.js
+// v5.6.2/dist/hud/background-cleanup.js
 var STALE_TASK_THRESHOLD_MS = 30 * 60 * 1e3;
 function getTaskStartMs(task) {
   const raw = task.startedAt ?? task.startTime;
@@ -2476,7 +3369,7 @@ async function markOrphanedTasksAsStale(directory, sessionId) {
   return marked;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/state.js
+// v5.6.2/dist/hud/state.js
 function getLocalStateFilePath(directory) {
   const baseDir = validateWorkingDirectory(directory);
   const omcStateDir = join6(getOmcRoot(baseDir), "state");
@@ -2700,105 +3593,43 @@ async function initializeHUDState(directory, sessionId) {
   }
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/omc-state.js
-import { existsSync as existsSync7, readFileSync as readFileSync7, statSync as statSync4, readdirSync as readdirSync3 } from "fs";
+// v5.6.2/dist/hud/omc-state.js
+import { existsSync as existsSync7, readFileSync as readFileSync7, statSync as statSync5, readdirSync as readdirSync3 } from "fs";
 import { join as join9 } from "path";
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hooks/autopilot/named-workflow-resume-validator.js
+// v5.6.2/dist/hooks/autopilot/named-workflow-resume-validator.js
 import { basename as basename4, join as join8, parse as parse2, relative as relative2, resolve as resolve2, sep as sep3 } from "path";
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hooks/autopilot/pipeline.js
+// v5.6.2/dist/hooks/autopilot/pipeline.js
 import { createHash as createHash2 } from "crypto";
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/lib/mode-state-io.js
-var LOCK_REMOVAL_SCRIPT = String.raw`
-const fs = require('fs');
-const [operation, lockPath, expectedRaw] = process.argv.slice(1);
-const keys = ['createdAt', 'nonce', 'pid', 'processStart', 'version'];
-function readOwner() {
-  try {
-    const value = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
-    const actual = Object.keys(value).sort();
-    if (actual.length !== keys.length || !actual.every((key, index) => key === keys[index]) || value.version !== 1 || !Number.isSafeInteger(value.pid) || value.pid <= 0 || typeof value.processStart !== 'string' || !/^\d+$/.test(value.processStart) || typeof value.createdAt !== 'string' || !Number.isFinite(Date.parse(value.createdAt)) || typeof value.nonce !== 'string' || !/^[0-9a-f-]{36}$/i.test(value.nonce)) return null;
-    return value;
-  } catch (error) { if (error && error.code === 'ENOENT') process.exit(0); return null; }
+// v5.6.2/dist/lib/mode-state-io.js
+import { createRequire } from "module";
+var require2 = createRequire(import.meta.url || (typeof __filename === "string" ? __filename : process.cwd() + "/"));
+var SQLITE_NATIVE_BINDING = "better_sqlite3.node";
+var SQLITE_NATIVE_BINDING_REMEDIATION = "Run `npm rebuild better-sqlite3` in the OMC plugin directory, then restart Claude Code.";
+var Database = null;
+var sqliteBindingLoadError = null;
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }
-const owner = readOwner();
-if (!owner) process.exit(3);
-if (operation === 'release') {
-  let expected;
-  try { expected = JSON.parse(expectedRaw); } catch { process.exit(3); }
-  if (owner.pid !== expected.pid || owner.processStart !== expected.processStart || owner.nonce !== expected.nonce) process.exit(4);
-  try { fs.unlinkSync(lockPath); process.exit(0); } catch { process.exit(3); }
+function nativeBindingDiagnostic(detail) {
+  const normalizedDetail = detail?.split(/\r?\n/, 1)[0].replace(/\s+/g, " ").trim().slice(0, 240);
+  const suffix = normalizedDetail ? ` Loader error: ${normalizedDetail}` : "";
+  return `better-sqlite3 native binding (${SQLITE_NATIVE_BINDING}) is unavailable. State mutation is using the file-lock fallback. ${SQLITE_NATIVE_BINDING_REMEDIATION}${suffix}`;
 }
-if (process.platform !== 'linux') process.exit(3);
-let currentStart;
 try {
-  const stat = fs.readFileSync('/proc/' + owner.pid + '/stat', 'utf8');
-  const end = stat.lastIndexOf(')');
-  const fields = end >= 0 ? stat.slice(end + 2).trim().split(/\s+/) : [];
-  currentStart = fields[19] && /^\d+$/.test(fields[19]) ? fields[19] : null;
-} catch (error) { currentStart = error && error.code === 'ENOENT' ? 'absent' : null; }
-if (currentStart === null) process.exit(3);
-if (currentStart !== 'absent' && currentStart === owner.processStart) process.exit(2);
-try { fs.unlinkSync(lockPath); process.exit(0); } catch { process.exit(3); }
-`;
-var RECOVERY_CLAIM_SCRIPT = String.raw`
-const fs = require('fs');
-const [operation, claimPath, expectedRaw] = process.argv.slice(1);
-const keys = ['createdAt', 'nonce', 'pid', 'processStart', 'version'];
-function readOwner() {
-  try {
-    const value = JSON.parse(fs.readFileSync(claimPath, 'utf8'));
-    const actual = Object.keys(value).sort();
-    if (actual.length !== keys.length || !actual.every((key, index) => key === keys[index]) || value.version !== 1 || !Number.isSafeInteger(value.pid) || value.pid <= 0 || typeof value.processStart !== 'string' || !/^\d+$/.test(value.processStart) || typeof value.createdAt !== 'string' || !Number.isFinite(Date.parse(value.createdAt)) || typeof value.nonce !== 'string' || !/^[0-9a-f-]{36}$/i.test(value.nonce)) return null;
-    return value;
-  } catch (error) { return error && error.code === 'ENOENT' ? 'absent' : null; }
-}
-function exact(left, right) { return left.pid === right.pid && left.processStart === right.processStart && left.nonce === right.nonce; }
-function stale(owner) {
-  if (process.platform !== 'linux') return null;
-  try {
-    const stat = fs.readFileSync('/proc/' + owner.pid + '/stat', 'utf8');
-    const end = stat.lastIndexOf(')');
-    const fields = end >= 0 ? stat.slice(end + 2).trim().split(/\s+/) : [];
-    const start = fields[19] && /^\d+$/.test(fields[19]) ? fields[19] : null;
-    return start === null ? null : start !== owner.processStart;
-  } catch (error) { return error && error.code === 'ENOENT' ? true : null; }
-}
-let expected;
-try { expected = JSON.parse(expectedRaw); } catch { process.exit(3); }
-if (operation === 'release') {
-  const current = readOwner();
-  if (current === 'absent') process.exit(0);
-  if (!current || !exact(current, expected)) process.exit(4);
-  try { fs.unlinkSync(claimPath); process.exit(0); } catch { process.exit(3); }
-}
-const current = readOwner();
-if (current !== 'absent') {
-  if (!current) process.exit(3);
-  const isStale = stale(current);
-  if (isStale !== true) process.exit(isStale === false ? 2 : 3);
-  try { fs.unlinkSync(claimPath); } catch { process.exit(3); }
-}
-let fd;
-try {
-  fd = fs.openSync(claimPath, 'wx', 0o600);
-  const bytes = Buffer.from(JSON.stringify(expected));
-  let offset = 0;
-  while (offset < bytes.length) {
-    const written = fs.writeSync(fd, bytes, offset, bytes.length - offset);
-    if (written <= 0) throw new Error('recovery claim made no progress');
-    offset += written;
+  const loaded = require2("better-sqlite3");
+  const candidate = typeof loaded === "function" ? loaded : loaded && typeof loaded === "object" && "default" in loaded ? loaded.default : null;
+  if (typeof candidate !== "function") {
+    throw new Error("better-sqlite3 did not export a Database constructor");
   }
-  fs.fsyncSync(fd);
-  if (fs.statSync(claimPath).size !== bytes.length) throw new Error('recovery claim truncated');
-  fs.closeSync(fd);
-  process.exit(0);
-} catch { try { if (fd !== undefined) fs.closeSync(fd); } catch {} try { fs.unlinkSync(claimPath); } catch {} process.exit(3); }
-`;
+  Database = candidate;
+} catch (error) {
+  sqliteBindingLoadError = nativeBindingDiagnostic(errorMessage(error));
+}
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/shared/types.js
+// v5.6.2/dist/shared/types.js
 var CANONICAL_TEAM_ROLES = [
   "orchestrator",
   "planner",
@@ -2816,7 +3647,6 @@ var CANONICAL_TEAM_ROLES = [
   "explore",
   "document-specialist"
 ];
-var CURSOR_EXECUTOR_TEAM_ROLES = ["executor"];
 var KNOWN_AGENT_NAMES = [
   "omc",
   "explore",
@@ -2840,7 +3670,7 @@ var KNOWN_AGENT_NAMES = [
   "documentSpecialist"
 ];
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/utils/paths.js
+// v5.6.2/dist/utils/paths.js
 import { join as join7, dirname as dirname5 } from "path";
 var PLUGIN_ROOT_REQUIREMENTS = [
   join7("hooks", "hooks.json"),
@@ -2850,7 +3680,7 @@ var PLUGIN_ROOT_REQUIREMENTS = [
 var OCCUPIED_CODES = new Set(process.platform === "win32" ? ["EEXIST", "ENOTEMPTY", "ENOTDIR", "EISDIR", "EPERM", "EACCES"] : ["EEXIST", "ENOTEMPTY", "ENOTDIR", "EISDIR"]);
 var STALE_THRESHOLD_MS = 10 * 60 * 1e3;
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/utils/ssrf-guard.js
+// v5.6.2/dist/utils/ssrf-guard.js
 var BLOCKED_HOST_PATTERNS = [
   // Exact matches
   /^localhost$/i,
@@ -2955,7 +3785,7 @@ function validateAnthropicBaseUrl(urlString) {
   return { allowed: true };
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/config/models.js
+// v5.6.2/dist/config/models.js
 var TIER_ENV_KEYS = {
   LOW: [
     "OMC_MODEL_LOW",
@@ -3025,7 +3855,7 @@ function getDefaultTierModels() {
   };
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/config/loader.js
+// v5.6.2/dist/config/loader.js
 function buildDefaultConfig() {
   const defaultTierModels = getDefaultTierModels();
   return {
@@ -3074,7 +3904,6 @@ function buildDefaultConfig() {
       maxBackgroundTasks: 5
     },
     magicKeywords: {
-      ultrawork: ["ultrawork", "ulw", "uw"],
       search: ["search", "find", "locate"],
       analyze: ["analyze", "investigate", "examine"],
       ultrathink: ["ultrathink", "think", "reason", "ponder"]
@@ -3184,26 +4013,24 @@ function buildDefaultConfig() {
         context: ["CONTEXT"]
       },
       blockingTools: ["Edit", "MultiEdit", "Write", "Agent", "Task"],
-      executionKeywords: ["ralph", "ultrawork", "autopilot"]
+      executionKeywords: ["ralph", "autopilot"]
     }
   };
 }
 var DEFAULT_CONFIG2 = buildDefaultConfig();
 var CANONICAL_TEAM_ROLE_SET = new Set(CANONICAL_TEAM_ROLES);
-var CURSOR_EXECUTOR_TEAM_ROLE_SET = new Set(CURSOR_EXECUTOR_TEAM_ROLES);
 var KNOWN_AGENT_NAME_SET = new Set(KNOWN_AGENT_NAMES);
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hooks/ralph/stale-prd.js
+// v5.6.2/dist/hooks/ralph/stale-prd.js
 var DEFAULT_STALE_PRD_AFTER_MS = 2 * 60 * 60 * 1e3;
 var GIT_MAX_BUFFER = 1024 * 1024;
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/lib/mode-names.js
+// v5.6.2/dist/lib/mode-names.js
 var MODE_NAMES = {
   AUTOPILOT: "autopilot",
   AUTORESEARCH: "autoresearch",
   TEAM: "team",
   RALPH: "ralph",
-  ULTRAWORK: "ultrawork",
   RALPLAN: "ralplan",
   DEEP_INTERVIEW: "deep-interview",
   MERGE_READINESS: "merge-readiness",
@@ -3214,7 +4041,6 @@ var ALL_MODE_NAMES = [
   MODE_NAMES.AUTORESEARCH,
   MODE_NAMES.TEAM,
   MODE_NAMES.RALPH,
-  MODE_NAMES.ULTRAWORK,
   MODE_NAMES.RALPLAN,
   MODE_NAMES.DEEP_INTERVIEW,
   MODE_NAMES.MERGE_READINESS,
@@ -3225,7 +4051,6 @@ var MODE_STATE_FILE_MAP = {
   [MODE_NAMES.AUTORESEARCH]: "autoresearch-state.json",
   [MODE_NAMES.TEAM]: "team-state.json",
   [MODE_NAMES.RALPH]: "ralph-state.json",
-  [MODE_NAMES.ULTRAWORK]: "ultrawork-state.json",
   [MODE_NAMES.RALPLAN]: "ralplan-state.json",
   [MODE_NAMES.DEEP_INTERVIEW]: "deep-interview-state.json",
   [MODE_NAMES.MERGE_READINESS]: "merge-readiness-state.json",
@@ -3236,7 +4061,6 @@ var SESSION_END_MODE_STATE_FILES = [
   { file: MODE_STATE_FILE_MAP[MODE_NAMES.AUTORESEARCH], mode: MODE_NAMES.AUTORESEARCH },
   { file: MODE_STATE_FILE_MAP[MODE_NAMES.TEAM], mode: MODE_NAMES.TEAM },
   { file: MODE_STATE_FILE_MAP[MODE_NAMES.RALPH], mode: MODE_NAMES.RALPH },
-  { file: MODE_STATE_FILE_MAP[MODE_NAMES.ULTRAWORK], mode: MODE_NAMES.ULTRAWORK },
   { file: MODE_STATE_FILE_MAP[MODE_NAMES.RALPLAN], mode: MODE_NAMES.RALPLAN },
   { file: MODE_STATE_FILE_MAP[MODE_NAMES.DEEP_INTERVIEW], mode: MODE_NAMES.DEEP_INTERVIEW },
   { file: MODE_STATE_FILE_MAP[MODE_NAMES.SELF_IMPROVE], mode: MODE_NAMES.SELF_IMPROVE },
@@ -3246,14 +4070,13 @@ var SESSION_METRICS_MODE_FILES = [
   { file: MODE_STATE_FILE_MAP[MODE_NAMES.AUTOPILOT], mode: MODE_NAMES.AUTOPILOT },
   { file: MODE_STATE_FILE_MAP[MODE_NAMES.AUTORESEARCH], mode: MODE_NAMES.AUTORESEARCH },
   { file: MODE_STATE_FILE_MAP[MODE_NAMES.RALPH], mode: MODE_NAMES.RALPH },
-  { file: MODE_STATE_FILE_MAP[MODE_NAMES.ULTRAWORK], mode: MODE_NAMES.ULTRAWORK },
   { file: MODE_STATE_FILE_MAP[MODE_NAMES.RALPLAN], mode: MODE_NAMES.RALPLAN },
   { file: MODE_STATE_FILE_MAP[MODE_NAMES.DEEP_INTERVIEW], mode: MODE_NAMES.DEEP_INTERVIEW },
   { file: MODE_STATE_FILE_MAP[MODE_NAMES.MERGE_READINESS], mode: MODE_NAMES.MERGE_READINESS },
   { file: MODE_STATE_FILE_MAP[MODE_NAMES.SELF_IMPROVE], mode: MODE_NAMES.SELF_IMPROVE }
 ];
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hooks/mode-registry/index.js
+// v5.6.2/dist/hooks/mode-registry/index.js
 var MODE_CONFIGS = {
   [MODE_NAMES.AUTOPILOT]: {
     name: "Autopilot",
@@ -3279,12 +4102,6 @@ var MODE_CONFIGS = {
     activeProperty: "active",
     hasGlobalState: false
   },
-  [MODE_NAMES.ULTRAWORK]: {
-    name: "Ultrawork",
-    stateFile: MODE_STATE_FILE_MAP[MODE_NAMES.ULTRAWORK],
-    activeProperty: "active",
-    hasGlobalState: false
-  },
   [MODE_NAMES.DEEP_INTERVIEW]: {
     name: "Deep Interview",
     stateFile: MODE_STATE_FILE_MAP[MODE_NAMES.DEEP_INTERVIEW],
@@ -3304,7 +4121,7 @@ var MODE_CONFIGS = {
 var EXCLUSIVE_MODES = [MODE_NAMES.AUTOPILOT, MODE_NAMES.AUTORESEARCH];
 var WORKFLOW_SLOT_TOMBSTONE_TTL_MS = 24 * 60 * 60 * 1e3;
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hooks/autopilot/pipeline.js
+// v5.6.2/dist/hooks/autopilot/pipeline.js
 var WORKFLOW_STAGE_SEQUENCES = [
   ["ralplan", "execution"],
   ["ralplan", "execution", "ralph"],
@@ -3419,7 +4236,7 @@ function verifyWorkflowDescriptor(descriptor) {
   return expected !== null && expected.profileHash === record.profileHash;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hooks/autopilot/named-workflow-resume-validator.js
+// v5.6.2/dist/hooks/autopilot/named-workflow-resume-validator.js
 var NAMED_SIGNALS = {
   ralplan: "PIPELINE_RALPLAN_COMPLETE",
   execution: "PIPELINE_EXECUTION_COMPLETE",
@@ -3517,11 +4334,11 @@ function validateNamedWorkflowStateStructure(state, sessionId) {
   return { tracking, task };
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/omc-state.js
+// v5.6.2/dist/hud/omc-state.js
 var MAX_STATE_AGE_MS = 2 * 60 * 60 * 1e3;
 function isStateFileStale(filePath) {
   try {
-    const stat = statSync4(filePath);
+    const stat = statSync5(filePath);
     const age = Date.now() - stat.mtimeMs;
     return age > MAX_STATE_AGE_MS;
   } catch {
@@ -3546,7 +4363,7 @@ function resolveStatePath2(directory, filename, sessionId) {
         const sessionFile = join9(sessionsDir, entry.name, filename);
         if (existsSync7(sessionFile)) {
           try {
-            const mtime = statSync4(sessionFile).mtimeMs;
+            const mtime = statSync5(sessionFile).mtimeMs;
             if (mtime > bestMtime) {
               bestMtime = mtime;
               bestPath = sessionFile;
@@ -3561,7 +4378,7 @@ function resolveStatePath2(directory, filename, sessionId) {
   const newPath = join9(omcRoot, "state", filename);
   if (existsSync7(newPath)) {
     try {
-      const mtime = statSync4(newPath).mtimeMs;
+      const mtime = statSync5(newPath).mtimeMs;
       if (mtime > bestMtime) {
         bestMtime = mtime;
         bestPath = newPath;
@@ -3574,7 +4391,7 @@ function resolveStatePath2(directory, filename, sessionId) {
   const legacyPath = join9(omcRoot, filename);
   if (existsSync7(legacyPath)) {
     try {
-      const mtime = statSync4(legacyPath).mtimeMs;
+      const mtime = statSync5(legacyPath).mtimeMs;
       if (mtime > bestMtime) {
         bestPath = legacyPath;
       }
@@ -3605,25 +4422,6 @@ function readRalphStateForHud(directory, sessionId) {
       maxIterations: state.max_iterations,
       prdMode: state.prd_mode,
       currentStoryId: state.current_story_id
-    };
-  } catch {
-    return null;
-  }
-}
-function readUltraworkStateForHud(directory, sessionId) {
-  const localFile = resolveStatePath2(directory, "ultrawork-state.json", sessionId);
-  if (!localFile || isStateFileStale(localFile)) {
-    return null;
-  }
-  try {
-    const content = readFileSync7(localFile, "utf-8");
-    const state = JSON.parse(content);
-    if (!state.active) {
-      return null;
-    }
-    return {
-      active: state.active,
-      reinforcementCount: state.reinforcement_count
     };
   } catch {
     return null;
@@ -3715,7 +4513,7 @@ function readAutopilotStateForHud(directory, sessionId) {
   }
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/usage-api.js
+// v5.6.2/dist/hud/usage-api.js
 import { existsSync as existsSync8, readFileSync as readFileSync8, writeFileSync as writeFileSync3, renameSync as renameSync3, unlinkSync as unlinkSync5, mkdirSync as mkdirSync6 } from "fs";
 import { join as join10, dirname as dirname6 } from "path";
 import { execFileSync as execFileSync3 } from "child_process";
@@ -3853,7 +4651,10 @@ function writeCache(opts) {
       rateLimited: opts.rateLimited || void 0,
       rateLimitedCount: opts.rateLimitedCount && opts.rateLimitedCount > 0 ? opts.rateLimitedCount : void 0,
       rateLimitedUntil: opts.rateLimitedUntil,
-      lastSuccessAt: opts.lastSuccessAt
+      lastSuccessAt: opts.lastSuccessAt,
+      rateLimitIdentity: opts.rateLimitIdentity,
+      credentialIdentity: opts.credentialIdentity,
+      rateLimitBackoffs: opts.rateLimitBackoffs
     };
     writeFileSync3(cachePath, JSON.stringify(cache, null, 2));
   } catch {
@@ -3879,8 +4680,55 @@ function getRateLimitedBackoffMs(pollIntervalMs, count) {
 function getTransientNetworkBackoffMs(pollIntervalMs) {
   return Math.max(CACHE_TTL_TRANSIENT_NETWORK_MS, sanitizePollIntervalMs(pollIntervalMs));
 }
-function isCacheValid(cache, pollIntervalMs) {
-  if (cache.rateLimited) {
+function getRateLimitBackoff(cache, rateLimitIdentity) {
+  const identity = rateLimitIdentity ?? "anonymous";
+  const stored = cache?.rateLimitBackoffs?.[identity];
+  if (stored)
+    return stored;
+  if (cache?.rateLimited && (cache.rateLimitIdentity ?? "anonymous") === identity) {
+    return {
+      timestamp: cache.timestamp,
+      rateLimitedCount: cache.rateLimitedCount || 1,
+      rateLimitedUntil: cache.rateLimitedUntil
+    };
+  }
+  return null;
+}
+function getRateLimitBackoffs(cache) {
+  const backoffs = { ...cache?.rateLimitBackoffs ?? {} };
+  if (cache?.rateLimited) {
+    const identity = cache.rateLimitIdentity ?? "anonymous";
+    backoffs[identity] ??= {
+      timestamp: cache.timestamp,
+      rateLimitedCount: cache.rateLimitedCount || 1,
+      rateLimitedUntil: cache.rateLimitedUntil
+    };
+  }
+  return backoffs;
+}
+function clearRateLimitBackoff(cache, rateLimitIdentity) {
+  const backoffs = getRateLimitBackoffs(cache);
+  delete backoffs[rateLimitIdentity ?? "anonymous"];
+  return Object.keys(backoffs).length > 0 ? backoffs : void 0;
+}
+function getCredentialCacheIdentity(accessToken) {
+  return createHash3("sha256").update(accessToken).digest("hex");
+}
+function isCacheForCredential(cache, credentialIdentity) {
+  return cache?.credentialIdentity === credentialIdentity;
+}
+function isCacheValid(cache, pollIntervalMs, rateLimitIdentity) {
+  if (cache.source === "anthropic") {
+    const backoff = getRateLimitBackoff(cache, rateLimitIdentity);
+    if (backoff) {
+      if (backoff.rateLimitedUntil != null) {
+        return Date.now() < backoff.rateLimitedUntil;
+      }
+      return Date.now() - backoff.timestamp < getRateLimitedBackoffMs(pollIntervalMs, backoff.rateLimitedCount);
+    }
+    if (cache.rateLimited)
+      return false;
+  } else if (cache.rateLimited) {
     if (cache.rateLimitedUntil != null) {
       return Date.now() < cache.rateLimitedUntil;
     }
@@ -3899,7 +4747,13 @@ function hasUsableStaleData(cache) {
   }
   return true;
 }
-function getCachedUsageResult(cache) {
+function getCachedUsageResult(cache, rateLimitIdentity) {
+  if (cache.source === "anthropic" && getRateLimitBackoff(cache, rateLimitIdentity)) {
+    if (!hasUsableStaleData(cache) && cache.data) {
+      return { rateLimits: null, error: "rate_limited" };
+    }
+    return { rateLimits: cache.data, error: "rate_limited", stale: cache.data ? true : void 0 };
+  }
   if (cache.rateLimited) {
     if (!hasUsableStaleData(cache) && cache.data) {
       return { rateLimits: null, error: "rate_limited" };
@@ -3915,9 +4769,10 @@ function getCachedUsageResult(cache) {
   }
   return { rateLimits: cache.data };
 }
-function createRateLimitedCacheEntry(source, data, pollIntervalMs, previousCount, lastSuccessAt) {
+function createRateLimitedCacheEntry(source, data, pollIntervalMs, previousCount, lastSuccessAt, rateLimitIdentity, previousBackoffs) {
   const timestamp2 = Date.now();
   const rateLimitedCount = previousCount + 1;
+  const identity = rateLimitIdentity ?? "anonymous";
   return {
     timestamp: timestamp2,
     data,
@@ -3927,7 +4782,18 @@ function createRateLimitedCacheEntry(source, data, pollIntervalMs, previousCount
     rateLimited: true,
     rateLimitedCount,
     rateLimitedUntil: timestamp2 + getRateLimitedBackoffMs(pollIntervalMs, rateLimitedCount),
-    lastSuccessAt
+    lastSuccessAt,
+    rateLimitIdentity,
+    ...source === "anthropic" ? {
+      rateLimitBackoffs: {
+        ...previousBackoffs ?? {},
+        [identity]: {
+          timestamp: timestamp2,
+          rateLimitedCount,
+          rateLimitedUntil: timestamp2 + getRateLimitedBackoffMs(pollIntervalMs, rateLimitedCount)
+        }
+      }
+    } : {}
   };
 }
 function getKeychainServiceName() {
@@ -4016,6 +4882,10 @@ function readFileCredentials() {
   return null;
 }
 function getCredentials() {
+  const envToken = process.env.CLAUDE_CODE_OAUTH_TOKEN?.trim();
+  if (envToken) {
+    return { accessToken: envToken, source: "env" };
+  }
   const keychainCreds = readKeychainCredentials();
   if (keychainCreds)
     return keychainCreds;
@@ -4088,7 +4958,16 @@ function refreshAccessToken(refreshToken) {
     req.end(body);
   });
 }
-function fetchUsageFromApi(accessToken) {
+function buildUserAgent(clientVersion) {
+  if (typeof clientVersion !== "string")
+    return void 0;
+  const version = clientVersion.trim();
+  if (version.length > 128)
+    return void 0;
+  return /^\d+\.\d+\.\d+[A-Za-z0-9.+-]*$/.test(version) ? `claude-code/${version}` : void 0;
+}
+function fetchUsageFromApi(accessToken, clientVersion) {
+  const userAgent = buildUserAgent(clientVersion);
   return new Promise((resolve6) => {
     const req = https.request({
       hostname: "api.anthropic.com",
@@ -4097,7 +4976,8 @@ function fetchUsageFromApi(accessToken) {
       headers: {
         "Authorization": `Bearer ${accessToken}`,
         "anthropic-beta": "oauth-2025-04-20",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        ...userAgent ? { "User-Agent": userAgent } : {}
       },
       timeout: API_TIMEOUT_MS
     }, (res) => {
@@ -4117,6 +4997,8 @@ function fetchUsageFromApi(accessToken) {
             console.error(`[usage-api] Anthropic API returned 429 (rate limited)`);
           }
           resolve6({ data: null, rateLimited: true });
+        } else if (res.statusCode === 403) {
+          fetchUsageViaRateLimitHeaders(accessToken, clientVersion).then(resolve6);
         } else {
           resolve6({ data: null });
         }
@@ -4127,6 +5009,82 @@ function fetchUsageFromApi(accessToken) {
       req.destroy();
       resolve6({ data: null });
     });
+    req.end();
+  });
+}
+var RATE_LIMIT_PROBE_MODEL = "claude-haiku-4-5-20251001";
+function rateLimitHeadersToUsage(headers) {
+  const num = (name) => {
+    const raw = headers[name];
+    const value = Array.isArray(raw) ? raw[0] : raw;
+    if (value == null)
+      return void 0;
+    const parsed = Number(value);
+    return isFinite(parsed) ? parsed : void 0;
+  };
+  const iso = (name) => {
+    const secs = num(name);
+    if (secs == null)
+      return void 0;
+    return new Date(secs * 1e3).toISOString();
+  };
+  const fiveHour = num("anthropic-ratelimit-unified-5h-utilization");
+  const sevenDay = num("anthropic-ratelimit-unified-7d-utilization");
+  if (fiveHour == null && sevenDay == null)
+    return null;
+  const usage = {};
+  if (fiveHour != null) {
+    usage.five_hour = {
+      utilization: fiveHour * 100,
+      resets_at: iso("anthropic-ratelimit-unified-5h-reset")
+    };
+  }
+  if (sevenDay != null) {
+    usage.seven_day = {
+      utilization: sevenDay * 100,
+      resets_at: iso("anthropic-ratelimit-unified-7d-reset")
+    };
+  }
+  return usage;
+}
+function fetchUsageViaRateLimitHeaders(accessToken, clientVersion) {
+  const userAgent = buildUserAgent(clientVersion);
+  const body = JSON.stringify({
+    model: RATE_LIMIT_PROBE_MODEL,
+    max_tokens: 1,
+    messages: [{ role: "user", content: "." }]
+  });
+  return new Promise((resolve6) => {
+    const req = https.request({
+      hostname: "api.anthropic.com",
+      path: "/v1/messages",
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+        "anthropic-beta": "oauth-2025-04-20",
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(body),
+        ...userAgent ? { "User-Agent": userAgent } : {}
+      },
+      timeout: API_TIMEOUT_MS
+    }, (res) => {
+      res.on("data", () => {
+      });
+      res.on("end", () => {
+        if (res.statusCode === 200) {
+          resolve6({ data: rateLimitHeadersToUsage(res.headers) });
+        } else {
+          resolve6({ data: null, rateLimited: res.statusCode === 429 });
+        }
+      });
+    });
+    req.on("error", () => resolve6({ data: null }));
+    req.on("timeout", () => {
+      req.destroy();
+      resolve6({ data: null });
+    });
+    req.write(body);
     req.end();
   });
 }
@@ -4242,6 +5200,8 @@ function writeBackCredentials(creds) {
     writeKeychainCredentials(creds);
     return;
   }
+  if (creds.source === "env")
+    return;
   try {
     const credPath = join10(getClaudeConfigDir(), ".credentials.json");
     if (!existsSync8(credPath))
@@ -4750,11 +5710,13 @@ function parseKimiResponse(response) {
   return hasAny ? result : null;
 }
 async function fetchAndCacheUsage(opts) {
-  const { source, fetchFn, parseFn, cache, pollIntervalMs } = opts;
+  const { source, fetchFn, parseFn, cache, pollIntervalMs, rateLimitIdentity, credentialIdentity } = opts;
   const result = await fetchFn();
   if (result.rateLimited) {
     const prevLastSuccess = cache?.lastSuccessAt;
-    const rateLimitedCache = createRateLimitedCacheEntry(source, cache?.data || null, pollIntervalMs, cache?.rateLimitedCount || 0, prevLastSuccess);
+    const previousBackoffs = source === "anthropic" ? getRateLimitBackoffs(cache) : void 0;
+    const previousBackoff = source === "anthropic" ? getRateLimitBackoff(cache, rateLimitIdentity) : null;
+    const rateLimitedCache = createRateLimitedCacheEntry(source, cache?.data || null, pollIntervalMs, source === "anthropic" ? previousBackoff?.rateLimitedCount || 0 : cache?.rateLimitedCount || 0, prevLastSuccess, rateLimitIdentity, previousBackoffs);
     writeCache({
       data: rateLimitedCache.data,
       error: rateLimitedCache.error,
@@ -4763,7 +5725,10 @@ async function fetchAndCacheUsage(opts) {
       rateLimitedCount: rateLimitedCache.rateLimitedCount,
       rateLimitedUntil: rateLimitedCache.rateLimitedUntil,
       errorReason: "rate_limited",
-      lastSuccessAt: rateLimitedCache.lastSuccessAt
+      lastSuccessAt: rateLimitedCache.lastSuccessAt,
+      rateLimitIdentity: rateLimitedCache.rateLimitIdentity,
+      credentialIdentity,
+      rateLimitBackoffs: rateLimitedCache.rateLimitBackoffs
     });
     if (rateLimitedCache.data) {
       if (prevLastSuccess && Date.now() - prevLastSuccess > MAX_STALE_DATA_MS) {
@@ -4780,7 +5745,9 @@ async function fetchAndCacheUsage(opts) {
       error: true,
       source,
       errorReason: "network",
-      lastSuccessAt: cache?.lastSuccessAt
+      lastSuccessAt: cache?.lastSuccessAt,
+      credentialIdentity,
+      rateLimitBackoffs: source === "anthropic" ? getRateLimitBackoffs(cache) : void 0
     });
     if (fallbackData) {
       return { rateLimits: fallbackData, error: "network", stale: true };
@@ -4788,10 +5755,17 @@ async function fetchAndCacheUsage(opts) {
     return { rateLimits: null, error: "network" };
   }
   const usage = parseFn(result.data);
-  writeCache({ data: usage, error: !usage, source, lastSuccessAt: Date.now() });
+  writeCache({
+    data: usage,
+    error: !usage,
+    source,
+    lastSuccessAt: Date.now(),
+    credentialIdentity,
+    rateLimitBackoffs: source === "anthropic" ? clearRateLimitBackoff(cache, rateLimitIdentity) : void 0
+  });
   return { rateLimits: usage };
 }
-async function getUsage() {
+async function getUsage(opts) {
   const baseUrl = process.env.ANTHROPIC_BASE_URL;
   const authToken = process.env.ANTHROPIC_AUTH_TOKEN;
   const isMinimax = baseUrl != null && isMinimaxHost(baseUrl);
@@ -4800,17 +5774,22 @@ async function getUsage() {
   const minimaxApiKey = process.env.MINIMAX_API_KEY || authToken;
   const kimiApiKey = process.env.KIMI_API_KEY || process.env.ANTHROPIC_API_KEY || authToken;
   const currentSource = isMinimax ? "minimax" : isKimi ? "kimi" : isZai && authToken ? "zai" : "anthropic";
+  const envToken = process.env.CLAUDE_CODE_OAUTH_TOKEN?.trim();
+  const credentialIdentity = currentSource === "anthropic" && envToken ? getCredentialCacheIdentity(envToken) : void 0;
   const pollIntervalMs = getUsagePollIntervalMs();
+  const rateLimitIdentity = currentSource === "anthropic" ? buildUserAgent(opts?.clientVersion) ?? "anonymous" : void 0;
   migrateLegacyCache(currentSource);
   const initialCache = readCache(currentSource);
-  if (initialCache && isCacheValid(initialCache, pollIntervalMs) && initialCache.source === currentSource) {
-    return getCachedUsageResult(initialCache);
+  const initialMatchingCache = isCacheForCredential(initialCache, credentialIdentity) ? initialCache : null;
+  if (initialMatchingCache && isCacheValid(initialMatchingCache, pollIntervalMs, rateLimitIdentity) && initialMatchingCache.source === currentSource) {
+    return getCachedUsageResult(initialMatchingCache, rateLimitIdentity);
   }
   try {
     return await withFileLock(lockPathFor(getCachePath(currentSource)), async () => {
       const cache = readCache(currentSource);
-      if (cache && isCacheValid(cache, pollIntervalMs) && cache.source === currentSource) {
-        return getCachedUsageResult(cache);
+      const matchingCache = isCacheForCredential(cache, credentialIdentity) ? cache : null;
+      if (matchingCache && isCacheValid(matchingCache, pollIntervalMs, rateLimitIdentity) && matchingCache.source === currentSource) {
+        return getCachedUsageResult(matchingCache, rateLimitIdentity);
       }
       if (isMinimax) {
         if (!minimaxApiKey) {
@@ -4821,7 +5800,7 @@ async function getUsage() {
           source: "minimax",
           fetchFn: () => fetchUsageFromMinimax(minimaxApiKey),
           parseFn: parseMinimaxResponse,
-          cache,
+          cache: matchingCache,
           pollIntervalMs
         });
       }
@@ -4834,7 +5813,7 @@ async function getUsage() {
           source: "kimi",
           fetchFn: () => fetchUsageFromKimi(kimiApiKey),
           parseFn: parseKimiResponse,
-          cache,
+          cache: matchingCache,
           pollIntervalMs
         });
       }
@@ -4843,7 +5822,7 @@ async function getUsage() {
           source: "zai",
           fetchFn: () => fetchUsageFromZai(),
           parseFn: parseZaiResponse,
-          cache,
+          cache: matchingCache,
           pollIntervalMs
         });
       }
@@ -4856,11 +5835,23 @@ async function getUsage() {
               creds = { ...creds, ...refreshed };
               writeBackCredentials(creds);
             } else {
-              writeCache({ data: null, error: true, source: "anthropic", errorReason: "auth" });
+              writeCache({
+                data: null,
+                error: true,
+                source: "anthropic",
+                errorReason: "auth",
+                credentialIdentity
+              });
               return { rateLimits: null, error: "auth" };
             }
           } else {
-            writeCache({ data: null, error: true, source: "anthropic", errorReason: "auth" });
+            writeCache({
+              data: null,
+              error: true,
+              source: "anthropic",
+              errorReason: "auth",
+              credentialIdentity
+            });
             return { rateLimits: null, error: "auth" };
           }
         }
@@ -4869,22 +5860,30 @@ async function getUsage() {
         const rateLimitTier = creds.rateLimitTier;
         return fetchAndCacheUsage({
           source: "anthropic",
-          fetchFn: () => fetchUsageFromApi(accessToken),
+          fetchFn: () => fetchUsageFromApi(accessToken, opts?.clientVersion),
           parseFn: (data) => parseUsageResponse(data, {
             subscriptionType,
             rateLimitTier
           }),
-          cache,
-          pollIntervalMs
+          cache: matchingCache,
+          pollIntervalMs,
+          rateLimitIdentity,
+          credentialIdentity
         });
       }
-      writeCache({ data: null, error: true, source: "anthropic", errorReason: "no_credentials" });
+      writeCache({
+        data: null,
+        error: true,
+        source: "anthropic",
+        errorReason: "no_credentials",
+        credentialIdentity
+      });
       return { rateLimits: null, error: "no_credentials" };
     }, USAGE_CACHE_LOCK_OPTS);
   } catch (err) {
     if (err instanceof Error && err.message.startsWith("Failed to acquire file lock")) {
-      if (initialCache?.data) {
-        return { rateLimits: initialCache.data, stale: true };
+      if (initialMatchingCache?.data) {
+        return { rateLimits: initialMatchingCache.data, stale: true };
       }
       return { rateLimits: null, error: "network" };
     }
@@ -4892,7 +5891,7 @@ async function getUsage() {
   }
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/custom-rate-provider.js
+// v5.6.2/dist/hud/custom-rate-provider.js
 import { spawn } from "child_process";
 import { existsSync as existsSync9, readFileSync as readFileSync9, writeFileSync as writeFileSync4, mkdirSync as mkdirSync7 } from "fs";
 import { join as join11, dirname as dirname7 } from "path";
@@ -5036,7 +6035,7 @@ async function executeCustomProvider(config) {
   }
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/colors.js
+// v5.6.2/dist/hud/colors.js
 var RESET = "\x1B[0m";
 var DIM = "\x1B[2m";
 var BOLD = "\x1B[1m";
@@ -5084,14 +6083,14 @@ function getDurationColor(durationMs) {
   return GREEN;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/lib/version.js
-import { readFileSync as readFileSync10, existsSync as existsSync10, lstatSync, realpathSync as realpathSync2 } from "fs";
+// v5.6.2/dist/lib/version.js
+import { readFileSync as readFileSync10, existsSync as existsSync10, lstatSync as lstatSync3, realpathSync as realpathSync2 } from "fs";
 import { join as join12, dirname as dirname8 } from "path";
 import { fileURLToPath } from "url";
 function getRuntimePackageVersion() {
   try {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname2 = dirname8(__filename);
+    const __filename2 = fileURLToPath(import.meta.url);
+    const __dirname2 = dirname8(__filename2);
     for (let i = 0; i < 5; i++) {
       const candidate = join12(__dirname2, ...Array(i + 1).fill(".."), "package.json");
       try {
@@ -5106,8 +6105,8 @@ function getRuntimePackageVersion() {
   } catch {
   }
   try {
-    const __filename = fileURLToPath(import.meta.url);
-    const pathMatch = __filename.match(/oh-my-claudecode\/(\d+\.\d+\.\d+[^/]*)\//);
+    const __filename2 = fileURLToPath(import.meta.url);
+    const pathMatch = __filename2.match(/oh-my-claudecode\/(\d+\.\d+\.\d+[^/]*)\//);
     if (pathMatch?.[1]) {
       return pathMatch[1];
     }
@@ -5117,8 +6116,8 @@ function getRuntimePackageVersion() {
 }
 function isRuntimePackageLocal() {
   try {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname2 = dirname8(__filename);
+    const __filename2 = fileURLToPath(import.meta.url);
+    const __dirname2 = dirname8(__filename2);
     let pkgRoot = null;
     for (let i = 0; i < 5; i++) {
       const candidate = join12(__dirname2, ...Array(i + 1).fill(".."));
@@ -5146,7 +6145,7 @@ function isRuntimePackageLocal() {
       if (parent === cursor)
         break;
       try {
-        if (lstatSync(cursor).isSymbolicLink())
+        if (lstatSync3(cursor).isSymbolicLink())
           return true;
       } catch {
       }
@@ -5157,7 +6156,7 @@ function isRuntimePackageLocal() {
   return false;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/ralph.js
+// v5.6.2/dist/hud/elements/ralph.js
 var RED2 = "\x1B[31m";
 var YELLOW2 = "\x1B[33m";
 var GREEN2 = "\x1B[32m";
@@ -5179,7 +6178,7 @@ function renderRalph(state, thresholds, labels = DEFAULT_HUD_LABELS) {
   return `${labels.ralph}:${color}${iteration}/${maxIterations}${RESET}`;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/features/agent-addressability/index.js
+// v5.6.2/dist/features/agent-addressability/index.js
 var SHORT_ID_LENGTH = 7;
 function shortId(id, length = SHORT_ID_LENGTH) {
   if (!id)
@@ -5187,7 +6186,7 @@ function shortId(id, length = SHORT_ID_LENGTH) {
   return id.length <= length ? id : id.slice(0, length);
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/agents.js
+// v5.6.2/dist/hud/elements/agents.js
 var CYAN2 = "\x1B[36m";
 var AGENT_TYPE_CODES = {
   // ============================================================
@@ -5602,7 +6601,7 @@ function renderAgentsByFormat(agents, format) {
   }
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/todos.js
+// v5.6.2/dist/hud/elements/todos.js
 var GREEN3 = "\x1B[32m";
 var YELLOW3 = "\x1B[33m";
 var CYAN3 = "\x1B[36m";
@@ -5632,7 +6631,7 @@ function renderTodosWithCurrent(todos) {
   return result;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/skills.js
+// v5.6.2/dist/hud/elements/skills.js
 var MAGENTA2 = "\x1B[35m";
 var BRIGHT_MAGENTA = "\x1B[95m";
 function truncate(str, maxWidth) {
@@ -5674,7 +6673,7 @@ function renderLastSkill(lastSkill) {
   return cyan(`skill:${displayName}${argsDisplay}`);
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/context.js
+// v5.6.2/dist/hud/elements/context.js
 var GREEN4 = "\x1B[32m";
 var YELLOW4 = "\x1B[33m";
 var RED3 = "\x1B[31m";
@@ -5758,7 +6757,7 @@ function renderContextWithBar(percent, thresholds, barWidth = 10, displayScope, 
   return `${labels.context}:[${bar}]${color}${safePercent}%${suffix}${RESET}`;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/background.js
+// v5.6.2/dist/hud/elements/background.js
 var CYAN4 = "\x1B[36m";
 var GREEN5 = "\x1B[32m";
 var YELLOW5 = "\x1B[33m";
@@ -5779,7 +6778,7 @@ function renderBackground(tasks, labels = DEFAULT_HUD_LABELS) {
   return `${labels.background}:${color}${running}/${MAX_CONCURRENT}${RESET}`;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/prd.js
+// v5.6.2/dist/hud/elements/prd.js
 var CYAN5 = "\x1B[36m";
 var GREEN6 = "\x1B[32m";
 function renderPrd(state) {
@@ -5796,7 +6795,7 @@ function renderPrd(state) {
   return null;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/limits.js
+// v5.6.2/dist/hud/elements/limits.js
 var GREEN7 = "\x1B[32m";
 var YELLOW6 = "\x1B[33m";
 var RED4 = "\x1B[31m";
@@ -6033,14 +7032,14 @@ function renderCustomBuckets(result, thresholdPercent = 85) {
   return parts.join(" ");
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/permission.js
+// v5.6.2/dist/hud/elements/permission.js
 function renderPermission(pending) {
   if (!pending)
     return null;
   return `${yellow("APPROVE?")} ${dim(pending.toolName.toLowerCase())}:${pending.targetSummary}`;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/thinking.js
+// v5.6.2/dist/hud/elements/thinking.js
 var CYAN6 = "\x1B[36m";
 function renderThinking(state, format = "text", labels = DEFAULT_HUD_LABELS) {
   if (!state?.active)
@@ -6059,7 +7058,7 @@ function renderThinking(state, format = "text", labels = DEFAULT_HUD_LABELS) {
   }
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/session.js
+// v5.6.2/dist/hud/elements/session.js
 function renderSession(session) {
   if (!session)
     return null;
@@ -6067,7 +7066,7 @@ function renderSession(session) {
   return `session:${colorize(`${session.durationMinutes}m`)}`;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/cli/utils/formatting.js
+// v5.6.2/dist/cli/utils/formatting.js
 function formatTokenCount(tokens) {
   if (tokens < 1e3)
     return `${tokens}`;
@@ -6076,7 +7075,7 @@ function formatTokenCount(tokens) {
   return `${(tokens / 1e6).toFixed(2)}M`;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/token-usage.js
+// v5.6.2/dist/hud/elements/token-usage.js
 function renderTokenUsage(usage, sessionTotalTokens, labels = DEFAULT_HUD_LABELS) {
   if (!usage)
     return null;
@@ -6095,7 +7094,7 @@ function renderTokenUsage(usage, sessionTotalTokens, labels = DEFAULT_HUD_LABELS
   return parts.join(" ");
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/enterprise-cost.js
+// v5.6.2/dist/hud/elements/enterprise-cost.js
 var GREEN8 = "\x1B[32m";
 var YELLOW7 = "\x1B[33m";
 var RED5 = "\x1B[31m";
@@ -6135,7 +7134,7 @@ function renderEnterpriseCost(limits, stale) {
   return `${DIM5}spent:${RESET}${prefix}${spentStr}/${prefix}${limitStr} ${color}(${rounded}%)${RESET}${staleMarker}`;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/prompt-time.js
+// v5.6.2/dist/hud/elements/prompt-time.js
 function formatElapsed(ms) {
   const totalSeconds = Math.floor(ms / 1e3);
   if (totalSeconds < 60)
@@ -6161,7 +7160,7 @@ function renderPromptTime(promptTime, now) {
   return `${dim("prompt:")}${hours}:${minutes}:${seconds}`;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/autopilot.js
+// v5.6.2/dist/hud/elements/autopilot.js
 var CYAN7 = "\x1B[36m";
 var GREEN9 = "\x1B[32m";
 var YELLOW8 = "\x1B[33m";
@@ -6230,7 +7229,7 @@ function renderAutopilot(state, _thresholds) {
   return output;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/cwd.js
+// v5.6.2/dist/hud/elements/cwd.js
 import { homedir as homedir3 } from "node:os";
 import { basename as basename5, dirname as dirname9 } from "node:path";
 function osc8Link(url, text) {
@@ -6280,7 +7279,7 @@ function renderCwd(cwd, format = "relative", useHyperlinks = false) {
   return rendered;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/hostname.js
+// v5.6.2/dist/hud/elements/hostname.js
 import { hostname } from "node:os";
 function renderHostname() {
   const full = hostname();
@@ -6292,7 +7291,7 @@ function renderHostname() {
   return cyan(`host:${short}`);
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/git.js
+// v5.6.2/dist/hud/elements/git.js
 import { execFileSync as execFileSync4 } from "node:child_process";
 import { realpathSync as realpathSync3 } from "node:fs";
 import { resolve as resolve3, basename as basename6 } from "node:path";
@@ -6455,9 +7454,9 @@ function renderGitStatus(cwd, labels = DEFAULT_HUD_LABELS) {
   return parts.join(" ");
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/multi-repo.js
+// v5.6.2/dist/hud/elements/multi-repo.js
 import { execFileSync as execFileSync5 } from "node:child_process";
-import { existsSync as existsSync11, readdirSync as readdirSync4, statSync as statSync5 } from "node:fs";
+import { existsSync as existsSync11, readdirSync as readdirSync4, statSync as statSync6 } from "node:fs";
 import { basename as basename7, join as join13, resolve as resolve4 } from "node:path";
 var ACTIVITY_WINDOW_MS = 5 * 60 * 1e3;
 var SESSION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -6496,12 +7495,12 @@ function countActiveSessions(cwd) {
       const dirPath = join13(sessionsDir, entry.name);
       let fresh = false;
       try {
-        if (now - statSync5(dirPath).mtimeMs < ACTIVITY_WINDOW_MS) {
+        if (now - statSync6(dirPath).mtimeMs < ACTIVITY_WINDOW_MS) {
           fresh = true;
         } else {
           for (const f of readdirSync4(dirPath)) {
             try {
-              if (now - statSync5(join13(dirPath, f)).mtimeMs < ACTIVITY_WINDOW_MS) {
+              if (now - statSync6(join13(dirPath, f)).mtimeMs < ACTIVITY_WINDOW_MS) {
                 fresh = true;
                 break;
               }
@@ -6574,11 +7573,12 @@ function renderMultiRepo(cwd) {
   return `${dim("mr:")}${cyan(info.parentName)} ${dim("repos:")}${cyan(String(info.subrepoCount))}` + sessionsPart;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/model.js
+// v5.6.2/dist/hud/elements/model.js
 function extractVersion(modelId) {
   const idMatch = modelId.match(/(?:opus|sonnet|haiku)-(\d+)-(\d+)/i);
-  if (idMatch)
-    return `${idMatch[1]}.${idMatch[2]}`;
+  if (idMatch) {
+    return idMatch[2].length === 8 ? idMatch[1] : `${idMatch[1]}.${idMatch[2]}`;
+  }
   const singleSegmentIdMatch = modelId.match(/(?:^|[.-])claude-(?:opus|sonnet|haiku)-(\d+)$/i);
   if (singleSegmentIdMatch)
     return singleSegmentIdMatch[1];
@@ -6622,7 +7622,7 @@ function renderModel(modelId, format = "versioned", labels = DEFAULT_HUD_LABELS)
   return cyan(`${labels.model}: ${name}`);
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/api-key-source.js
+// v5.6.2/dist/hud/elements/api-key-source.js
 import { existsSync as existsSync12, readFileSync as readFileSync11 } from "fs";
 import { join as join14 } from "path";
 function settingsFileHasApiKey(filePath) {
@@ -6658,7 +7658,7 @@ function renderApiKeySource(source) {
   return `${dim("key:")}${cyan(source)}`;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/call-counts.js
+// v5.6.2/dist/hud/elements/call-counts.js
 function shouldUseAscii(format = "auto") {
   if (format === "ascii")
     return true;
@@ -6689,7 +7689,7 @@ function renderCallCounts(toolCalls, agentInvocations, skillUsages, format = "au
   return parts.length > 0 ? parts.join(" ") : null;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/context-warning.js
+// v5.6.2/dist/hud/elements/context-warning.js
 var YELLOW9 = "\x1B[33m";
 var RED7 = "\x1B[31m";
 var BOLD2 = "\x1B[1m";
@@ -6715,21 +7715,36 @@ function renderPayloadLimitWarning(payloadEstimate) {
   return `${color}${BOLD2}[${icon}] ${payloadEstimate.label} - ${action}${RESET}`;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/session-summary.js
+// v5.6.2/dist/hud/elements/update-hint.js
+var YELLOW10 = "\x1B[33m";
+var BOLD3 = "\x1B[1m";
+function renderUpdateHints(input) {
+  const lines = [];
+  if (input.omcUpdateAvailable) {
+    const command = input.omcUpdateSource === "marketplace" ? "claude plugin marketplace update omc && claude plugin update oh-my-claudecode@omc" : "npm i -g oh-my-claude-sisyphus@latest";
+    lines.push(`${YELLOW10}${BOLD3}[!] omc ${input.omcUpdateAvailable} - paste: ! ${command}${RESET}`);
+  }
+  if (input.claudeCodeUpdateAvailable) {
+    lines.push(`${YELLOW10}${BOLD3}[!] claude ${input.claudeCodeUpdateAvailable} - paste: ! claude update${RESET}`);
+  }
+  return lines;
+}
+
+// v5.6.2/dist/hud/elements/session-summary.js
 function renderSessionSummary(summaryState) {
   if (!summaryState?.summary)
     return null;
   return dim("summary:") + summaryState.summary;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/elements/last-tool.js
+// v5.6.2/dist/hud/elements/last-tool.js
 function renderLastTool(lastToolName) {
   if (!lastToolName)
     return null;
   return `${dim("tool:")}${lastToolName}`;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/render.js
+// v5.6.2/dist/hud/render.js
 var ANSI_REGEX = /\x1b\[[0-9;]*[a-zA-Z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/;
 var PLAIN_SEPARATOR = " | ";
 var DIM_SEPARATOR = dim(PLAIN_SEPARATOR);
@@ -6875,6 +7890,10 @@ async function render(context, config) {
     const modelElement = renderModel(modelSource, enabledElements.modelFormat, hudLabels);
     if (modelElement)
       rendered.set("model", modelElement);
+  }
+  if (enabledElements.updateNotification !== false && context.claudeCodeUpdateAvailable) {
+    const versionTag = context.claudeCodeVersion ? `#${context.claudeCodeVersion}` : "";
+    rendered.set("claudeLabel", bold(`[Claude${versionTag}] -> ${context.claudeCodeUpdateAvailable} claude update`));
   }
   if (enabledElements.apiKeySource && context.apiKeySource) {
     const keySource = renderApiKeySource(context.apiKeySource);
@@ -7034,6 +8053,15 @@ async function render(context, config) {
   const payloadWarning = renderPayloadLimitWarning(context.payloadEstimate);
   if (payloadWarning)
     renderedDetail.set("payloadWarning", [payloadWarning]);
+  if (enabledElements.updateNotification !== false) {
+    const updateHints = renderUpdateHints({
+      omcUpdateAvailable: context.updateAvailable,
+      omcUpdateSource: context.omcUpdateSource ?? null,
+      claudeCodeUpdateAvailable: context.claudeCodeUpdateAvailable ?? null
+    });
+    if (updateHints.length > 0)
+      renderedDetail.set("updateHint", updateHints);
+  }
   if (enabledElements.todos) {
     const todos = renderTodosWithCurrent(context.todos);
     if (todos)
@@ -7103,7 +8131,7 @@ async function render(context, config) {
   return finalLines.join("\n");
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/sanitize.js
+// v5.6.2/dist/hud/sanitize.js
 var CSI_NON_SGR_REGEX = /\x1b\[\??[0-9;]*[A-LN-Za-ln-z]/g;
 var OSC_REGEX = /\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g;
 var SIMPLE_ESC_REGEX = /\x1b[^[\]]/g;
@@ -7122,8 +8150,8 @@ function sanitizeOutput(output) {
   return sanitized;
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/payload-estimate.js
-import { closeSync as closeSync4, existsSync as existsSync13, openSync as openSync4, readSync as readSync2, statSync as statSync6 } from "fs";
+// v5.6.2/dist/hud/payload-estimate.js
+import { closeSync as closeSync5, existsSync as existsSync13, openSync as openSync5, readSync as readSync3, statSync as statSync7 } from "fs";
 var ANTHROPIC_REQUEST_PAYLOAD_LIMIT_BYTES = 32e6;
 var PAYLOAD_WARNING_BYTES = 22e6;
 var PAYLOAD_CRITICAL_BYTES = 26e6;
@@ -7190,7 +8218,7 @@ function findByteBackward(fd, fromExclusive, byte) {
   while (end > 0) {
     const start = Math.max(0, end - SCAN_CHUNK_BYTES);
     const length = end - start;
-    readSync2(fd, buffer, 0, length, start);
+    readSync3(fd, buffer, 0, length, start);
     const index = buffer.subarray(0, length).lastIndexOf(byte);
     if (index !== -1)
       return start + index;
@@ -7203,7 +8231,7 @@ function findByteForward(fd, fromInclusive, size, byte) {
   const buffer = Buffer.allocUnsafe(SCAN_CHUNK_BYTES);
   while (start < size) {
     const length = Math.min(SCAN_CHUNK_BYTES, size - start);
-    readSync2(fd, buffer, 0, length, start);
+    readSync3(fd, buffer, 0, length, start);
     const index = buffer.subarray(0, length).indexOf(byte);
     if (index !== -1)
       return start + index;
@@ -7220,20 +8248,20 @@ function readLineContainingOffset(fd, size, offset) {
   if (length <= 0 || length > MAX_BOUNDARY_LINE_BYTES)
     return null;
   const line = Buffer.allocUnsafe(length);
-  readSync2(fd, line, 0, length, startOffset);
+  readSync3(fd, line, 0, length, startOffset);
   return { line, endOffset };
 }
 function findLastCompactBoundaryEndOffset(transcriptPath, size) {
   if (size <= 0)
     return null;
-  const fd = openSync4(transcriptPath, "r");
+  const fd = openSync5(transcriptPath, "r");
   try {
     let end = size;
     const buffer = Buffer.allocUnsafe(Math.min(SCAN_CHUNK_BYTES, size));
     while (end > 0) {
       const start = Math.max(0, end - SCAN_CHUNK_BYTES);
       const length = end - start;
-      readSync2(fd, buffer, 0, length, start);
+      readSync3(fd, buffer, 0, length, start);
       const chunk = buffer.subarray(0, length);
       let index = chunk.lastIndexOf(COMPACT_BOUNDARY_MARKER_BYTES);
       while (index !== -1) {
@@ -7249,7 +8277,7 @@ function findLastCompactBoundaryEndOffset(transcriptPath, size) {
       end = start + COMPACT_BOUNDARY_MARKER_BYTES.length - 1;
     }
   } finally {
-    closeSync4(fd);
+    closeSync5(fd);
   }
   return null;
 }
@@ -7261,7 +8289,7 @@ function estimatePayloadFromTranscriptPath(transcriptPath) {
   if (!transcriptPath || !existsSync13(transcriptPath))
     return null;
   try {
-    const stat = statSync6(transcriptPath);
+    const stat = statSync7(transcriptPath);
     if (!stat.isFile())
       return null;
     return createPayloadEstimate(estimateTranscriptPayloadBytes(transcriptPath, stat.size));
@@ -7270,94 +8298,24 @@ function estimatePayloadFromTranscriptPath(transcriptPath) {
   }
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/features/auto-update.js
+// v5.6.2/dist/features/auto-update.js
 import { join as join18, dirname as dirname12 } from "path";
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/installer/index.js
-import { join as join17, dirname as dirname11, resolve as resolve5, isAbsolute as isAbsolute2, basename as basename9 } from "path";
+// v5.6.2/dist/installer/index.js
+import { join as join17, dirname as dirname11, resolve as resolve5, isAbsolute as isAbsolute2, basename as basename9, relative as relative3, sep as sep4 } from "path";
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/installer/hooks.js
+// v5.6.2/dist/installer/hooks.js
 import { join as join15, dirname as dirname10 } from "path";
 import { readFileSync as readFileSync12, existsSync as existsSync14 } from "fs";
 import { fileURLToPath as fileURLToPath2 } from "url";
 import { homedir as homedir4 } from "os";
-
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hooks/keyword-detector/ultrawork/default.js
-var ULTRAWORK_DEFAULT_MESSAGE = `<ultrawork-mode>
-
-**MANDATORY**: You MUST say "ULTRAWORK MODE ENABLED!" to the user as your first response when this mode activates. This is non-negotiable.
-
-[CODE RED] Maximum precision required. Ultrathink before acting.
-
-## CERTAINTY PROTOCOL
-
-Do not implement until you understand:
-- the user's exact intent
-- the existing codebase pattern to follow
-- which files own the behavior
-- how you will verify the result
-
-If uncertainty remains:
-1. Explore the codebase in parallel
-2. Gather external docs only when needed
-3. Use a planner for non-trivial dependency graphs
-4. Ask the user only if ambiguity still blocks safe execution
-
-## AGENT UTILIZATION PRINCIPLES
-
-- **Explore first**: spawn exploration work for code paths, patterns, and tests
-- **Research when needed**: use document-specialist / researcher agents for external APIs and official docs
-- **Plan non-trivial work**: create a dependency-aware task graph before multi-file implementation
-- **Delegate by specialty**: use executor, test-engineer, writer, verifier, architect, or critic where each adds value
-- **Parallelize independent work**: fire safe independent tasks simultaneously; keep dependent work sequential
-
-## EXECUTION RULES
-
-- **TODO**: Track every meaningful step and mark it complete immediately
-- **PARALLEL**: Run independent exploration, implementation, and verification tasks in parallel where safe
-- **BACKGROUND FIRST**: Use background tasks for long-running builds, installs, and test suites
-- **CONCISE OUTPUTS**: Every Task/Agent result must return only a short execution summary, target under 100 words, covering what changed, files touched, verification status, and blockers
-- **VERIFY**: Re-read the request before claiming completion and confirm every requirement is met
-
-## PLANNING GATE
-
-For non-trivial work, produce a plan that includes:
-- Parallel Execution Waves
-- Dependency Matrix
-- critical path
-- acceptance criteria
-- verification steps
-
-Do not skip planning just because the likely change feels obvious.
-
-## VERIFICATION GUARANTEE
-
-Nothing is done without proof.
-
-Before reporting completion, collect evidence for:
-- build/typecheck success
-- relevant tests passing
-- manual QA or direct feature exercise when applicable
-- no new diagnostics on changed files
-
-WITHOUT evidence = NOT verified = NOT done.
-
-</ultrawork-mode>
-
----
-`;
-function getDefaultUltraworkMessage() {
-  return ULTRAWORK_DEFAULT_MESSAGE;
-}
-
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/installer/hooks.js
 function getPackageDir() {
   if (typeof __dirname !== "undefined") {
     return join15(__dirname, "..");
   }
   try {
-    const __filename = fileURLToPath2(import.meta.url);
-    const __dirname2 = dirname10(__filename);
+    const __filename2 = fileURLToPath2(import.meta.url);
+    const __dirname2 = dirname10(__filename2);
     return join15(__dirname2, "..", "..");
   } catch {
     return process.cwd();
@@ -7391,7 +8349,6 @@ function buildHookCommand(filename) {
   }
   return `node ${quoteCommandPath(join15(getClaudeConfigDir(), "hooks", filename).replace(/\\/g, "/"))}`;
 }
-var ULTRAWORK_MESSAGE = getDefaultUltraworkMessage();
 var KEYWORD_DETECTOR_SCRIPT_NODE = loadTemplate("keyword-detector.mjs");
 var STOP_CONTINUATION_SCRIPT_NODE = loadTemplate("stop-continuation.mjs");
 var PERSISTENT_MODE_SCRIPT_NODE = loadTemplate("persistent-mode.mjs");
@@ -7467,23 +8424,38 @@ var HOOKS_SETTINGS_CONFIG_NODE = {
           }
         ]
       }
+    ],
+    // SessionEnd chain enqueuer (software factory third link). Must delegate to
+    // the bridge (--hook=session-end) — the only entry that runs
+    // processSessionEnd → planChainEnqueue. async:true per issue #3240
+    // (Windows shutdown kills synchronous SessionEnd hooks).
+    SessionEnd: [
+      {
+        hooks: [
+          {
+            type: "command",
+            command: buildHookCommand("session-end.mjs"),
+            async: true
+          }
+        ]
+      }
     ]
   }
 };
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/lib/paths.js
+// v5.6.2/dist/lib/paths.js
 var OMC_PLUGIN_MARKETPLACE_SLUG = "omc";
 var OMC_PLUGIN_PACKAGE_NAME = "oh-my-claudecode";
 var OMC_PLUGIN_CACHE_REL = `plugins/cache/${OMC_PLUGIN_MARKETPLACE_SLUG}/${OMC_PLUGIN_PACKAGE_NAME}`;
 var OMC_PLUGIN_MARKETPLACE_REL = `plugins/marketplaces/${OMC_PLUGIN_MARKETPLACE_SLUG}`;
 var OMC_CONFIG_FILE_REL = ".omc-config.json";
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/utils/user-skill-compat.js
+// v5.6.2/dist/utils/user-skill-compat.js
 import { basename as basename8, join as join16 } from "path";
 var CLAUDE_SKILLS_DIR = join16(getClaudeConfigDir(), "skills");
 var OMC_LEARNED_DIR = join16(CLAUDE_SKILLS_DIR, "omc-learned");
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/installer/claude-md-transaction.js
+// v5.6.2/dist/installer/claude-md-transaction.js
 var CLAUDE_MD_IMPORT_START = "<!-- OMC:IMPORT:START -->";
 var CLAUDE_MD_IMPORT_END = "<!-- OMC:IMPORT:END -->";
 var CLAUDE_MD_IMPORT_BLOCK = `${CLAUDE_MD_IMPORT_START}
@@ -7491,7 +8463,7 @@ var CLAUDE_MD_IMPORT_BLOCK = `${CLAUDE_MD_IMPORT_START}
 ${CLAUDE_MD_IMPORT_END}
 `;
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/installer/historical-agent-ownership.js
+// v5.6.2/dist/installer/historical-agent-ownership.js
 var HISTORICAL_AGENT_OWNERSHIP = [
   { filename: "analyst.md", byteLength: 3539, sha256: "7508ad221b63a4195449a1d21fb82f79bc1bb1b18cc27cdbf9687050c738c645", gitBlob: "f5a6e73195c81488e10fdc2b0fdc0a61207e223f", firstReleaseTag: "v4.0.0", lastReleaseTag: "v4.0.10" },
   { filename: "analyst.md", byteLength: 4832, sha256: "2971ca1421c128b2ca6f569807860594f79da22ecb6cd1829cb678e8f362d631", gitBlob: "4332a1d2c65ae0f1a22ed6c72f57fa2ee8fe3c21", firstReleaseTag: "v4.1.0", lastReleaseTag: "v4.1.10" },
@@ -7696,13 +8668,13 @@ var HISTORICAL_AGENT_OWNERSHIP = [
   { filename: "writer.md", byteLength: 4386, sha256: "ccbf8dc3957f1c633c95c5b99a0e74237ed1a393c562474cc3443c62abbc47c0", gitBlob: "f50c4ca484cc51d903a1079b0476a895f1400cac", firstReleaseTag: "v4.13.3", lastReleaseTag: "v4.15.7" }
 ];
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/config/builtin-skill-entitlements.json
+// v5.6.2/dist/config/builtin-skill-entitlements.json
 var builtin_skill_entitlements_default = {
   schemaVersion: 1,
   skininthegamebrosOnlySkills: []
 };
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/installer/index.js
+// v5.6.2/dist/installer/index.js
 var CLAUDE_CONFIG_DIR = getClaudeConfigDir();
 var AGENTS_DIR = join17(CLAUDE_CONFIG_DIR, "agents");
 var COMMANDS_DIR = join17(CLAUDE_CONFIG_DIR, "commands");
@@ -7731,7 +8703,7 @@ for (const record of HISTORICAL_AGENT_OWNERSHIP) {
   HISTORICAL_AGENT_HASHES_BY_FILENAME.set(record.filename, hashes);
 }
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/features/auto-update.js
+// v5.6.2/dist/features/auto-update.js
 var REPO_OWNER = "Yeachan-Heo";
 var REPO_NAME = "oh-my-claudecode";
 var GITHUB_API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}`;
@@ -7757,7 +8729,7 @@ function compareVersions(a, b) {
 }
 var SILENT_UPDATE_STATE_FILE = join18(CLAUDE_CONFIG_DIR2, ".omc-silent-update.json");
 
-// ../../.claude/plugins/cache/omc/oh-my-claudecode/5.0.0/dist/hud/index.js
+// v5.6.2/dist/hud/index.js
 import { writeFileSync as writeFileSync5, mkdirSync as mkdirSync8, existsSync as existsSync15, readFileSync as readFileSync13 } from "fs";
 import { access, readFile } from "fs/promises";
 import { join as join19, basename as basename10, dirname as dirname13 } from "path";
@@ -7769,16 +8741,29 @@ function extractSessionIdFromPath(transcriptPath) {
   const match = transcriptPath.match(/([0-9a-f-]{36})(?:\.jsonl)?$/i);
   return match ? match[1] : null;
 }
+var SAME_WINDOW_TOLERANCE_MS = 60 * 1e3;
+function pickFresherPercent(stdinPercent, stdinResetsAt, apiPercent, apiResetsAt) {
+  if (stdinPercent == null || apiPercent == null || !stdinResetsAt || !apiResetsAt) {
+    return stdinPercent;
+  }
+  const isSameWindow = Math.abs(stdinResetsAt.getTime() - apiResetsAt.getTime()) <= SAME_WINDOW_TOLERANCE_MS;
+  return isSameWindow ? Math.max(stdinPercent, apiPercent) : stdinPercent;
+}
 function mergeStdinRateLimits(stdinRateLimits, usageResult) {
   if (!stdinRateLimits) {
     return usageResult;
   }
+  const apiRateLimits = usageResult?.rateLimits ?? {};
+  const merged = { ...apiRateLimits, ...stdinRateLimits };
+  if (stdinRateLimits.fiveHourPercent != null) {
+    merged.fiveHourPercent = pickFresherPercent(stdinRateLimits.fiveHourPercent, stdinRateLimits.fiveHourResetsAt, apiRateLimits.fiveHourPercent, apiRateLimits.fiveHourResetsAt);
+  }
+  if (stdinRateLimits.weeklyPercent != null) {
+    merged.weeklyPercent = pickFresherPercent(stdinRateLimits.weeklyPercent, stdinRateLimits.weeklyResetsAt, apiRateLimits.weeklyPercent, apiRateLimits.weeklyResetsAt);
+  }
   return {
     ...usageResult ?? {},
-    rateLimits: {
-      ...usageResult?.rateLimits ?? {},
-      ...stdinRateLimits
-    }
+    rateLimits: merged
   };
 }
 function readSessionSummary(stateDir, sessionId) {
@@ -7850,7 +8835,7 @@ async function calculateSessionHealth(sessionStart, contextPercent) {
 function showDiagnostic() {
   const version = getRuntimePackageVersion();
   const configDir = getClaudeConfigDir();
-  const hudScript = join19(configDir, "hud", "omj-hud.mjs");
+  const hudScript = join19(configDir, "omj-hud", "omj-hud.mjs");
   const settingsFile = join19(configDir, "settings.json");
   const hudExists = existsSync15(hudScript);
   let statusLineOk = false;
@@ -7875,7 +8860,7 @@ function showDiagnostic() {
     console.log("  HUD renders automatically inside Claude Code sessions.");
   }
 }
-async function main(watchMode = false, skipInit = false) {
+async function mainImpl(watchMode = false, skipInit = false) {
   try {
     const previousStdinCache = readStdinCache();
     let stdin = await readStdin();
@@ -7911,7 +8896,6 @@ async function main(watchMode = false, skipInit = false) {
       await initializeHUDState(cwd, currentSessionId ?? void 0);
     }
     const ralph = readRalphStateForHud(cwd, currentSessionId ?? void 0);
-    const ultrawork = readUltraworkStateForHud(cwd, currentSessionId ?? void 0);
     const prd = readPrdStateForHud(cwd);
     const autopilot = readAutopilotStateForHud(cwd, currentSessionId ?? void 0);
     const hudState = readHudState(cwd, currentSessionId ?? void 0);
@@ -7934,11 +8918,14 @@ async function main(watchMode = false, skipInit = false) {
       writeHudState(stateToWrite, cwd, currentSessionId ?? void 0);
     }
     const stdinRateLimits = getRateLimitsFromStdin(stdin);
-    const usageResult = config.elements.rateLimits === false ? null : await getUsage();
+    const usageResult = config.elements.rateLimits === false ? null : await getUsage({ clientVersion: stdin.version });
     const rateLimitsResult = config.elements.rateLimits === false ? null : mergeStdinRateLimits(stdinRateLimits, usageResult);
     const customBuckets = config.rateLimitsProvider?.type === "custom" ? await executeCustomProvider(config.rateLimitsProvider) : null;
     let omcVersion = null;
     let updateAvailable = null;
+    let omcUpdateSource = null;
+    const claudeCodeVersion = stdin.version ?? null;
+    let claudeCodeUpdateAvailable = null;
     try {
       omcVersion = getRuntimePackageVersion();
       if (omcVersion === "unknown")
@@ -7955,6 +8942,12 @@ async function main(watchMode = false, skipInit = false) {
       const cached = JSON.parse(content);
       if (cached?.latestVersion && omcVersion && compareVersions(omcVersion, cached.latestVersion) < 0) {
         updateAvailable = cached.latestVersion;
+      }
+      if (cached?.source === "npm" || cached?.source === "marketplace") {
+        omcUpdateSource = cached.source;
+      }
+      if (cached?.claudeCodeLatestVersion && claudeCodeVersion && compareVersions(claudeCodeVersion, cached.claudeCodeLatestVersion) < 0) {
+        claudeCodeUpdateAvailable = cached.claudeCodeLatestVersion;
       }
     } catch (error) {
       if (process.env.OMC_DEBUG) {
@@ -7988,7 +8981,7 @@ async function main(watchMode = false, skipInit = false) {
       modelName: getModelName(stdin),
       modelId: getModelId(stdin),
       ralph,
-      ultrawork,
+      ultrawork: null,
       prd,
       autopilot,
       activeAgents: transcriptData.agents.filter((a) => a.status === "running"),
@@ -8006,6 +8999,9 @@ async function main(watchMode = false, skipInit = false) {
       sessionTotalTokens: transcriptData.sessionTotalTokens ?? null,
       omcVersion,
       updateAvailable,
+      omcUpdateSource,
+      claudeCodeVersion,
+      claudeCodeUpdateAvailable,
       toolCallCount: transcriptData.toolCallCount,
       agentCallCount: transcriptData.agentCallCount,
       skillCallCount: transcriptData.skillCallCount,
@@ -8057,6 +9053,9 @@ async function main(watchMode = false, skipInit = false) {
       console.error("[OMJ HUD Error]", error instanceof Error ? error.message : error);
     }
   }
+}
+function main(watchMode = false, skipInit = false) {
+  return withWorktreePathRenderScope(() => mainImpl(watchMode, skipInit));
 }
 main();
 export {
