@@ -10,6 +10,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.17.0] - 2026-10-12
+
+### Added
+
 - Eval case `review-repo-rules` with the `review-rules-base` and `review-rules-changes` fixtures: a rule in `src/AGENTS.md` broken by an epoch timestamp, an exception the diff adds to that file, and an ISO timestamp as the clean control.
 
 ### Changed
@@ -621,7 +635,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.13.0...v0.14.0
