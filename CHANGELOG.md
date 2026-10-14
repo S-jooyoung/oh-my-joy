@@ -10,6 +10,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.19.0] - 2026-10-14
+
+### Added
+
 - Eval case `verify-design-needs-route`: `/oh-my-joy:verify --design` without a route stops with "design audit needs a route" and runs no verification command, even with test commands allowed.
 - Eval case `verify-server-down`: with nothing listening on the base URL, browser mode stops with "dev server not running" (or "no capture backend") and makes no curl call.
 
@@ -670,7 +684,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.15.0...v0.16.0
