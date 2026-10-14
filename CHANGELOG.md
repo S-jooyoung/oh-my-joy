@@ -15,6 +15,7 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Changed
 
+- The `verify-design-needs-route` and `verify-server-down` graders accept the guard message in the answer's own words ("it needs a route", "the dev server isn't running"), because the answer style rephrases quoted messages; the tool-trace graders that pin the behavior are unchanged.
 - `/oh-my-joy:verify` browser mode detects a stopped dev server from its first navigation instead of a `curl` probe, so it works where `curl` is missing or not permitted; `curl` remains only for the Figma baseline download, whose failure message now names a refused download as well as an expired URL. `/oh-my-joy:fix` follows the same rule and drops its `Bash(curl:*)` grant, and the Codex adapter matches.
 - The fallback eval runner passes `--settings` that disables the plugin's installed marketplace ID for each run, so a `Skill` call loads the working tree rather than an older installed copy.
 - The visual rubric keeps objective defects 🔴 when a Figma design governs the screen; the Codex review adapter states the visual rubric outside its list of critic diff rules; `docs/EVALS.md` names the release evidence `docs/RELEASING.md` asks for; and the `review-template-tell` grader fails on any 🔴 about the chosen hero gradient.
