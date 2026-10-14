@@ -30,6 +30,13 @@ Run verification outside Plan mode because commands, browsers, screenshots, and 
 - Apply `.omj/fe-context.md` `verifySetup:` when present. Never print credentials; warn before persisting an authenticated screenshot that may contain personal data.
 - Baselines under `.omj/baselines/` are generated evidence, not source edits. Preserve expired-asset handling and the canonical route-slug convention.
 
+## Design audit
+
+- Run it after the reached-route check when no Figma or baseline reference exists, or on any route with `--design` (whole page in scope). `--design` without a route prints "design audit needs a route" with usage and stops. `$oh-my-joy:fix` reuses the capture procedure but not this audit.
+- Read the frontend-fundamentals `visual-design.md` rubric, its `a11y.md` sibling, and the working-tree `designDocPath`; judging an edited design document by its base wording belongs to review.
+- Record the current viewport, then set the viewport to desktop 1440×900, tablet 768×1024, and mobile 375×812 (a width declared in fe-context `acceptance` replaces the nearest one), capturing each. Measure horizontal overflow, contrast against the first opaque ancestor background, and interactive target sizes by evaluating the page; judge render tells from the captures. Restore the recorded viewport, and close the session after the audit. Audit captures are not saved as baselines. A backend that cannot resize or evaluate leaves the unmeasured items on `Declined to judge` lines.
+- A listed tell is a 🔴 `template tell` inside the audit scope (the approved plan's Design direction scope, or the whole page under `--design`) unless a design source chose it (🟢 note naming the source); outside the scope it is a 🟡 `template tell`, not a fix-loop target, with the hint to declare a deliberate choice in `designDocPath`. Objective defects are 🔴 anywhere. With a Figma reference and `--design`, a conflict with the design is a note for the designer. An unreachable required state goes on a `Declined to judge` line naming its How to check.
+
 If no browser backend is available, report the missing backend and installation/enablement options; do not fabricate a visual verdict. Suggest `$oh-my-joy:fix` for visual defects or `$oh-my-joy:ship` only after a clean pass.
 
-Use `$oh-my-joy:verify [route] [--base URL]`.
+Use `$oh-my-joy:verify [route] [--base URL] [--design]`.

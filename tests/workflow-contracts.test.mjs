@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { readRepoFile, parseFrontmatter } from './helpers/repo.mjs';
+import { existsSync } from 'node:fs';
+import { readRepoFile, parseFrontmatter, repoPath } from './helpers/repo.mjs';
 
 describe('portable planning and goal workflow', () => {
   it('both hosts expose the canonical plan and execution entry points', () => {
@@ -200,6 +201,29 @@ describe('portable planning and goal workflow', () => {
     }
     assert.doesNotMatch(readRepoFile('skills/deep-interview/SKILL.md'), /stop and report residual ambiguity/);
     assert.match(parseFrontmatter(readRepoFile('commands/review.md'))['allowed-tools'], /Bash\(git ls-files:\*\)/);
+  });
+
+  it('design quality: the visual rubric, Design direction, template tells, and the rendered audit are pinned in bodies and adapters', () => {
+    assert.ok(existsSync(repoPath('skills/frontend-fundamentals/references/visual-design.md')), 'visual rubric missing');
+    const pins = {
+      'skills/frontend-fundamentals/references/visual-design.md': ['`template tell`', 'designDocPath', 'Design direction', 'T12', 'base wording', "in the page's language", 'How to check', 'outside the audit scope', 'not a fix-loop target', 'nearest existing semantic token'],
+      'skills/frontend-fundamentals/SKILL.md': ['(references/visual-design.md)'],
+      'commands/ralplan.md': ['Design direction', 'visual-design.md', 'First viewport', 'How to check', 'under their own names and order', 'nearest existing semantic token'],
+      'skills/ralplan/SKILL.md': ['Design direction', 'under their own names and order'],
+      'commands/review.md': ['`template tell`', 'visual-design.md', 'designDocPath'],
+      'skills/review/SKILL.md': ['`template tell`', 'designDocPath'],
+      'commands/verify.md': ['--design', '1440', '768', '375', '`template tell`', 'visual-design.md', 'design audit needs a route', 'after the reached-route check', 'not saved as a baseline', 'outside the audit scope', 'not a fix-loop target', 'a note for the designer'],
+      'skills/verify/SKILL.md': ['--design', '768', 'template tell'],
+    };
+    for (const [file, phrases] of Object.entries(pins)) {
+      const body = readRepoFile(file);
+      for (const phrase of phrases) assert.ok(body.includes(phrase), `${file} pins "${phrase}"`);
+    }
+    // Regression guards: the audit adds no tools to the report-only commands.
+    const verify = parseFrontmatter(readRepoFile('commands/verify.md'));
+    assert.match(verify['argument-hint'], /--design/);
+    assert.equal(verify['allowed-tools'], 'Read, Bash(playwright-cli:*), Bash(curl:*), Bash(command -v:*), mcp__playwright__*, mcp__plugin_playwright_playwright__*');
+    assert.doesNotMatch(parseFrontmatter(readRepoFile('commands/review.md'))['allowed-tools'], /WebFetch/);
   });
 
   it('execution does not pre-approve arbitrary checks through its state helper', () => {

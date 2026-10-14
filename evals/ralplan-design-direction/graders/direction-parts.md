@@ -1,0 +1,4 @@
+---
+type: llm
+---
+The plan contains a Design direction section for the new /pricing page with all five parts: (1) context — who the page is for and its primary job; (2) a token plan that names semantic tokens declared in src/tokens/colors.css (such as --color-fg-primary, --color-brand-primary, --color-surface-default) and prescribes no raw hex value; (3) a first-viewport order naming what the eye lands on first, second, and third; (4) a states table with at least loading, empty, and error rows, each saying how it is checked (a component test, a mock, or a browser capture); and (5) a tell check that lists generic template patterns (such as purple gradients, a three-column icon grid, or emoji icons) by ID or name and marks each as avoided or chosen by a named source. Fail if any of the five parts is missing.
