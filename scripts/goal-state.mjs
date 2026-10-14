@@ -108,7 +108,8 @@ function omjConfigFiles(top) {
   if (!existsSync(dir)) return [];
   const tracked = new Set(git(['ls-files', '-z', '--', ':(top).omj']).stdout.split('\0').filter(Boolean));
   return readdirSync(dir, { withFileTypes: true })
-    .filter((entry) => !entry.isDirectory() && entry.name !== '.DS_Store')
+    // Dotfiles and `~` backups are editor and OS leftovers (.DS_Store, .fe-context.md.swp, .#fe-context.md), not config.
+    .filter((entry) => !entry.isDirectory() && !entry.name.startsWith('.') && !entry.name.endsWith('~'))
     .map((entry) => `.omj/${entry.name}`)
     .filter((file) => !tracked.has(file));
 }
@@ -870,6 +871,7 @@ function dirtyPaths() {
   return new Set([
     ...git(['diff', '--name-only', '-z', 'HEAD']).stdout.split('\0'),
     ...git(['ls-files', '--others', '--exclude-standard', '-z']).stdout.split('\0'),
+    ...omjConfigFiles(projectRoot()),
   ].filter(Boolean));
 }
 

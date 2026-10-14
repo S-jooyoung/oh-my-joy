@@ -18,6 +18,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Fixed
 
+- An experiment trial now treats an edit to a file directly in `.omj/` as an edit outside scope even when an ignore rule hides `.omj/`, matching the workspace fingerprint since 0.19.0. Editor and OS leftovers in `.omj/` (dotfiles such as `.fe-context.md.swp`, `~` backups) are not counted, here or in the fingerprint. An experiment whose baseline predates this release and that has such an ignored config file sees every later trial marked invalid for it — a safe failure; start it again under a new goal record.
+
 ### Security
 
 ## [0.19.0] - 2026-10-14
