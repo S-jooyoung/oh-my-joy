@@ -10,7 +10,17 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+- Visual rubric `skills/frontend-fundamentals/references/visual-design.md` for screens without a design reference: a closed list of twelve template tells (T1–T12), objective visual defects, judgment items, and the plan's Design direction, shared by `ralplan`, `review`, and `verify`.
+- `/oh-my-joy:verify --design` and the rendered design audit: when no Figma or baseline reference exists, or with the flag, browser mode captures desktop, tablet, and mobile, measures overflow, contrast, and target sizes, and grades template tells by audit scope; captures are not saved as baselines, and the Codex adapter carries the same procedure.
+- Eval cases `ralplan-design-direction` (a new pricing page opens with a Design direction whose states and tell check become acceptance criteria) and `review-template-tell` with the `review-design-base` and `review-design-changes` fixtures (emoji icons in tinted circles on a three-column grid are a 🔴 `template tell`; a hero gradient the design document chose is not).
+- A workflow-contracts test that pins the visual rubric, the Design direction, `template tell`, and the design audit in the bodies and adapters, and keeps `verify` and `review` at their current tools.
+
 ### Changed
+
+- `/oh-my-joy:ralplan`: a frontend plan without a Figma design that creates a new route, page, or full-width section opens with a Design direction (context, token plan, first viewport, states with How to check, tell check), and its states and tell check become acceptance criteria; other frontend plans without Figma name the pattern they follow.
+- `/oh-my-joy:review`: frontend code a diff adds is checked against the visual rubric — a listed tell is a 🔴 `template tell` inside the approved plan's Design direction scope and a 🟡 outside it; the declared `designDocPath` settles which elements the project chose, judged by its wording before the edit when the diff changes it.
+- `frontend-fundamentals` 1.4.0 owns the visual rubric next to the four criteria and accessibility, and `fe-acceptance.md` documents `designDocPath` as a design source for review and verify.
+- The `verify` description and argument-hint name the design audit and `--design`.
 
 ### Deprecated
 

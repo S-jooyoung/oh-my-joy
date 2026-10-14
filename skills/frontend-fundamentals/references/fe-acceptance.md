@@ -24,7 +24,7 @@ Whichever tier it is found at, **mapping to that system's semantic classes/varia
 
 ```
 tokensPath: <semantic token file path>   # optional (.json=DTCG, .css=custom properties)
-designDocPath: <brand/composition rules doc>   # optional — when declared, /oh-my-joy:spec Phase 1 Reads it
+designDocPath: <brand/composition rules doc>   # optional — /oh-my-joy:ralplan reads it; /oh-my-joy:review and /oh-my-joy:verify read it as the design source that can choose a template tell (references/visual-design.md)
 storybook: true|false                  # optional — true activates design-qa Story checks + the check-story-exists hook
 storiesDir: <Story collection directory>        # optional — only for projects keeping Stories in a separate directory instead of sibling files
 verifySetup: <visual-verification procedure doc/section>     # optional — /oh-my-joy:verify·/oh-my-joy:fix Read before observing (auth bypass/API mocks: cookie injection, guard mocking, …. Whatever the procedure, verify always validates the reached route before capture)
