@@ -587,6 +587,28 @@ describe('goal-state experiment goals', () => {
     assert.equal(trial(other, revision, 'baseline').json.decision, 'baseline');
   });
 
+  it('treats an edit to an ignored .omj config file as an edit outside scope', () => {
+    const root = makeExperimentRepo();
+    writeFileSync(path.join(root, '.gitignore'), '.omj/\n');
+    git(root, 'add', '.gitignore');
+    git(root, 'commit', '-qm', 'ignore omj');
+    mkdirSync(path.join(root, '.omj'), { recursive: true });
+    writeFileSync(path.join(root, '.omj/fe-context.md'), 'verifyCommands:\n  - node test/check.mjs\n');
+    const revision = baseline(root);
+    setValue(root, 50);
+    let result = trial(root, revision, 'lower the value');
+    assert.equal(result.json.decision, 'keep', 'an unchanged ignored config file is not an outside edit');
+    writeFileSync(path.join(root, '.omj/.fe-context.md.swp'), 'editor swap\n');
+    setValue(root, 45);
+    result = trial(root, result.json.revision, 'lower it a little');
+    assert.equal(result.json.decision, 'keep', 'an editor swap file next to the config is not an outside edit');
+    writeFileSync(path.join(root, '.omj/fe-context.md'), 'verifyCommands:\n  - node -e ""\n');
+    setValue(root, 40);
+    result = trial(root, result.json.revision, 'lower it further');
+    assert.equal(result.json.decision, 'invalid', 'an edit to the ignored config file invalidates the trial');
+    assert.match(result.json.reason, /edit outside scope: \.omj\/fe-context\.md/);
+  });
+
   it('treats sealed and out-of-scope edits as invalid and restores sealed files', () => {
     const root = makeExperimentRepo();
     writeFileSync(path.join(root, 'bench/data.json'), '{"n":1}\n');
