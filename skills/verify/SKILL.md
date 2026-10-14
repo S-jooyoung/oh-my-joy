@@ -26,6 +26,7 @@ Run verification outside Plan mode because commands, browsers, screenshots, and 
 
 - Prefer an installed Codex browser skill or browser-control tool. Otherwise use Playwright MCP, then `playwright-cli`. Preserve the same navigation, accessibility snapshot, screenshot, comparison, and close-session sequence regardless of backend.
 - Validate the route and base URL before interpolation exactly as the canonical workflow requires. Keep user input in quoted variables for shell fallback.
+- Detect a stopped dev server from the first navigation of the run (inside the `verifySetup` procedure when it opens the origin first, otherwise the capture's first page load): a connection error ends the run with "dev server not running — start it and rerun", without a separate HTTP probe.
 - Confirm that the intended route was reached before comparing visuals. A redirect is a failed reachability check, not a visual comparison.
 - Apply `.omj/fe-context.md` `verifySetup:` when present. Never print credentials; warn before persisting an authenticated screenshot that may contain personal data.
 - Baselines under `.omj/baselines/` are generated evidence, not source edits. Preserve expired-asset handling and the canonical route-slug convention.

@@ -1,7 +1,7 @@
 ---
 description: Paste a screenshot and describe a visual/behavioral defect — "misaligned/clipped/odd spacing·color·hover/awkward line breaks" ("정렬이 안 맞아", "잘려 보여") — and this command fixes the route's defect and confirms with a recapture, as an active loop (observation/recheck reuses the /oh-my-joy:verify capture protocol)
 argument-hint: "<route> [\"complaint/description\"] [--base <url>] [--commit]"
-allowed-tools: Read, Grep, Glob, Edit, Skill, Bash(command -v:*), Bash(playwright-cli:*), Bash(curl:*), Bash(git status:*), Bash(git diff:*), Bash(git rev-parse:*), Bash(git branch:*), Bash(git checkout -b:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(npx tsc:*), mcp__playwright__*, mcp__plugin_playwright_playwright__*, mcp__plugin_context7-plugin_context7__*, mcp__context7__*
+allowed-tools: Read, Grep, Glob, Edit, Skill, Bash(command -v:*), Bash(playwright-cli:*), Bash(git status:*), Bash(git diff:*), Bash(git rev-parse:*), Bash(git branch:*), Bash(git checkout -b:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(npx tsc:*), mcp__playwright__*, mcp__plugin_playwright_playwright__*, mcp__plugin_context7-plugin_context7__*, mcp__context7__*
 ---
 
 # /oh-my-joy:fix — Visual defect fix loop
@@ -12,7 +12,7 @@ This is an active op: it uses `Edit` and side-effect Bash, so Plan mode blocks i
 
 ## Capture procedure — canonical in verify.md
 
-Observation and recheck use exactly the procedure in `commands/verify.md` browser mode: the `-s=omj` session, `open --persistent`/`goto`/`snapshot`/`screenshot`, login-redirect re-login with `$JOY_TEST_EMAIL`/`$JOY_TEST_PASSWORD`, `--base` with `${JOY_BASE_URL:-http://localhost:3000}`, and the `command -v playwright-cli` and `curl -sf "$BASE"` preflight. It is not restated here so the two commands cannot drift apart. The one difference is session lifetime: verify closes its session every run, while fix keeps one session across observe → fix → recheck and closes it once in step 5.
+Observation and recheck use exactly the procedure in `commands/verify.md` browser mode: the `-s=omj` session, `open --persistent`/`goto`/`snapshot`/`screenshot`, login-redirect re-login with `$JOY_TEST_EMAIL`/`$JOY_TEST_PASSWORD`, `--base` with `${JOY_BASE_URL:-http://localhost:3000}`, and the `command -v playwright-cli` preflight with the dev server detected from the first navigation. It is not restated here so the two commands cannot drift apart. The one difference is session lifetime: verify closes its session every run, while fix keeps one session across observe → fix → recheck and closes it once in step 5.
 
 ## Procedure
 

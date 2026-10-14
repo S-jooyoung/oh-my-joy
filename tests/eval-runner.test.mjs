@@ -181,6 +181,17 @@ describe('eval-runner: native case format', () => {
     assert.match(stderr, /unknown frontmatter key "scaffold_script"/);
   });
 
+  it('turns off the installed copy of the plugin so a run loads only the working tree', () => {
+    const sandbox = makeSandbox({ runs: 1 });
+    const { status } = runRunner(sandbox, ['--max-cost-usd', '10']);
+    assert.equal(status, 0);
+    const argv = JSON.parse(readFileSync(path.join(sandbox.stateDir, 'argv-1.json'), 'utf8'));
+    assert.equal(argv[argv.indexOf('--plugin-dir') + 1], repoPath(), 'the working tree is still loaded');
+    const settingsAt = argv.indexOf('--settings');
+    assert.ok(settingsAt > 0, 'the run passes --settings');
+    assert.deepEqual(JSON.parse(argv[settingsAt + 1]), { enabledPlugins: { 'oh-my-joy@omj': false } });
+  });
+
   it('passes a block-scalar system prompt with colons and dash lines through intact', () => {
     const sandbox = makeSandbox({ runs: 1 });
     writeFileSync(

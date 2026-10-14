@@ -226,6 +226,16 @@ describe('portable planning and goal workflow', () => {
     assert.doesNotMatch(parseFrontmatter(readRepoFile('commands/review.md'))['allowed-tools'], /WebFetch/);
   });
 
+  it('verify detects the dev server without curl, and objective defects stay red under a Figma design', () => {
+    for (const file of ['commands/verify.md', 'commands/fix.md']) {
+      const body = readRepoFile(file);
+      assert.doesNotMatch(body, /curl -sf "\$BASE"/, `${file} no longer needs curl to detect the dev server`);
+      assert.ok(body.includes('the first navigation'), `${file} detects the dev server from the first navigation`);
+    }
+    assert.ok(readRepoFile('skills/verify/SKILL.md').includes('first navigation'), 'the Codex verify adapter detects the dev server from the first navigation');
+    assert.ok(readRepoFile('skills/frontend-fundamentals/references/visual-design.md').includes('stay 🔴 even then'), 'the rubric keeps objective defects red under Figma');
+  });
+
   it('execution does not pre-approve arbitrary checks through its state helper', () => {
     const tools = parseFrontmatter(readRepoFile('commands/ultragoal.md'))['allowed-tools'];
     assert.doesNotMatch(tools, /Bash\(node [^)]*goal-state\.mjs:\*\)/);

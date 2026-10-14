@@ -46,7 +46,7 @@ Baseline file key: the route becomes a slug by stripping the leading `/`, turnin
 ### Preflight
 
 1. Capture backend: if `command -v playwright-cli` succeeds, use playwright-cli. Otherwise, if the session has playwright MCP tools (`mcp__playwright__*`), run the same procedure with them (navigate, accessibility snapshot, screenshot, comparison). With neither, print "no capture backend — install `npm i -g playwright-cli` or enable the playwright MCP (see `/oh-my-joy:setup`)" and stop.
-2. Server up: if `curl -sf "$BASE" >/dev/null` fails, say "dev server not running — start it and rerun" and stop; nothing is auto-started.
+2. Server up: the first navigation of the run is the check — inside the `verifySetup` procedure when step 3 opens the origin first, otherwise `open`, then `goto`, in Capture below. When it fails with a connection error — `net::ERR_CONNECTION_REFUSED`, an unresolvable host, or a similar network error — say "dev server not running — start it and rerun", close the session, and stop; nothing is auto-started. Reading the server state from the first navigation needs no separate HTTP probe, so the check works where curl is missing or not permitted.
 3. If `.omj/fe-context.md` declares `verifySetup:`, `Read` that document and apply its auth-bypass or API-mock procedure before observing.
 
 ### Capture
@@ -66,7 +66,7 @@ playwright-cli -s=omj screenshot    # visuals
   ```bash
   curl -f --remove-on-error --create-dirs -o ".omj/baselines/<route-slug>@<viewport>.png" "<asset-url>"
   ```
-  `-f` stops a 403/404 body being saved as a PNG and `--remove-on-error` prevents 0-byte leftovers. On failure, advise "baseline expired (asset URLs last about 7 days) — rerun `/oh-my-joy:spec` to refresh" and continue. The URL source is the session context only.
+  `-f` stops a 403/404 body being saved as a PNG and `--remove-on-error` prevents 0-byte leftovers. On failure, advise "baseline not saved — the asset URL may have expired (they last about 7 days; rerun `/oh-my-joy:spec` to refresh) or the download was refused" and continue. The URL source is the session context only.
 - Comparison reference, in order: the Figma reference image from the immediately preceding `/oh-my-joy:spec` session context; otherwise a non-empty `.omj/baselines/<route-slug>@<viewport>.png`, `Read` and compared; otherwise run the design audit below.
 
 ### Design audit
