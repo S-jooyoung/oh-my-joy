@@ -4,7 +4,7 @@
 
 ## Scope
 
-The rubric applies to a screen no Figma design governs. With a Figma design, `figma-fidelity.md` is the authority and a rubric finding that conflicts with the design is only a 🟢 note for the designer, because the designer's decision outranks a generic pattern list.
+The rubric applies to a screen no Figma design governs. With a Figma design, `figma-fidelity.md` is the authority and a rubric finding that conflicts with the design is only a 🟢 note for the designer, because the designer's decision outranks a generic pattern list. The objective defects below stay 🔴 even then: they are accessibility failures, not design choices.
 
 ## Design sources
 

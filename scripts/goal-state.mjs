@@ -13,6 +13,7 @@ import {
   openSync,
   readFileSync,
   readSync,
+  readdirSync,
   readlinkSync,
   realpathSync,
   renameSync,
@@ -98,6 +99,20 @@ function gitBuffer(args) {
   return result.stdout;
 }
 
+// OMJ configuration lives as files directly in .omj/ (fe-context.md and its
+// siblings); its subdirectories hold generated state. A project or global ignore
+// rule can hide .omj/ from `git ls-files --others`, so untracked config files are
+// added here by name, or a verifyCommands edit would leave the fingerprint unchanged.
+function omjConfigFiles(top) {
+  const dir = path.join(top, '.omj');
+  if (!existsSync(dir)) return [];
+  const tracked = new Set(git(['ls-files', '-z', '--', ':(top).omj']).stdout.split('\0').filter(Boolean));
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => !entry.isDirectory() && entry.name !== '.DS_Store')
+    .map((entry) => `.omj/${entry.name}`)
+    .filter((file) => !tracked.has(file));
+}
+
 export function workspaceFingerprint() {
   const top = projectRoot();
   const headResult = git(['rev-parse', 'HEAD'], { allowFailure: true });
@@ -105,10 +120,10 @@ export function workspaceFingerprint() {
   const stateExcluded = ['--', ':(top)**', ':(top,exclude).omj/goals/**'];
   const diff = headSha ? git(['diff', '--binary', 'HEAD', ...stateExcluded]).stdout : '';
   const staged = git(['diff', '--cached', '--binary', ...stateExcluded]).stdout;
-  const untracked = git(['ls-files', '--others', '--exclude-standard', '-z']).stdout
+  const listed = git(['ls-files', '--others', '--exclude-standard', '-z']).stdout
     .split('\0')
-    .filter((file) => file && !file.startsWith('.omj/goals/'))
-    .sort();
+    .filter((file) => file && !file.startsWith('.omj/goals/'));
+  const untracked = [...new Set([...listed, ...omjConfigFiles(top)])].sort();
   const untrackedHashes = untracked.map((file) => {
     const absolute = path.join(top, file);
     const stat = lstatSync(absolute);

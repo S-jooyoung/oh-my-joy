@@ -10,13 +10,23 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+- Eval case `verify-design-needs-route`: `/oh-my-joy:verify --design` without a route stops with "design audit needs a route" and runs no verification command, even with test commands allowed.
+- Eval case `verify-server-down`: with nothing listening on the base URL, browser mode stops with "dev server not running" (or "no capture backend") and makes no curl call.
+
 ### Changed
+
+- `/oh-my-joy:verify` browser mode detects a stopped dev server from its first navigation instead of a `curl` probe, so it works where `curl` is missing or not permitted; `curl` remains only for the Figma baseline download, whose failure message now names a refused download as well as an expired URL. `/oh-my-joy:fix` follows the same rule and drops its `Bash(curl:*)` grant, and the Codex adapter matches.
+- The fallback eval runner passes `--settings` that disables the plugin's installed marketplace ID for each run, so a `Skill` call loads the working tree rather than an older installed copy.
+- The visual rubric keeps objective defects 🔴 when a Figma design governs the screen; the Codex review adapter states the visual rubric outside its list of critic diff rules; `docs/EVALS.md` names the release evidence `docs/RELEASING.md` asks for; and the `review-template-tell` grader fails on any 🔴 about the chosen hero gradient.
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
+
+- The goal-state workspace fingerprint now covers files directly in `.omj/` even when a project or global ignore rule hides `.omj/`, so a `verifyCommands` edit in an ignored `.omj/fe-context.md` invalidates a reusable final proof.
+- `tests/generate-inventory.test.mjs` runs its git setup without the user's global or system git config and force-adds its tracked fixture, so a global ignore of `.omj/` no longer fails it locally.
 
 ### Security
 

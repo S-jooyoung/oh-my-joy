@@ -153,6 +153,24 @@ describe('goal-state durable lifecycle', () => {
     }).json.fingerprint);
   });
 
+  it('fingerprints .omj config files even when an ignore rule hides .omj/', () => {
+    const root = makeRepo();
+    writeFileSync(path.join(root, '.gitignore'), '.omj/\n');
+    git(root, 'add', '.gitignore');
+    git(root, 'commit', '-qm', 'ignore omj');
+    const result = init(root, { second: false });
+    assert.equal(result.code, 0, result.stderr);
+    const started = run(root, 'start', { expectedRevision: result.json.revision, goalId: 'G1' });
+    const check = (revision) => run(root, 'verify', { expectedRevision: revision, scope: { goalId: 'G1' }, argv: ['node', '-e', 'process.exit(0)'] }).json;
+    const before = check(started.json.revision);
+    writeFileSync(path.join(root, '.omj/fe-context.md'), 'verifyCommands: changed\n');
+    const changed = check(before.revision);
+    assert.notEqual(changed.fingerprint, before.fingerprint, 'an ignored .omj/fe-context.md change moves the fingerprint');
+    mkdirSync(path.join(root, '.omj/research'), { recursive: true });
+    writeFileSync(path.join(root, '.omj/research/notes.md'), 'local notes\n');
+    assert.equal(check(changed.revision).fingerprint, changed.fingerprint, 'files under .omj/ subdirectories stay outside the fingerprint');
+  });
+
   it('runs through a symlinked scripts directory exactly as through the real path', { skip: process.platform === 'win32' }, () => {
     const linkDir = mkdtempSync(path.join(tmpdir(), 'omj-linked-'));
     roots.push(linkDir);

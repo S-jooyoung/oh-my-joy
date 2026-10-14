@@ -83,11 +83,13 @@ describe('generate-inventory', () => {
       '.omj/goals/local/ledger.jsonl': '{"event":"runtime-noise"}\n',
     });
     try {
-      execFileSync('git', ['init', '--quiet'], { cwd: project.root });
+      // The user's git config and global ignore files (a global ignore of .omj/, for example) must not decide what this fixture tracks.
+      const gitEnv = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
+      execFileSync('git', ['init', '--quiet'], { cwd: project.root, env: gitEnv });
       execFileSync(
         'git',
-        ['add', '.claude-plugin/plugin.json', 'agents/helper.md', 'commands/spec.md', 'evals/fixtures/fe-form/.omj/fe-context.md'],
-        { cwd: project.root },
+        ['add', '-f', '.claude-plugin/plugin.json', 'agents/helper.md', 'commands/spec.md', 'evals/fixtures/fe-form/.omj/fe-context.md'],
+        { cwd: project.root, env: gitEnv },
       );
 
       const repoInventory = JSON.parse(

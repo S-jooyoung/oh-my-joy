@@ -44,6 +44,19 @@ import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CLAUDE_BIN = process.env.OMJ_EVAL_CLAUDE_BIN ?? 'claude';
+// The plugin's own marketplace ID (`oh-my-joy@omj`). A machine that also has the
+// plugin installed can resolve a Skill call to that installed copy even though
+// --plugin-dir loads the working tree (whose ID is `<name>@inline`), so each run
+// turns the installed ID off through the highest user-controlled settings source.
+const INSTALLED_PLUGIN_ID = (() => {
+  try {
+    const { name } = JSON.parse(readFileSync(path.join(REPO_ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
+    const { name: marketplace } = JSON.parse(readFileSync(path.join(REPO_ROOT, '.claude-plugin', 'marketplace.json'), 'utf8'));
+    return name && marketplace ? `${name}@${marketplace}` : null;
+  } catch {
+    return null;
+  }
+})();
 const WORK_PARENT = process.env.OMJ_EVAL_TMPDIR ?? tmpdir();
 const DEFAULT_RUN_COST_ESTIMATE = 2;
 
@@ -442,6 +455,7 @@ function runCase(testCase, args, budget) {
     const before = new Set(listFiles(workspace));
 
     const cli = ['-p', testCase.prompt, '--plugin-dir', REPO_ROOT, '--output-format', 'stream-json', '--verbose'];
+    if (INSTALLED_PLUGIN_ID) cli.push('--settings', JSON.stringify({ enabledPlugins: { [INSTALLED_PLUGIN_ID]: false } }));
     const allowed = testCase.fields.allowed_tools ?? [];
     // Native runs withhold every tool a case does not allow and load no personal
     // settings or MCP servers. `--tools` withholds the rest of the built-in set
