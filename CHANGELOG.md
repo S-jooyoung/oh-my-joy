@@ -18,6 +18,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Fixed
 
+### Security
+
+## [0.19.1] - 2026-10-14
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
 - An experiment trial now treats an edit to a file directly in `.omj/` as an edit outside scope even when an ignore rule hides `.omj/`, matching the workspace fingerprint since 0.19.0. Editor and OS leftovers in `.omj/` (dotfiles such as `.fe-context.md.swp`, `~` backups) are not counted, here or in the fingerprint. An experiment whose baseline predates this release and that has such an ignored config file sees every later trial marked invalid for it — a safe failure; start it again under a new goal record.
 
 ### Security
@@ -686,7 +700,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.19.1...HEAD
+[0.19.1]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.16.0...v0.17.0
