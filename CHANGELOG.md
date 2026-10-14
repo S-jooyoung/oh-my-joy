@@ -10,6 +10,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.18.0] - 2026-10-14
+
+### Added
+
 - Visual rubric `skills/frontend-fundamentals/references/visual-design.md` for screens without a design reference: a closed list of twelve template tells (T1–T12), objective visual defects, judgment items, and the plan's Design direction, shared by `ralplan`, `review`, and `verify`.
 - `/oh-my-joy:verify --design` and the rendered design audit: when no Figma or baseline reference exists, or with the flag, browser mode captures desktop, tablet, and mobile, measures overflow, contrast, and target sizes, and grades template tells by audit scope; captures are not saved as baselines, and the Codex adapter carries the same procedure.
 - Eval cases `ralplan-design-direction` (a new pricing page opens with a Design direction whose states and tell check become acceptance criteria) and `review-template-tell` with the `review-design-base` and `review-design-changes` fixtures (emoji icons in tinted circles on a three-column grid are a 🔴 `template tell`; a hero gradient the design document chose is not).
@@ -645,7 +659,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.14.0...v0.15.0
