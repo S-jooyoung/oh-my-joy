@@ -28,6 +28,8 @@ Read [the Codex setup contract](../../docs/CODEX-SETUP.md) completely. It maps e
 5. For selected answer style, copy the shared style body into `.omj/answer-style.md` and add its managed read instruction to the effective root `AGENTS.override.md` or `AGENTS.md`. For a selected CLI footer, merge `[tui].status_line` in the project config. These choices preserve unrelated instructions/configuration and never replace native model instructions.
 6. Verify every selected item's actual files, content, and supported configuration. Record only project-local setup state and clearly identify a session restart or a host UI limitation.
 
+Two Claude-only items are skipped with guidance rather than imitated: the team evidence gate hook (Codex has no `TaskCompleted` event, so a role's `evidence:` line comes back in its completion message and the ledger stays the proof) and the helper bookkeeping allowlist (Codex has no `permissions.allow` file, so helper calls go through the host's normal approval flow).
+
 In Codex App, use the same skills, project instructions, and supported hook paths. A terminal footer is CLI-only; do not claim it renders in the App. Optional GitHub support follows the common explicit star choice described in the setup contract and never blocks setup.
 
 Report present, missing, configured-but-unverified, and changed items with evidence. Start concrete work with `$oh-my-joy:ralplan`; use `$oh-my-joy:deep-interview` for unclear requirements. `$oh-my-joy:spec` remains a compatibility alias.

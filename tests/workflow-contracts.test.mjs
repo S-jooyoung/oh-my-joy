@@ -147,10 +147,12 @@ describe('portable planning and goal workflow', () => {
 
   it('experiment goals, defect plans, and converging reviews are pinned in bodies and adapters', () => {
     const pins = {
-      'commands/ralplan.md': ['Plans record decisions, not code', 'Review focus', 'Defect plans', 'failing before the fix and passing after it', 'Experiment goals', 'METRIC <name>=<value>', 'Verdict: conclusive | inconclusive', 'correct any drift', 'what to leave unflagged', 'at least one commit', 'such a plan is still `ready`', '`maxTrials` 1–100', 'at least two viable options', 'at least one guard', 'each name the files they touch'],
+      'commands/ralplan.md': ['Plans record decisions, not code', 'Review focus', 'Defect plans', 'failing before the fix and passing after it', 'Experiment goals', 'METRIC <name>=<value>', 'Verdict: conclusive | inconclusive', 'correct any drift', 'what to leave unflagged', 'at least one commit', 'such a plan is still `ready`', 'at least two viable options', 'each name the files they touch', 'EXPERIMENT-GOALS.md', 'PR-DELIVERY.md'],
+      'docs/EXPERIMENT-GOALS.md': ['Experiment goals', 'METRIC <name>=<value>', '`maxTrials` 1–100', 'at least one guard', 'at least one commit', '`trial`', 'repair:true', 'pendingTrial', 'atBest', 'never parallelized', 'helper error', '`crash`', 'recorded as a follow-up', 'no_baseline'],
+      'docs/PR-DELIVERY.md': ['Finding ID | Current-head evidence | Disposition | Rationale | Planned change | Verification | Reply intent', 'pageInfo', 'deliveryRequired', 'root_comment_id', 'Never use force', 'git add -A', 'html_url', 'reconcile'],
       'skills/ralplan/SKILL.md': ['plans record decisions, not code', 'review focus', 'failing before the fix and passing after it', '`experiment` goals', 'Verdict: conclusive | inconclusive', 'correct any drift', 'what to leave unflagged'],
-      'commands/ultragoal.md': ['`trial`', 'repair:true', 'reuseGoalReview:true', 'review not converging', 'Before the first edit', 'fails for the reason the plan names', 'what to leave unflagged', 'pendingTrial', 'atBest', 'never parallelized', 'closes only with an evidence artifact', 'recorded as a follow-up', 'free of cost or external effects', 'helper error'],
-      'skills/ultragoal/SKILL.md': ['`trial`', 'repair:true', 'reuseGoalReview:true', 'review not converging', 'Before the first edit', 'what to leave unflagged', 'pendingTrial', 'failing before the fix and passing after it', 'closes only with an evidence artifact', 'recorded as a follow-up', 'helper error'],
+      'commands/ultragoal.md': ['`trial`', 'reuseGoalReview:true', 'review not converging', 'Before the first edit', 'fails for the reason the plan names', 'what to leave unflagged', 'closes only with an evidence artifact', 'free of cost or external effects', 'EXPERIMENT-GOALS.md', 'PR-DELIVERY.md'],
+      'skills/ultragoal/SKILL.md': ['`trial`', 'repair:true', 'reuseGoalReview:true', 'review not converging', 'Before the first edit', 'what to leave unflagged', 'failing before the fix and passing after it', 'closes only with an evidence artifact', 'EXPERIMENT-GOALS.md', 'PR-DELIVERY.md'],
       'docs/EXECUTION-HANDOFF.md': ['`experiment` goal', '`trial`', 'review not converging', 'reuseGoalReview:true', 'what to leave unflagged', 'Experiment goals also stay with the lead', 'recorded as a follow-up', 'on Windows only the direct child', 'helper error'],
       'agents/critic.md': ['`symptom patch`', '`metric gaming`', 'Declined to judge', 'silence about an input is not permission', 'stays a finding'],
       'skills/critic/SKILL.md': ['`symptom patch`', '`metric gaming`', 'Declined to judge', 'silence about an input is not permission'],
@@ -234,6 +236,36 @@ describe('portable planning and goal workflow', () => {
     }
     assert.ok(readRepoFile('skills/verify/SKILL.md').includes('first navigation'), 'the Codex verify adapter detects the dev server from the first navigation');
     assert.ok(readRepoFile('skills/frontend-fundamentals/references/visual-design.md').includes('stay 🔴 even then'), 'the rubric keeps objective defects red under Figma');
+  });
+
+  it('ultragoal hands reviewers files, parallelizes the final stage, keeps paid checks out of final proof, and runs the team lane', () => {
+    // Each phrase exists only in the rule it pins; none appears in the bodies before 0.20.0.
+    const pins = {
+      'commands/ultragoal.md': ['`critic`', '--output=', 'same turn as', 'not part of the final proof', '`implementer`', '`crash`', 'verification route', 'TaskUpdate', 'EXPERIMENT-GOALS.md', 'PR-DELIVERY.md', 'allowlist stale'],
+      'skills/ultragoal/SKILL.md': ['--output=', 'same turn as', 'not part of the final proof', 'three failing final reviews', 'verification route', 'TaskUpdate'],
+      'docs/EXECUTION-HANDOFF.md': ['--output=', 'same turn as', 'not part of the final proof', 'three failing final reviews', 'verification route', 'TaskUpdate'],
+      'commands/ralplan.md': ['Expected execution', 'not part of the final proof', 'parallel implementers'],
+      'skills/ralplan/SKILL.md': ['Expected execution', 'not part of the final proof', 'parallel implementers'],
+      'agents/implementer.md': ['observation dispatch', 'TaskUpdate'],
+      'skills/implementer/SKILL.md': ['observation dispatch', 'TaskUpdate'],
+    };
+    for (const [file, phrases] of Object.entries(pins)) {
+      const body = readRepoFile(file);
+      for (const phrase of phrases) assert.ok(body.includes(phrase), `${file} pins "${phrase}"`);
+    }
+  });
+
+  it('the session pass and the independent pass judge by one finding-kind list', () => {
+    // Every labelled kind reads the same way in the four copies, so a finding from the independent pass
+    // can be matched to the session's rule; the critic copies also carry the refute-before-report step.
+    const FINDING_KINDS = ['verification weakened', 'metric gaming', 'symptom patch', 'unreached code', 'repo rule', 'scope expansion', 'template tell'];
+    for (const file of ['agents/critic.md', 'skills/critic/SKILL.md', 'commands/review.md', 'skills/review/SKILL.md']) {
+      const body = readRepoFile(file);
+      for (const kind of FINDING_KINDS) assert.ok(body.includes(`\`${kind}\``), `${file} pins "\`${kind}\`"`);
+    }
+    for (const file of ['agents/critic.md', 'skills/critic/SKILL.md', 'commands/review.md']) {
+      assert.ok(readRepoFile(file).includes('Refuted:'), `${file} pins "Refuted:"`);
+    }
   });
 
   it('execution does not pre-approve arbitrary checks through its state helper', () => {

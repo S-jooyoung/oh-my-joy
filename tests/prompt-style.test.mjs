@@ -7,6 +7,10 @@
  * with <example> tags; avoid emphasis inflation that makes models overtrigger)
  * held for one release and then drifted back, so the mechanically checkable part
  * lives here. The rewrite that established these budgets is v0.8.0.
+ *
+ * The body budget below ratchets the size of every command, agent, and skill
+ * body (the part loaded on invocation); tests/token-budget.test.mjs ratchets the
+ * always-on descriptions.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -95,4 +99,75 @@ describe('Prompt style (commands · agents · skills · output styles)', () => {
       assert.deepEqual(offenders, [], `fenced examples outside <example>:\n${offenders.join('\n')}`);
     });
   }
+});
+
+// Body budget — the per-invocation ratchet. A body is loaded whole each time its
+// command, agent, or skill runs, so its size is context spent on every call.
+// Each ceiling is the body's measured size (characters / 4, rounded) × 1.05,
+// rounded up: the 5% headroom is room for the accepted 🟡 edits ultragoal
+// applies after a goal completes, not for growth. An edit that needs a higher
+// ceiling raises it in the same change and records the raise in the CHANGELOG.
+const BODY_BUDGET_TOKENS = {
+  'commands/deep-interview.md': 2153,
+  'commands/fix.md': 1279,
+  'commands/ralplan.md': 4628,
+  'commands/review.md': 4250,
+  'commands/setup.md': 3431,
+  'commands/ship.md': 2106,
+  'commands/spec.md': 231,
+  'commands/sync.md': 2446,
+  'commands/ultragoal.md': 5085,
+  'commands/verify.md': 3312,
+  'agents/critic.md': 3044,
+  'agents/design-qa.md': 529,
+  'agents/implementer.md': 1407,
+  'skills/critic/SKILL.md': 1665,
+  'skills/deep-interview/SKILL.md': 607,
+  'skills/design-qa/SKILL.md': 387,
+  'skills/fix/SKILL.md': 477,
+  'skills/frontend-fundamentals/SKILL.md': 1437,
+  'skills/implementer/SKILL.md': 806,
+  'skills/ralplan/SKILL.md': 1686,
+  'skills/review/SKILL.md': 1724,
+  'skills/setup/SKILL.md': 815,
+  'skills/ship/SKILL.md': 528,
+  'skills/spec/SKILL.md': 131,
+  'skills/sync/SKILL.md': 565,
+  'skills/ultragoal/SKILL.md': 2342,
+  'skills/verify/SKILL.md': 1196,
+};
+
+const bodyTargets = [
+  ...listCommandFiles().map((f) => `commands/${f}`),
+  ...listAgentFiles().map((f) => `agents/${f}`),
+  ...listTrackedFiles('skills/*/SKILL.md'),
+];
+
+const bodyTokens = (source) => Math.round(body(source).length / 4);
+
+function assertBodyBudget(file, source, budgets = BODY_BUDGET_TOKENS) {
+  const ceiling = budgets[file];
+  assert.ok(Number.isInteger(ceiling), `${file} has no BODY_BUDGET_TOKENS entry — add its measured size × 1.05`);
+  const tokens = bodyTokens(source);
+  assert.ok(tokens <= ceiling, `${file} body is ${tokens} estimated tokens, over its ${ceiling} ceiling — trim it, or raise the ceiling in this change and record it in the CHANGELOG`);
+}
+
+describe('Body budget (commands · agents · skills)', () => {
+  it('enumeration covers every per-invocation body — never silently empty', () => {
+    assert.ok(bodyTargets.length >= 20, `only ${bodyTargets.length} bodies enumerated`);
+  });
+
+  for (const file of bodyTargets) {
+    it(`${file} body stays under its ceiling (${BODY_BUDGET_TOKENS[file] ?? 'missing'} tokens)`, () => {
+      assertBodyBudget(file, readRepoFile(file));
+    });
+  }
+
+  it('rejects an oversized body and a body without a ceiling', () => {
+    const budgets = { 'fixture/commands/x.md': 100 };
+    const fixture = (chars) => `---\ndescription: fixture\n---\n${'x'.repeat(chars)}`;
+    assert.doesNotThrow(() => assertBodyBudget('fixture/commands/x.md', fixture(400), budgets));
+    assert.throws(() => assertBodyBudget('fixture/commands/x.md', fixture(404), budgets), /over its 100 ceiling/);
+    assert.throws(() => assertBodyBudget('fixture/commands/y.md', fixture(4), budgets), /has no BODY_BUDGET_TOKENS entry/);
+  });
 });

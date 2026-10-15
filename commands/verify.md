@@ -62,12 +62,12 @@ playwright-cli -s=omj screenshot    # visuals
 
 - Auth redirects are only observable after the page opens, so handle them here: if navigation lands on a login page, re-login with `fill` and `click` using the `verifySetup` procedure or the exported `$JOY_TEST_EMAIL`/`$JOY_TEST_PASSWORD`, then `goto` again. With neither, say "route requires auth — log in manually in the browser and rerun". Pass credentials only as variable references, never resolved into commands, reports, or errors, and use test-only accounts; screenshots taken after login can contain session or personal data, so tell the user before persisting one as a baseline.
 - Reached-route validation comes before any comparison: confirm from the snapshot that the page actually reached `"$ROUTE"`. A redirect elsewhere is reported as "expected route not reached (redirected)" and never compared — matching the wrong screen against the reference is this command's most dangerous silent failure.
-- Baseline persistence: when the session context holds the Figma asset URL from a `/oh-my-joy:spec` spec, persist it:
+- Baseline persistence: when the session context holds the Figma asset URL from the `/oh-my-joy:ralplan` plan, persist it:
   ```bash
   curl -f --remove-on-error --create-dirs -o ".omj/baselines/<route-slug>@<viewport>.png" "<asset-url>"
   ```
-  `-f` stops a 403/404 body being saved as a PNG and `--remove-on-error` prevents 0-byte leftovers. On failure, advise "baseline not saved — the asset URL may have expired (they last about 7 days; rerun `/oh-my-joy:spec` to refresh) or the download was refused" and continue. The URL source is the session context only.
-- Comparison reference, in order: the Figma reference image from the immediately preceding `/oh-my-joy:spec` session context; otherwise a non-empty `.omj/baselines/<route-slug>@<viewport>.png`, `Read` and compared; otherwise run the design audit below.
+  `-f` stops a 403/404 body being saved as a PNG and `--remove-on-error` prevents 0-byte leftovers. On failure, advise "baseline not saved — the asset URL may have expired (they last about 7 days; rerun `/oh-my-joy:ralplan` to refresh) or the download was refused" and continue. The URL source is the session context only.
+- Comparison reference, in order: the Figma reference image from the immediately preceding `/oh-my-joy:ralplan` session context; otherwise a non-empty `.omj/baselines/<route-slug>@<viewport>.png`, `Read` and compared; otherwise run the design audit below.
 
 ### Design audit
 

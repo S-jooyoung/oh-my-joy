@@ -1,12 +1,12 @@
 ---
-description: OMJ dependency check + scaffolding — inspects playwright-cli/MCP, Figma MCP, Context7, the Agent Teams flag, and the OMJ answer style, and proposes installing .omj/fe-context.md, the token-guard hooks, and the OMJ HUD statusline (opt-in)
+description: OMJ dependency check + scaffolding — inspects playwright-cli/MCP, Figma MCP, Context7, the Agent Teams flag, and the OMJ answer style, and proposes installing .omj/fe-context.md, the token-guard and team evidence gate hooks, the helper allowlist, and the OMJ HUD statusline (opt-in)
 argument-hint: "[--check] (inspect only) | [--help]"
 allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(command -v:*), Bash(claude plugin list:*), Bash(claude plugin install figma@claude-plugins-official:*), Bash(claude plugin install context7-plugin@context7-marketplace:*), Bash(npm i -g playwright-cli:*), Bash(test:*), Bash(grep:*), Bash(diff:*), Bash(cp "${CLAUDE_PLUGIN_ROOT}/templates/hooks/":*), Bash(mkdir -p .claude/hooks:*), Bash(cp -R "${CLAUDE_PLUGIN_ROOT}/hud/":*), Bash(mkdir -p ~/.claude/omj-hud:*), Bash(sh ~/.claude/omj-hud/omj-hud-cache.sh:*), Bash(gh auth status:*), Bash(gh api user/starred/S-jooyoung/oh-my-joy), Bash(gh api user/starred/S-jooyoung/oh-my-joy -X PUT)
 ---
 
 # /oh-my-joy:setup — Dependency doctor and scaffolding
 
-Inspect the optional dependencies OMJ leans on, guide the installation of anything missing, and scaffold the project declaration. Already-installed items are left untouched. Project declarations (`.omj/fe-context.md`), the token-guard hooks, the HUD, the Agent Teams flag, and the answer style are all opt-in and installed only here — the plugin changes nothing in a project or a user config on its own, because a plugin that did would fire in every repo it is enabled in.
+Inspect the optional dependencies OMJ leans on, guide the installation of anything missing, and scaffold the project declaration. Already-installed items are left untouched. Project declarations (`.omj/fe-context.md`), the token-guard and team evidence gate hooks, the helper allowlist, the HUD, the Agent Teams flag, and the answer style are all opt-in and installed only here — the plugin changes nothing in a project or a user config on its own, because a plugin that did would fire in every repo it is enabled in.
 
 Users run this directly; `/oh-my-joy:ralplan` also suggests it once when it sees no setup trace (no `.omj/` in the repo and no `~/.claude/.omj-setup.json`), because a skipped setup is the usual root cause of a missing fe-context or hook chain.
 
@@ -25,7 +25,9 @@ Detect each item and print a table with present / missing / optional:
 | `playwright-cli` or playwright MCP | `/oh-my-joy:verify` and `/oh-my-joy:fix` browser mode (cli first, MCP fallback) | `command -v playwright-cli`; otherwise session tools named `mcp__playwright__*` |
 | Official Figma Dev Mode MCP | `/oh-my-joy:ralplan` Figma track, `/oh-my-joy:sync` | `claude plugin list \| grep -i figma` |
 | Context7 | current Next.js docs in `/oh-my-joy:ralplan` and `/oh-my-joy:review` (optional) | `claude plugin list \| grep -i context7` |
-| Agent Teams flag (opt-in) | parallel `implementer` dispatch inside ultragoal | `grep CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS ~/.claude/settings.json` — optional when absent |
+| Agent Teams flag (opt-in) | parallel `implementer` dispatch inside ultragoal. With the flag on, a subagent Claude names launches as a teammate, and no teammates spawn in non-interactive `-p` runs | `grep CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS ~/.claude/settings.json` — optional when absent |
+| Team evidence gate hook (opt-in) | refuses to close an ultragoal teammate task (marker `omj: <slug>`) that carries no passing `evidence:` line | `test -f .claude/hooks/task-completed-evidence.mjs` and `grep TaskCompleted .claude/settings.json` — optional when absent |
+| Helper bookkeeping allowlist (opt-in) | ultragoal's `goal-state.mjs` bookkeeping verbs run without a permission prompt | `grep goal-state.mjs .claude/settings.local.json .claude/settings.json`; `Read` every matching rule and `test -f` its script path — when the path no longer exists, report "allowlist stale — rerun /oh-my-joy:setup" (plugin updates move the installed copy) |
 | OMJ answer style (opt-in) | natural, learner-friendly answers in your language | `grep '"outputStyle"' ~/.claude/settings.json .claude/settings.local.json` — optional when absent |
 | `oh-my-joy:frontend-fundamentals` | the ralplan and review rubric (bundled) | present whenever OMJ is installed |
 | `.omj/fe-context.md` | project acceptance, token, verification declarations | `test -f .omj/fe-context.md` — optional; scaffolding proposed below |
@@ -52,6 +54,12 @@ Gather the missing items into one `AskUserQuestion` (multiSelect) — "pick the 
   2. Register the scripts in the project's `.claude/settings.json` under `hooks.PostToolUse` with matcher `Edit|Write|MultiEdit|NotebookEdit` and relative commands (`node .claude/hooks/check-design-tokens.mjs`) — the same four tools the scripts treat as mutating, so a narrower matcher cannot let a save slip past.
   3. The hooks no-op without fe-context declarations (`tokensPath`, `storybook: true`), so recommend installing them together with fe-context.
   4. On rerun, if `${CLAUDE_PLUGIN_ROOT}/templates/hooks/` differs from the `.claude/hooks/` copies (`diff`), announce "hook script update available" and overwrite only on consent.
+- Team evidence gate hook → propose it together with the Agent Teams flag, since it only matters when ultragoal mirrors goals into a shared task list. On consent:
+  1. Copy it the same way: `mkdir -p .claude/hooks && cp "${CLAUDE_PLUGIN_ROOT}/templates/hooks/"task-completed-evidence.mjs .claude/hooks/`.
+  2. `Edit` the project's `.claude/settings.json` to register `node .claude/hooks/task-completed-evidence.mjs` under `hooks.TaskCompleted` without a matcher. The event fires when any agent completes a task through `TaskUpdate` and when a teammate ends its turn with in-progress tasks; exit 2 keeps the task open and feeds the stderr guidance back to the model.
+  3. `Edit` `.omj/fe-context.md` to add `teamEvidenceGate: true` (format canon: `references/fe-acceptance.md`). Without that line the hook no-ops, and it ignores every task without the `omj: <slug>` marker, so other task lists are untouched. The hook reruns no check; the ledger written by ultragoal's helper `verify` stays the proof.
+  4. Rerun handling is the same `diff` and "hook script update available" notice as the token-guard hooks.
+- Helper bookkeeping allowlist → on consent, `Edit` (or `Write`) the user-local `.claude/settings.local.json`, merging into its `permissions.allow`. It goes into the local file and not the shared `settings.json` because the installed plugin lives under the user's home, so the shared file would commit a path that is wrong for everyone else. Write one exact-prefix rule per bookkeeping verb with the installed plugin's absolute path, unquoted: `Bash(node ${CLAUDE_PLUGIN_ROOT}/scripts/goal-state.mjs status *)`, and the same for `init`, `start`, `resume`, `block`, `review`, `evidence`, `complete`, `finding`, `delivery`, `close`, and `reconcile`. `verify` and `trial` stay out: they run project commands, and their permission prompt is the evidence's confirmation point. Do not write a rule with `*` inside the path, because it would also match `node -e … goal-state.mjs status`. When the resolved path contains a space, install nothing and say why: a prefix rule cannot match the quoted form the shell would need. Plugin updates move the installed copy; `--check` and ultragoal report the rules as stale, and a rerun rewrites them.
 - OMJ HUD statusline → on consent:
   1. `mkdir -p ~/.claude/omj-hud && cp -R "${CLAUDE_PLUGIN_ROOT}/hud/". ~/.claude/omj-hud/` (a copy, for the same reasons as the hooks).
   2. `Edit` `~/.claude/settings.json` to set `statusLine` to `{"type": "command", "command": "sh ~/.claude/omj-hud/omj-hud-cache.sh ~/.claude/omj-hud/omj-hud.mjs"}`; warn before overwriting an existing custom statusLine.
@@ -63,7 +71,7 @@ Plugin installs and hook registrations take effect from the next session — say
 ## Step 3 — Wrap-up
 
 - Print the inspection summary and "start with `/oh-my-joy:ralplan <figma-url|task>`; when the goal is still fuzzy, `/oh-my-joy:deep-interview` first; `/oh-my-joy:spec` remains an alias".
-- Optionally record `{"setupCompleted": "<today>"}` in `~/.claude/.omj-setup.json`, so reruns can fast-path with "already inspected; inspect again?".
+- Optionally record the receipt `~/.claude/.omj-setup.json` with `Write`: `{"setupCompleted": "<today>"}`, plus `"env": {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}` when the Agent Teams flag is installed (now or already). Reruns can fast-path with "already inspected; inspect again?", and ultragoal reads the receipt to decide its lane without probing the environment.
 - GitHub star (optional): if `gh auth status` succeeds, check `gh api user/starred/S-jooyoung/oh-my-joy`. Already starred (exit 0) → say nothing. Otherwise ask once via `AskUserQuestion` ("If OMJ helps you, would you support it with a GitHub star?" — star it / no thanks / later) and run `gh api user/starred/S-jooyoung/oh-my-joy -X PUT` only on "star it". An API failure is ignored; a star never blocks setup. With `gh` missing or unauthenticated, print `https://github.com/S-jooyoung/oh-my-joy` without asking.
 
 ## Usage

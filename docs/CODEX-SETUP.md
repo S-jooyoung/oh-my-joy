@@ -82,6 +82,8 @@ For selected checks:
 
 The adapter parses native patch envelopes and standalone `apply_patch` heredocs. It does not execute input or guess targets from arbitrary Bash commands, MCP calls, or `tool_response`. Deleted and out-of-project paths are skipped. These checks are advisory and fail open; they are not exhaustive write enforcement. No plugin-level automatic hook is installed.
 
+Two Claude setup items have no Codex counterpart and are skipped with guidance: the opt-in team evidence gate hook (`templates/hooks/task-completed-evidence.mjs`, a Claude `TaskCompleted` hook) and the helper bookkeeping allowlist (Claude `permissions.allow` rules in `.claude/settings.local.json`). In Codex a role's `evidence:` line comes back in its completion message, the ledger remains the proof, and helper calls use the host's normal approval flow.
+
 ## Answer style in CLI and App
 
 Codex uses [project instructions](https://learn.chatgpt.com/docs/agent-configuration/agents-md) for this capability. On selection, copy the body of [OMJ's shared answer style](../output-styles/oh-my-joy.md), without YAML frontmatter, into `.omj/answer-style.md`. Inspect an existing copy before updating it.

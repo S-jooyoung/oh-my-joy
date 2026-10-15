@@ -5,6 +5,9 @@
  * per entry at characters / 4. They exclude native namespaces, paths, catalog
  * framing, other plugins, and host-specific truncation. Passing does not prove
  * that a host's available-skills catalog will fit its runtime context budget.
+ *
+ * This file ratchets the always-on descriptions only; the per-invocation bodies
+ * are ratcheted by the body budget in tests/prompt-style.test.mjs.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
