@@ -10,13 +10,29 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+- `docs/EXPERIMENT-GOALS.md` and `docs/PR-DELIVERY.md` hold the experiment-goal and GitHub PR procedures for both planning and execution; `ralplan` and `ultragoal` read them only when a plan has an experiment goal or a PR, so an ordinary run no longer loads either.
+- Eval grader `expected-execution` on `spec-general-text`: the final plan carries the `Expected execution` line.
+- `templates/hooks/task-completed-evidence.mjs`: an opt-in `TaskCompleted` gate hook (risk class `gate`) that keeps an ultragoal teammate task (marker `omj: <slug>`) open until its description carries a passing `evidence: <command> · exit 0 · <summary>` line; active only with `teamEvidenceGate: true` in `.omj/fe-context.md`, fail-open on crashes, installed by `/oh-my-joy:setup` under `hooks.TaskCompleted`; `tests/hooks/hook-conventions.test.mjs` pins the new class.
+- Eval case `ultragoal-single-goal-close` with the `node-defect` fixture: an approved defect plan in `append_system_prompt` drives one `change` goal through the helper to `close` — reproduction test written first, independent reviewer spawned, no commit — and the report states the ledger outcome; `review-rerun-delta` was rerun on the 0.20.0 review body.
+- `/oh-my-joy:setup`: an opt-in helper bookkeeping allowlist — exact-prefix `permissions.allow` rules in the user-local `.claude/settings.local.json` for the `goal-state.mjs` bookkeeping verbs only (never `verify` or `trial`, whose permission prompt is the evidence's confirmation point), refused when the installed path contains a space, reported as "allowlist stale — rerun /oh-my-joy:setup" by `--check` when the path moved; the setup receipt now records the Agent Teams flag, and the flag row carries the official caution (a named subagent launches as a teammate; no teammates in `-p` runs). Codex setup skips both items with guidance.
+
 ### Changed
+
+- `/oh-my-joy:ultragoal`: goal and final reviews spawn the `critic` agent and receive the diff and the untracked-file list as files under `.omj/goals/<slug>/reviews/` (written with `git diff --output=`, outside the fingerprint) plus the plan from `brief.md`, instead of the diff pasted into the prompt; the goal reviewer is spawned in the same turn as the helper `verify` the lead expects to pass, and the final reviewer in the same turn as the first final `verify`; paid or external checks run once inside their goal, are cited by their result file, and are not part of the final proof; a goal with a verification route runs `verify` browser mode and the `fix` loop before its recording helper run; `crash`, the final-review cap, and the stale-allowlist notice are stated in the Claude body; a long run can continue from a fresh session with `/clear` and `resume <slug>`.
+- Team lane: with `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, two or more goals with disjoint owned files run as `implementer` teammates (down from three subagents), mirrored into the shared task list with an `omj: <slug>` marker, each finishing its task with an `evidence:` line through `TaskUpdate`; the lead waits at the barrier, keeps shared files and experiment goals, and the ledger stays the record. A defect plan with ranked hypotheses observes them in parallel through implementer teammates in observation dispatch. `implementer` declares `TaskUpdate` and `SendMessage` and defines observation dispatch.
+- `agents/critic.md` and the Codex `critic` adapter carry the same finding kinds as `/oh-my-joy:review` — `template tell` (judged by the design document's base wording, since the critic has no Bash), the refute-before-report step with its `Refuted:` line, the `todo`/`only`/threshold forms of `verification weakened` with the plan-named 🟢 exception — and a severity rule (findings are gaps against the plan's criteria and correctness; a style preference is at most 🟢; nothing to report is said in one line); `tests/workflow-contracts.test.mjs` pins the seven labelled kinds across the four copies.
+- `/oh-my-joy:review` loads the `frontend-fundamentals` rubric only when the diff has frontend files and otherwise reports "FF rubric skipped — no frontend files"; eval grader `ff-not-loaded` on `review-plan-constraints` pins it.
+- `CLAUDE.md` keeps one-line pointers for the eval-runner and self-application gotchas and the command inventory; the details moved to the new `## Gotchas` section of `docs/EVALS.md` and the README `## Commands` table. `tests/prompt-style.test.mjs` now ratchets every command, agent, and skill body with a per-file ceiling (measured size plus 5% headroom for accepted 🟡 edits).
+- `/oh-my-joy:ralplan`: Verification commands list only local, cost-free checks, with paid checks as acceptance rows of the goal that needs them; goals split only along disjoint file ownership with three or more files per set; the final plan ends with the `Expected execution: <n> goal(s) · <r> independent readings · <k> verification command(s) per proof · expected lane …` line, counting only what the plan can count.
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
+
+- `commands/verify.md` and `references/fe-acceptance.md` named `/oh-my-joy:spec` as the primary command and `fe-acceptance.md` pointed at a `commands/spec.md` phase that does not exist; they name `/oh-my-joy:ralplan` and its "Author the draft" section. `agents/implementer.md` listed four blocker approaches while asking for "three distinct".
+- `commands/ultragoal.md` named no reviewer, no parallel-dispatch threshold, no route verification, and no `crash` term while `agents/critic.md`, CLAUDE.md, and both READMEs said ultragoal spawns `critic` and runs `review` → `verify` → `fix`; the body, CLAUDE.md, and the READMEs now describe the same procedure (critic reviews directly, `verify` browser mode for a route), and the "its adapter below" reference points at the Codex adapter file.
 
 ### Security
 

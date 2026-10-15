@@ -1,17 +1,17 @@
 # Project acceptance axes and verification commands — the *mechanism* that forces frequently missed items into specs
 
-The FF 4 criteria + accessibility + responsiveness/tokens are universal to **every** project (already covered by the other `references/*` and `commands/spec.md` Phase 2). But **the omissions that cause rework** usually come from *that project's own* special conditions — e.g. parallel locales, theme/brand modes, currency/format rules, specific device priorities. These differ per project, so **the plugin must not force any particular axis** (it would be false for other repos and other users).
+The FF 4 criteria + accessibility + responsiveness/tokens are universal to **every** project (already covered by the other `references/*` and the "Author the draft" section of `commands/ralplan.md`). But **the omissions that cause rework** usually come from *that project's own* special conditions — e.g. parallel locales, theme/brand modes, currency/format rules, specific device priorities. These differ per project, so **the plugin must not force any particular axis** (it would be false for other repos and other users).
 
 > **Principle: OMJ does *not force acceptance axes as built-ins.*** It **provides only the mechanism** (examples given, never shipped as defaults); what to check is declared by each project. That is what makes it work universally — company repos, personal projects, third-party open-source use alike.
 
 ## Behavior
 
-1. If the repo root has **`.omj/fe-context.md`** → read the acceptance axes declared there and include them in `/oh-my-joy:spec` spec acceptance criteria + `/oh-my-joy:fix` diagnostic checks + `design-qa` conditional items (Story·i18n). If `contextDocs:` is declared, Read those documents too and fold them into the same places (adopting existing rule documents — never duplicating content into fe-context), and use the `decisions:` list as a recurrence-prevention check.
+1. If the repo root has **`.omj/fe-context.md`** → read the acceptance axes declared there and include them in `/oh-my-joy:ralplan` acceptance criteria + `/oh-my-joy:fix` diagnostic checks + `design-qa` conditional items (Story·i18n). If `contextDocs:` is declared, Read those documents too and fold them into the same places (adopting existing rule documents — never duplicating content into fe-context), and use the `decisions:` list as a recurrence-prevention check.
 2. If absent → apply only the universal FF criteria (readability, predictability, cohesion, coupling, accessibility + responsiveness/tokens) (graceful — not an error).
 3. **The scaffolding entry point is `/oh-my-joy:setup`** — when the file is missing, setup proposes creating it, and detected candidates (i18n directories, token systems, theme classes, `package.json` scripts) are recorded **as comments only** (no auto-declared axes).
 4. **`verifyCommands:`** is the project's own definition of "proven". `/oh-my-joy:verify` without a route and `/oh-my-joy:ship` run these commands in order and record an evidence row per command (command · exit code · one-line summary). When the list is absent they fall back to `package.json` scripts named `typecheck`, `lint`, and `test`; when nothing exists they stop and say so rather than invent a command.
 
-## Token-system detection order (SoT — referenced by `/oh-my-joy:spec` Color/Tokens, `/oh-my-joy:setup`, `/oh-my-joy:sync`)
+## Token-system detection order (SoT — referenced by `/oh-my-joy:ralplan` Color/Tokens, `/oh-my-joy:setup`, `/oh-my-joy:sync`)
 
 1. The `tokensPath:` declaration in `.omj/fe-context.md` (`.json` = DTCG, `.css` = CSS custom properties)
 2. The conventional path `shared/tokens/tokens.json` (when present)
@@ -27,6 +27,7 @@ tokensPath: <semantic token file path>   # optional (.json=DTCG, .css=custom pro
 designDocPath: <brand/composition rules doc>   # optional — /oh-my-joy:ralplan reads it; /oh-my-joy:review and /oh-my-joy:verify read it as the design source that can choose a template tell (references/visual-design.md)
 storybook: true|false                  # optional — true activates design-qa Story checks + the check-story-exists hook
 storiesDir: <Story collection directory>        # optional — only for projects keeping Stories in a separate directory instead of sibling files
+teamEvidenceGate: true|false           # optional — true activates the opt-in TaskCompleted gate hook: an ultragoal teammate task (marker `omj: <slug>`) closes only with a passing `evidence: <command> · exit 0 · <summary>` line
 verifySetup: <visual-verification procedure doc/section>     # optional — /oh-my-joy:verify·/oh-my-joy:fix Read before observing (auth bypass/API mocks: cookie injection, guard mocking, …. Whatever the procedure, verify always validates the reached route before capture)
 verifyCommands:                        # optional — the commands that prove the work; /oh-my-joy:verify (evidence mode) and /oh-my-joy:ship run them and record command · exit code · summary
   - npm run typecheck
@@ -37,7 +38,7 @@ acceptance:                            # optional — one line per axis this pro
   - <axis 1>
   - <axis 2>
 contextDocs:                           # optional — adopt existing project rule documents as they are (no content duplication)
-  - AGENTS.md                          #   /oh-my-joy:spec·/oh-my-joy:review·design-qa Read them together — never creating a duplicate SoT
+  - AGENTS.md                          #   /oh-my-joy:ralplan·/oh-my-joy:review·design-qa Read them together — never creating a duplicate SoT
   - .claude/rules/components.md
 decisions:                             # optional — one line per recurrence-prevention decision/ADR (lets specs/reviews catch relapses of past decisions)
   - <decision ID or one-line rule>

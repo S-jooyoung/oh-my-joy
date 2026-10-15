@@ -8,7 +8,7 @@
 
 > 흐릿한 아이디어에서 PR까지, 루프 전체를 하나로 잇는 플러그인 — 코드 ↔ Figma 프론트엔드 루프는 1급 모드로 내장.
 
-**한 번 진입하고(Claude Code는 `/oh-my-joy:ralplan`, Codex는 `$oh-my-joy:ralplan`), 플랜을 승인하면, 플랜에 적힌 완료 절차가 review와 verify를 대신 돌립니다. `ultragoal`이 실행·기록·재개를 맡으며 새 PR을 여는 `ship`은 별도 요청으로 실행합니다.**
+**한 번 진입하고(Claude Code는 `/oh-my-joy:ralplan`, Codex는 `$oh-my-joy:ralplan`), 플랜을 승인하면, 플랜에 적힌 완료 절차가 검사와 critic 리뷰, verify를 대신 돌립니다. `ultragoal`이 실행·기록·재개를 맡으며 새 PR을 여는 `ship`은 별도 요청으로 실행합니다.**
 _"거의 항상 Plan 모드"인 습관과 충돌하지 않는 Plan 네이티브 워크플로._
 
 | 당신의 입력 | 진입 커맨드 |
@@ -22,7 +22,7 @@ _"거의 항상 Plan 모드"인 습관과 충돌하지 않는 Plan 네이티브 
 | --- | --- |
 | 런타임 문법 | Claude Code: `/oh-my-joy:<name>` · Codex: `$oh-my-joy:<name>` |
 | 당신이 치는 것 | `/oh-my-joy:deep-interview`(흐릿할 때만) → `/oh-my-joy:ralplan` → 승인 → `/oh-my-joy:ultragoal` |
-| ultragoal 내부 절차 | `/oh-my-joy:review` → `/oh-my-joy:verify` → `/oh-my-joy:fix` 루프 — 승인한 플랜에 그렇게 적혀 있으므로 |
+| ultragoal 내부 절차 | goal마다: 헬퍼가 검사를 돌리고 새 컨텍스트의 `critic`이 파일로 받은 diff를 `/oh-my-joy:review`의 규칙으로 읽음; route가 있으면 `/oh-my-joy:verify` 브라우저 모드 → `/oh-my-joy:fix` 루프; Agent Teams가 켜져 있으면 분리된 goal 2개 이상은 implementer 팀원이 병렬로 — 승인한 플랜에 그렇게 적혀 있으므로 |
 | 가끔 쓰는 도구 | `/oh-my-joy:sync`(디자인 토큰), `/oh-my-joy:setup`(의존성·스캐폴딩) |
 | 내부, 절대 치지 않음 | `critic`(architect + critic 렌즈, 새 컨텍스트), `implementer`, `design-qa` |
 
@@ -131,7 +131,7 @@ OMJ 소스 저장소에서 Claude Code는 `/release`, Codex는 `$oh-my-joy:relea
 
 ```
 /oh-my-joy:ralplan https://figma.com/design/abc?node-id=1-2 /checkout
-  → 스펙이 ## Critique로 끝남 → 플랜 승인 → 구현 → /oh-my-joy:review → /oh-my-joy:verify /checkout → fix 루프 → 보고 (자동)
+  → 스펙이 ## Critique로 끝남 → 플랜 승인 → 구현 → 헬퍼 검사 + critic 리뷰 → /oh-my-joy:verify /checkout → fix 루프 → 보고 (자동)
 /oh-my-joy:ship "feat(checkout): summary panel"
 ```
 
@@ -141,8 +141,8 @@ OMJ 소스 저장소에서 Claude Code는 `/release`, Codex는 `$oh-my-joy:relea
 /oh-my-joy:ralplan https://figma.com/design/abc?node-id=1-2 /checkout
   → spec이 프레임을 섹션별로 읽고 Dispatch 표와 ## Critique로 끝냄; 최종 계획에 권장 agent-team 레인을 기록
   → 플랜 승인
-  → ultragoal이 자동으로 섹션마다 implementer 팀원을 생성 (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 필요; 없으면 순차 실행)
-  → 팀원들이 증거와 함께 완료 → /oh-my-joy:verify /checkout이 barrier → /oh-my-joy:review → 보고 (자동)
+  → ultragoal이 섹션을 공유 task list에 미러링하고 섹션마다 implementer 팀원을 생성 (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 필요; 분리된 goal 2개면 충분; 플래그가 없으면 3개 이상은 서브에이전트, 그 외 inline)
+  → 팀원마다 evidence 줄로 task를 닫음 → 리드가 섹션별 검사와 critic 리뷰를 기록 → /oh-my-joy:verify /checkout이 barrier → 보고 (자동)
 /oh-my-joy:ship "feat(checkout): all sections"
 ```
 
@@ -150,7 +150,7 @@ OMJ 소스 저장소에서 Claude Code는 `/release`, Codex는 `$oh-my-joy:relea
 
 ```
 /oh-my-joy:ralplan "검색 입력 폼 — React Hook Form + Zod, 모바일 우선" /search
-  → 스펙이 ## Critique로 끝남 → 승인 → 구현 → review → verify /search → fix 루프 → 보고 (자동)
+  → 스펙이 ## Critique로 끝남 → 승인 → 구현 → 헬퍼 검사 + critic 리뷰 → verify /search → fix 루프 → 보고 (자동)
   → 새 페이지나 섹션이면 스펙에 Design direction이 붙고, Figma 기준이 없으면 verify가 데스크톱·태블릿·모바일에서 렌더된 디자인을 감사
 /oh-my-joy:ship "feat: search form"
 ```
@@ -273,9 +273,10 @@ flowchart TD
 
 **여기서 당신이 결정합니다.** 스펙은 승인 화면의 플랜입니다 — 고치거나, 거절하거나, 승인(ExitPlanMode)하세요. 아직 아무것도 쓰이지 않았습니다.
 
-승인하면 세션이 ultragoal을 자동 실행해 계획을 inline으로 구현하고, 목표별 검증·독립 검토를 기록하며 승인한 절차를 돌립니다:
+승인하면 세션이 ultragoal을 자동 실행해 계획을 inline으로 구현하고 승인한 절차를 돌립니다:
 
-    /oh-my-joy:review        diff를 FF 기준 + a11y와 스펙의 수용 기준에 대조 — 보고만
+    헬퍼 verify                 플랜의 검증 명령을 돌리고 exit code를 현재 fingerprint에 기록
+    critic (새 컨텍스트)        파일로 받은 diff를 스펙의 수용 기준과 /oh-my-joy:review의 규칙으로 읽음 — 보고만
     /oh-my-joy:verify /search   실제 브라우저에서 /search를 열고 스펙과 Figma 베이스라인에 대조
 
 verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px에서 잘립니다. 절차는 이를 fix 루프로 보냅니다:
@@ -295,15 +296,15 @@ verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px�
 | 커맨드 | 티어 | 하는 일 | 언제 | 예시 |
 | --- | --- | --- | --- | --- |
 | **`/oh-my-joy:spec`** | 호환 | ralplan의 별칭; 기존 Figma·범용 작업 호출 유지 | 기존 프롬프트 | `/oh-my-joy:spec "검색 추가"` |
-| **`/oh-my-joy:ultragoal`** | 승인 후 | 승인된 계획 실행, 목표 근거 기록, 리뷰·검증·재개; `resume <slug>`, `status <slug>` 지원. 새 검사의 실패 기록은 플랜이 지정한 위반 때문에 실패했을 때만 인정합니다. experiment 목표는 헬퍼가 개선을 측정하고 모든 guard가 통과할 때만 변경을 유지하며, 실패한 리뷰가 repair를 요구할 때는 예외. 목표 리뷰를 통과하면 바로 다음 목표로 넘어가고, 같은 코드에서 이미 통과한 최종 검사는 다시 돌리지 않고 `reuse:true`로 기록할 수 있으며, `verify`로 돌린 검사는 마지막 출력 줄을 함께 돌려줌 | 승인된 작업 또는 중단된 실행 | `/oh-my-joy:ultragoal resume checkout` |
+| **`/oh-my-joy:ultragoal`** | 승인 후 | 승인된 계획 실행, 목표 근거 기록, 리뷰·검증·재개; `resume <slug>`, `status <slug>` 지원. 새 검사의 실패 기록은 플랜이 지정한 위반 때문에 실패했을 때만 인정합니다. experiment 목표는 헬퍼가 개선을 측정하고 모든 guard가 통과할 때만 변경을 유지하며, 실패한 리뷰가 repair를 요구할 때는 예외. 목표 리뷰를 통과하면 바로 다음 목표로 넘어가고, 같은 코드에서 이미 통과한 최종 검사는 다시 돌리지 않고 `reuse:true`로 기록할 수 있으며, `verify`로 돌린 검사는 마지막 출력 줄을 함께 돌려줌. 리뷰는 diff를 파일로 받은 `critic` 읽기이며 goal의 검사와 같은 턴에 띄움; 유료 검사는 goal 안에서 한 번만 돌고 final proof에 포함되지 않음; Agent Teams가 켜져 있으면 분리된 goal 2개 이상은 공유 task list 위의 implementer 팀원이 병렬로 실행. | 승인된 작업 또는 중단된 실행 | `/oh-my-joy:ultragoal resume checkout` |
 | **`/oh-my-joy:ralplan`** | 당신 | 입력(큰 프레임은 섹션 워크로 읽는 Figma 링크, 프론트엔드 텍스트, 범용 텍스트)을 읽고, 구현 스펙(Plan)을 쓰고, 실제 코드에 대해 비판하고(`## Critique`: 결정 기록, 시뮬레이션, ready 판정; 새 컨텍스트의 `critic` 반박은 계획 규모에 맞춤: 파일 2개 이하는 없음, 3~5개는 하나, 더 크거나 호환을 깨거나 위험한 계획은 둘), 실행 레인과 완료 절차를 기록하고 멈춤(read-only). 세션에 있는 인터뷰 요구사항도 입력으로 받음. 생략된 verify 라우트는 추론; 검증 가능한 목표가 없는 텍스트는 인터뷰로 안내. 위험한 계획은 배포된 변경이 실패할 수 있는 방식도 짚고, 새 검사는 통과 전에 실패하는 모습을 보여야 하며, 조기 종료한 인터뷰의 `Residual gaps`는 승인 화면의 가정이 됨 | 구체적인 모든 작업의 시작점 | `/oh-my-joy:ralplan https://figma.com/design/abc?node-id=1-2 /settings/profile` |
 | **`/oh-my-joy:deep-interview`** | 당신 | 모호한 아이디어를 짧은 질문 라운드(서로 무관한 질문은 한 번에 최대 세 개)의 소크라테스식 인터뷰로 스펙(네이티브 Plan)으로 만듦. 가중 모호도 점수(`--threshold N`%, 기본 20) — 토폴로지 고정, 최약 차원 타깃, 온톨로지 추적, 모호도 하한, 재진술/클로저 이중 게이트(read-only); 종료 브리지로 끝남 — 요구사항을 `ralplan`에 자동 전달하며 해결되지 않은 조사 전제는 명시합니다. 답에 따라 요구사항이 달라질 때만 묻고 그렇지 않으면 가정으로 기록하며, 조기 종료나 라운드 상한에서는 남은 공백을 `Residual gaps`로 `ralplan`에 넘깁니다. 이미 구체적인 입력은 즉시 종료, Figma 링크는 `ralplan`으로 | 목표 자체가 아직 흐릿할 때 | `/oh-my-joy:deep-interview "사내 지식 베이스 — 아직 흐릿함"` |
 | **`/oh-my-joy:ship`** | 당신 | 검증 명령 실행(전부 exit 0이어야 하고, 테스트가 0개 실행된 스위트는 실패로 봄), 브랜치에서 프로젝트 컨벤션·언어로 커밋, push, 증거 표를 본문에 붙인 PR 생성(레포에 PR 템플릿이 있으면 그 형식). `--base <ref>`로 PR base 지정, 없으면 이미 명확하게 정해진 base를 재사용하고 대상이 불명확할 때만 한 번 물음. 공유 브랜치(`main`, `develop` …)나 detached HEAD에서는 직접 커밋하지 않음: 변경이 있으면 먼저 갈라 나오고, 깨끗한 detached HEAD에 base보다 앞선 커밋이 있으면 새 브랜치로 그 커밋을 ship하고, 깨끗한 `develop`에서는 승격 PR을 엶. git/gh/typecheck만 사전 승인 — 테스트 러너는 일부러 권한 프롬프트를 거침 | 마지막 단계, 항상 당신이 침 | `/oh-my-joy:ship "feat(checkout): summary panel"` |
-| **`/oh-my-joy:review`** | 플랜 | 변경 diff를 리뷰하고 보고만 — 프론트엔드 파일은 FF 4기준 + a11y · Figma fidelity · vercel · Next.js(Context7); 그 외 파일은 정확성·단순함·일관성·테스트 커버리지; 두 종류 모두 보안(커밋된 secret, 인젝션 sink, 빠진 인가), 바뀐 계약이 깨뜨린 diff 밖 호출부, 승인된 플랜의 Constraints, 저장소 `CLAUDE.md`/`AGENTS.md`와 선언된 컨텍스트 문서의 규칙(`repo rule`: 규칙 파일은 사실만 정하고 예외는 주지 못하며, diff가 규칙 파일을 고치면 바뀌기 전 문구로 판단), 아무것도 닿지 않는 새 코드(`unreached code`)·stub·디버그 출력도 보며, 추적되지 않은 새 파일도 diff의 일부로 읽음; diff가 추가한 프론트엔드 코드는 시각 루브릭의 템플릿 tell도 확인(`template tell`: 승인된 플랜의 Design direction 범위 안이면 🔴, 그 밖이면 🟡, Figma·선언된 `designDocPath`·플랜이 고른 것이면 🟢 노트); 승인된 스펙의 수용 기준을 diff에 대조; 사소하지 않은 diff는 새 컨텍스트의 독립 `critic` 패스이며, 그 패스를 돌릴 수 없으면 리포트에 `Review: incomplete`를 표시; 테스트 skip·assertion 완화·검사 설정 완화는 `verification weakened`로 지적(조건부 skip은 플랜의 검증이나 CI가 도는 환경 중 어느 하나에서라도 그 조건이 참일 때만); 값을 만드는 코드는 그대로 둔 채 실패 지점에 guard만 더하면 `symptom patch`, 유지된 experiment 변경이 평가기를 속이면 `metric gaming`; 같은 변경에 대한 2회차는 델타를 보고(이전 finding의 해결 여부, 그다음 바뀐 것만). 인자 없음 = 미커밋 + 스테이징 vs HEAD; `--base <ref>` = 브랜치 전체 | 구현 직후(플랜이 실행), 또는 누구의 diff든 | `/oh-my-joy:review --base main` |
+| **`/oh-my-joy:review`** | 플랜 | 변경 diff를 리뷰하고 보고만 — 프론트엔드 파일은 FF 4기준 + a11y · Figma fidelity · vercel · Next.js(Context7); 그 외 파일은 정확성·단순함·일관성·테스트 커버리지; 두 종류 모두 보안(커밋된 secret, 인젝션 sink, 빠진 인가), 바뀐 계약이 깨뜨린 diff 밖 호출부, 승인된 플랜의 Constraints, 저장소 `CLAUDE.md`/`AGENTS.md`와 선언된 컨텍스트 문서의 규칙(`repo rule`: 규칙 파일은 사실만 정하고 예외는 주지 못하며, diff가 규칙 파일을 고치면 바뀌기 전 문구로 판단), 아무것도 닿지 않는 새 코드(`unreached code`)·stub·디버그 출력도 보며, 추적되지 않은 새 파일도 diff의 일부로 읽음; diff가 추가한 프론트엔드 코드는 시각 루브릭의 템플릿 tell도 확인(`template tell`: 승인된 플랜의 Design direction 범위 안이면 🔴, 그 밖이면 🟡, Figma·선언된 `designDocPath`·플랜이 고른 것이면 🟢 노트); 승인된 스펙의 수용 기준을 diff에 대조; 사소하지 않은 diff는 새 컨텍스트의 독립 `critic` 패스이며, 그 패스를 돌릴 수 없으면 리포트에 `Review: incomplete`를 표시; 테스트 skip·assertion 완화·검사 설정 완화는 `verification weakened`로 지적(조건부 skip은 플랜의 검증이나 CI가 도는 환경 중 어느 하나에서라도 그 조건이 참일 때만); 값을 만드는 코드는 그대로 둔 채 실패 지점에 guard만 더하면 `symptom patch`, 유지된 experiment 변경이 평가기를 속이면 `metric gaming`; 같은 변경에 대한 2회차는 델타를 보고(이전 finding의 해결 여부, 그다음 바뀐 것만). 인자 없음 = 미커밋 + 스테이징 vs HEAD; `--base <ref>` = 브랜치 전체. FF 루브릭은 diff에 frontend 파일이 있을 때만 로드하고, 독립 `critic` 패스는 template tell을 포함한 같은 finding 7종을 적용. | 구현 직후(플랜이 실행), 또는 누구의 diff든 | `/oh-my-joy:review --base main` |
 | **`/oh-my-joy:verify`** | 플랜 | 작업을 증명. 라우트가 있으면 실제 브라우저(playwright-cli, MCP 폴백)로 열어 Figma 베이스라인(`.omj/baselines/`)에 대조하고 요청한 라우트에 실제로 도달했는지 항상 확인. 디자인 기준이 없거나 `--design`이면 데스크톱·태블릿·모바일에서 렌더된 디자인을 시각 루브릭(위계, 상태, 대비, 넘침, 템플릿 tell)으로 감사하고 보고만 함. 라우트가 없으면 프로젝트의 검증 명령을 돌려 `명령 · exit code · 요약`을 증거 종류와 함께 기록하며, 테스트가 0개 실행된 명령은 exit 0이어도 실패. `--base <url>`은 dev 서버, `--design`은 감사 강제 | review 뒤 플랜이 실행; 팀원 완료 뒤 barrier | `/oh-my-joy:verify /settings/profile` · `/oh-my-joy:verify /pricing --design` · `/oh-my-joy:verify` |
 | **`/oh-my-joy:fix`** | 플랜 | 붙여넣은 스크린샷·불평으로 라우트(필수)의 결함을 고치고 재캡처로 확인(능동 루프). `--base <url>`, `--commit` | verify가 찾은 시각 결함 | `/oh-my-joy:fix /pricing "배너 z-index가 낮음"` |
 | **`/oh-my-joy:sync`** | 가끔 | 토큰 저장소(`tokens.json` 또는 CSS 커스텀 프로퍼티) ↔ Figma 드리프트를 방향을 물어 해소; `extract`는 Figma 변수에서 CSS 토큰을 부트스트랩; `--tokens <path>`로 저장소 경로 지정 | 코드/Figma 토큰 맞추기 · 최초 추출 | `/oh-my-joy:sync` · `check` · `push` · `extract <figma-url>` |
-| **`/oh-my-joy:setup`** | 가끔 | 의존성 진단 + 빠진 항목의 다중 선택 설치 + 스캐폴딩: `.omj/fe-context.md`(기존 규칙 문서를 `contextDocs:`로 채택, `verifyCommands:`를 package.json에서 주석으로 스캐폴드), opt-in 토큰 가드 훅, 호스트별 상태 표시, 사용 가능한 네이티브 에이전트, OMJ 답변 스타일; 끝에 GitHub star 제안(막지 않음) | 첫 사용 전 — 설정 흔적이 없으면 `ralplan`이 한 번 제안 | `/oh-my-joy:setup` · `--check` (보고만) |
+| **`/oh-my-joy:setup`** | 가끔 | 의존성 진단 + 빠진 항목의 다중 선택 설치 + 스캐폴딩: `.omj/fe-context.md`(기존 규칙 문서를 `contextDocs:`로 채택, `verifyCommands:`를 package.json에서 주석으로 스캐폴드), opt-in 토큰 가드 훅, opt-in 팀 증거 게이트 훅과 헬퍼 bookkeeping allowlist(Claude 전용), 호스트별 상태 표시, 사용 가능한 네이티브 에이전트, OMJ 답변 스타일; 끝에 GitHub star 제안(막지 않음) | 첫 사용 전 — 설정 흔적이 없으면 `ralplan`이 한 번 제안 | `/oh-my-joy:setup` · `--check` (보고만) |
 
 > **읽기와 실행.** `deep-interview`와 `spec` 별칭에는 쓰기 도구나 셸 사전 승인이 없습니다. `ralplan`은 소스를 바꾸지 않고 코드·디자인·PR 정보를 읽습니다. `ultragoal`은 승인 뒤 실행하며 검증 명령의 실제 exit code를 기록합니다. 도구 권한은 호스트 설정을 따릅니다. 동작의 정본은 `commands/<name>.md`입니다.
 
@@ -354,6 +355,8 @@ verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px�
 - `.omj/fe-context.md` — 프로젝트 선언(수용 축, 토큰 경로, verify 설정, `verifyCommands`). **커밋하는 파일입니다.**
 - `.omj/baselines/` — 캡처 베이스라인. 이 경로와 `.omj/goals/`를 gitignore하세요. `.omj/` 통째로 무시하면 커밋해야 할 fe-context까지 사라집니다.
 - `.claude/hooks/` 또는 `.codex/hooks/`의 선택한 훅 복사본과 호스트별 등록 — setup에서 선택한 경우에만.
+- `.claude/hooks/task-completed-evidence.mjs`와 `hooks.TaskCompleted` 등록, fe-context의 `teamEvidenceGate: true` — setup에서 선택했을 때만; ultragoal 팀원 task는 통과한 `evidence:` 줄이 붙기 전까지 닫히지 않습니다.
+- `.claude/settings.local.json`의 `goal-state.mjs` bookkeeping verb `permissions.allow` 규칙(설치본 경로가 사용자 홈 아래라 공유 파일이 아닌 사용자별 파일), 그리고 `~/.claude/.omj-setup.json`에 기록되는 Agent Teams 플래그 — 각각 opt-in일 때만.
 - `~/.claude/omj-hud/`(그리고 `statusLine` 항목), Agent Teams `env` 플래그, `~/.claude/settings.json`의 `outputStyle` 선택 — 사용자 전역이며 각각 `/oh-my-joy:setup`에서 opt-in한 경우에만.
 - Codex 선택 항목: `.omj/answer-style.md`와 프로젝트 지침 연결, `.codex/config.toml`의 CLI 상태 표시줄. setup 완료 기록은 `.omj/setup.json`에 저장합니다.
 - 요청 시: 프로젝트의 `docs/design-tokens.md`(`sync extract` 매핑 표)와 `docs/DESIGN.md`(setup 스캐폴드).
@@ -401,12 +404,13 @@ verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px�
 
 - **Claude에 같은 OMJ 커맨드가 두 개 보여요** — v0.11.0은 Claude 정본 커맨드와 Codex 어댑터를 Claude에 함께 노출합니다. 소스 수정은 Codex 전용 어댑터 13개를 숨기면서 Codex의 스킬 14개와 두 호스트가 공유하는 `frontend-fundamentals`는 유지합니다. 이미 설치한 v0.11.0에는 향후 릴리스가 필요하며, 그 뒤 `/plugin update oh-my-joy@omj`, `/reload-plugins`, 새 세션 순으로 갱신하세요. 소스 수정만으로 설치된 플러그인이 바뀌지는 않습니다.
 - **`/oh-my-joy:ralplan`이 코드를 하나도 안 바꿨어요** — 맞습니다. 읽기 전용 프라이머라 계획을 작성하고 최종 승인을 기다립니다. 승인 후에는 같은 세션이 ultragoal을 자동으로 실행합니다.
-- **승인 뒤 review와 verify가 제가 안 쳤는데 돌았어요** — 이것도 맞습니다. 승인한 플랜이 그것들을 이름 붙인 완료 절차로 끝나기 때문입니다. `/oh-my-joy:ship`은 절대 그 안에 없습니다.
+- **승인 뒤 critic 리뷰와 verify가 제가 안 쳤는데 돌았어요** — 이것도 맞습니다. 승인한 플랜이 그것들을 이름 붙인 완료 절차로 끝나기 때문입니다(goal마다 `critic` 읽기, route가 있으면 `/oh-my-joy:verify` 브라우저 모드와 `fix` 루프). `/oh-my-joy:ship`은 절대 그 안에 없습니다.
+- **긴 ultragoal 실행이 컨텍스트를 다 채웠어요** — ledger는 `init` 직후부터 존재하므로 `/clear` 뒤 `/oh-my-joy:ultragoal resume <slug>`를 치면 깨끗한 컨텍스트에서 ledger로부터 이어가고, 열린 goal의 팀원은 다시 생성됩니다.
 - **`/oh-my-joy:verify` / `/oh-my-joy:fix`가 브라우저 모드에서 아무것도 안 해요** — 캡처 백엔드 없음(playwright-cli도 playwright MCP도), dev 서버 미실행(첫 페이지 로드로 감지하므로 curl은 필요 없음), 인증이 필요한 라우트, 또는 Plan 모드가 Bash를 막음. dev 서버 URL은 `--base <url>` > export된 `JOY_BASE_URL` > `http://localhost:3000` 순으로 결정되고, 인라인 `JOY_BASE_URL=… /oh-my-joy:verify` 접두는 적용되지 않습니다(슬래시 커맨드는 셸이 아닙니다). 인증 라우트는 `.omj/fe-context.md`에 `verifySetup`을 선언하거나 실행 전에 `export JOY_TEST_EMAIL=… JOY_TEST_PASSWORD=…` — **테스트 전용 계정**을 쓰고 `.omj/baselines/`는 gitignore하세요.
 - **`/oh-my-joy:verify`나 `/oh-my-joy:ship`이 테스트 명령마다 권한을 물어요** — 의도입니다. 검증 명령은 일부러 사전 승인하지 않습니다: 권한 프롬프트가 기록된 증거를 신뢰할 수 있게 만듭니다.
 - **`/oh-my-joy:ship`이 PR을 엉뚱한 브랜치로 열었어요** — `--base <branch>`를 붙이거나기존에 정해진 base를 바꾸세요. 대상이 불명확한 경우에만 질문합니다. 이미 열린 PR은 `gh pr edit <n> --base <branch>`로 고칩니다. 변경이 있는 채로 `develop` 위에서 ship을 쳐도 안전합니다 — 거기에 커밋하지 않고 먼저 갈라 나옵니다.
 - **`/oh-my-joy:verify`나 `/oh-my-joy:ship`이 "검증 명령이 선언되지 않았다"고 해요** — `.omj/fe-context.md`에 `verifyCommands:`를(또는 `package.json`에 `test` 스크립트를) 추가하세요. OMJ는 돌릴 명령을 지어내지 않습니다.
-- **agent-team 레인이 순차로 돌았어요** — `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`이 설정되지 않았습니다(실험 기능, 기본 꺼짐). `/oh-my-joy:setup`이 추가를 제안하고, 없으면 레인은 서브에이전트, 그다음 inline으로 강등됩니다. 팀원은 리더의 권한 모드로 시작하므로 생성 전에 일상 명령을 사전 승인해 두세요.
+- **agent-team 레인이 순차로 돌았어요** — `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`이 설정되지 않았거나(실험 기능, 기본 꺼짐), 소유 파일이 분리된 goal이 2개 미만입니다. `/oh-my-joy:setup`이 플래그 추가를 제안하고, 없으면 분리된 goal 3개 이상은 서브에이전트, 그 외 inline으로 돕니다. 팀원은 리더의 권한 모드로 시작하고 팀원의 권한 프롬프트는 리드 세션에 뜨므로 생성 전에 일상 명령을 사전 승인해 두세요.
 - **답변 스타일이 아무것도 안 바꿨어요** — 새 세션을 시작하세요. Claude Code는 `/config`의 **Output style**을, Codex는 실제 프로젝트 지침 파일의 `.omj/answer-style.md` 연결을 확인합니다. 기존 `AGENTS.override.md`가 있으면 `AGENTS.md`보다 우선합니다.
 - **Codex에 스킬 설명이 축약됐다는 경고가 떠요** — Codex는 전체 `SKILL.md`를 고르기 전에 모든 스킬의 이름과 설명을 먼저 불러오므로, 합친 카탈로그가 초기 목록 예산을 넘을 수 있습니다. OMJ를 갱신한 뒤 새 스레드에서 확인하세요. 경고가 계속되면 소스, 설치 캐시, 네이티브 `skills/list`, CLI 또는 App 세션을 나눠 진단한 뒤, 선택한 비필수 외부 스킬만 끄거나 실제 예산이 낮다고 확인된 경우에만 예산 비교를 합니다. [Codex 스킬 카탈로그 진단](docs/CODEX-SETUP.md#diagnose-a-shortened-skill-catalog)과 [공식 스킬 로딩 설명](https://developers.openai.com/codex/skills/)을 보세요.
 - **Figma 미연결 / 권한 없음** — `This figma file could not be accessed`는 graceful하게 처리됩니다. Figma 데스크톱 앱을 열고 대상 파일을 활성 탭에 두고 재시도하세요. 변수/노드 접근에는 편집 권한이 필요합니다 — viewer 공유 파일은 복제해서 사본 URL을 쓰세요.
