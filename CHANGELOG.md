@@ -10,6 +10,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.20.0] - 2026-10-15
+
+### Added
+
 - `docs/EXPERIMENT-GOALS.md` and `docs/PR-DELIVERY.md` hold the experiment-goal and GitHub PR procedures for both planning and execution; `ralplan` and `ultragoal` read them only when a plan has an experiment goal or a PR, so an ordinary run no longer loads either.
 - Eval grader `expected-execution` on `spec-general-text`: the final plan carries the `Expected execution` line.
 - `templates/hooks/task-completed-evidence.mjs`: an opt-in `TaskCompleted` gate hook (risk class `gate`) that keeps an ultragoal teammate task (marker `omj: <slug>`) open until its description carries a passing `evidence: <command> · exit 0 · <summary>` line; active only with `teamEvidenceGate: true` in `.omj/fe-context.md`, fail-open on crashes, installed by `/oh-my-joy:setup` under `hooks.TaskCompleted`; `tests/hooks/hook-conventions.test.mjs` pins the new class.
@@ -716,7 +730,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.19.1...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.19.1...v0.20.0
 [0.19.1]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.17.0...v0.18.0
