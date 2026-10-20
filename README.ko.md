@@ -6,7 +6,92 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Runtime dependencies: 0](https://img.shields.io/badge/runtime%20deps-0-brightgreen.svg)](package.json)
 
-> 흐릿한 아이디어에서 PR까지, 루프 전체를 하나로 잇는 플러그인 — 코드 ↔ Figma 프론트엔드 루프는 1급 모드로 내장.
+> **AI가 "다 했어요"라고 하면, OMJ는 증거를 내놓게 합니다.**
+
+Claude Code와 Codex에서 모든 작업을 하나의 흐름으로 처리합니다. 백엔드, 스크립트, 인프라, 프론트엔드 모두 같습니다. 새 컨텍스트에서 이미 비판을 거친 플랜을 한 번 승인하면, 그 뒤로는 증거 없이 아무것도 완료로 치지 않습니다. 실행한 명령과 exit code, diff에 대한 독립 리뷰, UI 작업이라면 실제 브라우저 캡처까지가 증거입니다. Figma → 코드는 1급 모드로 내장되어 있습니다.
+
+`증거 없으면 완료 아님` · `독립 비판` · `한 번 승인` · `재개 가능한 실행` · `Claude Code + Codex` · `Figma 내장` · `zero runtime deps`
+
+[Quick Start](#quick-start) • [왜 만들었나](#왜-만들었나) • [OMJ 사용법](#omj-사용법) • [권장 워크플로](#권장-워크플로) • [커맨드](#커맨드) • [OMJ는 어떻게 발전하나](#omj는-어떻게-발전하나) • [트러블슈팅](#트러블슈팅)
+
+---
+
+## Quick Start
+
+### Claude Code
+
+```
+# 1. 설치 (한 줄씩 입력)
+/plugin marketplace add S-jooyoung/oh-my-joy
+/plugin install oh-my-joy@omj
+
+# 2. 의존성 점검 + 원하는 부가 기능 opt-in (첫 사용 전 권장)
+/oh-my-joy:setup
+
+# 3. 시작 — ralplan(플랜 + 독립 비판 루프)이 플랜을 쓰고 비판한 뒤 멈춤 → 승인 → 플랜이 실행되고 증거를 남김
+/oh-my-joy:ralplan "공개 API rate-limit 미들웨어 — 키당 분당 100회"
+
+#    …프론트엔드도 똑같습니다 — route를 붙이면 실제 브라우저에서 확인합니다
+/oh-my-joy:ralplan "검색 입력 폼 — React Hook Form + Zod, 모바일 우선" /search
+
+#    …디자인에서 시작한다면 — 같은 커맨드에 Figma 링크를 붙이면 됩니다
+/oh-my-joy:ralplan https://figma.com/design/abc?node-id=1-2 /search
+
+# 4. 증거가 모두 통과하면 내보내기
+/oh-my-joy:ship "feat(api): rate limiter"
+```
+
+### Codex
+
+```bash
+# 1. 같은 공개 marketplace에서 설치
+codex plugin marketplace add S-jooyoung/oh-my-joy
+codex plugin add oh-my-joy@omj
+
+# 2. 플러그인 skill을 읽도록 새 Codex thread를 시작한 뒤 setup 실행
+$oh-my-joy:setup
+
+# 3. 네이티브 Plan을 만들고 승인하면 완료 절차가 실행됨
+$oh-my-joy:ralplan "공개 API rate-limit 미들웨어 — 키당 분당 100회"
+
+# 4. review와 verify가 통과한 뒤에만 ship
+$oh-my-joy:ship "feat(api): rate limiter"
+```
+
+Codex는 같은 10개 워크플로 진입점(`spec` 호환 별칭 포함), 내부 역할 3개, 공용 `frontend-fundamentals` 스킬을 제공합니다. Codex 전용 어댑터 13개는 Claude의 커맨드 메뉴와 모델 선택에서 숨기고, 공용 스킬은 두 호스트에서 계속 쓸 수 있습니다. 답변 스타일은 프로젝트 지침으로, 상태 표시는 Codex CLI 기본 상태 표시줄로 적용하며, 훅은 Codex 쓰기 이벤트를 처리합니다. Codex App에는 사용자 정의 HUD 영역이 없습니다. 전체 대조 결과는 [호스트별 기능 목록](docs/HOST-PARITY.md)에 있습니다.
+
+업데이트하거나 이전 버전에서 넘어오셨나요? [업데이트와 업그레이드](#업데이트와-업그레이드)를 보세요.
+
+---
+
+## 왜 만들었나
+
+AI 에이전트에게 작업을 맡겼을 때 가장 비싼 실패는 나쁜 코드가 아니라 **가짜 완료(fake done)** 입니다. 테스트를 한 번도 돌리지 않고 "다 했어요, 테스트 통과합니다"라고 하거나, 통과할 때까지 테스트를 건너뛰거나 느슨하게 고치거나, 원인은 그대로 둔 채 증상만 가리는 가드를 넣거나, 중간에 계획에서 벗어나거나, 코드를 쓴 그 컨텍스트가 스스로 리뷰합니다. 프론트엔드라면 디자인과 비슷해 보이는데 토큰이 raw hex로 인라인되어 있기도 합니다. **매번 다른 곳이 빠지기 때문에** 예방이 아니라 리뷰에서 뒤늦게 잡게 됩니다.
+
+OMJ는 "완료"를 에이전트가 증명해야 하는 것으로 바꿉니다. 진입 커맨드는 read-only입니다. 디자인이나 코드를 읽고, 플랜을 쓰고, 새 컨텍스트에서 비판을 받은 뒤 **멈춥니다**. 그 플랜이 곧 사용자가 승인할 네이티브 Plan이라서, Plan 모드의 쓰기 차단이 검토 게이트가 됩니다. 승인 뒤에는 플랜의 완료 절차가 알아서 돌고, 모든 단계가 주장 대신 증거를 남깁니다.
+
+| 그냥 에이전트 세션 | OMJ와 함께 |
+| --- | --- |
+| 테스트 없이 "완료", 또는 통과할 때까지 약해진 테스트 | 명령·exit code·요약이 있어야 완료; 건너뛰거나 느슨해진 검사는 블로커 |
+| 코드를 쓴 컨텍스트가 직접 리뷰 | 새 컨텍스트의 `critic`이 파일로 받은 diff를 읽음 |
+| 디자인과 "비슷해 보임" | Figma 기준선과 실제 브라우저 캡처를 비교하고 `fix` 루프로 수정 |
+| 합의한 것에서 슬금슬금 벗어남 | 승인한 플랜 하나; 범위와 수용 기준이 기록되고 고정됨 |
+| 중단되면 처음부터 | `/oh-my-joy:ultragoal resume <slug>`가 같은 체크아웃에서 ledger를 이어감, Claude Code와 Codex를 오가도 마찬가지 |
+
+끝난 goal이 남기는 기록의 모양(예시이며 줄인 것입니다. 실제 리포트에는 변경 파일·산출물·가정도 함께 나옵니다):
+
+```
+goal fix-format-amount (defect)
+  verify  npm test -- format.test.mjs   exit 1   reproduces: TypeError in formatAmount('1,000')
+  verify  npm test -- format.test.mjs   exit 0   14 passed · 0 skipped
+  review  critic, fresh context         pass     no 🔴
+final     npm test                      exit 0   212 passed · current workspace fingerprint
+closed    .omj/goals/fix-format-amount/
+```
+
+---
+
+## OMJ 사용법
 
 **한 번 진입하고(Claude Code는 `/oh-my-joy:ralplan`, Codex는 `$oh-my-joy:ralplan`), 플랜을 승인하면, 플랜에 적힌 완료 절차가 검사와 critic 리뷰, verify를 대신 돌립니다. `ultragoal`이 실행·기록·재개를 맡으며 새 PR을 여는 `ship`은 별도 요청으로 실행합니다.**
 _"거의 항상 Plan 모드"인 습관과 충돌하지 않는 Plan 네이티브 워크플로._
@@ -25,105 +110,6 @@ _"거의 항상 Plan 모드"인 습관과 충돌하지 않는 Plan 네이티브 
 | ultragoal 내부 절차 | goal마다: 헬퍼가 검사를 돌리고 새 컨텍스트의 `critic`이 파일로 받은 diff를 `/oh-my-joy:review`의 규칙으로 읽음; route가 있으면 `/oh-my-joy:verify` 브라우저 모드 → `/oh-my-joy:fix` 루프; Agent Teams가 켜져 있으면 분리된 goal 2개 이상은 implementer 팀원이 병렬로 — 승인한 플랜에 그렇게 적혀 있으므로 |
 | 가끔 쓰는 도구 | `/oh-my-joy:sync`(디자인 토큰), `/oh-my-joy:setup`(의존성·스캐폴딩) |
 | 내부, 절대 치지 않음 | `critic`(architect + critic 렌즈, 새 컨텍스트), `implementer`, `design-qa` |
-
-`Plan-first` · `증거 없이 완료 없음` · `Figma 섹션 워크` · `네이티브 Agent Teams` · `graceful degradation` · `zero runtime deps`
-
-[왜 만들었나](#왜-만들었나) • [Quick Start](#quick-start) • [OMJ 사용법](#omj-사용법) • [권장 워크플로](#권장-워크플로) • [커맨드](#커맨드) • [OMJ는 어떻게 발전하나](#omj는-어떻게-발전하나) • [트러블슈팅](#트러블슈팅)
-
----
-
-## 왜 만들었나
-
-AI 에이전트에게 작업을 던지고 "이대로 만들어줘"라고 하면 특정한 방식으로 반복해서 실패합니다. 결과물은 비슷해 보이는데 토큰이 raw hex로 인라인되고, 아무도 시키지 않은 분기가 생기고, 테스트 한 번 안 돌리고 "완료"라고 말하고, 다음 단계는 이전 단계가 결정한 걸 보지 못합니다. **매번 다른 곳이 빠지기 때문에** 예방이 아니라 리뷰에서 뒤늦게 잡게 됩니다.
-
-그래서 OMJ는 당연한 해법을 뒤집습니다. 진입 커맨드는 구현 커맨드가 **아닙니다** — 디자인이나 코드를 읽고, 고정된 기준으로 평가한 구현 스펙을 쓰고, 어떻게 실행하고 어떻게 검증할지를 적고, **멈추는** read-only 프라이머입니다. 그 스펙이 곧 사용자가 승인할 네이티브 Plan입니다. 승인 뒤에는 세션이 플랜의 완료 절차(구현 → review → verify)를 따르고, 증거(명령·exit code·요약) 없이는 아무것도 완료로 치지 않습니다. Plan 모드의 쓰기 차단은 극복할 장애물이 아니라 검토 게이트가 됩니다.
-
----
-
-## Quick Start
-
-### Claude Code
-
-```
-# 1. 설치 (한 줄씩 입력)
-/plugin marketplace add S-jooyoung/oh-my-joy
-/plugin install oh-my-joy@omj
-
-# 2. 의존성 점검 + 원하는 부가 기능 opt-in (첫 사용 전 권장)
-/oh-my-joy:setup
-
-# 3. 시작 — 구체적인 작업이 비판이 붙은 구현 스펙(Plan)이 되고 멈춤 → 승인 → 플랜이 실행됨
-/oh-my-joy:ralplan "검색 입력 폼 — React Hook Form + Zod, 모바일 우선" /search
-
-#    …디자인에서 시작한다면 — 같은 커맨드에 Figma 링크를 붙이면 됩니다
-/oh-my-joy:ralplan https://figma.com/design/abc?node-id=1-2 /search
-
-#    …프론트엔드가 아니어도 됩니다
-/oh-my-joy:ralplan "공개 API rate-limit 미들웨어 — 키당 분당 100회"
-
-# 4. review와 verify가 통과하면 내보내기
-/oh-my-joy:ship "feat: search form"
-```
-
-### Codex
-
-```bash
-# 1. 같은 공개 marketplace에서 설치
-codex plugin marketplace add S-jooyoung/oh-my-joy
-codex plugin add oh-my-joy@omj
-
-# 2. 플러그인 skill을 읽도록 새 Codex thread를 시작한 뒤 setup 실행
-$oh-my-joy:setup
-
-# 3. 네이티브 Plan을 만들고 승인하면 완료 절차가 실행됨
-$oh-my-joy:ralplan "검색 입력 폼 — React Hook Form + Zod, 모바일 우선" /search
-
-# 4. review와 verify가 통과한 뒤에만 ship
-$oh-my-joy:ship "feat: search form"
-```
-
-Codex는 같은 10개 워크플로 진입점(`spec` 호환 별칭 포함), 내부 역할 3개, 공용 `frontend-fundamentals` 스킬을 제공합니다. Codex 전용 어댑터 13개는 Claude의 커맨드 메뉴와 모델 선택에서 숨기고, 공용 스킬은 두 호스트에서 계속 쓸 수 있습니다. 답변 스타일은 프로젝트 지침으로, 상태 표시는 Codex CLI 기본 상태 표시줄로 적용하며, 훅은 Codex 쓰기 이벤트를 처리합니다. Codex App에는 사용자 정의 HUD 영역이 없습니다. 전체 대조 결과는 [호스트별 기능 목록](docs/HOST-PARITY.md)에 있습니다.
-
-> **업데이트**는 릴리스(버전 범프)가 `main`에 머지될 때 배포됩니다 — 기능이 머지돼도 버전 문자열이 바뀌기 전에는 기존 설치에 도달하지 않습니다. Claude Code에서는 `/plugin update oh-my-joy@omj` 뒤 `/reload-plugins`를 실행합니다. Codex에서는 `codex plugin marketplace upgrade omj` 뒤 `codex plugin add oh-my-joy@omj`를 실행합니다. 어느 쪽이든 업데이트 뒤 새 세션/thread를 시작하세요.
->
-> **v0.8에서 업그레이드하셨나요?** v0.9.0은 커맨드를 그대로 두고 비판 게이트와 실행 규칙을 더했습니다:
->
-> | 구 이름 | 현재 |
-> | --- | --- |
-> | `figma-implementer` (에이전트) | `implementer` — 같은 실행자에 프론트엔드 모드와 범용 모드가 생겼고, 이제 모든 Dispatch 행의 팀원 타입 |
->
-> `/oh-my-joy:ralplan`은 최종 승인 전에 `## Critique` 섹션(결정 기록, 당신의 파일에 대한 시뮬레이션, ready 판정 — 계획 규모에 맞춘 새 컨텍스트의 read-only `critic` 반박)으로 끝나고, `/oh-my-joy:deep-interview`는 종료 브리지로 요구사항을 `ralplan`에 넘기며, 완료 절차는 승인부터 보고까지 질문하지 않습니다 — 블로커는 분류해서 보고합니다. 이 v0.9 기능은 새 ralplan 진입점에서도 유지합니다.
->
-> **v0.7에서 업그레이드하셨나요?** v0.8.0은 척추를 범용화하고 표면을 줄였습니다:
->
-> | 구 커맨드 | 현재 |
-> | --- | --- |
-> | `ff-review` | `/oh-my-joy:review` — 같은 프론트엔드 루브릭에, 그 외 파일을 위한 범용 모드 추가 |
-> | `ralplan` | 기존 spec 기능을 포함하는 계획 진입점으로 복원 |
-> | `goal-loop` | `/oh-my-joy:ultragoal`로 대체; 구 상태 파일은 보존하고 자동 이전하지 않음 |
->
-> 나머지는 그대로입니다: `.omj/` 상태 디렉토리, `oh-my-joy@omj` 설치 문자열, 훅 출력.
->
-> **v0.6에서 업그레이드하셨나요?** v0.7.0에서 모든 커맨드가 단일 `/oh-my-joy:` 네임스페이스로 이동했습니다:
->
-> | 구 커맨드 | 현재 |
-> | --- | --- |
-> | `omj` (동사 없는 루트 커맨드) | `/oh-my-joy:ralplan` |
-> | `omj-verify` | `/oh-my-joy:verify` |
-> | `omj-fix` | `/oh-my-joy:fix` |
-> | `omj-sync` | `/oh-my-joy:sync` |
-> | `omj-setup` | `/oh-my-joy:setup` |
-> | `omj-start` | 제거 — 승인된 ralplan이 ultragoal로 자동 연결됩니다 |
->
-> 함정 하나: 한때 예고했던 `omj-spec`(디자인 시스템 스펙, v1.1)은 `ralplan`이 아니라 `/oh-my-joy:ds-spec`으로 계획돼 있습니다. 전체 매핑과 근거: [CHANGELOG](CHANGELOG.md) 0.8.0·0.7.0 섹션.
-
-### OMJ 저장소 유지보수
-
-OMJ 소스 저장소에서 Claude Code는 `/release`, Codex는 `$oh-my-joy:release`를 사용합니다. `$oh-my-joy:release-checklist`는 릴리스와 설치 상태를 점검합니다. 두 호스트가 [같은 릴리스 절차](docs/RELEASING.md)를 따르며, 저장소 전용 스킬은 다른 프로젝트의 플러그인 워크플로 목록에 추가되지 않습니다.
-
----
-
-## OMJ 사용법
 
 여덟 가지 상황이 대부분의 하루를 덮습니다. 각각은 실제로 치는 순서 그대로이고, 모든 스펙은 당신이 보기 전에 스스로를 비판하며, 승인과 ship 사이의 일은 승인한 플랜에 적혀 있으므로 알아서 진행됩니다.
 
@@ -155,7 +141,7 @@ OMJ 소스 저장소에서 Claude Code는 `/release`, Codex는 `$oh-my-joy:relea
 /oh-my-joy:ship "feat: search form"
 ```
 
-**4. 프론트엔드가 아닌 모든 것 (백엔드, 스크립트, 이 플러그인)**
+**4. 백엔드·스크립트·인프라 — UI가 아닌 모든 작업**
 
 ```
 /oh-my-joy:ralplan "공개 API rate-limit 미들웨어 — 키당 분당 100회"
@@ -422,6 +408,41 @@ verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px�
 - **MCP 도구 이름이 달라요** — Figma/Context7 도구 이름은 환경마다 다릅니다. `/mcp`로 실제 이름을 확인하세요.
 - **커밋된 스킬 사본 중복** — 프로젝트가 `frontend-fundamentals`를 자체 `.claude/skills/`에 커밋했다면 OMJ 번들과 함께 로드될 수 있습니다(무해). 그 사본을 지우지 말고 — 소스 오브 트루스 한 곳만 편집하세요.
 
+### 업데이트와 업그레이드
+
+> **업데이트**는 릴리스(버전 범프)가 `main`에 머지될 때 배포됩니다 — 기능이 머지돼도 버전 문자열이 바뀌기 전에는 기존 설치에 도달하지 않습니다. Claude Code에서는 `/plugin update oh-my-joy@omj` 뒤 `/reload-plugins`를 실행합니다. Codex에서는 `codex plugin marketplace upgrade omj` 뒤 `codex plugin add oh-my-joy@omj`를 실행합니다. 어느 쪽이든 업데이트 뒤 새 세션/thread를 시작하세요.
+>
+> **v0.8에서 업그레이드하셨나요?** v0.9.0은 커맨드를 그대로 두고 비판 게이트와 실행 규칙을 더했습니다:
+>
+> | 구 이름 | 현재 |
+> | --- | --- |
+> | `figma-implementer` (에이전트) | `implementer` — 같은 실행자에 프론트엔드 모드와 범용 모드가 생겼고, 이제 모든 Dispatch 행의 팀원 타입 |
+>
+> `/oh-my-joy:ralplan`은 최종 승인 전에 `## Critique` 섹션(결정 기록, 당신의 파일에 대한 시뮬레이션, ready 판정 — 계획 규모에 맞춘 새 컨텍스트의 read-only `critic` 반박)으로 끝나고, `/oh-my-joy:deep-interview`는 종료 브리지로 요구사항을 `ralplan`에 넘기며, 완료 절차는 승인부터 보고까지 질문하지 않습니다 — 블로커는 분류해서 보고합니다. 이 v0.9 기능은 새 ralplan 진입점에서도 유지합니다.
+>
+> **v0.7에서 업그레이드하셨나요?** v0.8.0은 척추를 범용화하고 표면을 줄였습니다:
+>
+> | 구 커맨드 | 현재 |
+> | --- | --- |
+> | `ff-review` | `/oh-my-joy:review` — 같은 프론트엔드 루브릭에, 그 외 파일을 위한 범용 모드 추가 |
+> | `ralplan` | 기존 spec 기능을 포함하는 계획 진입점으로 복원 |
+> | `goal-loop` | `/oh-my-joy:ultragoal`로 대체; 구 상태 파일은 보존하고 자동 이전하지 않음 |
+>
+> 나머지는 그대로입니다: `.omj/` 상태 디렉토리, `oh-my-joy@omj` 설치 문자열, 훅 출력.
+>
+> **v0.6에서 업그레이드하셨나요?** v0.7.0에서 모든 커맨드가 단일 `/oh-my-joy:` 네임스페이스로 이동했습니다:
+>
+> | 구 커맨드 | 현재 |
+> | --- | --- |
+> | `omj` (동사 없는 루트 커맨드) | `/oh-my-joy:ralplan` |
+> | `omj-verify` | `/oh-my-joy:verify` |
+> | `omj-fix` | `/oh-my-joy:fix` |
+> | `omj-sync` | `/oh-my-joy:sync` |
+> | `omj-setup` | `/oh-my-joy:setup` |
+> | `omj-start` | 제거 — 승인된 ralplan이 ultragoal로 자동 연결됩니다 |
+>
+> 함정 하나: 한때 예고했던 `omj-spec`(디자인 시스템 스펙, v1.1)은 `ralplan`이 아니라 `/oh-my-joy:ds-spec`으로 계획돼 있습니다. 전체 매핑과 근거: [CHANGELOG](CHANGELOG.md) 0.8.0·0.7.0 섹션.
+
 ---
 
 ## 기여
@@ -439,6 +460,10 @@ npm run eval             # 행동 eval 케이스 (토큰 비용 발생; 로그�
 변경을 실제 플러그인으로 써 보려면 Claude Code에서는 `/plugin marketplace add <클론 경로>` 후 `/plugin install oh-my-joy@omj`, Codex에서는 `codex plugin marketplace add <클론 경로>` 후 `codex plugin add oh-my-joy@omj`를 실행하세요. 설치 뒤에는 새 세션/thread를 시작합니다.
 
 첫 PR 전에 알아둘 세 가지: 기능은 **README(두 언어), CHANGELOG, 그리고 원칙이 움직였다면 `docs/PRINCIPLES.md`**가 같은 커밋에서 바뀌기 전까지 미완성이고, `allowed-tools`는 커맨드 본문이 호출하지 않는 도구를 절대 선언하지 않으며, 커맨드가 약속하는 것이 바뀌면 그 eval 케이스를 추가하거나 갱신합니다. 셋 다 테스트나 체크리스트로 강제됩니다. 전체 가이드는 [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### OMJ 저장소 유지보수
+
+OMJ 소스 저장소에서 Claude Code는 `/release`, Codex는 `$oh-my-joy:release`를 사용합니다. `$oh-my-joy:release-checklist`는 릴리스와 설치 상태를 점검합니다. 두 호스트가 [같은 릴리스 절차](docs/RELEASING.md)를 따르며, 저장소 전용 스킬은 다른 프로젝트의 플러그인 워크플로 목록에 추가되지 않습니다.
 
 보안 문제를 찾으셨나요? 이슈를 열지 마세요 — [SECURITY.md](SECURITY.md)를 보세요.
 

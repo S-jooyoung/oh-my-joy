@@ -1,7 +1,7 @@
 {
   "name": "oh-my-joy",
   "version": "0.20.0",
-  "description": "Standalone requirements interview, reviewed planning, and durable execution over native goals, with Figma design support and evidence-based PR review delivery.",
+  "description": "AI says it's done. OMJ makes it prove it. One workflow for Claude Code and Codex: interview, plan with an independent critique, approve once, then build, review, and verify with recorded evidence and resume. Figma-to-code built in.",
   "author": {
     "name": "Jooyoung Shin",
     "email": "jooyoung.dev@gmail.com"
@@ -10,19 +10,20 @@
   "homepage": "https://github.com/S-jooyoung/oh-my-joy",
   "license": "MIT",
   "keywords": [
-    "frontend",
+    "workflow",
+    "spec-driven-development",
+    "planning",
+    "code-review",
+    "verification",
+    "agentic-workflow",
     "figma",
-    "playwright",
-    "react",
-    "nextjs",
-    "frontend-fundamentals",
     "design-to-code"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "oh-my-joy",
-    "shortDescription": "Spec-first design-to-code workflow for Codex.",
-    "longDescription": "Clarify requirements, review the implementation plan, and execute approved goals with verification records and resume. Includes Figma workflows and existing PR review delivery.",
+    "shortDescription": "No proof, no done: critiqued plans and evidence-backed execution.",
+    "longDescription": "Interview a fuzzy idea, plan with an independent critique, approve once, then execute with per-goal review, verification evidence (command and exit code), and resume. Includes Figma-to-code with real browser checks and existing PR review delivery.",
     "developerName": "Jooyoung Shin",
     "category": "Developer Tools",
     "capabilities": [

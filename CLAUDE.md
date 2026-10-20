@@ -4,7 +4,7 @@ Shared rules for Claude Code and Codex sessions; root AGENTS.md loads this contr
 
 ## What OMJ is
 
-oh-my-joy (marketplace `omj`) is a standalone Claude Code and Codex plugin: **a general spec-first workflow spine with the code↔Figma frontend loop as a first-class mode.** Claude exposes `/oh-my-joy:<name>` commands; Codex exposes matching `$oh-my-joy:<name>` skills. Spine: `deep-interview` (fuzzy) → `ralplan` → final Plan approval → `ultragoal` (native continuation, goal records, review, verify, resume). `spec` is a compatibility alias. New PR creation stays in `ship`; approved existing-PR review delivery belongs to ultragoal. Mental model: **"enter once, approve once, and ultragoal completes and records the approved work."** Provider mapping, routing, and completion are canonical in `docs/EXECUTION-HANDOFF.md`.
+oh-my-joy (marketplace `omj`) is a standalone Claude Code and Codex plugin: **a general spec-first workflow spine (headline: no proof, no done) with the code↔Figma loop as a first-class mode.** Claude exposes `/oh-my-joy:<name>` commands; Codex exposes matching `$oh-my-joy:<name>` skills. Spine: `deep-interview` (fuzzy) → `ralplan` → final Plan approval → `ultragoal` (native continuation, goal records, review, verify, resume). `spec` is a compatibility alias. New PR creation stays in `ship`; approved existing-PR review delivery belongs to ultragoal. Mental model: **"enter once, approve once, and ultragoal completes and records the approved work."** Provider mapping, routing, and completion are canonical in `docs/EXECUTION-HANDOFF.md`.
 
 ## Documentation discipline (top priority)
 

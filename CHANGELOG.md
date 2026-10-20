@@ -12,6 +12,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Changed
 
+- README (EN/KO), plugin and marketplace manifests, and the repository description now lead with the evidence-first identity — "AI says it's done. OMJ makes it prove it." — with Quick Start first, a plain-agent-versus-OMJ table and an example completion record in Why, general examples ahead of frontend ones, and the update and migration notes moved under Troubleshooting
+
 ### Deprecated
 
 ### Removed
