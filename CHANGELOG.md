@@ -10,6 +10,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [1.0.0] - 2026-10-20
+
+### Added
+
 - A demo GIF at the top of each README, recorded from a real session (an English one for `README.md`, a Korean one for `README.ko.md`): a bug report becomes a critiqued plan, and one approval runs the failing reproduction test, the fix at the cause, an independent review, and the closing proof
 
 - Four plain-request `fake-done-*` ablation cases that ask, with and without the plugin, whether an agent's finished change is ready to merge; the 2026-10-20 baseline (both arms 1.00, and the request never reached `/oh-my-joy:review`) is recorded in `docs/EVALS.md`
@@ -736,7 +750,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.20.0...v1.0.0
 [0.20.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.19.1...v0.20.0
 [0.19.1]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.18.0...v0.19.0
