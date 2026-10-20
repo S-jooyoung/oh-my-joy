@@ -24,6 +24,14 @@ npm run eval -- --native --tag ff --judge-model sonnet --max-cost-usd 12        
 - The display-only graders are unscored only under ablation. An explicit `--ablation none` counts `display-fired` toward the score, so leave the flag out (the tag selects with-without) or pass `--ablation with-without`.
 - Guards are judged by the with-arm `Skill` call count (`no-ff-skill`), not by the case score: an `arm: both` never-called grader is scored in both arms.
 
+## The `fake-done-*` cases — a plain merge-readiness question under ablation
+
+Four cases reuse the review fixtures (weakened tests, a gamed benchmark, a symptom patch, blind spots) but send a plain request — "my agent says it's done; is it ready to merge?" — and grade with rubrics that use no OMJ labels, so both arms are judged on the same words. `display-review-fired` is display only and shows whether the request reached `/oh-my-joy:review`. The 2026-10-20 baseline is in [`docs/EVALS.md`](../docs/EVALS.md#the-fake-done-baseline--2026-10-20).
+
+```bash
+npm run eval -- --native --tag fake-done --judge-model sonnet --runs 1 --max-cost-usd 5 --run-cost-estimate 1   # about $1.70
+```
+
 ## The `setup-*` and `sync-*` cases
 
 Both commands had no case before. Slash-command cases (`setup-check-readonly`, `setup-check-bare-project`, `setup-help`, `sync-check-no-figma`, `sync-push-no-figma`) run with `--ablation none`, because the without-plugin arm has no such command to run. The two natural-language guards (`setup-neg-install-question`, `sync-neg-token-question`) carry the `ablation` tag and check that a plain question does not start the workflow.

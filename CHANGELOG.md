@@ -10,6 +10,10 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+- A demo GIF at the top of each README, recorded from a real session (an English one for `README.md`, a Korean one for `README.ko.md`): a bug report becomes a critiqued plan, and one approval runs the failing reproduction test, the fix at the cause, an independent review, and the closing proof
+
+- Four plain-request `fake-done-*` ablation cases that ask, with and without the plugin, whether an agent's finished change is ready to merge; the 2026-10-20 baseline (both arms 1.00, and the request never reached `/oh-my-joy:review`) is recorded in `docs/EVALS.md`
+
 ### Changed
 
 - README (EN/KO), plugin and marketplace manifests, and the repository description now lead with the evidence-first identity — "AI says it's done. OMJ makes it prove it." — with Quick Start first, a plain-agent-versus-OMJ table and an example completion record in Why, general examples ahead of frontend ones, and the update and migration notes moved under Troubleshooting
