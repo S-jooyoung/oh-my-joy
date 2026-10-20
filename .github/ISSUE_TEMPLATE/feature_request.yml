@@ -37,7 +37,7 @@ body:
     attributes:
       label: Scope check
       options:
-        - label: This belongs to oh-my-joy's frontend loop or its general-purpose workflow commands, not to Claude Code itself or another plugin
+        - label: This belongs to oh-my-joy's workflow (general or frontend mode), not to Claude Code, Codex, or another plugin
           required: true
         - label: I checked the [README command table](https://github.com/S-jooyoung/oh-my-joy#commands) and no existing command covers it
           required: true

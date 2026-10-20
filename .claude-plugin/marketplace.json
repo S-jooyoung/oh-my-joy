@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "omj",
-  "description": "oh-my-joy — the code↔Figma frontend loop plus the general-purpose workflows that wrap it (spec-first planning, visual verification, token sync)",
+  "description": "oh-my-joy — AI says it's done; OMJ makes it prove it. One spec-first workflow for Claude Code and Codex with independent critique, one approval, and recorded evidence; Figma-to-code built in",
   "owner": {
     "name": "Jooyoung Shin",
     "email": "jooyoung.dev@gmail.com"
@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "oh-my-joy",
-      "description": "Standalone deep-interview, ralplan, and ultragoal workflows for Claude Code and Codex, with Figma support and verified PR review delivery.",
+      "description": "AI says it's done. OMJ makes it prove it. One workflow for Claude Code and Codex: interview, plan with an independent critique, approve once, then build, review, and verify with recorded evidence and resume. Figma-to-code built in.",
       "version": "0.20.0",
       "author": {
         "name": "Jooyoung Shin",
@@ -19,11 +19,12 @@
       "category": "productivity",
       "homepage": "https://github.com/S-jooyoung/oh-my-joy",
       "tags": [
-        "frontend",
-        "figma",
-        "playwright",
-        "react",
-        "nextjs"
+        "workflow",
+        "planning",
+        "code-review",
+        "verification",
+        "codex",
+        "figma"
       ]
     }
   ],

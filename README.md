@@ -6,7 +6,92 @@ English | [한국어](README.ko.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Runtime dependencies: 0](https://img.shields.io/badge/runtime%20deps-0-brightgreen.svg)](package.json)
 
-> One plugin for the whole loop — from a fuzzy idea to a pull request — with the code ↔ Figma frontend loop built in as a first-class mode.
+> **AI says it's done. OMJ makes it prove it.**
+
+One workflow for every task in Claude Code and Codex — backend, scripts, infra, and frontend alike. You approve one plan that has already been critiqued in a fresh context; after that, nothing counts as done without proof: the command that ran, its exit code, an independent review of the diff, and for UI work a capture from a real browser. Figma-to-code is built in as a first-class mode.
+
+`No proof, no done` · `independent critique` · `approve once` · `resumable runs` · `Claude Code + Codex` · `Figma built in` · `zero runtime deps`
+
+[Quick Start](#quick-start) • [Why](#why) • [How to use OMJ](#how-to-use-omj) • [Recommended workflow](#recommended-workflow) • [Commands](#commands) • [How this plugin evolves](#how-this-plugin-evolves) • [Troubleshooting](#troubleshooting)
+
+---
+
+## Quick Start
+
+### Claude Code
+
+```
+# 1. Install (enter one line at a time)
+/plugin marketplace add S-jooyoung/oh-my-joy
+/plugin install oh-my-joy@omj
+
+# 2. Check dependencies and opt into the extras you want (recommended before first use)
+/oh-my-joy:setup
+
+# 3. Start — ralplan (plan + independent critique loop) writes the plan, critiques it, and stops → approve → the plan runs and records its proof
+/oh-my-joy:ralplan "rate-limit middleware for the public API — 100 req/min per key"
+
+#    …frontend works the same way — add a route and it is checked in a real browser
+/oh-my-joy:ralplan "Search input form — React Hook Form + Zod, mobile-first" /search
+
+#    …or start from a design — the same command takes the Figma link
+/oh-my-joy:ralplan https://figma.com/design/abc?node-id=1-2 /search
+
+# 4. When the proof is green, ship it
+/oh-my-joy:ship "feat(api): rate limiter"
+```
+
+### Codex
+
+```bash
+# 1. Install from the same public marketplace
+codex plugin marketplace add S-jooyoung/oh-my-joy
+codex plugin add oh-my-joy@omj
+
+# 2. Start a new Codex thread so the plugin skills are loaded, then run setup
+$oh-my-joy:setup
+
+# 3. Create the native Plan, approve it, and let its completion procedure run
+$oh-my-joy:ralplan "rate-limit middleware for the public API — 100 req/min per key"
+
+# 4. Ship only when review and verification are green
+$oh-my-joy:ship "feat(api): rate limiter"
+```
+
+Codex exposes the same ten workflow entry points (including the `spec` compatibility alias), three internal roles, and the shared `frontend-fundamentals` skill. The 13 Codex-only adapters stay out of Claude's command menu and model selection; the shared skill remains available on both hosts. Answer style uses project instructions, status indicators use the native Codex CLI footer, and hooks handle Codex write events. Codex App has no custom HUD slot. See the complete [host capability inventory](docs/HOST-PARITY.md).
+
+Updating, or coming from an older version? See [Updating and upgrading](#updating-and-upgrading).
+
+---
+
+## Why
+
+Hand an AI agent a task and the most expensive failure is not bad code — it is **fake done**: "Done, all tests pass" when no test ran, a test skipped or loosened until it passed, a guard that hides the symptom while the cause stays, a plan that drifted halfway, a review by the same context that wrote the code. In frontend work it also looks close to the design while tokens are inlined as raw hex. The defect is never the same twice, so you catch it in review instead of preventing it.
+
+OMJ makes "done" something the agent has to prove. The entry commands are read-only: they read the design or the code, write a plan, have it critiqued in a fresh context, and **stop**. That plan is the native Plan you approve, so Plan mode's write block becomes the review gate. After approval the plan's completion procedure runs on its own, and every step leaves evidence instead of a claim.
+
+| A plain agent session | With OMJ |
+| --- | --- |
+| "Done" with no test run, or a test weakened until it passes | Done needs the command, its exit code, and a summary; a skipped or loosened check is a blocker |
+| The context that wrote the code reviews it | A `critic` in a fresh context reads the diff from a file |
+| "Looks close" to the design | A real browser capture against the Figma baseline, then the `fix` loop |
+| Drifts from what you agreed | One approved plan; its scope and acceptance criteria are recorded and stay fixed |
+| An interruption means starting over | `/oh-my-joy:ultragoal resume <slug>` continues from the ledger in the same checkout, even after switching between Claude Code and Codex |
+
+The shape of a finished goal's record (illustrative and abridged; the real report also lists changed files, artifacts, and assumptions):
+
+```
+goal fix-format-amount (defect)
+  verify  npm test -- format.test.mjs   exit 1   reproduces: TypeError in formatAmount('1,000')
+  verify  npm test -- format.test.mjs   exit 0   14 passed · 0 skipped
+  review  critic, fresh context         pass     no 🔴
+final     npm test                      exit 0   212 passed · current workspace fingerprint
+closed    .omj/goals/fix-format-amount/
+```
+
+---
+
+## How to use OMJ
 
 **Enter once (`/oh-my-joy:ralplan` in Claude Code or `$oh-my-joy:ralplan` in Codex), approve the plan, and the plan's completion procedure runs the checks, a critic review, and verify for you. `ultragoal` manages execution and resume; `ship` remains explicit for new PRs.**
 _A Plan-native workflow that doesn't fight your "almost always in Plan mode" habit._
@@ -25,105 +110,6 @@ Both end the same way: a `## Critique` section, the execution lane, the completi
 | Inside ultragoal | per goal: the helper runs the check and a fresh `critic` reads the diff from a file with the rules `/oh-my-joy:review` applies; a route gets `/oh-my-joy:verify` browser mode → `/oh-my-joy:fix` loop; two or more disjoint goals run as implementer teammates when Agent Teams are on — because the plan you approved says so |
 | Occasional tools | `/oh-my-joy:sync` (design tokens), `/oh-my-joy:setup` (dependencies, scaffolding) |
 | Internal, never typed | `critic` (architect + critic lenses, fresh context), `implementer`, `design-qa` |
-
-`Plan-first` · `evidence, not vibes` · `Figma section walk` · `native Agent Teams` · `graceful degradation` · `zero runtime deps`
-
-[Why](#why) • [Quick Start](#quick-start) • [How to use OMJ](#how-to-use-omj) • [Recommended workflow](#recommended-workflow) • [Commands](#commands) • [How this plugin evolves](#how-this-plugin-evolves) • [Troubleshooting](#troubleshooting)
-
----
-
-## Why
-
-Handing a task to an AI agent and asking it to "build this" fails in a specific, repeatable way: the output looks close, tokens get inlined as raw hex, a branch nobody asked for appears, "done" is announced with no test having run, and the next stage never sees what the previous one decided. The defect is never the same twice, so you catch it in review instead of preventing it.
-
-So OMJ inverts the obvious fix. The entry commands are **not** implement commands — they are read-only primers that read the design or the code, draft an implementation spec scored against fixed criteria, record how the work will be executed and checked, and **stop**. That spec *is* the native Plan you approve. After approval the session follows the plan's completion procedure — implement, review, verify — and nothing counts as done without evidence (a command, its exit code, a summary). Plan mode's write block stops being an obstacle and becomes the review gate.
-
----
-
-## Quick Start
-
-### Claude Code
-
-```
-# 1. Install (enter one line at a time)
-/plugin marketplace add S-jooyoung/oh-my-joy
-/plugin install oh-my-joy@omj
-
-# 2. Check dependencies and opt into the extras you want (recommended before first use)
-/oh-my-joy:setup
-
-# 3. Start — a concrete task becomes an implementation spec (Plan) with its critique, then stop → approve → the plan runs
-/oh-my-joy:ralplan "Search input form — React Hook Form + Zod, mobile-first" /search
-
-#    …or start from a design — the same command takes the Figma link
-/oh-my-joy:ralplan https://figma.com/design/abc?node-id=1-2 /search
-
-#    …or from something that isn't frontend at all
-/oh-my-joy:ralplan "rate-limit middleware for the public API — 100 req/min per key"
-
-# 4. When review and verify are green, ship it
-/oh-my-joy:ship "feat: search form"
-```
-
-### Codex
-
-```bash
-# 1. Install from the same public marketplace
-codex plugin marketplace add S-jooyoung/oh-my-joy
-codex plugin add oh-my-joy@omj
-
-# 2. Start a new Codex thread so the plugin skills are loaded, then run setup
-$oh-my-joy:setup
-
-# 3. Create the native Plan, approve it, and let its completion procedure run
-$oh-my-joy:ralplan "Search input form — React Hook Form + Zod, mobile-first" /search
-
-# 4. Ship only when review and verification are green
-$oh-my-joy:ship "feat: search form"
-```
-
-Codex exposes the same ten workflow entry points (including the `spec` compatibility alias), three internal roles, and the shared `frontend-fundamentals` skill. The 13 Codex-only adapters stay out of Claude's command menu and model selection; the shared skill remains available on both hosts. Answer style uses project instructions, status indicators use the native Codex CLI footer, and hooks handle Codex write events. Codex App has no custom HUD slot. See the complete [host capability inventory](docs/HOST-PARITY.md).
-
-> **Updates** ship when a release (version bump) lands on `main` — merged features don't reach existing installs until the version string changes. In Claude Code, run `/plugin update oh-my-joy@omj`, then `/reload-plugins`. In Codex, run `codex plugin marketplace upgrade omj` followed by `codex plugin add oh-my-joy@omj`. Start a new session/thread after either update.
->
-> **Upgrading from v0.8?** v0.9.0 keeps every command and adds a critique gate and execution rules:
->
-> | Old name | Now |
-> | --- | --- |
-> | `figma-implementer` (agent) | `implementer` — the same executor with a frontend mode and a general mode, now the teammate type for every Dispatch row |
->
-> `/oh-my-joy:ralplan` ends with a `## Critique` section before final approval (decision record, simulated tasks against your files, a ready verdict — plus read-only `critic` readings in fresh contexts sized to the plan), `/oh-my-joy:deep-interview` hands its requirements to `ralplan` through an exit bridge, and the completion procedure asks no questions between approval and the report — blockers are classified and reported. These v0.9 changes are retained under the new ralplan entry point.
->
-> **Upgrading from v0.7?** v0.8.0 generalized the spine and trimmed the surface:
->
-> | Old command | Now |
-> | --- | --- |
-> | `ff-review` | `/oh-my-joy:review` — the same frontend rubric, plus a general mode for every other file |
-> | `ralplan` | restored as the planning entry point, including the former spec behavior |
-> | `goal-loop` | replaced by `/oh-my-joy:ultragoal`; legacy state is preserved, not silently migrated |
->
-> Everything else is unchanged: the `.omj/` state directory, the `oh-my-joy@omj` install string, and the hook output.
->
-> **Upgrading from v0.6?** v0.7.0 moved every command under the single `/oh-my-joy:` namespace:
->
-> | Old command | Now |
-> | --- | --- |
-> | `omj` (the bare root command) | `/oh-my-joy:ralplan` |
-> | `omj-verify` | `/oh-my-joy:verify` |
-> | `omj-fix` | `/oh-my-joy:fix` |
-> | `omj-sync` | `/oh-my-joy:sync` |
-> | `omj-setup` | `/oh-my-joy:setup` |
-> | `omj-start` | removed — approved ralplan hands off to ultragoal automatically |
->
-> One trap: the once-announced `omj-spec` (design-system spec, v1.1) is now planned as `/oh-my-joy:ds-spec`, not `ralplan`. Full mapping and rationale: [CHANGELOG](CHANGELOG.md), sections 0.8.0 and 0.7.0.
-
-### Maintaining the OMJ repository
-
-Inside the OMJ source checkout, use `/release` in Claude Code or `$oh-my-joy:release` in Codex. `$oh-my-joy:release-checklist` checks release and installation readiness. Both hosts follow [one release procedure](docs/RELEASING.md); these repository-local skills do not enter the consuming-project workflow list.
-
----
-
-## How to use OMJ
 
 Eight situations cover most days. Each is the exact sequence you type; every spec critiques itself before you see it, and everything between approval and ship happens on its own because the approved plan says so.
 
@@ -155,7 +141,7 @@ Eight situations cover most days. Each is the exact sequence you type; every spe
 /oh-my-joy:ship "feat: search form"
 ```
 
-**4. Anything that isn't frontend (backend, scripts, this plugin)**
+**4. Backend, scripts, infra — any non-UI work**
 
 ```
 /oh-my-joy:ralplan "rate-limit middleware for the public API — 100 req/min per key"
@@ -422,6 +408,41 @@ Command bodies are prompts, so "a small wording change" is a behavior change. OM
 - **MCP tool names differ** — Figma/Context7 tool names vary by environment. Check the actual names with `/mcp`.
 - **Duplicate committed skill copy** — if a project committed `frontend-fundamentals` into its own `.claude/skills/`, it may load alongside the OMJ bundle (harmless). Don't delete that copy — just edit the source of truth in one place.
 
+### Updating and upgrading
+
+> **Updates** ship when a release (version bump) lands on `main` — merged features don't reach existing installs until the version string changes. In Claude Code, run `/plugin update oh-my-joy@omj`, then `/reload-plugins`. In Codex, run `codex plugin marketplace upgrade omj` followed by `codex plugin add oh-my-joy@omj`. Start a new session/thread after either update.
+>
+> **Upgrading from v0.8?** v0.9.0 keeps every command and adds a critique gate and execution rules:
+>
+> | Old name | Now |
+> | --- | --- |
+> | `figma-implementer` (agent) | `implementer` — the same executor with a frontend mode and a general mode, now the teammate type for every Dispatch row |
+>
+> `/oh-my-joy:ralplan` ends with a `## Critique` section before final approval (decision record, simulated tasks against your files, a ready verdict — plus read-only `critic` readings in fresh contexts sized to the plan), `/oh-my-joy:deep-interview` hands its requirements to `ralplan` through an exit bridge, and the completion procedure asks no questions between approval and the report — blockers are classified and reported. These v0.9 changes are retained under the new ralplan entry point.
+>
+> **Upgrading from v0.7?** v0.8.0 generalized the spine and trimmed the surface:
+>
+> | Old command | Now |
+> | --- | --- |
+> | `ff-review` | `/oh-my-joy:review` — the same frontend rubric, plus a general mode for every other file |
+> | `ralplan` | restored as the planning entry point, including the former spec behavior |
+> | `goal-loop` | replaced by `/oh-my-joy:ultragoal`; legacy state is preserved, not silently migrated |
+>
+> Everything else is unchanged: the `.omj/` state directory, the `oh-my-joy@omj` install string, and the hook output.
+>
+> **Upgrading from v0.6?** v0.7.0 moved every command under the single `/oh-my-joy:` namespace:
+>
+> | Old command | Now |
+> | --- | --- |
+> | `omj` (the bare root command) | `/oh-my-joy:ralplan` |
+> | `omj-verify` | `/oh-my-joy:verify` |
+> | `omj-fix` | `/oh-my-joy:fix` |
+> | `omj-sync` | `/oh-my-joy:sync` |
+> | `omj-setup` | `/oh-my-joy:setup` |
+> | `omj-start` | removed — approved ralplan hands off to ultragoal automatically |
+>
+> One trap: the once-announced `omj-spec` (design-system spec, v1.1) is now planned as `/oh-my-joy:ds-spec`, not `ralplan`. Full mapping and rationale: [CHANGELOG](CHANGELOG.md), sections 0.8.0 and 0.7.0.
+
 ---
 
 ## Contributing
@@ -439,6 +460,10 @@ npm run eval             # behavioral eval cases (costs tokens; needs a logged-i
 To try your change as a real plugin, use `/plugin marketplace add <path to your clone>` then `/plugin install oh-my-joy@omj` in Claude Code, or `codex plugin marketplace add <path to your clone>` then `codex plugin add oh-my-joy@omj` in Codex. Start a new session/thread after installation.
 
 Three things worth knowing before your first PR: a feature is incomplete until **README (both languages), CHANGELOG, and — if a principle moved — `docs/PRINCIPLES.md`** change in the same commit; `allowed-tools` must never declare a tool the command body does not call; and a change to what a command promises adds or updates its eval case. All three are test-enforced or checklist-enforced. The full guide is [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Maintaining the OMJ repository
+
+Inside the OMJ source checkout, use `/release` in Claude Code or `$oh-my-joy:release` in Codex. `$oh-my-joy:release-checklist` checks release and installation readiness. Both hosts follow [one release procedure](docs/RELEASING.md); these repository-local skills do not enter the consuming-project workflow list.
 
 Found a security problem? Do not open an issue — see [SECURITY.md](SECURITY.md).
 
