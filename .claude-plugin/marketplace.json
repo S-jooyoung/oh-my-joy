@@ -10,7 +10,7 @@
     {
       "name": "oh-my-joy",
       "description": "AI says it's done. OMJ makes it prove it. One workflow for Claude Code and Codex: interview, plan with an independent critique, approve once, then build, review, and verify with recorded evidence and resume. Figma-to-code built in.",
-      "version": "0.20.0",
+      "version": "1.0.0",
       "author": {
         "name": "Jooyoung Shin",
         "email": "jooyoung.dev@gmail.com"
@@ -28,5 +28,5 @@
       ]
     }
   ],
-  "version": "0.20.0"
+  "version": "1.0.0"
 }
