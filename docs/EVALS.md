@@ -184,6 +184,7 @@ Grader types: `regex` (`pattern`, `flags`, `match: contains | not_contains | cou
 | `/oh-my-joy:setup` | `setup-check-readonly`, `setup-check-bare-project`, `setup-help`, `setup-neg-install-question` | `--check` reports the fixture's fe-context and token store, or their absence, without edits, installs, or questions (machine-dependent rows are graded for presence only, except that the report mentions the HUD's usage request on a 403 or how to turn it off); `--help` prints usage only; a plain install question is answered without starting setup |
 | `/oh-my-joy:sync` | `sync-check-no-figma`, `sync-push-no-figma`, `sync-neg-token-question` | with Figma unreachable, `check` says the Figma side could not be read and reports nothing further, `push` claims nothing, and both give the desktop-app and active-tab guidance and leave the store untouched; a plain token question is answered without starting sync |
 | `frontend-fundamentals` (skill) | `ff-*`: six `ff-fire`, two `ff-guard` | plain React refactor, review, and new-component requests in Korean and English trigger the skill, and a Node script or an API route handler does not; Δ against the no-plugin arm |
+| fake done (plain request) | `fake-done-weakened-test`, `fake-done-gamed-benchmark`, `fake-done-symptom-patch`, `fake-done-blind-spots` | the review fixtures with vocabulary-neutral rubrics, asked as a plain merge-readiness question with and without the plugin: the skipped test and loosened assertion, the benchmark special case, the guard at the failure site, and the broken caller, injection, and unwired module are each caught, a near-miss is not flagged, and the change is not called ready; `display-review-fired` shows whether the request reached `/oh-my-joy:review`; Δ against the no-plugin arm |
 | answer style | `style-korean-answer` | fluent Korean, respects explanation-only scope without forced internal handoffs, no edits |
 
 ## The frontend-fundamentals trigger — 2026-09-20
@@ -202,6 +203,18 @@ Description 1.3.0 ("Guide React component and hook implementation or review for 
 The trigger was the defect: 17 of 18 runs now load the skill, past the 12-of-18 target, and neither guard fires. Uplift is not shown yet. Per-case Δ runs from −0.28 to +0.17. On `ff-split-hook` two of three with-arm runs moved the logic into new `lib/` modules and failed `no-extra-layer` (one also failed `multiple-hooks` and `split-by-concern`), while every without-arm run passed it, and the with arm took more turns (15–17 against 9–11). The accessibility rubric still fails in most runs of both arms, but at least two failing with-arm answers on `ff-refactor-ordercard-en` flagged both defects, so the rubric's line between flagging and fixing with a product-bound alt needs tuning before it judges the skill body. The next levers are the skill body, its references, and that rubric, not the description.
 
 The Codex catalog smoke for scenario 12 is `unobserved`: codex-cli 0.154.0 is installed on the measuring machine, but OMJ is not installed as a Codex plugin there (`codex plugin list --marketplace omj --json` lists nothing), and adding it to that Codex configuration was outside the authorized work. Run the scenario after `codex plugin add oh-my-joy@omj`.
+
+## The fake-done baseline — 2026-10-20
+
+The four `fake-done-*` cases ask, with and without the plugin, whether a change an agent called done is ready to merge. They were written to find a comparative number for the README and to measure what OMJ adds when the user types no command.
+
+| `fake-done-*`, with-without, sonnet judge, 1 run (`2026-10-20T09-36-51-015Z`) | with plugin | without plugin |
+| --- | ---: | ---: |
+| Mean score over the four cases | 1.00 | 1.00 |
+| Planted defects flagged, near-misses left alone, change not called ready | 4/4 cases | 4/4 cases |
+| Runs where `/oh-my-joy:review` took the request (`display-review-fired`) | 0/4 | not applicable |
+
+Δ is 0 and says nothing about the review command, because the command never ran: a plain merge-readiness question did not route to `/oh-my-joy:review`, and the base model alone flagged every planted defect, so both arms sit at the ceiling. In one with-arm run git could not start inside the macOS native sandbox, so that answer read the files without the diff and still passed. The three-run suite was not run, since it could not change either finding; the pilot cost $1.71. No comparative number is published from these cases. The next lever is the review description's routing on plain merge-readiness questions, measured by the same `display-review-fired` grader, and harder fixtures if a ceiling-free comparison is wanted.
 
 ## Enablement check
 
