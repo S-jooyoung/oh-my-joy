@@ -4,7 +4,7 @@ tags: [ultragoal, general]
 runs: 1
 max_turns: 40
 timeout_seconds: 1200
-allowed_tools: [Read, Grep, Glob, Edit, Write, Agent, Skill, "Bash(node:*)", "Bash(git diff:*)", "Bash(git ls-files:*)"]
+allowed_tools: [Read, Grep, Glob, Edit, Write, Agent, Skill, AskUserQuestion, "Bash(node:*)", "Bash(git diff:*)", "Bash(git ls-files:*)"]
 append_system_prompt: |
   Earlier in this session the user approved the following /oh-my-joy:ralplan plan through the native plan gate. Nothing has been written yet.
 
@@ -23,7 +23,7 @@ append_system_prompt: |
   New file test/parse.test.mjs with two tests: `parseAmount('1,000')` equals `1000`, and `parseAmount('12')` equals `12`. It fails before the fix and passes after it.
 
   ## Fix at the origin
-  src/parse.mjs strips thousands separators before `Number()` and keeps returning `undefined` for text that is still not a number. test/format.test.mjs stays unchanged.
+  src/parse.mjs strips thousands separators before `Number()` and keeps returning `undefined` for text that is still not a number; which characters count as thousands separators (the comma only, or others too) is left to the executor, who records the choice under Assumptions. test/format.test.mjs stays unchanged.
 
   ## Constraints
   - Edit only src/parse.mjs and test/parse.test.mjs.
