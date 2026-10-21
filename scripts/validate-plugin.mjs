@@ -42,6 +42,7 @@ const readJson = (...segments) => JSON.parse(readFileSync(repoPath(...segments),
 
 const errors = [];
 const notes = [];
+const advisories = [];
 const fail = (message) => errors.push(message);
 
 /**
@@ -57,6 +58,15 @@ const fail = (message) => errors.push(message);
  * Scoped to this exact text on purpose: any *other* warning still fails the run.
  */
 const ACCEPTED_WARNINGS = ['CLAUDE.md at the plugin root is not loaded as project context'];
+
+/**
+ * Newer CLIs append the plugin directory's submission checks after the verdict,
+ * stating that they do not change it. They are advice for a directory listing
+ * (icon, listing copy), so they are printed as advisories rather than failing
+ * the run; the validation section above them keeps the strict rule.
+ */
+const DIRECTORY_SECTION = /^Plugin directory checks for /m;
+const DIRECTORY_ABOUT = /^About these checks:/m;
 
 // ---------------------------------------------------------------------------
 // Layer 1 — the official CLI
@@ -76,7 +86,14 @@ function runCli(manifestPath) {
     output = `${error.stdout ?? ''}${error.stderr ?? ''}`;
   }
 
-  const warnings = [...output.matchAll(/❯\s+(.+)/g)].map((m) => m[1].trim());
+  const split = output.search(DIRECTORY_SECTION);
+  const validation = split === -1 ? output : output.slice(0, split);
+  const directory = split === -1 ? '' : output.slice(split).split(DIRECTORY_ABOUT)[0];
+  for (const m of directory.matchAll(/❯\s+(.+)/g)) {
+    advisories.push(`plugin directory check (${path.basename(manifestPath)}): ${m[1].trim()}`);
+  }
+
+  const warnings = [...validation.matchAll(/❯\s+(.+)/g)].map((m) => m[1].trim());
   const unexpected = warnings.filter((w) => !ACCEPTED_WARNINGS.some((accepted) => w.includes(accepted)));
 
   if (unexpected.length > 0) {
@@ -427,6 +444,7 @@ if (SKIP_CLI) {
 }
 
 for (const note of notes) console.log(`  ✓ ${note}`);
+for (const advisory of advisories) console.log(`  ! ${advisory}`);
 
 if (errors.length > 0) {
   console.error(`\nvalidate-plugin: ${errors.length} problem(s)`);
