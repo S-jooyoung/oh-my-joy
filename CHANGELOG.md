@@ -12,6 +12,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Changed
 
+- The roadmap wording for the design-system Figma track and the two planned commands (`/oh-my-joy:push`, `/oh-my-joy:ds-spec`) moves from v1.1 to v1.2+ in CLAUDE.md, both READMEs, and PRINCIPLES, because 1.1.0 shipped without them
+
 ### Deprecated
 
 ### Removed
