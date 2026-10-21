@@ -12,6 +12,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Changed
 
+- The README demo GIFs (English and Korean) show a feature request instead of a bug report: the Quick Start's rate-limit middleware request becomes a plan that an independent critic revises before approval, and one approval writes the failing tests first, builds the feature, passes an independent review, and closes with recorded proof
+
 ### Deprecated
 
 ### Removed

@@ -10,7 +10,7 @@ English | [한국어](README.ko.md)
 
 One workflow for every task in Claude Code and Codex — backend, scripts, infra, and frontend alike. You approve one plan that has already been critiqued in a fresh context; after that, nothing counts as done without proof: the command that ran, its exit code, an independent review of the diff, and for UI work a capture from a real browser. Figma-to-code is built in as a first-class mode.
 
-![A real OMJ session: a bug report becomes a critiqued plan; one approval then runs the failing reproduction test, the fix at the cause, an independent review, and the closing proof](docs/assets/demo.gif)
+![A real OMJ session: a one-line request for rate-limit middleware becomes a plan that an independent critic revises before approval; one approval then writes the failing tests first, builds the feature, passes an independent review, and closes with recorded proof](docs/assets/demo.gif)
 
 <sub>A real Claude Code session, recorded end to end; only the waits are sped up.</sub>
 
