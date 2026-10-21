@@ -17,6 +17,7 @@ became inside OMJ, and which ideas were declined, is recorded in `docs/PRINCIPLE
 | [frontend-design](https://github.com/anthropics/skills/tree/main/skills/frontend-design) (Anthropic) | Apache-2.0 | The design direction written before a build: the subject and its users first, a compact token plan, a review of that plan against the brief to remove generic defaults, and a self-critique, carried by `ralplan`'s Design direction |
 | [web-interface-guidelines](https://github.com/vercel-labs/web-interface-guidelines) (Vercel) | MIT | The visual and state categories of the rubric's judgment items (interaction states, layout stability, content handling, copy); the full checklist stays with the deep-audit route of `frontend-fundamentals` |
 | [fluent-korean](https://github.com/snflkd/fluent-korean) (snflkd) | MIT | The writing rules of the answer style: compose natively in the reader's language, complete Korean particles and endings, one consistent polite register, natural mixing of English technical terms, explain for beginners, proofread before sending |
+| [ponytail](https://github.com/DietrichGebert/ponytail) (Dietrich Gebert) | MIT | The smallest-complete-change method: a ranked reuse ladder before new code (not needed, already in the repository, standard library or platform, installed dependency, then the minimum), one small check where new logic has a branch, loop, parser, money, security, or a data write, the never-cut list, and a closing line naming what was skipped, not checked, or risky |
 
 ## Vendored code
 

@@ -23,6 +23,8 @@ const RUNTIME_MENTION = /\bOMC\b|\bOMX\b|oh-my-claudecode|oh-my-codex|\$ultragoa
 // hud/README.md is attribution for the vendored HUD bundle (NOTICE.md names the source) —
 // the same history/attribution class as NOTICE.md, not an orchestrator integration.
 const RUNTIME_EXEMPT = new Set(['CHANGELOG.md', 'NOTICE.md', 'hud/README.md']);
+/** Methodology sources are credited in NOTICE.md and nowhere else: the published docs describe OMJ's own design. */
+const SOURCE_MENTION = /\b[Pp]onytail\b/;
 
 describe('standalone: zero runtime dependencies', () => {
   it('package.json declares no dependencies of any kind', () => {
@@ -82,6 +84,19 @@ describe('standalone: no external-runtime coupling remains', () => {
       offenders,
       [],
       `external orchestrator mentions found — the integration was removed, so these are drift:\n${offenders.join('\n')}`,
+    );
+  });
+
+  it('tracked markdown names no methodology source outside NOTICE.md and the changelog', () => {
+    const offenders = [];
+    for (const file of listMarkdownFiles()) {
+      if (RUNTIME_EXEMPT.has(file)) continue;
+      if (SOURCE_MENTION.test(readRepoFile(file))) offenders.push(file);
+    }
+    assert.deepEqual(
+      offenders,
+      [],
+      `methodology sources are credited only in NOTICE.md — these files name one:\n${offenders.join('\n')}`,
     );
   });
 

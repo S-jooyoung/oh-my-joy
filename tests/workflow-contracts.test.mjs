@@ -258,13 +258,29 @@ describe('portable planning and goal workflow', () => {
   it('the session pass and the independent pass judge by one finding-kind list', () => {
     // Every labelled kind reads the same way in the four copies, so a finding from the independent pass
     // can be matched to the session's rule; the critic copies also carry the refute-before-report step.
-    const FINDING_KINDS = ['verification weakened', 'metric gaming', 'symptom patch', 'unreached code', 'repo rule', 'scope expansion', 'template tell'];
+    const FINDING_KINDS = ['verification weakened', 'metric gaming', 'symptom patch', 'unreached code', 'repo rule', 'scope expansion', 'template tell', 'over-build'];
     for (const file of ['agents/critic.md', 'skills/critic/SKILL.md', 'commands/review.md', 'skills/review/SKILL.md']) {
       const body = readRepoFile(file);
       for (const kind of FINDING_KINDS) assert.ok(body.includes(`\`${kind}\``), `${file} pins "\`${kind}\`"`);
     }
     for (const file of ['agents/critic.md', 'skills/critic/SKILL.md', 'commands/review.md']) {
       assert.ok(readRepoFile(file).includes('Refuted:'), `${file} pins "Refuted:"`);
+    }
+  });
+
+  it('the closing line, the open-ledger notice, the hand-back line, and the no-question rule are pinned where each lane reads them', () => {
+    // The executor's report, the lead's inline report, and the handoff doc all carry the same closing
+    // label, so a reader finds the gaps in one place; the planner's two copies announce an open ledger
+    // and the hand-back line; the no-question rule lives where the inline lead reads it, not only in the
+    // agent file that loads when a teammate is spawned.
+    const pins = {
+      'Skipped / not checked / risk': ['agents/implementer.md', 'skills/implementer/SKILL.md', 'commands/ultragoal.md', 'skills/ultragoal/SKILL.md', 'docs/EXECUTION-HANDOFF.md'],
+      'open ledger': ['commands/ralplan.md', 'skills/ralplan/SKILL.md'],
+      'Hand-back': ['commands/ralplan.md', 'skills/ralplan/SKILL.md'],
+      'asks no question': ['commands/ultragoal.md', 'skills/ultragoal/SKILL.md', 'docs/EXECUTION-HANDOFF.md'],
+    };
+    for (const [phrase, files] of Object.entries(pins)) {
+      for (const file of files) assert.ok(readRepoFile(file).includes(phrase), `${file} pins "${phrase}"`);
     }
   });
 

@@ -10,8 +10,26 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+- `over-build` finding kind in `critic`, `review`, and both Codex adapters: new code that rebuilds a symbol the repository already has, a platform feature, or an installed dependency, or an abstraction with one implementation, is 🟡 with the existing path as evidence, 🔴 when the approved plan's reuse ladder named the candidate, and a 🟢 note without evidence; `tests/workflow-contracts.test.mjs` pins the eighth kind across the four copies
+- `/oh-my-joy:ralplan` announces an unclosed ledger from an earlier run once at grounding (`open ledger <slug> … resume <slug> continues it`, at most three lines), because a run that ended with its session was otherwise forgotten
+- `/oh-my-joy:ralplan` ends its plan with a `Hand-back:` line, right before `Expected execution`, that lists only the steps the session cannot do itself (credentials, an external approval, a physical action, an unauthorized paid resource) — `Hand-back: none` otherwise
+- Eval case `ralplan-reuse-ladder` with fixture `node-reuse`: the plan names the existing validator by path, relies on the platform query parser, names one check for the new branch, cuts what was not asked, and carries the hand-back line
+- Eval case `review-over-build` with fixtures `review-overbuild-base` and `-changes`: a rebuilt formatter and a hand-written query parser are flagged with their evidence while a genuinely new discount helper is not; the case grants `Agent` so the critic's own rule is exercised
+- `ultragoal-single-goal-close` grants `AskUserQuestion` and adds the `no-midrun-question` regression guard plus an `assumption-recorded` grader on a choice the attached plan now leaves open (which thousands separators to strip)
+- `tests/standalone.test.mjs` guards that methodology sources are named only in `NOTICE.md` and the changelog (`SOURCE_MENTION`)
+
 ### Changed
 
+- `/oh-my-joy:ralplan`: Target files and reuse candidates carry a reuse ladder (not needed, already in the repository, standard library or platform, installed dependency, then the minimum new code; a new dependency is a decision row on the approval screen), and a goal that adds logic with a branch, loop, parser, money, security, or a data write names the one check that fails when it breaks
+- `implementer` builds the rung the plan recorded (no option, wrapper, abstraction, or configuration the plan does not name; moved code keeps its validation; every touched caller, test, and fixture finished) and closes its report with `Skipped / not checked / risk:`; the Codex adapter puts that line before the `evidence:` line
+- `/oh-my-joy:ultragoal`: the inline lead follows the implementer contract's Clarify, Generate, Blockers, and Completion report rules, since an agent file loads only when that agent is spawned
+- `/oh-my-joy:ultragoal`: between approval and the report the session asks no question — a choice the plan left open takes the Recommended option and is recorded under Assumptions; a login, deploy protection, or a credential is human-only; an obstacle with no safe alternative is exhausted after three approaches — stated in the body, `docs/EXECUTION-HANDOFF.md`, and the Codex adapter, where the inline lead reads it
+- `/oh-my-joy:ultragoal` prints one progress line in the user's language at each ledger transition, before the next tool call in the same turn and never as a turn-ending message
+- `/oh-my-joy:ultragoal`'s report cites artifacts as full paths, carries one `Skipped / not checked / risk:` line per goal, and names follow-ups with their resume path; `docs/EXECUTION-HANDOFF.md` and the Codex adapter carry the same report contract
+- `/oh-my-joy:review`: the Claude and Codex descriptions name a plain "is it ready to merge?" question as a trigger (measured at 0 of 4 routings before the change); the general-file rubric replaces "simplicity" with `over-build`, and blocker evidence accepts a quoted reuse-ladder row
+- `output-styles/oh-my-joy.md` gains a three-sentence "Build the smallest complete change" section at the end: the reuse ladder, no unrequested options or abstractions, one check for risky logic, the never-cut list, and the closing line on answers that deliver or plan a change — an explanation-only answer skips it, closing line included; longer drafts lowered `style-korean-answer`'s fluency judge while the previous body passed, and the three-sentence form scores 0.89 over three runs (`docs/EVALS.md`); Codex users rerun `/oh-my-joy:setup` to refresh `.omj/answer-style.md`
+- `evals/style-korean-answer` inlines the new style body and gains a `no-closing-line` grader: an explanation-only answer ends without the `Skipped / not checked / risk:` line
+- Body ceilings in `tests/prompt-style.test.mjs` raised to the measured size plus 5% for `commands/ralplan.md` (4,959), `agents/implementer.md` (1,568), and the five edited Codex adapters (`critic` 1,780, `review` 1,839, `implementer` 888, `ralplan` 1,942, `ultragoal` 2,524); `review`, `ultragoal`, and `critic` stayed under their ceilings through replacement rather than addition
 - The README demo GIFs (English and Korean) show a feature request instead of a bug report: the Quick Start's rate-limit middleware request becomes a plan that an independent critic revises before approval, and one approval writes the failing tests first, builds the feature, passes an independent review, and closes with recorded proof
 
 ### Deprecated
@@ -20,6 +38,7 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Fixed
 
+- `evals/style-korean-answer`'s `korean-fluency` rubric no longer asks the judge whether a file was modified: the native judge sees only the answer, so that clause cannot be judged from it, and the case grants no write tool in the first place
 - `npm run validate-plugin` no longer fails on the plugin directory checks that newer Claude Code CLIs append after their verdict (such as `ICON_MISSING`); they print as `!` advisories, while any unexpected warning in the validation section still fails the run
 
 ### Security
