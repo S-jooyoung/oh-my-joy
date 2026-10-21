@@ -13,7 +13,7 @@ npm run validate-plugin  # manifest + command/agent/skill frontmatter conformanc
 
 `npm run eval` runs the behavioral eval cases (native `claude plugin eval` when enabled, otherwise the `claude -p` fallback runner); it costs tokens and needs a logged-in `claude`, so it is not part of `npm test`.
 
-`validate-plugin` always validates both the Claude and Codex manifests, the exact Codex skill inventory, cross-runtime version parity, and safety boundaries. When the Claude Code CLI is present it also runs `claude plugin validate --strict`; the one accepted warning is documented at the top of `scripts/validate-plugin.mjs`.
+`validate-plugin` always validates both the Claude and Codex manifests, the exact Codex skill inventory, cross-runtime version parity, and safety boundaries. When the Claude Code CLI is present it also runs `claude plugin validate --strict`; the one accepted warning is documented at the top of `scripts/validate-plugin.mjs`. The CLI's plugin directory checks (such as a missing listing icon) print as `!` advisories and do not fail the run, as the CLI itself does not count them toward its result.
 
 To try it as a plugin in Claude Code:
 

@@ -13,7 +13,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { chmodSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -393,5 +393,78 @@ describe('validate-plugin: repo invariants', () => {
       (t) => { t.extraFiles['hooks/hooks.json'] = '{}'; },
       /must never ship auto-firing hooks/,
     );
+  });
+});
+
+/**
+ * Runs both layers with a stub `claude` on PATH that prints `pluginOutput` for
+ * plugin.json, so the CLI-output parsing is exercised without the real CLI.
+ */
+function runValidatorWithCli(root, pluginOutput) {
+  const bin = mkdtempSync(path.join(tmpdir(), 'omj-validate-bin-'));
+  writeFileSync(path.join(bin, 'plugin-output.txt'), pluginOutput);
+  writeFileSync(
+    path.join(bin, 'claude'),
+    '#!/bin/sh\ncase "$1" in --version) echo stub; exit 0;; esac\n'
+      + 'case "$3" in *plugin.json) cat "$(dirname "$0")/plugin-output.txt";; *) echo "✔ Validation passed";; esac\n',
+  );
+  chmodSync(path.join(bin, 'claude'), 0o755);
+  try {
+    const env = { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}` };
+    const stdout = execFileSync('node', [SCRIPT, '--root', root], { encoding: 'utf8', env });
+    return { code: 0, output: stdout };
+  } catch (error) {
+    return { code: error.status ?? 1, output: `${error.stdout ?? ''}${error.stderr ?? ''}` };
+  } finally {
+    rmSync(bin, { recursive: true, force: true });
+  }
+}
+
+const cliOutput = (validationWarnings) => [
+  'Validating plugin manifest: .claude-plugin/plugin.json',
+  '',
+  `⚠ Found ${validationWarnings.length} warning(s):`,
+  '',
+  ...validationWarnings.map((w) => `  ❯ ${w}`),
+  '',
+  'Plugin directory checks for /fixture. The plugin directory is the catalog that plugins are submitted to.',
+  '',
+  '⚠ Found 1 plugin directory warning:',
+  '',
+  '  ❯ .claude-plugin/plugin.json icon: No icon (ICON_MISSING). No icon found in the plugin.',
+  '',
+  'About these checks:',
+  '',
+  '  ❯ This folder also holds a marketplace manifest.',
+  '',
+  'These plugin directory checks do not change the result below.',
+  '',
+  '✔ Validation passed with warnings',
+].join('\n');
+
+describe('validate-plugin: CLI layer', () => {
+  const accepted = 'root: CLAUDE.md at the plugin root is not loaded as project context.';
+
+  it('reports plugin directory checks as advisories without failing', () => {
+    const root = makeFixture();
+    try {
+      const { code, output } = runValidatorWithCli(root, cliOutput([accepted]));
+      assert.equal(code, 0, output);
+      assert.match(output, /! plugin directory check \(plugin\.json\): .*ICON_MISSING/);
+      assert.doesNotMatch(output, /also holds a marketplace manifest/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('still fails an unexpected warning in the validation section', () => {
+    const root = makeFixture();
+    try {
+      const { code, output } = runValidatorWithCli(root, cliOutput([accepted, 'commands: unexpected field']));
+      assert.equal(code, 1, output);
+      assert.match(output, /✗ claude plugin validate \(plugin\.json\): commands: unexpected field/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

@@ -18,6 +18,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Fixed
 
+- `npm run validate-plugin` no longer fails on the plugin directory checks that newer Claude Code CLIs append after their verdict (such as `ICON_MISSING`); they print as `!` advisories, while any unexpected warning in the validation section still fails the run
+
 ### Security
 
 ## [1.0.0] - 2026-10-20
