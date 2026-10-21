@@ -10,6 +10,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [1.1.0] - 2026-10-21
+
+### Added
+
 - `over-build` finding kind in `critic`, `review`, and both Codex adapters: new code that rebuilds a symbol the repository already has, a platform feature, or an installed dependency, or an abstraction with one implementation, is 🟡 with the existing path as evidence, 🔴 when the approved plan's reuse ladder named the candidate, and a 🟢 note without evidence; `tests/workflow-contracts.test.mjs` pins the eighth kind across the four copies
 - `/oh-my-joy:ralplan` announces an unclosed ledger from an earlier run once at grounding (`open ledger <slug> … resume <slug> continues it`, at most three lines), because a run that ended with its session was otherwise forgotten
 - `/oh-my-joy:ralplan` ends its plan with a `Hand-back:` line, right before `Expected execution`, that lists only the steps the session cannot do itself (credentials, an external approval, a physical action, an unauthorized paid resource) — `Hand-back: none` otherwise
@@ -773,7 +787,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.20.0...v1.0.0
 [0.20.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.19.1...v0.20.0
 [0.19.1]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.19.0...v0.19.1
