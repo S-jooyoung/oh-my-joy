@@ -378,7 +378,7 @@ The reasoning behind each decision — problem → decision → rationale → ou
 - **Execution asks nothing**: between approval and the report the session asks no questions; a blocker is `resolvable` (three approaches first) or `human-only` (stop, say what you must do), and every assumption made where the plan was silent is listed in the report.
 - **Spec format**: uSpec sections + FF 4-criteria + a11y + Figma fidelity ([`figma-fidelity.md`](skills/frontend-fundamentals/references/figma-fidelity.md)) for frontend, plus a Design direction from the visual rubric ([`visual-design.md`](skills/frontend-fundamentals/references/visual-design.md)) for a new screen without Figma; goal / constraints / acceptance criteria / verification commands for everything else.
 - **Token sync**: code is the default SoT, and you choose the direction on conflict (interactive). Both DTCG json and CSS custom-property stores.
-- **Figma 2-track**: (A) app-screen design→code = official Dev Mode MCP, walked section by section on large frames; (B) design-system spec/tokens = figma-console-mcp + uSpec (v1.1+).
+- **Figma 2-track**: (A) app-screen design→code = official Dev Mode MCP, walked section by section on large frames; (B) design-system spec/tokens = figma-console-mcp + uSpec (v1.2+).
 - **Borrow methodology, not surface**: externally maintained knowledge is referenced (vercel skills — `npx skills add/update`); OMJ bundles only what it owns (FF skill, 3 agents, hook templates, the answer style, the evals); methodologies from other projects are absorbed as credited rewrites, and declined ideas are recorded with their reasons.
 
 The "why" behind each decision lives in **[docs/PRINCIPLES.md](docs/PRINCIPLES.md)**.
@@ -446,7 +446,7 @@ Command bodies are prompts, so "a small wording change" is a behavior change. OM
 > | `omj-setup` | `/oh-my-joy:setup` |
 > | `omj-start` | removed — approved ralplan hands off to ultragoal automatically |
 >
-> One trap: the once-announced `omj-spec` (design-system spec, v1.1) is now planned as `/oh-my-joy:ds-spec`, not `ralplan`. Full mapping and rationale: [CHANGELOG](CHANGELOG.md), sections 0.8.0 and 0.7.0.
+> One trap: the once-announced `omj-spec` (design-system spec, now planned for v1.2+) is planned as `/oh-my-joy:ds-spec`, not `ralplan`. Full mapping and rationale: [CHANGELOG](CHANGELOG.md), sections 0.8.0 and 0.7.0.
 
 ---
 
