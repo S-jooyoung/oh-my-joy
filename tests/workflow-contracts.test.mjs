@@ -95,6 +95,23 @@ describe('portable planning and goal workflow', () => {
     assert.match(readRepoFile('commands/ultragoal.md'), /`incomplete` or unavailable review is never recorded as `verdict:"pass"`/);
   });
 
+  it('spawning commands stop their teammates and reviewers once results are recorded', () => {
+    for (const file of ['commands/ultragoal.md', 'commands/ralplan.md', 'commands/review.md']) {
+      const source = readRepoFile(file);
+      assert.match(parseFrontmatter(source)['allowed-tools'], /\bTaskStop\b/, `${file} declares TaskStop`);
+      assert.match(source, /[Ss]top (?:it|the reviewer) with `TaskStop`|stopped with `TaskStop`/, `${file} stops the agents it spawns`);
+      assert.match(source, /no messaging tool/, `${file} says why a shutdown request is not enough`);
+    }
+    const ultragoal = readRepoFile('commands/ultragoal.md');
+    assert.match(parseFrontmatter(ultragoal)['allowed-tools'], /\bListAgents\b/);
+    assert.match(ultragoal, /list the session's agents with `ListAgents`/);
+    for (const file of ['skills/ultragoal/SKILL.md', 'skills/ralplan/SKILL.md', 'skills/review/SKILL.md']) {
+      assert.match(readRepoFile(file), /Retire (?:every native subagent|each reviewer|the subagent)/, `${file} retires its subagents`);
+    }
+    assert.match(readRepoFile('agents/critic.md'), /shutdown request addressed to it goes unanswered/);
+    assert.match(readRepoFile('docs/EXECUTION-HANDOFF.md'), /stops each teammate and reviewer as soon as its result is recorded/);
+  });
+
   it('reviewer-spawning commands end on the complete result, not a late acknowledgement', () => {
     for (const file of ['commands/ralplan.md', 'commands/review.md', 'skills/ralplan/SKILL.md', 'skills/review/SKILL.md']) {
       const body = readRepoFile(file);

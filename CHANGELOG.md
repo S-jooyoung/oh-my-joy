@@ -20,6 +20,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Fixed
 
+- `ultragoal`, `ralplan`, and `review` now stop each teammate and reviewer as soon as its result is recorded (`TaskStop`), and `ultragoal` lists the session's agents before the report and stops any it still owns; the Codex adapters retire their native subagents the same way. A run used to end with every spawned agent still open, because the `critic` agent has no messaging tool and never answers a shutdown request, so the user had to close the panes by hand. The `commands/ultragoal.md` (5085 → 5440) and `agents/critic.md` (3044 → 3225) body ceilings in `tests/prompt-style.test.mjs` rise to cover the added sentences.
+
 ### Security
 
 ## [1.1.0] - 2026-10-21

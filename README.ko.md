@@ -133,7 +133,7 @@ _"거의 항상 Plan 모드"인 습관과 충돌하지 않는 Plan 네이티브 
   → spec이 프레임을 섹션별로 읽고 Dispatch 표와 ## Critique로 끝냄; 최종 계획에 권장 agent-team 레인을 기록
   → 플랜 승인
   → ultragoal이 섹션을 공유 task list에 미러링하고 섹션마다 implementer 팀원을 생성 (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 필요; 분리된 goal 2개면 충분; 플래그가 없으면 3개 이상은 서브에이전트, 그 외 inline)
-  → 팀원마다 evidence 줄로 task를 닫음 → 리드가 섹션별 검사와 critic 리뷰를 기록 → /oh-my-joy:verify /checkout이 barrier → 보고 (자동)
+  → 팀원마다 evidence 줄로 task를 닫음 → 리드가 섹션별 검사와 critic 리뷰를 기록하고 결과를 기록한 팀원·리뷰어를 바로 종료 → /oh-my-joy:verify /checkout이 barrier → 보고 (자동)
 /oh-my-joy:ship "feat(checkout): all sections"
 ```
 
