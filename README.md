@@ -133,7 +133,7 @@ Eight situations cover most days. Each is the exact sequence you type; every spe
   → spec reads the frame section by section and ends with a Dispatch table and its ## Critique; the agent-team lane is recommended — the final plan records the lane
   → approve the plan
   → ultragoal mirrors the sections into the shared task list and dispatches one implementer teammate per section (needs CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1; two disjoint goals are enough; without the flag, three or more run as subagents, otherwise inline)
-  → each teammate closes its task with an evidence line → the lead records every section's check and critic review → /oh-my-joy:verify /checkout is the barrier → report (automatic)
+  → each teammate closes its task with an evidence line → the lead records every section's check and critic review and stops each teammate and reviewer once its result is recorded → /oh-my-joy:verify /checkout is the barrier → report (automatic)
 /oh-my-joy:ship "feat(checkout): all sections"
 ```
 
