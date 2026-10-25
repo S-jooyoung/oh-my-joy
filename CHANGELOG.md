@@ -12,6 +12,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Changed
 
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [1.2.0] - 2026-10-25
+
+### Added
+
+### Changed
+
 - The roadmap wording for the design-system Figma track and the two planned commands (`/oh-my-joy:push`, `/oh-my-joy:ds-spec`) moves from v1.1 to v1.2+ in CLAUDE.md, both READMEs, and PRINCIPLES, because 1.1.0 shipped without them
 
 ### Deprecated
@@ -791,7 +805,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.20.0...v1.0.0
 [0.20.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.19.1...v0.20.0
