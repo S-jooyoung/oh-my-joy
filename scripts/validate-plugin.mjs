@@ -176,6 +176,8 @@ const CLAUDE_ONLY_CODEX_TOKENS = [
   ['CLAUDE_PLUGIN_ROOT', /\bCLAUDE_PLUGIN_ROOT\b/],
   ['CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS', /\bCLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS\b/],
   ['mcp__plugin_*', /\bmcp__plugin_[A-Za-z0-9_-]+__/],
+  ['TaskStop', /\bTaskStop\b/],
+  ['ListAgents', /\bListAgents\b/],
 ];
 
 const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;

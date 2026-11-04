@@ -112,6 +112,44 @@ describe('portable planning and goal workflow', () => {
     assert.match(readRepoFile('docs/EXECUTION-HANDOFF.md'), /stops each teammate and reviewer as soon as its result is recorded/);
   });
 
+  it("ship sweeps the session's finished agents before verification", () => {
+    const ship = readRepoFile('commands/ship.md');
+    const tools = parseFrontmatter(ship)['allowed-tools'];
+    assert.match(tools, /\bListAgents\b/, 'ship declares ListAgents');
+    assert.match(tools, /\bTaskStop\b/, 'ship declares TaskStop');
+    assert.match(ship, /Before step 1, list the session's agents with `ListAgents`/);
+    assert.match(ship, /Stop with `TaskStop` each teammate of this session that the listing shows idle/);
+    assert.match(ship, /or with no state, ends the run before step 1/, 'a working or unknown agent stops ship before verification');
+    assert.match(ship, /`Peer sessions` in the listing are other sessions and stay untouched/);
+    assert.match(ship, /exposes no `ListAgents`/, 'ship degrades when the host lacks the listing');
+    assert.match(ship, /Agents: none open/, 'the output names the sweep result');
+  });
+
+  it('ralplan sweeps planning agents before the approval screen', () => {
+    const ralplan = readRepoFile('commands/ralplan.md');
+    assert.match(parseFrontmatter(ralplan)['allowed-tools'], /\bListAgents\b/, 'ralplan declares ListAgents');
+    assert.match(ralplan, /this command spawns only the `critic`/);
+    assert.match(ralplan, /spawn it without `name`/);
+    assert.match(ralplan, /Before presenting the final plan, list the session's agents with `ListAgents`/);
+    assert.match(ralplan, /exploration agents included/);
+    const interview = readRepoFile('commands/deep-interview.md');
+    assert.match(interview, /spawn it without `name`/);
+    assert.equal(parseFrontmatter(interview)['allowed-tools'], 'Read, Grep, Glob, Skill, AskUserQuestion');
+  });
+
+  it('ultragoal close and the Codex adapters cover the whole session', () => {
+    const ultragoal = readRepoFile('commands/ultragoal.md');
+    assert.match(ultragoal, /this session spawned that is still open/);
+    assert.doesNotMatch(ultragoal, /this run spawned/);
+    assert.match(ultragoal, /Teammates do not survive a host `\/resume`/);
+    for (const name of ['ultragoal', 'ship']) {
+      assert.match(readRepoFile('skills', name, 'SKILL.md'), /Retire every native subagent this session started/, `skills/${name} retires the session's subagents`);
+    }
+    for (const name of ['ralplan', 'deep-interview']) {
+      assert.match(readRepoFile('skills', name, 'SKILL.md'), /retire any exploration subagent/, `skills/${name} retires exploration subagents`);
+    }
+  });
+
   it('reviewer-spawning commands end on the complete result, not a late acknowledgement', () => {
     for (const file of ['commands/ralplan.md', 'commands/review.md', 'skills/ralplan/SKILL.md', 'skills/review/SKILL.md']) {
       const body = readRepoFile(file);
