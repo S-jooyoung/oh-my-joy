@@ -23,7 +23,7 @@ An interview is only valuable where ambiguity exists, so judge before starting:
 2. Input that is already concrete — two or more of: file paths, symbol names, numbered steps, acceptance criteria, error messages — gets "Already clear enough — handing this to `/oh-my-joy:ralplan`" plus the reason, then invokes it. A small wish for confirmation does not create interview value.
 3. Otherwise announce `Deep interview threshold: N%` on the first line and begin.
 
-Brownfield detection: if the cwd has source or package files and the input points at modifying something that exists, explore the relevant code first with `Read`/`Grep`/`Glob` to secure facts. Ask the user nothing the code already answers, and cite evidence (paths, symbols) in confirmation questions.
+Brownfield detection: if the cwd has source or package files and the input points at modifying something that exists, explore the relevant code first with `Read`/`Grep`/`Glob` to secure facts. Ask the user nothing the code already answers, and cite evidence (paths, symbols) in confirmation questions. Read the code yourself; this command spawns no agent. When the host's plan mode starts an exploration subagent anyway, spawn it without `name`, because an unnamed subagent ends with its report while a named one stays open as a teammate, and the `ralplan` handoff stops whatever planning left open.
 
 ## Round 0 — Topology
 

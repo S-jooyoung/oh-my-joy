@@ -287,6 +287,8 @@ describe('validate-plugin: component violations', () => {
     'CLAUDE_PLUGIN_ROOT',
     'CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS',
     'mcp__plugin_oh_my_joy__figma',
+    'TaskStop',
+    'ListAgents',
   ]) {
     it(`rejects the Claude-only runtime token ${token}`, () => {
       assertRejects(

@@ -1,7 +1,7 @@
 ---
 description: Ship the finished work — run the project's verification commands (every one must exit 0), commit on a branch with the project's conventions and language, push, and open the PR with the evidence attached. Uses an explicit or unambiguous established base and asks only when multiple genuine candidates remain; never commits directly on a shared branch. The last step of every OMJ flow; review and verify are yours to run first (run outside Plan mode). Canonical invocation is /oh-my-joy:ship
 argument-hint: "[\"PR title\"] [--base <ref>]"
-allowed-tools: Read, Grep, Glob, AskUserQuestion, Bash(git status:*), Bash(git diff:*), Bash(git rev-parse:*), Bash(git branch:*), Bash(git checkout -b:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git log:*), Bash(gh auth status:*), Bash(gh pr create:*), Bash(npx tsc:*)
+allowed-tools: Read, Grep, Glob, AskUserQuestion, ListAgents, TaskStop, Bash(git status:*), Bash(git diff:*), Bash(git rev-parse:*), Bash(git branch:*), Bash(git checkout -b:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git log:*), Bash(gh auth status:*), Bash(gh pr create:*), Bash(npx tsc:*)
 ---
 
 # /oh-my-joy:ship — Prove, commit, push, open the PR
@@ -21,6 +21,8 @@ A shared branch is one people merge into rather than commit on: the repository's
 
 ## Procedure
 
+Before step 1, list the session's agents with `ListAgents`, because ship is the last step of every OMJ flow and an agent that finished earlier — a named planning agent, a reviewer, a teammate — keeps its pane and context open until someone stops it. Stop with `TaskStop` each teammate of this session that the listing shows idle; a subagent shown completed has already ended. A teammate or subagent of this session shown running or busy, or with no state, ends the run before step 1 with its name and "stop <name> or let it finish, then run ship again", since evidence recorded while another agent edits the tree describes code that is still changing. `Peer sessions` in the listing are other sessions and stay untouched. When the host exposes no `ListAgents`, say so in one line and continue.
+
 1. Work out what there is to ship: `git status` and `git diff`, plus the current branch from `git rev-parse --abbrev-ref HEAD` (or `git branch --show-current`). Four situations:
    - Changes to commit → the normal path (steps 2–7).
    - A clean tree on a shared branch → the promotion path: nothing to commit, the branch itself becomes the PR (for example `develop` → `main` for a release). Steps 2–3 still run, because a release deserves the same proof; steps 4–5 are skipped.
@@ -35,7 +37,7 @@ A shared branch is one people merge into rather than commit on: the repository's
 
 ## Output
 
-The evidence table (command · exit code · summary), the commit hash (or "promotion — no commit", or "no new commit — shipped the commits already ahead of the base" for a clean detached HEAD), the branch, the base with how it was chosen (`Base: develop (--base)`, `Base: develop (inferred: branched from develop)`, or `Base: develop (asked)`), and the PR URL. When step 3 fails, the same table with the failing rows first and no commit.
+The agents stopped before step 1 (`Agents stopped: <names>`, or `Agents: none open`), the evidence table (command · exit code · summary), the commit hash (or "promotion — no commit", or "no new commit — shipped the commits already ahead of the base" for a clean detached HEAD), the branch, the base with how it was chosen (`Base: develop (--base)`, `Base: develop (inferred: branched from develop)`, or `Base: develop (asked)`), and the PR URL. When step 3 fails, the same table with the failing rows first and no commit.
 
 ## Usage
 
