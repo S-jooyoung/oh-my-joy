@@ -18,6 +18,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Fixed
 
+### Security
+
+## [1.2.1] - 2026-11-04
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
 - A finished agent no longer stays open after the flow that spawned it: `ralplan` (before its approval screen), `ultragoal` (at close, now for every agent this session spawned rather than this run), and `ship` (before verification, the new `ListAgents`/`TaskStop` grant) list the session's agents and stop each finished teammate, leave peer sessions alone, and `ship` stops before verification while a teammate is still working; an exploration subagent that host plan mode starts during `ralplan` or `deep-interview` gets no `name`, because a named one becomes a teammate that a compacted summary forgets. A real session had left three named exploration agents open for four hours after their reports. The Codex adapters retire their native subagents the same way, `CLAUDE_ONLY_CODEX_TOKENS` now rejects `TaskStop` and `ListAgents`, `tests/workflow-contracts.test.mjs` pins the three sweeps, and the `ship-on-shared-branch` eval gains a `lists-agents` grader. An opt-in hook was rejected (PRINCIPLES ⑦). Body ceilings raised: `commands/ship.md` 2106→2336, `skills/ship/SKILL.md` 528→569, `skills/ralplan/SKILL.md` 1942→2042
 
 ### Security
@@ -807,7 +821,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v0.20.0...v1.0.0
