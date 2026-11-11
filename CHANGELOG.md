@@ -12,6 +12,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Changed
 
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [1.3.0] - 2026-11-11
+
+### Added
+
+### Changed
+
 - Setup applies selected status indicators user-globally on both hosts, including outside Git: Codex respects `CODEX_HOME`, preserves existing settings and project overrides, and keeps check mode read-only.
 
 ### Deprecated
@@ -823,7 +837,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.0.0...v1.1.0
