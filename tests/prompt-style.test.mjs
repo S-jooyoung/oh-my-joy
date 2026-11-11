@@ -116,7 +116,7 @@ const BODY_BUDGET_TOKENS = {
   'commands/ship.md': 2336,
   'commands/spec.md': 231,
   'commands/sync.md': 2446,
-  'commands/ultragoal.md': 5440,
+  'commands/ultragoal.md': 5770,
   'commands/verify.md': 3312,
   'agents/critic.md': 3225,
   'agents/design-qa.md': 529,

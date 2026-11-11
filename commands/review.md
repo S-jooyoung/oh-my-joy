@@ -10,6 +10,8 @@ Read the changed code and produce a severity-graded report. Fixing belongs to `/
 
 The diff comes from `git diff`, and new files from `git ls-files`; both are read-only and work in Plan mode on current Claude Code (Plan mode blocks writes and side-effect Bash only). If your environment blocks Bash entirely in Plan mode, run this outside it.
 
+Read and apply [worker display and lifecycle](../docs/EXECUTION-HANDOFF.md#worker-display-and-lifecycle): share the three-worker limit across all roles, announce actual dispatch, verify current-window native panes, and preserve results before cleanup on completion, failure, or cancellation.
+
 ## Arguments
 
 - (none) — the working tree's uncommitted plus staged changes, `git diff HEAD`, and its untracked new files.

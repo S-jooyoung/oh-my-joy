@@ -112,7 +112,7 @@ Both end the same way: a `## Critique` section, the execution lane, the completi
 | --- | --- |
 | Runtime syntax | Claude Code: `/oh-my-joy:<name>` · Codex: `$oh-my-joy:<name>` |
 | You type | `/oh-my-joy:deep-interview` (only when fuzzy) → `/oh-my-joy:ralplan` → approve → `/oh-my-joy:ultragoal` |
-| Inside ultragoal | per goal: the helper runs the check and a fresh `critic` reads the diff from a file with the rules `/oh-my-joy:review` applies; a route gets `/oh-my-joy:verify` browser mode → `/oh-my-joy:fix` loop; two or more disjoint goals run as implementer teammates when Agent Teams are on — because the plan you approved says so |
+| Inside ultragoal | per goal: the helper runs the check and a fresh `critic` reads the diff from a file with the rules `/oh-my-joy:review` applies; a route gets `/oh-my-joy:verify` browser mode → `/oh-my-joy:fix` loop; two or more disjoint goals run as implementer teammates when Agent Teams are on, within the shared three-worker limit — because the plan you approved says so |
 | Occasional tools | `/oh-my-joy:sync` (design tokens), `/oh-my-joy:setup` (dependencies, scaffolding) |
 | Internal, never typed | `critic` (architect + critic lenses, fresh context), `implementer`, `design-qa` |
 
@@ -132,8 +132,8 @@ Eight situations cover most days. Each is the exact sequence you type; every spe
 /oh-my-joy:ralplan https://figma.com/design/abc?node-id=1-2 /checkout
   → spec reads the frame section by section and ends with a Dispatch table and its ## Critique; the agent-team lane is recommended — the final plan records the lane
   → approve the plan
-  → ultragoal mirrors the sections into the shared task list and dispatches one implementer teammate per section (needs CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1; two disjoint goals are enough; without the flag, three or more run as subagents, otherwise inline)
-  → each teammate closes its task with an evidence line → the lead records every section's check and critic review and stops each teammate and reviewer once its result is recorded → /oh-my-joy:verify /checkout is the barrier → report (automatic)
+  → ultragoal announces the actual worker count, roles, and reason for parallel execution, then mirrors the sections into the shared task list and dispatches up to three implementer teammates; remaining sections wait (needs CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1; without the flag, native subagents or inline execution remain available, with the pane limitation reported)
+  → each teammate closes its task with an evidence line → the lead saves its result and logs, stops it, and closes only its owned pane; after implementation workers retire, record each section's check and critic review, then retire the reviewers the same way → /oh-my-joy:verify /checkout is the barrier → report (automatic)
 /oh-my-joy:ship "feat(checkout): all sections"
 ```
 
@@ -229,6 +229,8 @@ flowchart TD
 Durable execution requires Node.js 20+ and a Git worktree. For a new folder, the plan must explicitly include local Git initialization before ultragoal can create its records.
 
 The user enters once and approves the final plan once. `/oh-my-joy:spec` remains a compatibility alias for `/oh-my-joy:ralplan`, including Figma input. The plan chooses inline or native parallel execution; native goal support supplies continuation where exposed. OMJ does not require a second goal command, clear unrelated goals, or bypass a host permission prompt. Without a callable goal surface, the same-session loop and file-based resume remain available; background continuation is not promised.
+
+Worker execution uses at most **3 workers + 1 lead**, counting implementation, investigation, and review together; a fourth task waits until a worker is retired. Before each dispatch, OMJ announces the actual count, roles, and why the work is parallel or sequential. One worker is normal for small or dependent work. Claude uses native Agent Teams split panes in the current terminal window. Codex keeps native workers and first verifies whether a supported connection can display the same worker in that window; a duplicate CLI worker or hidden tmux session does not count. If the current window cannot be identified or attachment is unsupported, execution and pane visibility are reported separately, with pane verification incomplete. On success, failure, or cancellation, OMJ saves results and logs before terminating workers and closing only their owned panes; the main pane and other sessions remain intact.
 
 `/oh-my-joy:ultragoal resume <slug>` (also `--resume <slug>`) continues an approved run in the same checkout, including after switching between Claude Code and Codex. `/oh-my-joy:ultragoal status <slug>` inspects it. The approved plan and acceptance criteria stay fixed; a materially different scope returns to planning. A new checkout needs a new run; copying state does not transfer authority.
 

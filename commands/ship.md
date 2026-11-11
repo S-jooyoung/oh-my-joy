@@ -10,6 +10,8 @@ Take work that review and verification have already covered and put it in front 
 
 Verification commands (`npm test` and friends) are not pre-approved here. Each one raises a permission prompt, and that prompt is what makes the recorded evidence trustworthy — pre-approving a project's scripts would turn a narrow grant into arbitrary execution. Only `git`, `gh`, and `npx tsc` are pre-approved.
 
+Read and apply [worker display and lifecycle](../docs/EXECUTION-HANDOFF.md#worker-display-and-lifecycle): share the three-worker limit across all roles, announce actual dispatch, verify current-window native panes, and preserve results before cleanup on completion, failure, or cancellation.
+
 ## Arguments
 
 - `["PR title"]` — the pull request title. Without it, derive one from the commit subject.
