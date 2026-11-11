@@ -23,6 +23,8 @@ Review and report; never fix. Read [commands/review.md](../../commands/review.md
 - New code that reimplements a symbol the repository already has, a standard-library or platform feature, or an installed dependency, or an abstraction with one implementation, an option nothing sets, or a pass-through wrapper, is a 🟡 `over-build` with the existing path, feature, or single implementation as evidence (🔴 when the approved plan's reuse ladder named the candidate; a 🟢 note without evidence).
 - Every 🔴 carries evidence — a reproduction path, a quoted violated criterion (a quoted template tell counts), a quoted Constraint or reuse-ladder row, or a masked secret's location — and a blocker that cannot be refuted is not demoted.
 
+Apply [worker display and lifecycle](../../docs/EXECUTION-HANDOFF.md#worker-display-and-lifecycle): shared cap, announced dispatch, same-worker panes, and cleanup on every exit.
+
 Load [frontend-fundamentals](../../skills/frontend-fundamentals/SKILL.md) and the relevant references for frontend files. Frontend visual design also follows the frontend-fundamentals `visual-design.md` rubric, with the declared `designDocPath` read as a design source: a listed code tell in added or changed code is a `template tell` that quotes the tell ID at its `file:line` — 🔴 inside the audit scope (the approved plan's Design direction scope), 🟡 outside it with the hint to declare a deliberate choice in `designDocPath` — and a tell a design source chose is a 🟢 note naming it. The design document settles a fact, never switches off another diff rule; an edited one is judged by its base wording through the same `-U100000` diff, and one the diff adds settles nothing.
 
 ## Codex tool mapping

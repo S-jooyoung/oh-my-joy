@@ -112,7 +112,7 @@ _"거의 항상 Plan 모드"인 습관과 충돌하지 않는 Plan 네이티브 
 | --- | --- |
 | 런타임 문법 | Claude Code: `/oh-my-joy:<name>` · Codex: `$oh-my-joy:<name>` |
 | 당신이 치는 것 | `/oh-my-joy:deep-interview`(흐릿할 때만) → `/oh-my-joy:ralplan` → 승인 → `/oh-my-joy:ultragoal` |
-| ultragoal 내부 절차 | goal마다: 헬퍼가 검사를 돌리고 새 컨텍스트의 `critic`이 파일로 받은 diff를 `/oh-my-joy:review`의 규칙으로 읽음; route가 있으면 `/oh-my-joy:verify` 브라우저 모드 → `/oh-my-joy:fix` 루프; Agent Teams가 켜져 있으면 분리된 goal 2개 이상은 implementer 팀원이 병렬로 — 승인한 플랜에 그렇게 적혀 있으므로 |
+| ultragoal 내부 절차 | goal마다: 헬퍼가 검사를 돌리고 새 컨텍스트의 `critic`이 파일로 받은 diff를 `/oh-my-joy:review`의 규칙으로 읽음; route가 있으면 `/oh-my-joy:verify` 브라우저 모드 → `/oh-my-joy:fix` 루프; Agent Teams가 켜져 있으면 분리된 goal 2개 이상은 전체 워커 3개 한도 안에서 implementer 팀원이 병렬로 — 승인한 플랜에 그렇게 적혀 있으므로 |
 | 가끔 쓰는 도구 | `/oh-my-joy:sync`(디자인 토큰), `/oh-my-joy:setup`(의존성·스캐폴딩) |
 | 내부, 절대 치지 않음 | `critic`(architect + critic 렌즈, 새 컨텍스트), `implementer`, `design-qa` |
 
@@ -132,8 +132,8 @@ _"거의 항상 Plan 모드"인 습관과 충돌하지 않는 Plan 네이티브 
 /oh-my-joy:ralplan https://figma.com/design/abc?node-id=1-2 /checkout
   → spec이 프레임을 섹션별로 읽고 Dispatch 표와 ## Critique로 끝냄; 최종 계획에 권장 agent-team 레인을 기록
   → 플랜 승인
-  → ultragoal이 섹션을 공유 task list에 미러링하고 섹션마다 implementer 팀원을 생성 (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 필요; 분리된 goal 2개면 충분; 플래그가 없으면 3개 이상은 서브에이전트, 그 외 inline)
-  → 팀원마다 evidence 줄로 task를 닫음 → 리드가 섹션별 검사와 critic 리뷰를 기록하고 결과를 기록한 팀원·리뷰어를 바로 종료 → /oh-my-joy:verify /checkout이 barrier → 보고 (자동)
+  → ultragoal이 실제 워커 수·역할·병렬 실행 이유를 알리고 섹션을 공유 task list에 미러링한 뒤 implementer 팀원을 최대 3개 생성; 나머지 섹션은 대기 (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 필요; 플래그가 없으면 네이티브 서브에이전트나 inline으로 실행하고 pane 표시 제한을 알림)
+  → 팀원마다 evidence 줄로 task를 닫음 → 리드가 결과·로그를 저장하고 워커를 종료한 뒤 해당 워커 소유 pane만 닫음; 구현 워커 종료 후 섹션별 검사와 critic 리뷰를 기록하고 리뷰어도 같은 순서로 정리 → /oh-my-joy:verify /checkout이 barrier → 보고 (자동)
 /oh-my-joy:ship "feat(checkout): all sections"
 ```
 
@@ -229,6 +229,8 @@ flowchart TD
 기록을 남기는 실행에는 Node.js 20 이상과 Git 작업 트리가 필요합니다. 새 폴더라면 계획에 로컬 Git 초기화를 명시하고 승인받은 뒤 기록을 생성합니다.
 
 한 번 진입하고 최종 계획을 한 번 승인합니다. `/oh-my-joy:spec`은 Figma 입력까지 유지하는 `/oh-my-joy:ralplan` 호환 별칭입니다. 계획이 현재 세션 실행 또는 네이티브 병렬 실행을 선택하고, 노출된 기본 goal이 작업 지속을 돕습니다. 사용자가 goal 명령을 따로 실행할 필요는 없습니다. 관계없는 goal을 지우거나 호스트 권한 확인을 우회하지 않습니다. 호출 가능한 goal 기능이 없어도 현재 세션의 반복 실행과 파일 기반 재개는 동작하지만, 백그라운드 지속 실행을 보장하지는 않습니다.
+
+동시 실행은 **워커 최대 3개 + 메인 1개**이며, 구현·조사·리뷰를 모두 합산합니다. 네 번째 작업은 워커가 종료될 때까지 대기합니다. 시작 전에 실제 수·역할·병렬 또는 순차 실행 이유를 알립니다. 작거나 서로 의존하는 작업은 워커 1개로 실행해도 정상입니다. Claude는 현재 터미널 창의 네이티브 Agent Teams 분할 pane을 사용합니다. Codex는 네이티브 워커를 유지하고 같은 워커를 현재 창에 연결해 보여줄 수 있는지 먼저 확인합니다. 별도 CLI 워커를 중복 실행하거나 보이지 않는 tmux 세션을 만드는 것은 분할 표시로 인정하지 않습니다. 현재 창을 식별할 수 없거나 연결이 지원되지 않으면 실행과 pane 표시를 구분해 보고하고, pane 검증은 미완료로 남깁니다. 정상 완료·실패·취소 모두 결과와 로그를 저장한 뒤 워커를 종료하고 그 워커 소유 pane만 닫습니다. 메인 pane과 다른 세션은 보존합니다.
 
 `/oh-my-joy:ultragoal resume <slug>`(또는 `--resume <slug>`)로 같은 체크아웃의 승인된 작업을 이어갑니다. Claude Code와 Codex 사이에서도 같은 기록을 사용합니다. `/oh-my-joy:ultragoal status <slug>`는 상태를 조회합니다. 승인한 계획과 완료 기준은 유지하며, 범위가 크게 달라지면 다시 계획합니다. 다른 체크아웃에서는 새 실행을 시작하며, 상태 복사만으로 승인이 이전되지는 않습니다.
 

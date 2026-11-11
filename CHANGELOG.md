@@ -12,6 +12,9 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Changed
 
+- Worker dispatch now shares a three-worker limit across implementation, investigation, and review, announces each execution shape, and queues overflow. Both hosts require current-window pane evidence and save results before worker-owned cleanup on completion, failure, or cancellation; unverified Codex attachment remains explicitly incomplete.
+- Body budget: the `commands/ultragoal.md` ceiling rises from 5440 to 5770 estimated tokens, because the worker lifecycle rule and the cross-host triggers now share that body.
+
 ### Deprecated
 
 ### Removed

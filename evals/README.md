@@ -65,3 +65,7 @@ The runs that built and tuned these suites, from 2026-09-19 to 2026-09-20, on a 
 - The description change moved `display-fired` from 0/18 to 17/18 with both guards at 0/6; Δ stayed about zero. The comparison table and its reading are in [`docs/EVALS.md`](../docs/EVALS.md#the-frontend-fundamentals-trigger--2026-09-20).
 - `sync-check-no-figma` first failed its rubric 3/3 when the answer, after saying Figma could not be read, went on to list the store's tokens; the body now says to report nothing further, and the rerun passed. `sync-push-no-figma` passed on the first run.
 - `weight: 0` does not load (`graders.N.weight: Number must be greater than 0`, CLI 2.1.278), and `--case __none__` stops before grader validation, so it cannot catch that. `--max-cost-usd 0` validates every case at $0.
+
+## Worker lifecycle policy replay
+
+`worker-lifecycle-policy` applies the shared contract to one dependent task, three mixed-role workers plus a queued fourth, normal completion, failure, cancellation, and missing pane connectivity on both hosts. It is a read-only policy replay, not a CLI integration test. The [live acceptance matrix](../docs/WORKER-VALIDATION.md) separately requires native worker identity, visible current-window panes, and confirmed cleanup.

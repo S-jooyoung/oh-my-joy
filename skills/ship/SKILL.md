@@ -11,7 +11,9 @@ metadata:
 
 # Ship verified work
 
-Read [the canonical ship command](../../commands/ship.md) completely before acting. Follow its authorization, verification, isolation, branch, commit, base-selection, push, PR-body, readback, and output contracts. This file only maps that contract onto Codex surfaces.
+Read [the canonical ship command](../../commands/ship.md) completely before acting. Preserve its authority, verification, isolation, git, PR, readback, and output rules; this adapter maps Codex surfaces.
+
+Apply [worker display and lifecycle](../../docs/EXECUTION-HANDOFF.md#worker-display-and-lifecycle): shared cap, announced dispatch, same-worker panes, and cleanup on every exit.
 
 ## Codex adapter
 
