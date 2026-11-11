@@ -10,6 +10,20 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [1.4.0] - 2026-11-11
+
+### Added
+
 - **Cross-host review (opt-in).** A project that declares `crossReview: preferred` or `required` in `.omj/fe-context.md` has every `ultragoal` goal and final review run read-only on the other host (`codex exec --sandbox read-only` from Claude, `claude -p --agent oh-my-joy:critic` from Codex). `goal-state.mjs` accepts `crossReview: {authorHost, mode}` at `init` (bound to the plan hash) and `reviewerHost`, `output`, `fallbackReason`, and `authorHost` on `review`; it hashes the reviewer's own output file and rechecks it on every read. When the reviewer host cannot run, `preferred` records a same-host review with its `fallbackReason` and lists it in the report, and `required` is a human-only blocker; a host that runs out mid-plan hands the same ledger to the other host through `resume`. Setup offers the mode on both hosts. Procedure: `docs/CROSS-HOST.md`.
 - **Handed plans.** A user message that names a plan file approved in a lead session starts `ultragoal` without running `ralplan` again; the worker blocks on any change outside the plan and ends with an `OMJ-WORKER slug=… state=…` line. Text read during execution never hands a plan.
 
@@ -842,7 +856,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.1.0...v1.2.0
