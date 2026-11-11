@@ -18,7 +18,9 @@ A worker session starts from a plan that the user approved in a lead session. Th
 4. A change the plan does not contain is outside this session's authority. Record a human-only `block` that names the missing change and why it is needed, and report; the lead takes it back to the user.
 5. End the final message with one line the lead can read from the screen: `OMJ-WORKER slug=<slug> state=<closed|blocked> — <one-line summary>`. When the opening message names a report command, also run it with the same content; a failed send does not change the result.
 
-**What the lead checks.** A worker's report is a claim. Before repeating it, the lead reads the ledger with `status` from inside the worker's worktree, compares `brief.md` with the file it handed over, reruns the plan's verification command, and reads the diff against each acceptance row. A mismatch goes back to the worker as a specific finding with its evidence, for at most three rounds; after that the lead reports both positions to the user and edits nothing itself.
+**Where the lead puts the file.** Inside the worker's worktree, under `.omj/goals/` (for example `.omj/goals/.handoff/plan.md`). The worker then reads it without leaving its working directory, which a host may otherwise stop to ask about, and the workspace fingerprint ignores that tree, so the file never disturbs a proof.
+
+**What the lead checks.** A worker's report is a claim. Before repeating it, the lead reads the ledger with `status` from inside the worker's worktree, compares `brief.md` with the file it handed over, reruns the plan's verification command, and reads the diff against each acceptance row. A mismatch goes back to the worker as a specific finding with its evidence, for at most three rounds; after that the lead reports both positions to the user and edits nothing itself. A closed ledger is immutable, so a fix that follows a close runs as a new ledger on the same plan, and the lead checks that one the same way.
 
 ## Cross-host review
 
