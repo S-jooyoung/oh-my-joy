@@ -33,7 +33,7 @@ Adapted copies at v5.6.2: `omj-hud-cache.sh` ports the upstream wrapper changes 
 
 ## Known limitations
 
-- Codex uses its native CLI footer instead of this bundle. Model, branch, context, and quota indicators are configured through `[tui].status_line`; see [Codex setup](../docs/CODEX-SETUP.md). Codex App has no documented custom HUD slot. The shared answer style is available separately through project instructions.
+- Codex uses its native CLI footer instead of this bundle. Model, branch, context, and quota indicators are configured user-globally through `[tui].status_line` in `$CODEX_HOME/config.toml` (default `~/.codex/config.toml`), preserving project overrides; see [Codex setup](../docs/CODEX-SETUP.md). Codex App has no documented custom HUD slot. The shared answer style is available separately through project instructions.
 
 - Version label reads the first `package.json` with a `name` and `version` up to five levels above the bundle. From a checkout it shows the oh-my-joy version with an `L` (local) suffix. For the installed copy those levels reach `~/.claude`, `~`, and the directory above the home directory, so a `package.json` there shows an unrelated version (and can enable the update hint below); without one the label is plain `[OMJ]`.
 - The diagnostic printed when the bundle runs without stdin checks `$CLAUDE_CONFIG_DIR/omj-hud/omj-hud.mjs`, while setup installs to `~/.claude/omj-hud/`; with `CLAUDE_CONFIG_DIR` set elsewhere it reports the script `MISSING` even though the statusLine works.

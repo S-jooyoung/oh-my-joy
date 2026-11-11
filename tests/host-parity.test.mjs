@@ -78,5 +78,16 @@ describe('Claude/Codex capability parity', () => {
     assert.match(setup, /OMJ:ANSWER-STYLE:START/);
     assert.match(setup, /\[tui\][\s\S]*status_line/);
     assert.match(setup, /Codex App has no documented custom TUI footer/);
+    assert.match(setup, /\$CODEX_HOME\/config\.toml/);
+    assert.match(setup, /~\/\.codex\/config\.toml/);
+    assert.match(setup, /outside Git without project trust/);
+    assert.match(setup, /Do not launch `codex plugin list` or other Codex subprocesses/);
+    assert.match(setup, /do not automatically delete or rewrite/);
+    assert.match(setup, /unselected, leave both global and project files untouched/);
+    assert.match(setup, /no questions, backups, directory creation, installation, or receipt writes/);
+    const claude = readRepoFile('commands/setup.md');
+    assert.match(claude, /user-global `~\/\.claude\/settings\.json` target/);
+    assert.match(claude, /replace a custom statusLine only when that replacement was selected/);
+    assert.match(claude, /Global HUD setup works outside Git/);
   });
 });

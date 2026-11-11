@@ -309,7 +309,7 @@ verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px�
 - **`design-qa`** (에이전트) — **검사만** 하는 기계적 게이트: 타입체크, 린트, 하드코딩 토큰, Figma fidelity, a11y 기본, 그리고 fe-context에 선언된 경우에만 Story/i18n 검사. 쓰기 도구 미선언(테스트로 고정).
 - **OMJ 답변 스타일** (`output-styles/oh-my-joy.md`, opt-in) — 자연스러운 모국어 답변, 초보 개발자도 이해할 설명, 커맨드를 치지 않아도 적용되는 가장 작은 완전한 변경(새 코드보다 재사용, 위험한 로직엔 검사 하나, 코드를 보고하는 답은 `Skipped / not checked / risk:` 줄로 닫음), 승인된 다음 단계의 자동 진행. 한국어 규칙은 [fluent-korean](https://github.com/snflkd/fluent-korean)에서 재작성했으며 [`NOTICE.md`](NOTICE.md)에 출처를 기록했습니다. Claude Code는 setup이나 `/config`의 **Output style**에서 선택합니다. Codex setup은 같은 본문을 `.omj/answer-style.md`에 복사하고 실제 적용되는 프로젝트 `AGENTS.md` 또는 `AGENTS.override.md`에 연결하며 기존 지침을 보존합니다. 선택 뒤 새 세션을 시작하세요.
 - **토큰 가드 훅** — `check-design-tokens.mjs`는 하드코딩 색상을, `check-story-exists.mjs`는 Story 누락을 경고합니다. setup이 선택한 검사만 `.claude/hooks/` 또는 `.codex/hooks/`에 복사하며, Codex에는 명령 입력 어댑터와 `.codex/hooks.json`도 등록합니다. 프로젝트 선언과 호스트 자체 신뢰 승인이 필요합니다. 경고만 하고 오류 시 작업을 막지 않으며 플러그인 전체에서 자동 실행하지 않습니다. Codex 어댑터는 알 수 없는 셸 편집까지 추측하지 않습니다.
-- **OMJ HUD statusline** — Claude Code는 선택 시 `hud/`를 `~/.claude/omj-hud/`로 복사해 `statusLine`을 등록합니다. Codex CLI는 기본 `tui.status_line`으로 모델·브랜치·남은 컨텍스트·사용 한도를 표시합니다. Codex App에는 사용자 정의 HUD 영역이 없습니다. 사용량 엔드포인트가 403을 돌려주면 Claude HUD가 약 90초마다 1토큰 모델 요청을 보내 사용량을 씁니다. `~/.claude/settings.json`에 `"omcHud": {"elements": {"rateLimits": false}}`를 넣으면 꺼집니다. 출처는 [`NOTICE.md`](NOTICE.md), 호스트별 설정은 [`hud/README.md`](hud/README.md)를 참고하세요.
+- **OMJ HUD statusline** — Claude Code는 선택 시 `hud/`를 `~/.claude/omj-hud/`로 복사해 `statusLine`을 등록합니다. 두 호스트 모두 상태 표시줄 선택 시 전역 적용하며, 사용자 지정 설정 교체도 선택한 경우에만 수행합니다. Codex CLI는 기본 `tui.status_line`으로 모델·추론 강도·브랜치·남은 컨텍스트·5시간 및 주간 한도를 표시합니다. Codex App에는 사용자 정의 HUD 영역이 없습니다. 사용량 엔드포인트가 403을 돌려주면 Claude HUD가 약 90초마다 1토큰 모델 요청을 보내 사용량을 씁니다. `~/.claude/settings.json`에 `"omcHud": {"elements": {"rateLimits": false}}`를 넣으면 꺼집니다. 출처는 [`NOTICE.md`](NOTICE.md), 호스트별 설정은 [`hud/README.md`](hud/README.md)를 참고하세요.
 
 ### `/oh-my-joy:sync` — 방향은 당신이 고릅니다
 
@@ -349,7 +349,7 @@ verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px�
 - `.claude/hooks/task-completed-evidence.mjs`와 `hooks.TaskCompleted` 등록, fe-context의 `teamEvidenceGate: true` — setup에서 선택했을 때만; ultragoal 팀원 task는 통과한 `evidence:` 줄이 붙기 전까지 닫히지 않습니다.
 - `.claude/settings.local.json`의 `goal-state.mjs` bookkeeping verb `permissions.allow` 규칙(설치본 경로가 사용자 홈 아래라 공유 파일이 아닌 사용자별 파일), 그리고 `~/.claude/.omj-setup.json`에 기록되는 Agent Teams 플래그 — 각각 opt-in일 때만.
 - `~/.claude/omj-hud/`(그리고 `statusLine` 항목), Agent Teams `env` 플래그, `~/.claude/settings.json`의 `outputStyle` 선택 — 사용자 전역이며 각각 `/oh-my-joy:setup`에서 opt-in한 경우에만.
-- Codex 선택 항목: `.omj/answer-style.md`와 프로젝트 지침 연결, `.codex/config.toml`의 CLI 상태 표시줄. setup 완료 기록은 `.omj/setup.json`에 저장합니다.
+- Codex 선택 항목: `.omj/answer-style.md`와 프로젝트 지침 연결, `$CODEX_HOME/config.toml`(기본 `~/.codex/config.toml`)의 전역 CLI 상태 표시줄. 프로젝트 재정의는 보존합니다. 전역 상태 설정은 Git 저장소 밖에서도 가능하며, 프로젝트 setup만 `.omj/setup.json`에 기록합니다.
 - 요청 시: 프로젝트의 `docs/design-tokens.md`(`sync extract` 매핑 표)와 `docs/DESIGN.md`(setup 스캐폴드).
 
 호스트별 설치 위치와 절차는 [`commands/setup.md`](commands/setup.md)와 [`docs/CODEX-SETUP.md`](docs/CODEX-SETUP.md)에 있습니다.

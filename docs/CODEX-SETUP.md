@@ -17,6 +17,8 @@ This is the Codex mapping of OMJ's dependency doctor and opt-in scaffolding. The
 
 Inspect `AGENTS.md`, applicable overrides/rules, and existing user configuration before proposing changes. Do not dump credentials or unrelated configuration into the report. For Figma, distinguish authentication, tool access, and file edit permission. Confirm the selected integration's documented requirements rather than assuming that registration proves a desktop file is accessible.
 
+In `--check`, inspect existing installation metadata under the resolved Codex home and tools already exposed in the session using read-only file tools. Do not launch `codex plugin list` or other Codex subprocesses: even inspection commands can initialize scratch directories or project trust. If metadata is absent or insufficient, report missing or unverified instead of bootstrapping the host.
+
 ## Diagnose a shortened skill catalog
 
 Codex first receives each skill's name, description, and path, then reads the selected `SKILL.md`. The initial catalog has a separate context budget, and Codex shortens descriptions before omitting skills. A warning therefore concerns discovery metadata, not proof that a selected skill body was truncated. See the [official skill loading model](https://developers.openai.com/codex/skills/) and [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference#configtoml).
@@ -100,20 +102,20 @@ Do not replace the instruction file, add duplicate blocks, or change `model_inst
 
 ## Codex CLI status indicators
 
-Codex CLI supports a native footer through [TUI configuration](https://learn.chatgpt.com/docs/config-file/config-reference). On selection, merge this into the trusted project's `.codex/config.toml`, preserving existing keys and tables:
+Codex CLI supports a native footer through [TUI configuration](https://learn.chatgpt.com/docs/config-file/config-reference). The status-line choice explicitly applies user-globally. On selection, resolve `$CODEX_HOME/config.toml`, falling back to `~/.codex/config.toml` when unset, and merge this there, preserving existing keys and tables:
 
 ```toml
 [tui]
 status_line = ["model-with-reasoning", "git-branch", "context-remaining", "five-hour-limit", "weekly-limit"]
 ```
 
-Inspect an existing `status_line` before replacing its chosen indicators. Use the installed schema/item list rather than inventing keys; verify that Codex accepts the resulting project configuration. The native `/statusline` picker is also available in the CLI.
+Back up an existing global file before editing only `tui.status_line`; create the parent/file only when selected. Inspect an existing `status_line` and describe its replacement in the selection; replace a custom list only when that replacement is selected. Preserve comments and unrelated settings, including other `[tui]` keys. Report project `.codex/config.toml` overrides and their effective scope; do not automatically delete or rewrite them. Global status setup works outside Git without project trust, project scaffolding, or a project receipt. With no project, skip project-only items. With the item unselected, leave both global and project files untouched. `--check` only inspects existing files: no questions, backups, directory creation, installation, or receipt writes. Use the installed schema/item list rather than inventing keys; verify that Codex accepts the resulting global configuration. The native `/statusline` picker is also available in the CLI.
 
-This displays supported model, branch, context, and quota indicators. It does not run the Claude HUD bundle or promise identical Claude subscription metrics. Codex App has no documented custom TUI footer: preserve the selected project configuration for CLI use and report the App limitation, without claiming a custom in-app HUD was installed.
+This displays supported model, branch, context, and quota indicators. It does not run the Claude HUD bundle or promise identical Claude subscription metrics. Codex App has no documented custom TUI footer: preserve the selected global configuration for CLI use and report the App limitation, without claiming a custom in-app HUD was installed.
 
 ## Finish and optional support
 
-Record a selected setup receipt under `.omj/setup.json` with changed items and verification gaps. `--check` does not write this receipt. Subsequent checks compare current files, not merely that receipt's timestamp.
+Only inside a project, record a selected setup receipt under `.omj/setup.json` with changed items and verification gaps. `--check` does not write this receipt. Subsequent checks compare current files, not merely that receipt's timestamp.
 
 As in Claude setup, an optional GitHub star can be offered separately after setup succeeds. Check authentication and current star read-only first; an explicit “star it” choice is the only authority for `gh api user/starred/S-jooyoung/oh-my-joy -X PUT`. Declining, authentication failures, and API failures never block setup. Do not post any other message.
 

@@ -12,6 +12,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Changed
 
+- Setup applies selected status indicators user-globally on both hosts, including outside Git: Codex respects `CODEX_HOME`, preserves existing settings and project overrides, and keeps check mode read-only.
+
 ### Deprecated
 
 ### Removed
