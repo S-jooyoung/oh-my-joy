@@ -112,7 +112,7 @@ const BODY_BUDGET_TOKENS = {
   'commands/fix.md': 1279,
   'commands/ralplan.md': 4959,
   'commands/review.md': 4250,
-  'commands/setup.md': 3431,
+  'commands/setup.md': 3640,
   'commands/ship.md': 2336,
   'commands/spec.md': 231,
   'commands/sync.md': 2446,

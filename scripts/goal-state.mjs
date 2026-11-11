@@ -349,7 +349,7 @@ export function deriveState(events) {
     } else if (event.type === 'review_recorded') {
       const review = event.review;
       if (!review || !review.artifact || !review.artifactHash || !review.fingerprint || !review.reviewer || !['pass', 'fail'].includes(review.verdict)) fail(`invalid review_recorded event at seq ${event.seq}`);
-      if (state.crossReview && (!review.output || !review.outputHash || !HOST_NAME.test(review.reviewerHost ?? '') || review.reviewerHost === state.crossReview.authorHost)) fail(`review at seq ${event.seq} is not a cross-host review`);
+      if (state.crossReview && !crossReviewSatisfied(state.crossReview, review, Boolean(review.outputHash))) fail(`review at seq ${event.seq} is neither a cross-host review nor a recorded fallback`);
       if (review.scope !== 'final' && !state.goals.some((item) => item.id === review.scope)) fail(`review at seq ${event.seq} has unknown scope`);
       if (review.scope === 'final' ? state.goals.some((item) => item.status !== 'complete') : state.goals.find((item) => item.id === review.scope).status !== 'active') fail(`review at seq ${event.seq} is out of sequence`);
       state.reviews.push(review);
@@ -650,10 +650,22 @@ function validateReviewOutput(slug, review) {
   if (!REVIEW_OUTPUT.test(review.output) || !existsSync(target) || sha256(readFileSync(target)) !== review.outputHash) fail(`review output missing or tampered: ${review.output}`);
 }
 
+const CROSS_REVIEW_MODES = ['required', 'preferred'];
+
 function validateCrossReview(value) {
   if (value === undefined || value === null) return null;
-  if (typeof value !== 'object' || Array.isArray(value) || !HOST_NAME.test(value.authorHost ?? '') || Object.keys(value).length !== 1) fail('crossReview must be {authorHost} with a lowercase host name');
-  return { authorHost: value.authorHost };
+  if (typeof value !== 'object' || Array.isArray(value) || !HOST_NAME.test(value.authorHost ?? '') || !CROSS_REVIEW_MODES.includes(value.mode) || Object.keys(value).length !== 2) fail('crossReview must be {authorHost, mode} with a lowercase host name and mode required|preferred');
+  return { authorHost: value.authorHost, mode: value.mode };
+}
+
+// A review counts when another host wrote it, or — in preferred mode only — when the
+// author records why the other host could not run. The second kind stays visible in
+// the ledger, so a same-host reading is never mistaken for a cross-host one.
+function crossReviewSatisfied(cross, review, hasOutput) {
+  const author = review.authorHost ?? cross.authorHost;
+  const crossHost = hasOutput && HOST_NAME.test(review.reviewerHost ?? '') && review.reviewerHost !== author;
+  const fallback = cross.mode === 'preferred' && typeof review.fallbackReason === 'string' && review.fallbackReason.trim() !== '';
+  return crossHost ? review.fallbackReason === undefined : fallback;
 }
 
 function readArtifactJson(slug, receipt) {
@@ -1326,12 +1338,21 @@ function mutate(slug, verb, input) {
     const scope = requireScope(input, state);
     if (typeof input.reviewer !== 'string' || !input.reviewer.trim() || !['pass', 'fail'].includes(input.verdict) || typeof input.summary !== 'string' || !input.summary.trim()) fail('review requires reviewer, pass|fail verdict, and summary');
     const cross = state.crossReview;
-    if (cross && (input.output === undefined || input.reviewerHost === undefined)) fail('cross-host review is on: review requires reviewerHost and output');
-    if (input.reviewerHost !== undefined && !HOST_NAME.test(typeof input.reviewerHost === 'string' ? input.reviewerHost : '')) fail('reviewerHost must be a lowercase host name');
-    if (cross && input.reviewerHost === cross.authorHost) fail(`cross-host review needs a reviewer host other than ${cross.authorHost}`);
+    for (const key of ['reviewerHost', 'authorHost']) {
+      if (input[key] !== undefined && !HOST_NAME.test(typeof input[key] === 'string' ? input[key] : '')) fail(`${key} must be a lowercase host name`);
+    }
+    if (input.fallbackReason !== undefined && (typeof input.fallbackReason !== 'string' || !input.fallbackReason.trim())) fail('fallbackReason must be a non-empty string');
+    if (cross && !crossReviewSatisfied(cross, input, input.output !== undefined)) {
+      const author = input.authorHost ?? cross.authorHost;
+      fail(cross.mode === 'preferred'
+        ? `cross-host review is preferred: record reviewerHost (not ${author}) with output, or fallbackReason alone for a same-host review`
+        : `cross-host review is required: record reviewerHost (not ${author}) with output`);
+    }
     const reviewOutput = {
+      ...(input.authorHost !== undefined ? { authorHost: input.authorHost } : {}),
       ...(input.reviewerHost !== undefined ? { reviewerHost: input.reviewerHost } : {}),
       ...(input.output !== undefined ? reviewOutputReceipt(slug, input.output) : {}),
+      ...(input.fallbackReason !== undefined ? { fallbackReason: input.fallbackReason } : {}),
     };
     const fingerprint = workspaceFingerprint();
     const data = { schemaVersion: state.schemaVersion, kind: 'review', scope, reviewer: input.reviewer, verdict: input.verdict, summary: input.summary, ...reviewOutput, fingerprint: fingerprint.sha256, headSha: fingerprint.headSha, createdAt: new Date().toISOString() };

@@ -88,7 +88,7 @@ Two Claude setup items have no Codex counterpart and are skipped with guidance: 
 
 ## Cross-host review
 
-Codex setup offers the same opt-in declaration as Claude setup, with the hosts swapped: detect the Claude Code CLI with `command -v claude`, explain that every ultragoal review then sends the plan and the diff to a second model provider, costs a second call, and blocks the goal instead of falling back when Claude cannot run, and on selection add `crossReview: true` to `.omj/fe-context.md`. In a Codex session the author host is `codex` and the reviewer call is `claude -p --agent oh-my-joy:critic`; the procedure is [CROSS-HOST.md](CROSS-HOST.md). The declaration is shared, so a project that turned it on from either host has it on for both.
+Codex setup offers the same opt-in declaration as Claude setup, with the hosts swapped: detect the Claude Code CLI with `command -v claude`, explain that every ultragoal review then sends the plan and the diff to a second model provider and costs a second call, offer `preferred` (recommended: a recorded same-host fallback when Claude cannot run), `required` (the goal blocks instead), or off, and on a selection set `crossReview: preferred` or `crossReview: required` in `.omj/fe-context.md`. In a Codex session the author host is `codex` and the reviewer call is `claude -p --agent oh-my-joy:critic`; the procedure is [CROSS-HOST.md](CROSS-HOST.md). The declaration is shared, so a project that turned it on from either host has it on for both.
 
 ## Answer style in CLI and App
 

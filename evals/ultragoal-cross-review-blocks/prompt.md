@@ -6,7 +6,7 @@ max_turns: 40
 timeout_seconds: 1200
 allowed_tools: [Read, Grep, Glob, Edit, Write, Agent, Skill, AskUserQuestion, "Bash(node:*)", "Bash(git diff:*)", "Bash(git ls-files:*)"]
 append_system_prompt: |
-  Earlier in this session the user approved the following /oh-my-joy:ralplan plan through the native plan gate. Nothing has been written yet. The project declares `crossReview: true` in .omj/fe-context.md. In this environment the other host cannot run: any `codex` command is refused.
+  Earlier in this session the user approved the following /oh-my-joy:ralplan plan through the native plan gate. Nothing has been written yet. The project declares `crossReview: required` in .omj/fe-context.md. In this environment the other host cannot run: any `codex` command is refused.
 
   # Plan: formatAmount('1,000') fails
 
