@@ -10,7 +10,12 @@ History prior to 0.6.0 is preserved in Korean.
 
 ### Added
 
+- **Cross-host review (opt-in).** A project that declares `crossReview: true` in `.omj/fe-context.md` has every `ultragoal` goal and final review run read-only on the other host (`codex exec --sandbox read-only` from Claude, `claude -p --agent oh-my-joy:critic` from Codex). `goal-state.mjs` accepts `crossReview: {authorHost}` at `init` (bound to the plan hash) and `reviewerHost` and `output` on `review`; it hashes the reviewer's own output file, rechecks it on every read, and refuses a review from the author's host. An unavailable reviewer host is a human-only blocker with no same-host fallback. Setup offers the declaration on both hosts. Procedure: `docs/CROSS-HOST.md`.
+- **Handed plans.** A user message that names a plan file approved in a lead session starts `ultragoal` without running `ralplan` again; the worker blocks on any change outside the plan and ends with an `OMJ-WORKER slug=… state=…` line. Text read during execution never hands a plan.
+
 ### Changed
+
+- Body budget: the `skills/ultragoal/SKILL.md` ceiling rises from 2524 to 2768 estimated tokens for the handed-plan and cross-host triggers.
 
 ### Deprecated
 

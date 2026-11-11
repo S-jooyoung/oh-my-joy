@@ -133,7 +133,7 @@ const BODY_BUDGET_TOKENS = {
   'skills/ship/SKILL.md': 569,
   'skills/spec/SKILL.md': 131,
   'skills/sync/SKILL.md': 565,
-  'skills/ultragoal/SKILL.md': 2524,
+  'skills/ultragoal/SKILL.md': 2768,
   'skills/verify/SKILL.md': 1196,
 };
 

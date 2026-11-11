@@ -190,6 +190,7 @@ function initialState(event) {
     proofs: [],
     reviews: [],
     pr: event.pr ?? null,
+    ...(event.crossReview ? { crossReview: event.crossReview } : {}),
     findings: Object.fromEntries((event.pr?.findings ?? []).map((finding) => [finding.id, { ...finding, disposition: null }])),
     delivery: null,
   };
@@ -348,6 +349,7 @@ export function deriveState(events) {
     } else if (event.type === 'review_recorded') {
       const review = event.review;
       if (!review || !review.artifact || !review.artifactHash || !review.fingerprint || !review.reviewer || !['pass', 'fail'].includes(review.verdict)) fail(`invalid review_recorded event at seq ${event.seq}`);
+      if (state.crossReview && (!review.output || !review.outputHash || !HOST_NAME.test(review.reviewerHost ?? '') || review.reviewerHost === state.crossReview.authorHost)) fail(`review at seq ${event.seq} is not a cross-host review`);
       if (review.scope !== 'final' && !state.goals.some((item) => item.id === review.scope)) fail(`review at seq ${event.seq} has unknown scope`);
       if (review.scope === 'final' ? state.goals.some((item) => item.status !== 'complete') : state.goals.find((item) => item.id === review.scope).status !== 'active') fail(`review at seq ${event.seq} is out of sequence`);
       state.reviews.push(review);
@@ -406,10 +408,11 @@ function load(slug, { tolerateSnapshot = false } = {}) {
   const events = readLedger(slug);
   const state = deriveState(events);
   const brief = readFileSync(path.join(rootFor(slug), 'brief.md'), 'utf8');
-  const expectedPlanHash = sha256(canonical({ brief, goals: events[0].goals, pr: events[0].pr ?? null }));
+  const expectedPlanHash = sha256(canonical({ brief, goals: events[0].goals, pr: events[0].pr ?? null, ...(events[0].crossReview ? { crossReview: events[0].crossReview } : {}) }));
   if (state.planHash !== expectedPlanHash) fail('approved plan hash mismatch — brief or initialization ledger was modified');
   if (canonical(state.identity) !== canonical(repoIdentity())) fail('repository/worktree identity does not match the initialized plan');
   for (const receipt of [...state.proofs, ...state.reviews, ...trialReceipts(state)]) validateArtifact(slug, receipt);
+  for (const review of state.reviews) validateReviewOutput(slug, review);
   let snapshotStatus = 'ok';
   if (existsSync(snapshotFor(slug))) {
     try {
@@ -627,6 +630,30 @@ function validateArtifact(slug, receipt) {
   if (typeof receipt.artifact !== 'string' || !/^evidence\/[A-Za-z0-9._-]+\.json$/.test(receipt.artifact)) fail('invalid evidence artifact path');
   const target = path.join(rootFor(slug), receipt.artifact);
   if (!existsSync(target) || sha256(readFileSync(target)) !== receipt.artifactHash) fail(`evidence artifact missing or tampered: ${receipt.artifact}`);
+}
+
+// A cross-host reviewer writes its own output file; the author only names the path.
+// Hashing it here is what lets a later reader tell the reviewer's words from the author's summary.
+const HOST_NAME = /^[a-z][a-z0-9-]{0,31}$/;
+const REVIEW_OUTPUT = /^reviews\/[A-Za-z0-9._-]+$/;
+
+function reviewOutputReceipt(slug, output) {
+  if (typeof output !== 'string' || !REVIEW_OUTPUT.test(output)) fail('review output must be a file path under reviews/');
+  const target = path.join(rootFor(slug), output);
+  if (!existsSync(target) || !statSync(target).isFile() || statSync(target).size === 0) fail(`review output missing or empty: ${output}`);
+  return { output, outputHash: sha256(readFileSync(target)) };
+}
+
+function validateReviewOutput(slug, review) {
+  if (review.output === undefined) return;
+  const target = path.join(rootFor(slug), review.output);
+  if (!REVIEW_OUTPUT.test(review.output) || !existsSync(target) || sha256(readFileSync(target)) !== review.outputHash) fail(`review output missing or tampered: ${review.output}`);
+}
+
+function validateCrossReview(value) {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'object' || Array.isArray(value) || !HOST_NAME.test(value.authorHost ?? '') || Object.keys(value).length !== 1) fail('crossReview must be {authorHost} with a lowercase host name');
+  return { authorHost: value.authorHost };
 }
 
 function readArtifactJson(slug, receipt) {
@@ -1195,9 +1222,10 @@ function init(slug, input) {
   const brief = input.brief.endsWith('\n') ? input.brief : `${input.brief}\n`;
   const goals = validateGoals(input.goals);
   const pr = validatePr(input.pr);
+  const crossReview = validateCrossReview(input.crossReview);
   const identity = repoIdentity();
   const initialFingerprint = workspaceFingerprint();
-  const planHash = sha256(canonical({ brief, goals, pr }));
+  const planHash = sha256(canonical({ brief, goals, pr, ...(crossReview ? { crossReview } : {}) }));
   const event = {
     seq: 1,
     ts: new Date().toISOString(),
@@ -1209,6 +1237,7 @@ function init(slug, input) {
     initialFingerprint,
     goals,
     pr,
+    ...(crossReview ? { crossReview } : {}),
   };
   const temp = `${rootFor(slug)}.tmp-${process.pid}`;
   try {
@@ -1296,8 +1325,16 @@ function mutate(slug, verb, input) {
   if (verb === 'review') {
     const scope = requireScope(input, state);
     if (typeof input.reviewer !== 'string' || !input.reviewer.trim() || !['pass', 'fail'].includes(input.verdict) || typeof input.summary !== 'string' || !input.summary.trim()) fail('review requires reviewer, pass|fail verdict, and summary');
+    const cross = state.crossReview;
+    if (cross && (input.output === undefined || input.reviewerHost === undefined)) fail('cross-host review is on: review requires reviewerHost and output');
+    if (input.reviewerHost !== undefined && !HOST_NAME.test(typeof input.reviewerHost === 'string' ? input.reviewerHost : '')) fail('reviewerHost must be a lowercase host name');
+    if (cross && input.reviewerHost === cross.authorHost) fail(`cross-host review needs a reviewer host other than ${cross.authorHost}`);
+    const reviewOutput = {
+      ...(input.reviewerHost !== undefined ? { reviewerHost: input.reviewerHost } : {}),
+      ...(input.output !== undefined ? reviewOutputReceipt(slug, input.output) : {}),
+    };
     const fingerprint = workspaceFingerprint();
-    const data = { schemaVersion: state.schemaVersion, kind: 'review', scope, reviewer: input.reviewer, verdict: input.verdict, summary: input.summary, fingerprint: fingerprint.sha256, headSha: fingerprint.headSha, createdAt: new Date().toISOString() };
+    const data = { schemaVersion: state.schemaVersion, kind: 'review', scope, reviewer: input.reviewer, verdict: input.verdict, summary: input.summary, ...reviewOutput, fingerprint: fingerprint.sha256, headSha: fingerprint.headSha, createdAt: new Date().toISOString() };
     const file = artifact(slug, 'review', data);
     const review = { ...data, artifact: file.path, artifactHash: file.hash };
     const next = append(slug, state, { type: 'review_recorded', review }).state;

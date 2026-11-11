@@ -28,6 +28,7 @@ designDocPath: <brand/composition rules doc>   # optional — /oh-my-joy:ralplan
 storybook: true|false                  # optional — true activates design-qa Story checks + the check-story-exists hook
 storiesDir: <Story collection directory>        # optional — only for projects keeping Stories in a separate directory instead of sibling files
 teamEvidenceGate: true|false           # optional — true activates the opt-in TaskCompleted gate hook: an ultragoal teammate task (marker `omj: <slug>`) closes only with a passing `evidence: <command> · exit 0 · <summary>` line
+crossReview: true|false                # optional — true makes ultragoal run every goal and final review on the other host (Codex reviews Claude's work, Claude reviews Codex's); a goal blocks rather than falling back when that host cannot run. Sends the plan and diff to a second provider
 verifySetup: <visual-verification procedure doc/section>     # optional — /oh-my-joy:verify·/oh-my-joy:fix Read before observing (auth bypass/API mocks: cookie injection, guard mocking, …. Whatever the procedure, verify always validates the reached route before capture)
 verifyCommands:                        # optional — the commands that prove the work; /oh-my-joy:verify (evidence mode) and /oh-my-joy:ship run them and record command · exit code · summary
   - npm run typecheck
