@@ -13,7 +13,7 @@ Users run this directly; `/oh-my-joy:ralplan` also suggests it once when it sees
 ## Flags
 
 - `--help` — print Usage and stop.
-- `--check` — print the inspection table only (read-only).
+- `--check` — print the inspection table only; stop before questions, installation, backups, or file changes.
 - (none) — inspect, then ask about installing or creating the missing items.
 
 ## Step 1 — Inspection (read-only)
@@ -35,11 +35,11 @@ Detect each item and print a table with present / missing / optional:
 | Token-guard hooks (opt-in) | on-save hardcoding and Story warnings | `.claude/hooks/check-design-tokens.mjs` exists in the project |
 | OMJ HUD statusline (opt-in) | model, usage, and context statusLine (user-global); when the usage endpoint answers 403 it sends a one-token model request about every 90 seconds that counts against your usage, off with `"omcHud": {"elements": {"rateLimits": false}}` in `~/.claude/settings.json` | `grep omj-hud ~/.claude/settings.json` |
 
-Figma needs more than the plugin: Dev Mode MCP has to be enabled in the Figma desktop app, and viewer-permission files deny access, so a Duplicate is needed — say so during inspection. Say the HUD row's usage note during inspection as well, since the request it describes spends the user's quota. If the `claude` CLI is unavailable, skip detection and point to `/mcp` and `/plugin` for manual checks.
+Figma needs more than the plugin: Dev Mode MCP has to be enabled in the Figma desktop app, and viewer-permission files deny access, so a Duplicate is needed — say so during inspection. Name the HUD's user-global `~/.claude/settings.json` target and usage note during inspection, since the request it describes spends the user's quota. If the `claude` CLI is unavailable, skip detection and point to `/mcp` and `/plugin` for manual checks.
 
 ## Step 2 — Install and scaffold (missing items, not with `--check`)
 
-Gather the missing items into one `AskUserQuestion` (multiSelect) — "pick the items to install or create now" — bundling dependencies and scaffolding into at most two questions and never repeating per-item prompts. The HUD option's description carries the usage note from its inspection row, because selecting it is the consent. Execute only the selected items; for the rest, print the manual commands.
+Gather the missing items into one `AskUserQuestion` (multiSelect) — "pick the items to install or create now" — bundling dependencies and scaffolding into at most two questions and never repeating per-item prompts. The HUD option names its user-global `~/.claude/settings.json` target, any custom `statusLine` replacement, and the usage note from inspection. Reuse items already authorized in the request. Global HUD setup works outside Git; skip project-only items there. Execute only the selected items; for the rest, print the manual commands.
 
 - Figma MCP → `claude plugin install figma@claude-plugins-official`, plus "enable Dev Mode MCP in the Figma desktop app".
 - Context7 → `claude plugin install context7-plugin@context7-marketplace`.
@@ -62,7 +62,7 @@ Gather the missing items into one `AskUserQuestion` (multiSelect) — "pick the 
 - Helper bookkeeping allowlist → on consent, `Edit` (or `Write`) the user-local `.claude/settings.local.json`, merging into its `permissions.allow`. It goes into the local file and not the shared `settings.json` because the installed plugin lives under the user's home, so the shared file would commit a path that is wrong for everyone else. Write one exact-prefix rule per bookkeeping verb with the installed plugin's absolute path, unquoted: `Bash(node ${CLAUDE_PLUGIN_ROOT}/scripts/goal-state.mjs status *)`, and the same for `init`, `start`, `resume`, `block`, `review`, `evidence`, `complete`, `finding`, `delivery`, `close`, and `reconcile`. `verify` and `trial` stay out: they run project commands, and their permission prompt is the evidence's confirmation point. Do not write a rule with `*` inside the path, because it would also match `node -e … goal-state.mjs status`. When the resolved path contains a space, install nothing and say why: a prefix rule cannot match the quoted form the shell would need. Plugin updates move the installed copy; `--check` and ultragoal report the rules as stale, and a rerun rewrites them.
 - OMJ HUD statusline → on consent:
   1. `mkdir -p ~/.claude/omj-hud && cp -R "${CLAUDE_PLUGIN_ROOT}/hud/". ~/.claude/omj-hud/` (a copy, for the same reasons as the hooks).
-  2. `Edit` `~/.claude/settings.json` to set `statusLine` to `{"type": "command", "command": "sh ~/.claude/omj-hud/omj-hud-cache.sh ~/.claude/omj-hud/omj-hud.mjs"}`; warn before overwriting an existing custom statusLine.
+  2. `Edit` `~/.claude/settings.json` to set `statusLine` to `{"type": "command", "command": "sh ~/.claude/omj-hud/omj-hud-cache.sh ~/.claude/omj-hud/omj-hud.mjs"}`; back up an existing file first, preserve unrelated settings and project overrides, and replace a custom statusLine only when that replacement was selected.
   3. Smoke-check by piping `{"session_id":"setup-check"}` into `sh ~/.claude/omj-hud/omj-hud-cache.sh ~/.claude/omj-hud/omj-hud.mjs` and confirming a rendered line.
   4. On rerun, if `${CLAUDE_PLUGIN_ROOT}/hud/` differs from the copy (`diff -r`), announce "HUD update available" with the same usage note (a copy from before the 403 request existed does not send it, and `"rateLimits": false` turns it off) and overwrite only on consent. Attribution and limitations: `hud/README.md`, `NOTICE.md`.
 

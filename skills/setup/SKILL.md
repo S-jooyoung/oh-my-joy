@@ -16,7 +16,7 @@ Read [the Codex setup contract](../../docs/CODEX-SETUP.md) completely. It maps e
 ## Modes
 
 - `--help`: print usage and stop.
-- `--check`: read-only inspection; do not ask questions, create files, install integrations, or change configuration.
+- `--check`: read-only inspection; do not ask questions, create files, install integrations, or change configuration; read metadata without launching Codex subprocesses.
 - no flag: inspect, then collect selected changes in one structured multi-select question. If the current request already names the selected setup actions, use that authorization without asking again.
 
 ## Execution
@@ -25,7 +25,7 @@ Read [the Codex setup contract](../../docs/CODEX-SETUP.md) completely. It maps e
 2. Present concrete missing items with their exact files or installation commands. Install only selected integrations; no guessed marketplace IDs, MCP URLs, or unrelated global settings changes.
 3. Scaffold accepted `.omj/fe-context.md`, optional `docs/DESIGN.md`, and local ignores. Keep acceptance axes and verification commands as project-owned declarations, not guesses.
 4. For selected frontend hooks, copy the Codex adapter and selected canonical checks, merge the provided project hook registration without moving existing entries (append OMJ's group, replace an OMJ handler in place, and never reorder or remove other entries, since Codex keys hook trust by position), and smoke-test both a warning and a silent case. Never copy Claude input handling as if it were a Codex adapter.
-5. For selected answer style, copy the shared style body into `.omj/answer-style.md` and add its managed read instruction to the effective root `AGENTS.override.md` or `AGENTS.md`. For a selected CLI footer, merge `[tui].status_line` in the project config. These choices preserve unrelated instructions/configuration and never replace native model instructions.
+5. For selected answer style, copy the shared style body into `.omj/answer-style.md` and add its managed read instruction to the effective root `AGENTS.override.md` or `AGENTS.md`. For a selected CLI footer, merge `[tui].status_line` in `$CODEX_HOME/config.toml` (default `~/.codex/config.toml`), including outside Git; preserve project overrides. These choices preserve unrelated instructions/configuration and never replace native model instructions.
 6. Verify every selected item's actual files, content, and supported configuration. Record only project-local setup state and clearly identify a session restart or a host UI limitation.
 
 Two Claude-only items are skipped with guidance rather than imitated: the team evidence gate hook (Codex has no `TaskCompleted` event, so a role's `evidence:` line comes back in its completion message and the ledger stays the proof) and the helper bookkeeping allowlist (Codex has no `permissions.allow` file, so helper calls go through the host's normal approval flow).
