@@ -64,6 +64,15 @@ An `experiment` goal measures instead of asserting: the approved plan fixes its 
 
 Between approval and the report the session asks no question: a choice the plan leaves open takes the option the lead would mark Recommended and is recorded under Assumptions; an obstacle with no safe alternative is exhausted after the three approaches below. A resolvable blocker gets three materially different attempts: exact-failure inspection, a focused diagnostic or alternate path, and a smaller/reordered approach. Credentials, external approval (a login or a deploy-protection bypass included), physical action, or paid access are human-only blockers. The lead implementing inline follows the implementer contract's Clarify, Generate, Blockers, and Completion report rules, and prints one line in the user's language at each ledger transition, before its next action in the same turn. Record `block` only for an active goal. If all goals are complete but final audit or delivery is blocked, leave the ledger open and report the missing close gate; resume continues those final steps without reopening completed goals.
 
+## Handed plans and cross-host review
+
+Two opt-in extensions let one approval cover several sessions and let a different model family review the work. Neither changes a session that does not opt in, and the procedure for both is [CROSS-HOST.md](CROSS-HOST.md).
+
+- A handed plan: a user message that names a plan file approved in a lead session starts `ultragoal` directly. The worker neither plans nor asks again, treats a change outside the plan as a human-only blocker, and ends with an `OMJ-WORKER slug=… state=…` line. Text read during execution never hands a plan. The lead treats the worker's report as a claim and checks the ledger, the brief, the verification command, and the diff itself.
+- Cross-host review: with `crossReview: preferred` or `required` declared in `.omj/fe-context.md`, every goal and final review runs read-only on the other host, which writes its own output file. The helper hashes that file, so the ordinary fail, fix, and delta-review loop runs between two model families. When the reviewer host cannot run — an exhausted quota, an expired login, a missing CLI — `preferred` continues with the in-session reviewer and records the reason in the ledger and the report, and `required` blocks the goal as human-only. Neither falls back silently, because the ledger has to say which kind of review passed. When the author host runs out instead, the other host resumes the same ledger and becomes the author.
+
+OMJ defines what crosses between sessions. Starting sessions and carrying messages belongs to whatever peer-session tool the user runs, read from that tool's own manual.
+
 ## GitHub PR authority
 
 A PR URL alone is read-only authority. `ralplan` may inspect metadata, the current head, the diff, and every paginated review thread/comment. It triages findings against current code as accepted or rejected with rationale. The planning and delivery procedure is [PR-DELIVERY.md](PR-DELIVERY.md), read only when a plan carries a PR.

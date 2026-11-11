@@ -86,6 +86,10 @@ The adapter parses native patch envelopes and standalone `apply_patch` heredocs.
 
 Two Claude setup items have no Codex counterpart and are skipped with guidance: the opt-in team evidence gate hook (`templates/hooks/task-completed-evidence.mjs`, a Claude `TaskCompleted` hook) and the helper bookkeeping allowlist (Claude `permissions.allow` rules in `.claude/settings.local.json`). In Codex a role's `evidence:` line comes back in its completion message, the ledger remains the proof, and helper calls use the host's normal approval flow.
 
+## Cross-host review
+
+Codex setup offers the same opt-in declaration as Claude setup, with the hosts swapped: detect the Claude Code CLI with `command -v claude`, explain that every ultragoal review then sends the plan and the diff to a second model provider and costs a second call, offer `preferred` (recommended: a recorded same-host fallback when Claude cannot run), `required` (the goal blocks instead), or off, and on a selection set `crossReview: preferred` or `crossReview: required` in `.omj/fe-context.md`. In a Codex session the author host is `codex` and the reviewer call is `claude -p --agent oh-my-joy:critic`; the procedure is [CROSS-HOST.md](CROSS-HOST.md). The declaration is shared, so a project that turned it on from either host has it on for both.
+
 ## Answer style in CLI and App
 
 Codex uses [project instructions](https://learn.chatgpt.com/docs/agent-configuration/agents-md) for this capability. On selection, copy the body of [OMJ's shared answer style](../output-styles/oh-my-joy.md), without YAML frontmatter, into `.omj/answer-style.md`. Inspect an existing copy before updating it.

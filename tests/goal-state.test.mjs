@@ -1210,3 +1210,134 @@ describe('goal-state schema v2 compatibility', () => {
     assert.equal(oldStatus.json.snapshotStatus, 'ok', 'the 0.13.0 helper reads the snapshot the new helper wrote as unchanged');
   });
 });
+
+describe('goal-state cross-host review', () => {
+  const crossInit = (root, mode = 'required') => run(root, 'init', { brief: '# Approved plan\n', goals: goals(false), crossReview: { authorHost: 'claude', mode } });
+  const reviewInput = (revision, extra = {}) => ({ expectedRevision: revision, scope: { goalId: 'G1' }, reviewer: 'codex:critic', verdict: 'pass', summary: 'No blocking findings.', ...extra });
+
+  function verifiedGoal(root) {
+    let result = run(root, 'start', { expectedRevision: 1, goalId: 'G1' });
+    assert.equal(result.code, 0, result.stderr);
+    result = run(root, 'verify', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, argv: ['node', '-e', 'console.log("verified")'] });
+    assert.equal(result.code, 0, result.stderr);
+    return result.json.revision;
+  }
+
+  function writeOutput(root, name, text = '🟢 no findings\n') {
+    const dir = path.join(root, '.omj', 'goals', 'demo', 'reviews');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, name), text);
+    return `reviews/${name}`;
+  }
+
+  it('rejects a malformed crossReview declaration at init', () => {
+    for (const crossReview of [true, {}, { authorHost: 'claude' }, { authorHost: 'Claude', mode: 'required' }, { authorHost: 'claude', mode: 'sometimes' }, { authorHost: 'claude', mode: 'required', extra: 1 }]) {
+      const root = makeRepo();
+      const result = run(root, 'init', { brief: '# Approved plan\n', goals: goals(false), crossReview });
+      assert.notEqual(result.code, 0, JSON.stringify(crossReview));
+      assert.match(result.stderr, /crossReview must be/);
+    }
+  });
+
+  it('records only a review from another host that left its own output file', () => {
+    const root = makeRepo();
+    assert.equal(crossInit(root).code, 0);
+    const revision = verifiedGoal(root);
+    const output = writeOutput(root, 'G1-pass1.out.md');
+
+    let result = run(root, 'review', reviewInput(revision));
+    assert.match(result.stderr, /cross-host review is required: record reviewerHost \(not claude\) with output/);
+    result = run(root, 'review', reviewInput(revision, { reviewerHost: 'claude', output }));
+    assert.match(result.stderr, /cross-host review is required/);
+    result = run(root, 'review', reviewInput(revision, { fallbackReason: 'codex quota exhausted' }));
+    assert.match(result.stderr, /cross-host review is required/, 'required mode has no fallback');
+    result = run(root, 'review', reviewInput(revision, { reviewerHost: 'codex', output: 'evidence/x.json' }));
+    assert.match(result.stderr, /under reviews\//);
+    result = run(root, 'review', reviewInput(revision, { reviewerHost: 'codex', output: 'reviews/missing.out.md' }));
+    assert.match(result.stderr, /missing or empty/);
+
+    result = run(root, 'review', reviewInput(revision, { reviewerHost: 'codex', output }));
+    assert.equal(result.code, 0, result.stderr);
+    result = run(root, 'complete', { expectedRevision: result.json.revision, goalId: 'G1', acceptanceEvidence: [{ criterion: 'first behavior works', evidence: 'observed' }] });
+    assert.equal(result.code, 0, result.stderr);
+
+    const status = run(root, 'status');
+    assert.deepEqual(status.json.crossReview, { authorHost: 'claude', mode: 'required' });
+    assert.equal(status.json.reviews[0].reviewerHost, 'codex');
+    assert.equal(status.json.reviews[0].output, output);
+    assert.match(status.json.reviews[0].outputHash, /^[0-9a-f]{64}$/);
+  });
+
+  it('lets preferred mode continue on one host only with a recorded reason', () => {
+    const root = makeRepo();
+    assert.equal(crossInit(root, 'preferred').code, 0);
+    const revision = verifiedGoal(root);
+
+    let result = run(root, 'review', reviewInput(revision, { reviewer: 'critic' }));
+    assert.match(result.stderr, /cross-host review is preferred/);
+    result = run(root, 'review', reviewInput(revision, { reviewer: 'critic', fallbackReason: '   ' }));
+    assert.match(result.stderr, /fallbackReason must be a non-empty string/);
+    const output = writeOutput(root, 'G1-pass1.out.md');
+    result = run(root, 'review', reviewInput(revision, { reviewerHost: 'codex', output, fallbackReason: 'not needed' }));
+    assert.match(result.stderr, /cross-host review is preferred/, 'a cross-host review carries no fallback reason');
+
+    result = run(root, 'review', reviewInput(revision, { reviewer: 'critic', fallbackReason: 'codex exec failed twice: usage limit reached' }));
+    assert.equal(result.code, 0, result.stderr);
+    result = run(root, 'complete', { expectedRevision: result.json.revision, goalId: 'G1', acceptanceEvidence: [{ criterion: 'first behavior works', evidence: 'observed' }] });
+    assert.equal(result.code, 0, result.stderr);
+    const review = run(root, 'status').json.reviews[0];
+    assert.equal(review.fallbackReason, 'codex exec failed twice: usage limit reached');
+    assert.equal(review.output, undefined);
+  });
+
+  it('judges the reviewer against the host that wrote the change when another host resumes', () => {
+    const root = makeRepo();
+    assert.equal(crossInit(root).code, 0);
+    const revision = verifiedGoal(root);
+    const output = writeOutput(root, 'G1-pass1.out.md');
+    let result = run(root, 'review', reviewInput(revision, { reviewer: 'codex:critic', authorHost: 'codex', reviewerHost: 'codex', output }));
+    assert.match(result.stderr, /record reviewerHost \(not codex\)/);
+    result = run(root, 'review', reviewInput(revision, { reviewer: 'claude:critic', authorHost: 'codex', reviewerHost: 'claude', output }));
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(run(root, 'status').json.reviews[0].authorHost, 'codex');
+  });
+
+  it('detects a reviewer output edited after it was recorded', () => {
+    const root = makeRepo();
+    assert.equal(crossInit(root).code, 0);
+    const revision = verifiedGoal(root);
+    const output = writeOutput(root, 'G1-pass1.out.md');
+    assert.equal(run(root, 'review', reviewInput(revision, { reviewerHost: 'codex', output })).code, 0);
+    writeOutput(root, 'G1-pass1.out.md', '🟢 rewritten by the author\n');
+    const status = run(root, 'status');
+    assert.notEqual(status.code, 0);
+    assert.match(status.stderr, /review output missing or tampered/);
+  });
+
+  it('binds the declaration to the plan hash', () => {
+    const root = makeRepo();
+    assert.equal(crossInit(root).code, 0);
+    const ledger = path.join(root, '.omj', 'goals', 'demo', 'ledger.jsonl');
+    const first = JSON.parse(readFileSync(ledger, 'utf8').split('\n')[0]);
+    delete first.crossReview;
+    writeFileSync(ledger, `${JSON.stringify(first)}\n`);
+    const status = run(root, 'status');
+    assert.notEqual(status.code, 0);
+    assert.match(status.stderr, /approved plan hash mismatch/);
+  });
+
+  it('leaves a plan without the declaration unchanged and hashes an output when one is given', () => {
+    const root = makeRepo();
+    assert.equal(init(root, { second: false }).code, 0);
+    const revision = verifiedGoal(root);
+    let result = run(root, 'review', { expectedRevision: revision, scope: { goalId: 'G1' }, reviewer: 'critic', verdict: 'fail', summary: 'Blocking finding.' });
+    assert.equal(result.code, 0, result.stderr);
+    const output = writeOutput(root, 'G1-pass2.out.md');
+    result = run(root, 'review', { expectedRevision: result.json.revision, scope: { goalId: 'G1' }, reviewer: 'critic', verdict: 'pass', summary: 'Fixed.', output });
+    assert.equal(result.code, 0, result.stderr);
+    const status = run(root, 'status');
+    assert.equal(status.json.crossReview, undefined);
+    assert.equal(status.json.reviews[0].output, undefined);
+    assert.equal(status.json.reviews[1].output, output);
+  });
+});

@@ -112,7 +112,7 @@ const BODY_BUDGET_TOKENS = {
   'commands/fix.md': 1279,
   'commands/ralplan.md': 4959,
   'commands/review.md': 4250,
-  'commands/setup.md': 3431,
+  'commands/setup.md': 3640,
   'commands/ship.md': 2336,
   'commands/spec.md': 231,
   'commands/sync.md': 2446,
@@ -133,7 +133,7 @@ const BODY_BUDGET_TOKENS = {
   'skills/ship/SKILL.md': 569,
   'skills/spec/SKILL.md': 131,
   'skills/sync/SKILL.md': 565,
-  'skills/ultragoal/SKILL.md': 2524,
+  'skills/ultragoal/SKILL.md': 2768,
   'skills/verify/SKILL.md': 1196,
 };
 
