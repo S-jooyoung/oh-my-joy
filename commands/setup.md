@@ -1,7 +1,7 @@
 ---
 description: OMJ dependency check + scaffolding — inspects playwright-cli/MCP, Figma MCP, Context7, the Agent Teams flag, and the OMJ answer style, and proposes installing .omj/fe-context.md, the token-guard and team evidence gate hooks, the helper allowlist, and the OMJ HUD statusline (opt-in)
 argument-hint: "[--check] (inspect only) | [--help]"
-allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(command -v:*), Bash(claude plugin list:*), Bash(claude plugin install figma@claude-plugins-official:*), Bash(claude plugin install context7-plugin@context7-marketplace:*), Bash(npm i -g playwright-cli:*), Bash(test:*), Bash(grep:*), Bash(diff:*), Bash(cp "${CLAUDE_PLUGIN_ROOT}/templates/hooks/":*), Bash(mkdir -p .claude/hooks:*), Bash(cp -R "${CLAUDE_PLUGIN_ROOT}/hud/":*), Bash(mkdir -p ~/.claude/omj-hud:*), Bash(sh ~/.claude/omj-hud/omj-hud-cache.sh:*), Bash(gh auth status:*), Bash(gh api user/starred/S-jooyoung/oh-my-joy), Bash(gh api user/starred/S-jooyoung/oh-my-joy -X PUT)
+allowed-tools: Bash(node ${CLAUDE_PLUGIN_ROOT}/scripts/execution-config.mjs:*), Read, Write, Edit, AskUserQuestion, Bash(command -v:*), Bash(claude plugin list:*), Bash(claude plugin install figma@claude-plugins-official:*), Bash(claude plugin install context7-plugin@context7-marketplace:*), Bash(npm i -g playwright-cli:*), Bash(test:*), Bash(grep:*), Bash(diff:*), Bash(cp "${CLAUDE_PLUGIN_ROOT}/templates/hooks/":*), Bash(mkdir -p .claude/hooks:*), Bash(cp -R "${CLAUDE_PLUGIN_ROOT}/hud/":*), Bash(mkdir -p ~/.claude/omj-hud:*), Bash(sh ~/.claude/omj-hud/omj-hud-cache.sh:*), Bash(gh auth status:*), Bash(gh api user/starred/S-jooyoung/oh-my-joy), Bash(gh api user/starred/S-jooyoung/oh-my-joy -X PUT)
 ---
 
 # /oh-my-joy:setup — Dependency doctor and scaffolding
@@ -10,11 +10,15 @@ Inspect the optional dependencies OMJ leans on, guide the installation of anythi
 
 Users run this directly; `/oh-my-joy:ralplan` also suggests it once when it sees no setup trace (no `.omj/` in the repo and no `~/.claude/.omj-setup.json`), because a skipped setup is the usual root cause of a missing fe-context or hook chain.
 
+Use `node ${CLAUDE_PLUGIN_ROOT}/scripts/execution-config.mjs --check` for read-only configuration inspection; the linked contract describes stdin-based route and capacity checks.
+
 ## Flags
 
 - `--help` — print Usage and stop.
 - `--check` — print the inspection table only; stop before questions, installation, backups, or file changes.
 - (none) — inspect, then ask about installing or creating the missing items.
+
+Team preferences use `${CLAUDE_PLUGIN_ROOT}/docs/EXECUTION-CONFIG.md`: inspect the read-only helper, offer leader/workers/maxWorkers and scope together, and save only selected keys. Questions follow `${CLAUDE_PLUGIN_ROOT}/docs/ADAPTIVE-EXECUTION.md`. No budget selection is required.
 
 ## Step 1 — Inspection (read-only)
 

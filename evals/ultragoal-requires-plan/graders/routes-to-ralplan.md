@@ -1,8 +1,7 @@
 ---
-type: regex
-pattern: "ralplan|approved plan|approve.*plan|approv\\w*\\s+(this|the)\\s+plan"
-flags: "i"
-match: contains
-target: last_message
+type: tool_used
+tool: Skill
+input_match: "oh-my-joy:ralplan"
+min: 1
 ---
-Raw work without an approved plan returns to the planning gate.
+Risky raw work actually invokes the planning skill. Mentioning a command in prose does not satisfy this check.

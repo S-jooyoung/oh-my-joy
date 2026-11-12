@@ -124,3 +124,7 @@ Only inside a project, record a selected setup receipt under `.omj/setup.json` w
 As in Claude setup, an optional GitHub star can be offered separately after setup succeeds. Check authentication and current star read-only first; an explicit “star it” choice is the only authority for `gh api user/starred/S-jooyoung/oh-my-joy -X PUT`. Declining, authentication failures, and API failures never block setup. Do not post any other message.
 
 Report actual installed/configured/verified states, changed files, and any restart or missing host capability. New plugin/components may need a new Codex session; a configured entry is not proof that the current session has loaded it.
+
+## Team preferences and question UI
+
+Follow [execution configuration](EXECUTION-CONFIG.md) for the shared JSON files, precedence, validation and selection-preserving setup. Use [adaptive questions](ADAPTIVE-EXECUTION.md#questions) to distinguish a usable picker from a text-only async question. Check mode remains read-only. Do not enable experimental Codex question features without a selected setup action.

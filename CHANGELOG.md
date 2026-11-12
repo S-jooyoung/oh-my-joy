@@ -11,6 +11,8 @@ History prior to 0.6.0 is preserved in Korean.
 ### Added
 
 ### Changed
+- Adaptive execution on both hosts: bounded local tasks run inline with proof, while explicit plans, risky changes and mixed-host work retain approval. Added validated personal/project team configuration, capacity accounting, Herdr/Orca runtime protocols and honest question-UI fallbacks. Existing ledgers keep their completion rules; no runtime dependency or budget setup was added. Updated affected workflow body ceilings alongside the new routing/configuration references.
+
 
 ### Deprecated
 
