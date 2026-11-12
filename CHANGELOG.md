@@ -11,6 +11,20 @@ History prior to 0.6.0 is preserved in Korean.
 ### Added
 
 ### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [1.5.0] - 2026-11-12
+
+### Added
+
+### Changed
 - Adaptive execution on both hosts: bounded local tasks run inline with proof, while explicit plans, risky changes and mixed-host work retain approval. Added validated personal/project team configuration, capacity accounting, Herdr/Orca runtime protocols and honest question-UI fallbacks. Existing ledgers keep their completion rules; no runtime dependency or budget setup was added. Updated affected workflow body ceilings alongside the new routing/configuration references.
 
 
@@ -858,7 +872,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.2.0...v1.2.1
