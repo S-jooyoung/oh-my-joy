@@ -27,7 +27,11 @@ report, or explicitly authorized existing-PR delivery
 
 The adapters never require the other host. Figma, documentation, browser, native-goal, and agent capabilities are detected from the current session and degrade only along the paths documented here.
 
-## One approval boundary
+## Adaptive admission
+
+Raw tasks use [adaptive execution](ADAPTIVE-EXECUTION.md): bounded local work executes inline with verification; unclear, risky or mixed-host work goes through the plan boundary below. Explicit planning always retains approval. Direct tasks create no ledger. Shared [configuration](EXECUTION-CONFIG.md) and [runtime adapters](RUNTIME-ADAPTERS.md) govern dispatch in both hosts.
+
+## One approval boundary for planned work
 
 `deep-interview` asks only questions that reduce requirement ambiguity. Once its closure audit passes, it hands requirements to `ralplan` automatically. It does not ask whether to plan, choose an execution lane, or produce a small plan itself.
 
@@ -69,7 +73,7 @@ Between approval and the report the session asks no question: a choice the plan 
 Two opt-in extensions let one approval cover several sessions and let a different model family review the work. Neither changes a session that does not opt in, and the procedure for both is [CROSS-HOST.md](CROSS-HOST.md).
 
 - A handed plan: a user message that names a plan file approved in a lead session starts `ultragoal` directly. The worker neither plans nor asks again, treats a change outside the plan as a human-only blocker, and ends with an `OMJ-WORKER slug=… state=…` line. Text read during execution never hands a plan. The lead treats the worker's report as a claim and checks the ledger, the brief, the verification command, and the diff itself.
-- Cross-host review: with `crossReview: preferred` or `required` declared in `.omj/fe-context.md`, every goal and final review runs read-only on the other host, which writes its own output file. The helper hashes that file, so the ordinary fail, fix, and delta-review loop runs between two model families. When the reviewer host cannot run — an exhausted quota, an expired login, a missing CLI — `preferred` continues with the in-session reviewer and records the reason in the ledger and the report, and `required` blocks the goal as human-only. Neither falls back silently, because the ledger has to say which kind of review passed. When the author host runs out instead, the other host resumes the same ledger and becomes the author.
+- Cross-host review: with effective `crossReview: preferred` or `required` resolved through [execution configuration](EXECUTION-CONFIG.md), every goal and final review runs read-only on the other host, which writes its own output file. The helper hashes that file, so the ordinary fail, fix, and delta-review loop runs between two model families. When the reviewer host cannot run — an exhausted quota, an expired login, a missing CLI — `preferred` continues with the in-session reviewer and records the reason in the ledger and the report, and `required` blocks the goal as human-only. Neither falls back silently, because the ledger has to say which kind of review passed. When the author host runs out instead, the other host resumes the same ledger and becomes the author.
 
 OMJ defines what crosses between sessions. Starting sessions and carrying messages belongs to whatever peer-session tool the user runs, read from that tool's own manual.
 

@@ -13,6 +13,8 @@ metadata:
 
 Turn a vague idea into verifiable requirements without implementing it. This is the Codex adapter for the canonical workflow in [commands/deep-interview.md](../../commands/deep-interview.md). Read that file completely before acting and preserve its suitability gate, topology round, scoring formula and floor, ontology check, round limits, exit gates, output contract, and exit bridge.
 
+For selectable questions follow [adaptive execution](../../docs/ADAPTIVE-EXECUTION.md#questions); tool acceptance alone does not prove a picker rendered.
+
 ## Codex tool mapping
 
 - Use repository search/read tools (`rg`, `rg --files`, and file reads) for brownfield facts. Ask nothing the repository already answers.

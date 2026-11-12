@@ -5,6 +5,6 @@ tags: [setup]
 runs: 3
 max_turns: 16
 timeout_seconds: 300
-allowed_tools: [Read, Skill, Edit, Write, AskUserQuestion, "Bash(command -v:*)", "Bash(claude plugin list:*)", "Bash(test:*)", "Bash(grep:*)"]
+allowed_tools: ["Bash(node */scripts/execution-config.mjs:*)", Read, Skill, Edit, Write, AskUserQuestion, "Bash(command -v:*)", "Bash(claude plugin list:*)", "Bash(test:*)", "Bash(grep:*)"]
 ---
 /oh-my-joy:setup --check

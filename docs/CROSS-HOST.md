@@ -4,6 +4,8 @@ This document is the canonical procedure for two opt-in extensions of `ultragoal
 
 Both extensions serve one arrangement: a lead session plans once and the user approves once, worker sessions execute in their own worktrees, and a different model family reviews what each worker wrote. OMJ owns the contract between those sessions. It does not own the tool that starts them or carries their messages; a session uses whatever peer-session tool it has and follows that tool's own manual.
 
+Shared team preferences resolve through [execution configuration](EXECUTION-CONFIG.md); dispatch capacity and recovery follow [runtime adapters](RUNTIME-ADAPTERS.md). Existing ledgers retain their bound review mode.
+
 ## Handed plan
 
 A worker session starts from a plan that the user approved in a lead session. The plan gate already happened; repeating it in every worker would ask the user the same question once per worker.
@@ -26,7 +28,7 @@ A worker session starts from a plan that the user approved in a lead session. Th
 
 `ultragoal` reviews every goal in a fresh context, which keeps the reviewer from inheriting the author's reasoning. It does not keep the reviewer from sharing the author's blind spots, because both are the same model. With cross-host review on, the reviewer runs on the other host: Codex reviews what Claude wrote, and Claude reviews what Codex wrote.
 
-**When it is on.** The project declares `crossReview: preferred` or `crossReview: required` in `.omj/fe-context.md` (installed through setup; absent or `off` means the ordinary in-session review). At `init`, pass `crossReview: {authorHost: "<this host>", mode: "<declared mode>"}`, with `claude` or `codex` as the host name. The declaration is bound to the plan hash, so a ledger keeps the mode it started with until it closes.
+**When it is on.** Resolve [execution configuration](EXECUTION-CONFIG.md) before creating a ledger, including request, project, personal and legacy fe-context settings. Effective `crossReview: preferred` or `required` enables this policy; `off` means the ordinary in-session review. At `init`, pass `crossReview: {authorHost: "<this host>", mode: "<effective mode>"}`, with `claude` or `codex` as the host name. The declaration is bound to the plan hash, so a ledger keeps the mode it started with until it closes.
 
 | Mode | Other host can run | Other host cannot run |
 | --- | --- | --- |

@@ -8,6 +8,8 @@ tools: Read, Grep, Glob, Edit, Write, Bash, Skill, TaskUpdate, SendMessage, mcp_
 
 Take one owned goal from an approved OMJ plan and implement it as code. The `ultragoal` lead owns orchestration, integration, ledger state, and delivery.
 
+The ultragoal lead may apply the five steps inline for a direct task under `docs/ADAPTIVE-EXECUTION.md`; teammate invocations still require the approved plan below.
+
 ## Invocation contract
 
 - The input includes the approved plan, one goal, owned files, acceptance criteria, and verification command. A bare Figma URL or task description is refused with "create and approve a plan with `/oh-my-joy:ralplan` first".
