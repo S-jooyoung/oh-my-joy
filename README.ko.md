@@ -396,7 +396,7 @@ verify가 결함을 보고했다고 합시다 — 제출 버튼 라벨이 360px�
 - **증거 규칙**: "완료"는 명령·exit code·요약·증거 종류를 뜻합니다 — `verify`(증거 모드), `ship`, agent-team 팀원이 기록합니다. 검증 명령은 절대 사전 승인되지 않습니다.
 - **실행은 묻지 않는다**: 승인부터 보고까지 세션은 질문하지 않습니다. 블로커는 `resolvable`(먼저 세 가지 접근) 아니면 `human-only`(멈추고 당신이 할 일을 말함)이고, 플랜이 침묵한 지점의 가정은 전부 보고서에 적힙니다.
 - **스펙 형식**: 프론트엔드는 uSpec 섹션 + FF 4기준 + a11y + Figma fidelity([`figma-fidelity.md`](skills/frontend-fundamentals/references/figma-fidelity.md)), Figma 없는 새 화면에는 시각 루브릭([`visual-design.md`](skills/frontend-fundamentals/references/visual-design.md))의 Design direction 추가; 그 외는 목표 / 제약 / 수용 기준 / 검증 명령.
-- **Figma 2-트랙**: (A) 앱 화면 design→code = 공식 Dev Mode MCP, 큰 프레임은 섹션별로; (B) 디자인 시스템 스펙/토큰 = figma-console-mcp + uSpec(v1.2+).
+- **Figma 2-트랙**: (A) 앱 화면 design→code = 공식 Dev Mode MCP, 큰 프레임은 섹션별로; (B) 디자인 시스템 스펙/토큰 = figma-console-mcp + uSpec(예정, 미출시).
 - **표면이 아니라 방법론을 빌린다**: 외부가 유지하는 지식은 참조만(vercel 스킬 — `npx skills add/update`); OMJ는 자기 것만 번들(FF 스킬, 에이전트 3, 훅 템플릿, 답변 스타일, evals); 다른 프로젝트의 방법론은 크레딧을 단 재작성으로 흡수하고, 거절한 아이디어는 이유와 함께 기록합니다.
 
 ### 이름 붙은 원칙
@@ -508,7 +508,7 @@ OMJ는 짧은 원칙 26개로 일합니다. `ultragoal`과 `ralplan`은 작업�
 > | `omj-setup` | `/oh-my-joy:setup` |
 > | `omj-start` | 제거 — 승인된 ralplan이 ultragoal로 자동 연결됩니다 |
 >
-> 함정 하나: 한때 예고했던 `omj-spec`(디자인 시스템 스펙, 이제 v1.2+ 예정)은 `ralplan`이 아니라 `/oh-my-joy:ds-spec`으로 계획돼 있습니다. 전체 매핑과 근거: [CHANGELOG](CHANGELOG.md) 0.8.0·0.7.0 섹션.
+> 함정 하나: 한때 예고했던 `omj-spec`(디자인 시스템 스펙, 아직 미출시)은 `ralplan`이 아니라 `/oh-my-joy:ds-spec`으로 계획돼 있습니다. 전체 매핑과 근거: [CHANGELOG](CHANGELOG.md) 0.8.0·0.7.0 섹션.
 
 ---
 

@@ -49,6 +49,11 @@ The reader is learning while shipping, so the gaps that an expert would fill sil
 - Say what was done and what was deliberately not done. Hidden omissions are what a learner cannot recover from.
 - Lead with the result, then the explanation. Length is not the goal; a missing link in the reasoning is what to avoid.
 
+<example>
+Awkward: "결제 결과는 웹훅으로 받습니다."
+Better: "결제 결과는 웹훅(결제사가 결과를 우리 서버 주소로 직접 보내 주는 호출)으로 받습니다."
+</example>
+
 ## Point to the next step in the flow
 
 OMJ work enters through ultragoal: small, safe work runs straight through a playbook, and risky or large work goes deep-interview → ralplan → approval → ultragoal, with implementation, review, and verification inside the run. Continue approved transitions automatically. Describe a next user action only when it is actually needed, such as an unresolved blocker or a separately requested new PR or release; do not turn automatic handoffs into commands the user must repeat.

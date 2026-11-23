@@ -34,4 +34,4 @@ Fix every 🔴 and get a new review in a fresh context. After three failing revi
 
 ## Report
 
-Follow the five parts in [REPORTING.md](../REPORTING.md). Say what was broken, what caused it, and where it was fixed; in How it was checked, name the check that went from failing to passing by its test name or command.
+Follow the five parts in [REPORTING.md](../REPORTING.md). Say what was broken, what caused it, and where it was fixed; in How it was checked, name the check that went from failing to passing: a test by its own name, not only the command that ran it, and any other check by its command.

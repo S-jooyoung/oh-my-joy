@@ -124,3 +124,31 @@ describe('eval cases use the native case format', () => {
     assert.equal(unindented, style, 'the inline system prompt matches output-styles/oh-my-joy.md');
   });
 });
+
+describe('ralplan-approval-card regex graders', () => {
+  // The same unquoting the fallback runner applies to a double-quoted pattern.
+  const pattern = (file) => {
+    const raw = /^pattern: (.*)$/m.exec(readFileSync(path.join(EVALS, 'ralplan-approval-card', 'graders', file), 'utf8'))[1].trim();
+    return new RegExp(raw.startsWith('"') ? raw.slice(1, -1).replace(/\\(["\\])/g, '$1') : raw);
+  };
+  const card = (lines) => `${Array.from({ length: lines }, (_, i) => `line ${i + 1}`).join('\n')}\n---\n## Goal\n`;
+
+  it('card-length accepts a 40-line card and rejects a longer card or a plan without a divider', () => {
+    const re = pattern('card-length.md');
+    assert.ok(re.test(card(40)), 'a 40-line card');
+    assert.ok(!re.test(card(41)), 'a 41-line card');
+    assert.ok(!re.test('Plan ready.\nno divider here\n'), 'a plan without a divider');
+  });
+
+  it('no-fixed-labels rejects a retired label anywhere and `Completion condition:` only inside the card', () => {
+    const re = pattern('no-fixed-labels.md');
+    const grader = readFileSync(path.join(EVALS, 'ralplan-approval-card', 'graders', 'no-fixed-labels.md'), 'utf8');
+    assert.match(grader, /^match: not_contains$/m, 'a match fails this grader');
+    assert.doesNotMatch(grader, /^flags:/m, 'no flag changes where `^` anchors');
+    assert.ok(re.test('Plan ready.\nCompletion condition: all pass\n---\n## Goal\n'), 'the label inside the card');
+    assert.ok(re.test('Plan ready.\nCompletion condition: all pass\n'), 'the label in a plan without a divider');
+    assert.ok(re.test('Plan ready.\n---\nHand-back: none\n'), 'another retired label below the divider');
+    assert.ok(!re.test('Plan ready.\n---\n## Goal\nCompletion condition: A1 holds\n'), 'the completion condition the draft ends with');
+    assert.ok(!re.test('Plan ready.\n---\n## Goal\ntext\n'), 'a clean plan');
+  });
+});

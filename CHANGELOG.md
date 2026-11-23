@@ -28,8 +28,13 @@ History prior to 0.6.0 is preserved in Korean.
 - The answer style writes short declarative sentences that lead with what changes for the reader, marks claims measured, inferred, or guessed, restates more simply on request without dropping facts, writes labels in the reader's language, and shows the five parts in a Korean example.
 - `/oh-my-joy:deep-interview` reports each round in one sentence; the score table appears once, in the exit bridge.
 - The answer style's flow section describes the 2.0 flow: work enters through `ultragoal`, and only risky or large work takes the interview, plan, and approval path.
+- The answer style shows, in a Korean example, a term defined in a clause where it first appears.
 - The `/oh-my-joy:ship` description no longer names the removed standalone review.
 - The `ralplan-approval-card` length grader counts the card's lines with a regex instead of an LLM judge.
+- The `ralplan-approval-card` label grader refuses the four retired labels anywhere and `Completion condition:` only inside the card, since the draft still ends with a completion condition below the divider; a test pins both graders' patterns.
+- The bug-fix playbook's report names a test that went from failing to passing by its own name, not only by the command that ran it.
+- Roadmap notes for `/oh-my-joy:push` and `/oh-my-joy:ds-spec` say planned, not shipped, in place of the stale `v1.2+` marker.
+- `docs/PRINCIPLES.md` names only the commands that exist in its opening paragraph and in the least-privilege and rubric rows of its decision table.
 - The goal-state helper drops experiment goals, trials, findings, delivery receipts, and the `pr` init field; a 1.5 ledger that used one of them stops every verb with a message naming it, and `status` on a missing ledger returns `{exists:false}`.
 - The HUD bundle is regenerated from upstream v5.8.6: an effort segment (on by default; `"elements": {"effort": false}` hides it), a per-session stdin cache, a status-line message when the HUD fails to load, an opt-in account segment (off), and on a credential refresh a read of `.claude.json` and two hashed account fields; rerun `/oh-my-joy:setup` to update the installed copy, whose notice now describes these effects.
 - Eval graders follow the new reports: `verify-evidence-mode` (a declared lint command that cannot run is `not confirmed`), `deep-interview-gate` (no per-round table), `ralplan-critique-gate` and `ralplan-single-approval` (at most one critic, a plain ready sentence), `ship-stops-on-red` (five parts), and the graders that read the retired labels.
