@@ -2,4 +2,6 @@
 set -euo pipefail
 FIXTURES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../fixtures" && pwd)"
 cp -R "$FIXTURES/node-service/." . \
-  && git init -q
+  && git init -q \
+  && git add -A \
+  && git -c user.name=eval -c user.email=eval@example.com commit -qm "feat: initial service"

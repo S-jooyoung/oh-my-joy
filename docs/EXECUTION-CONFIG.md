@@ -8,7 +8,7 @@ Configure through `/oh-my-joy:setup` (Claude) or `$oh-my-joy:setup` (Codex). No 
 | `crossReview` | `off`, `preferred` | `off` |
 | `models` | optional `codex` and `claude` model IDs | host defaults |
 
-The removed keys `leader`, `workers`, and `runtime`, and the removed value `crossReview: required`, are reported as warnings.
+The removed keys `leader`, `workers`, and `runtime`, and the removed value `crossReview: required`, are reported as warnings. `required` resolves to `preferred`, so `ultragoal` repeats the warning in its report: a project that asked for a blocking review now gets one that may fall back to the same host, and the user should see that instead of finding out later.
 
 Personal file: `~/.config/oh-my-joy/config.json`. Project file: `.omj/config.json`. Resolution is explicit task override, project, personal, default. Model entries merge per host. Never store credentials here. Only offer model IDs confirmed available by the active host; an absent model keeps the host default. No model-family routing is inferred from an installed CLI.
 

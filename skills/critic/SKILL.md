@@ -2,7 +2,7 @@
 user-invocable: false
 disable-model-invocation: true
 name: critic
-description: "Internal read-only plan and diff reviewer for ralplan and ultragoal; apply the architect or critic lens."
+description: "Internal read-only plan and diff reviewer for ralplan and ultragoal; checks executability and acceptance proof."
 license: MIT
 metadata:
   author: Jooyoung Shin
@@ -11,11 +11,11 @@ metadata:
 
 # Critic
 
-Act as an independent reader, not an author. Read [agents/critic.md](../../agents/critic.md) completely and follow its invocation contract, two lenses, re-review rules, severities, and exact verdict format.
+Act as an independent reader, not an author. Read [agents/critic.md](../../agents/critic.md) completely and follow its invocation contract, checks, re-review rules, severities, and exact verdict format.
 
 ## Codex contract
 
-- The caller supplies a draft plan or a diff plus its approved plan, names the `architect` or `critic` lens, and supplies prior findings plus the delta on a repeat pass.
+- The caller supplies a draft plan or a diff plus its approved plan, and prior findings plus the delta on a repeat pass. In a playbook review there is no approved plan: `.omj/review/last-request.md` (the user's request, the restated goal, the checks used) grounds acceptance criteria in its place, with `.omj/review/last.diff` and `.omj/review/last.files` as the diff and the untracked new files.
 - Use repository reads, `rg`, and `rg --files` only. Do not run tests or builds, edit files, apply patches, ask the user questions, spawn more agents, or widen the assigned material; reading callers or other repository files to judge the assigned diff is not widening it.
 - Resolve discoverable facts from the actual repository. Anything that needs user intent is a clearly qualified finding, not a question.
 - On a diff, apply the canonical diff rules:
@@ -39,7 +39,8 @@ Act as an independent reader, not an author. Read [agents/critic.md](../../agent
 Output:
 
 ```md
-Verdict: CLEAR | REVISE | BLOCK        # lens: architect | critic · pass N
+<one plain-language sentence: what the verdict means for the caller and the main reason>
+Verdict: CLEAR | REVISE | BLOCK        # pass N
 🔴 <section or file:line> — <what> — <why it matters> — <recommended fix>
 🟡 …
 🟢 …
@@ -47,4 +48,4 @@ Refuted: <finding> — <why>
 Declined to judge: <what> — <why>
 ```
 
-Use this skill explicitly for an independent review slice; it is not the user-facing full review workflow.
+Open with that plain-language verdict. Use this skill explicitly for an independent review slice; it is not the user-facing full review workflow.

@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { readRepoFile, parseFrontmatter, repoPath } from './helpers/repo.mjs';
+import { readRepoFile, parseFrontmatter, repoPath, listTrackedFiles } from './helpers/repo.mjs';
 
 describe('portable planning and goal workflow', () => {
   it('both hosts expose the canonical plan and execution entry points', () => {
@@ -131,22 +131,17 @@ describe('portable planning and goal workflow', () => {
   it('ralplan sizes its independent review to the plan', () => {
     for (const file of ['commands/ralplan.md', 'skills/ralplan/SKILL.md']) {
       const body = readRepoFile(file);
-      assert.match(body, /two or fewer target files/, `${file} names the self-check tier`);
-      assert.match(body, /three to five target files/, `${file} names the one-reviewer tier`);
-      assert.match(body, /six or more target files/, `${file} names the two-reviewer tier`);
+      assert.match(body, /more than two target files/, `${file} names when the critic runs`);
       assert.match(body, /Shape change/, `${file} carries or references the shape-change definition`);
       assert.match(body, /and Risk definitions|- Risk: authentication/, `${file} carries or references the risk definition`);
-      assert.match(body, /only when a 🔴 or BLOCK remains/, `${file} limits delta re-review`);
       assert.match(body, /one change goal/, `${file} keeps goal units few`);
     }
     const ralplan = readRepoFile('commands/ralplan.md');
-    for (const example of ['Critique: ready (self-check)', 'Critique: ready (independent: critic, 1 pass)', 'Critique: ready (independent: architect + critic, 2 passes)']) assert.ok(ralplan.includes(example), example);
     assert.match(ralplan, /adding an export, an optional parameter, a helper inside a file, or a new status code on an existing route is not one/);
     assert.match(ralplan, /independent pass unavailable/);
     assert.match(ralplan, /- Shape change: a breaking public contract change/);
     assert.match(ralplan, /- Risk: authentication or authorization/);
     assert.match(ralplan, /an in-process, in-memory rate limit is not/);
-    assert.match(readRepoFile('agents/critic.md'), /One instance applies one lens/);
   });
 
   it('goal reviews pass without a 🔴 and leave accepted 🟡 changes to the final review', () => {
@@ -254,8 +249,8 @@ describe('portable planning and goal workflow', () => {
       'commands/ultragoal.md': ['`critic`', '--output=', 'same turn as', 'not part of the final proof', '`implementer`', 'verification route', 'TaskUpdate', 'allowlist stale'],
       'skills/ultragoal/SKILL.md': ['--output=', 'same turn as', 'not part of the final proof', 'three failing final reviews', 'verification route', 'TaskUpdate'],
       'docs/EXECUTION-HANDOFF.md': ['--output=', 'same turn as', 'not part of the final proof', 'three failing final reviews', 'verification route', 'TaskUpdate'],
-      'commands/ralplan.md': ['Expected execution', 'not part of the final proof', 'parallel implementers'],
-      'skills/ralplan/SKILL.md': ['Expected execution', 'not part of the final proof', 'parallel implementers'],
+      'commands/ralplan.md': ['expected lane', 'not part of the final proof', 'parallel implementers'],
+      'skills/ralplan/SKILL.md': ['expected lane', 'not part of the final proof', 'parallel implementers'],
       'agents/implementer.md': ['observation dispatch', 'TaskUpdate'],
       'skills/implementer/SKILL.md': ['observation dispatch', 'TaskUpdate'],
     };
@@ -278,15 +273,14 @@ describe('portable planning and goal workflow', () => {
     }
   });
 
-  it('the closing line, the open-ledger notice, the hand-back line, and the no-question rule are pinned where each lane reads them', () => {
-    // The executor's report, the lead's inline report, and the handoff doc all carry the same closing
-    // label, so a reader finds the gaps in one place; the planner's two copies announce an open ledger
-    // and the hand-back line; the no-question rule lives where the inline lead reads it, not only in the
-    // agent file that loads when a teammate is spawned.
+  it('the open-ledger notice, the user-step rule, the unchecked-gap line, and the no-question rule are pinned where each lane reads them', () => {
+    // The planner's two copies announce an open ledger and move every step left to the user into Your move;
+    // the executor's report names what it did not check; the no-question rule lives where the inline lead
+    // reads it, not only in the agent file that loads when a teammate is spawned.
     const pins = {
-      'Skipped / not checked / risk': ['agents/implementer.md', 'skills/implementer/SKILL.md', 'commands/ultragoal.md', 'skills/ultragoal/SKILL.md', 'docs/EXECUTION-HANDOFF.md'],
       'open ledger': ['commands/ralplan.md', 'skills/ralplan/SKILL.md'],
-      'Hand-back': ['commands/ralplan.md', 'skills/ralplan/SKILL.md'],
+      'stays in `Your move`': ['commands/ralplan.md', 'skills/ralplan/SKILL.md'],
+      'not checked': ['agents/implementer.md', 'skills/implementer/SKILL.md', 'commands/ultragoal.md', 'skills/ultragoal/SKILL.md', 'docs/EXECUTION-HANDOFF.md'],
       'asks no question': ['commands/ultragoal.md', 'skills/ultragoal/SKILL.md', 'docs/EXECUTION-HANDOFF.md'],
     };
     for (const [phrase, files] of Object.entries(pins)) {
@@ -298,5 +292,84 @@ describe('portable planning and goal workflow', () => {
     const tools = parseFrontmatter(readRepoFile('commands/ultragoal.md'))['allowed-tools'];
     assert.doesNotMatch(tools, /Bash\(node [^)]*goal-state\.mjs:\*\)/);
     assert.doesNotMatch(tools, /Bash\((?:npm|pnpm|yarn|node):\*\)/);
+  });
+});
+
+describe('OMJ 2.0 routes, plain reports, and single-critic planning', () => {
+  const FIVE_PARTS = /Conclusion[^.\n]*Your move[^.\n]*What changed[^.\n]*Decisions made for you[^.\n]*How it was checked[^.\n]*REPORTING\.md/;
+
+  it('the reporting commands and their Codex adapters name the five parts in order and point at REPORTING.md', () => {
+    for (const name of ['ralplan', 'ultragoal', 'verify', 'ship']) {
+      for (const file of [`commands/${name}.md`, `skills/${name}/SKILL.md`]) {
+        assert.match(readRepoFile(file), FIVE_PARTS, `${file} names the five parts in one sentence and points at REPORTING.md`);
+      }
+    }
+  });
+
+  it('no fixed English report label survives in a prompt surface', () => {
+    const files = listTrackedFiles('commands/*.md', 'agents/*.md', 'skills/**/*.md', 'output-styles/*.md');
+    assert.ok(files.length >= 20, `only ${files.length} prompt files enumerated`);
+    for (const file of files) {
+      const source = readRepoFile(file);
+      for (const label of ['Skipped / not checked / risk:', 'Hand-back:', 'Expected execution:', 'Critique: ready']) {
+        assert.ok(!source.includes(label), `${file} still carries "${label}"`);
+      }
+    }
+  });
+
+  it('ultragoal and adaptive execution carry the playbook route rules and no direct route', () => {
+    for (const file of ['commands/ultragoal.md', 'docs/ADAPTIVE-EXECUTION.md']) {
+      const body = readRepoFile(file);
+      for (const phrase of ['`playbook`', 'creates no ledger', 'asks no question', 'docs/playbooks/<type>.md', 'principles/INDEX.md', "playbook's `Review`", 'After three failing reviews, stop and report', 'hand the rest to `ralplan`', '`investigation`']) {
+        assert.ok(body.includes(phrase), `${file} pins "${phrase}"`);
+      }
+    }
+    for (const file of ['commands/ultragoal.md', 'docs/ADAPTIVE-EXECUTION.md', 'skills/ultragoal/SKILL.md', 'agents/implementer.md', 'skills/implementer/SKILL.md']) {
+      assert.doesNotMatch(readRepoFile(file), /\bdirect\b/i, `${file} still names a direct route`);
+    }
+    assert.doesNotMatch(readRepoFile('docs/EXECUTION-HANDOFF.md'), /direct route|Direct tasks|route is direct/);
+    assert.match(readRepoFile('skills/ultragoal/SKILL.md'), /playbook/);
+  });
+
+  it('ralplan spawns at most one critic for one pass, and the critic has no architect lens', () => {
+    for (const file of ['commands/ralplan.md', 'skills/ralplan/SKILL.md']) {
+      const body = readRepoFile(file);
+      assert.doesNotMatch(body, /architect/i, `${file} still names an architect reading`);
+      assert.doesNotMatch(body, /two reviewers|second pass|revision rounds|delta pass/i, `${file} still allows a second planning reading`);
+      assert.ok(body.includes('more than two target files'), `${file} names when the critic runs`);
+      assert.ok(body.includes('exactly one `critic`'), `${file} caps the critic at one`);
+      assert.ok(body.includes('one pass'), `${file} caps the critic at one pass`);
+    }
+    for (const file of ['agents/critic.md', 'skills/critic/SKILL.md']) {
+      const source = readRepoFile(file);
+      assert.doesNotMatch(source, /architect/i, `${file} still carries an architect lens`);
+      assert.ok(source.includes('plain-language verdict'), `${file} opens with a plain-language verdict`);
+      assert.ok(source.includes('.omj/review/last-request.md'), `${file} grounds a playbook review in the saved request`);
+    }
+  });
+
+  it('ultragoal prints progress per finished goal, handles a refused review, and reopens a capped final audit', () => {
+    for (const file of ['commands/ultragoal.md', 'skills/ultragoal/SKILL.md']) {
+      const body = readRepoFile(file);
+      assert.ok(body.includes('When a goal completes, print the progress line'), `${file} prints one line per finished goal`);
+      assert.ok(body.includes('When the helper refuses to record a review'), `${file} handles the helper's review cap`);
+      assert.match(body, /`resume` with `\{expectedRevision,scope:"final"\}`/, `${file} reopens a capped final audit`);
+    }
+    assert.doesNotMatch(readRepoFile('commands/ultragoal.md'), /At each ledger transition/);
+  });
+
+  it('verify reports not confirmed with check strength, and the implementer records temporary measures and invents no work', () => {
+    for (const file of ['commands/verify.md', 'skills/verify/SKILL.md']) {
+      const body = readRepoFile(file);
+      for (const phrase of ['`not confirmed`', 'check strength', 'scaled-down full-page capture', 'fixed-viewport capture']) {
+        assert.ok(body.includes(phrase), `${file} pins "${phrase}"`);
+      }
+    }
+    for (const file of ['agents/implementer.md', 'skills/implementer/SKILL.md']) {
+      const body = readRepoFile(file);
+      assert.ok(body.includes('temporary measure'), `${file} reports a temporary measure`);
+      assert.ok(body.includes('condition for removing it'), `${file} names when a temporary measure goes away`);
+      assert.ok(body.includes('rather than inventing work'), `${file} waits instead of inventing work`);
+    }
   });
 });

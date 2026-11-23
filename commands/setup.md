@@ -38,7 +38,7 @@ Detect each item and print a table with present / missing / optional:
 | `.omj/fe-context.md` | project acceptance, token, verification declarations | `test -f .omj/fe-context.md` — optional; scaffolding proposed below |
 | Token store | `tokensPath` for the token-guard hook and ralplan's Color / Tokens | detect in the order of `references/fe-acceptance.md` (fe-context `tokensPath` → `shared/tokens/tokens.json` → CSS-based systems). `/oh-my-joy:ralplan` works without a file store |
 | Token-guard hooks (opt-in) | on-save hardcoding and Story warnings | `.claude/hooks/check-design-tokens.mjs` exists in the project |
-| OMJ HUD statusline (opt-in) | model, usage, and context statusLine (user-global); when the usage endpoint answers 403 it sends a one-token model request about every 90 seconds that counts against your usage, off with `"omcHud": {"elements": {"rateLimits": false}}` in `~/.claude/settings.json` | `grep omj-hud ~/.claude/settings.json` |
+| OMJ HUD statusline (opt-in) | model, effort, usage, and context statusLine (user-global); when the usage endpoint answers 403 it sends a one-token model request about every 90 seconds that counts against your usage, off with `"omcHud": {"elements": {"rateLimits": false}}` in `~/.claude/settings.json`; it reads stored credentials on every render, also reads the account entry of `~/.claude.json` when the stored record lacks one, and writes two hashed account fields back with a refreshed token (side-effect audit in `hud/README.md`) | `grep omj-hud ~/.claude/settings.json` |
 
 Figma needs more than the plugin: Dev Mode MCP has to be enabled in the Figma desktop app, and viewer-permission files deny access, so a Duplicate is needed — say so during inspection. Name the HUD's user-global `~/.claude/settings.json` target and usage note during inspection, since the request it describes spends the user's quota. If the `claude` CLI is unavailable, skip detection and point to `/mcp` and `/plugin` for manual checks.
 
@@ -70,7 +70,7 @@ Gather the missing items into one `AskUserQuestion` (multiSelect) — "pick the 
   1. `mkdir -p ~/.claude/omj-hud && cp -R "${CLAUDE_PLUGIN_ROOT}/hud/". ~/.claude/omj-hud/` (a copy, for the same reasons as the hooks).
   2. `Edit` `~/.claude/settings.json` to set `statusLine` to `{"type": "command", "command": "sh ~/.claude/omj-hud/omj-hud-cache.sh ~/.claude/omj-hud/omj-hud.mjs"}`; back up an existing file first, preserve unrelated settings and project overrides, and replace a custom statusLine only when that replacement was selected.
   3. Smoke-check by piping `{"session_id":"setup-check"}` into `sh ~/.claude/omj-hud/omj-hud-cache.sh ~/.claude/omj-hud/omj-hud.mjs` and confirming a rendered line.
-  4. On rerun, if `${CLAUDE_PLUGIN_ROOT}/hud/` differs from the copy (`diff -r`), announce "HUD update available" with the same usage note (a copy from before the 403 request existed does not send it, and `"rateLimits": false` turns it off) and overwrite only on consent. Attribution and limitations: `hud/README.md`, `NOTICE.md`.
+  4. On rerun, if `${CLAUDE_PLUGIN_ROOT}/hud/` differs from the copy (`diff -r`), announce "HUD update available" with the same usage note (a copy from before the 403 request existed does not send it, and `"rateLimits": false` turns it off), add that the update shows the effort level by default (`"elements": {"effort": false}` hides it), and overwrite only on consent. Attribution and limitations: `hud/README.md`, `NOTICE.md`.
 
 Plugin installs and hook registrations take effect from the next session — say so after installing.
 

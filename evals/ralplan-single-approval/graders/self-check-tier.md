@@ -1,7 +1,7 @@
 ---
-type: regex
-pattern: "Critique: ready \\((self-check|independent: critic, [0-9]+ pass(es)?)\\)"
-match: contains
-target: last_message
+type: tool_used
+tool: Agent
+max: 1
+min: 0
 ---
-A rate limiter is a small plan: two files take the self-check tier, a split limiter module (three to five files) takes one critic reader, and neither shape change nor risk applies, so the two-reviewer tier is wrong here.
+Planning spawns at most one critic for one pass: a rate limiter plan with three or more target files gets exactly one critic reading, and two files or fewer get the self-check alone.

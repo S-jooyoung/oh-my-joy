@@ -191,6 +191,15 @@ describe('commands/*.md frontmatter', () => {
         assert.ok(fm.description?.length > 0);
       });
 
+      // An option the hint advertises but the body never mentions is a flag the
+      // command silently ignores, so the user who types it gets no behavior.
+      it('every --flag in argument-hint is handled in the body', () => {
+        const flags = [...String(fm['argument-hint'] ?? '').matchAll(/--[a-z][a-z0-9-]*/g)].map((m) => m[0]);
+        const commandBody = readRepoFile('commands', file).replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
+        const missing = flags.filter((flag) => !new RegExp(`${flag}(?![a-z0-9-])`).test(commandBody));
+        assert.deepEqual(missing, [], `${file}: argument-hint advertises ${missing.join(', ')} but the body never handles it`);
+      });
+
       it('declares allowed-tools', () => {
         assert.ok(fm['allowed-tools']?.length > 0, `${file} has no allowed-tools declaration`);
         // Written as a YAML list, the doesNotMatch checks below die with an

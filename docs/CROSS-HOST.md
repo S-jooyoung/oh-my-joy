@@ -28,7 +28,7 @@ A worker session starts from a plan that the user approved in a lead session. Th
 
 `ultragoal` reviews every goal in a fresh context, which keeps the reviewer from inheriting the author's reasoning. It does not keep the reviewer from sharing the author's blind spots, because both are the same model. With cross-host review on, the reviewer runs on the other host: Codex reviews what Claude wrote, and Claude reviews what Codex wrote.
 
-**When it is on.** Resolve [execution configuration](EXECUTION-CONFIG.md) before creating a ledger, including request, project, personal and legacy fe-context settings. Effective `crossReview: preferred` enables this policy; `off` means the ordinary in-session review. At `init`, pass `crossReview: {authorHost: "<this host>", mode: "<effective mode>"}`, with `claude` or `codex` as the host name. The declaration is bound to the plan hash, so a ledger keeps the mode it started with until it closes.
+**When it is on.** Resolve [execution configuration](EXECUTION-CONFIG.md) before creating a ledger, including request, project, personal and legacy fe-context settings. Effective `crossReview: preferred` enables this policy; `off` means the ordinary in-session review. A legacy `required` value resolves to `preferred` with a warning, and the report repeats that warning. At `init`, pass `crossReview: {authorHost: "<this host>", mode: "<effective mode>"}`, with `claude` or `codex` as the host name. The declaration is bound to the plan hash, so a ledger keeps the mode it started with until it closes.
 
 | Mode | Other host can run | Other host cannot run |
 | --- | --- | --- |
@@ -50,7 +50,7 @@ claude -p --agent oh-my-joy:critic "<prompt>" \
   > .omj/goals/<slug>/reviews/<goalId|final>-pass<n>.out.md
 ```
 
-The prompt carries what the in-session reviewer gets and nothing more: the absolute path of the critic contract (`agents/critic.md` in the installed plugin), the lens and mode, the paths of `brief.md`, the `.files` list and the `.diff`, the goal under review, and on a repeat pass the path of the previous output plus the delta. It does not say what to leave unflagged, cap a severity, or argue for the plan. The author does not edit the output file.
+The prompt carries what the in-session reviewer gets and nothing more: the absolute path of the critic contract (`agents/critic.md` in the installed plugin), the mode, the paths of `brief.md`, the `.files` list and the `.diff`, the goal under review, and on a repeat pass the path of the previous output plus the delta. It does not say what to leave unflagged, cap a severity, or argue for the plan. The author does not edit the output file.
 
 **Recording.** Map severity as usual — no 🔴 and no BLOCK is `pass` — and record the review with the reviewer's host and its output file:
 

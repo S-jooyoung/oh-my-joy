@@ -1,7 +1,4 @@
 ---
-type: regex
-pattern: "Expected execution"
-match: contains
-target: last_message
+type: llm
 ---
-The final plan carries the `Expected execution` line that counts goals, independent readings, verification commands per proof, and the expected lane.
+The approval card says in plain words how many goals and verification commands the run expects and its expected lane (inline or parallel implementers), counting no minutes, and it carries no fixed `Expected execution:` label.
