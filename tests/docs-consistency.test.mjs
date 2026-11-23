@@ -36,6 +36,25 @@ describe('README EN/KO parity', () => {
     assert.equal(headings(readmeEn).length, headings(readmeKo).length);
   });
 
+  // The README canon carries the named principles in both languages: English
+  // titles come from the principles index; the Korean names are the plan's
+  // canonical table, so a renamed or missing row shows up on one side.
+  const PRINCIPLES_KO = ['가장 작은 완전한 변경', '빼고 나서 더하기', '로직보다 데이터 모양 먼저', '덧대지 말고 다시 설계', '전제부터 의심하기', '읽는 사람 먼저', '사용자 결과 먼저', '묻기 전에 돌려 보기', '손 대신 도구 만들기', '규칙 하나에 주인 하나', '경계에서 검사하기', '틀린 상태를 못 만들게', '다시 해도 안전하게', '옮기고 바로 지우기', '공유를 없앤 뒤 조율하기', '진짜로 증명하기', '원인 자리에서 고치기', '확인 가능한 작은 단계', '동작을 시험하기', '실패부터 보기', '숫자를 설명하기', '얼마나 확실한지 말하기', '컨텍스트 아끼기', '진행하고 보고하기', '새 눈으로 리뷰하기', '교훈을 검사로 만들기'];
+
+  it('both READMEs carry the 26 named principles, linked to their detail files, at the same subsection depth', () => {
+    const kebabs = [...readRepoFile('docs/principles/INDEX.md').matchAll(/\(`([a-z-]+)`\)/g)].map((m) => m[1]);
+    assert.equal(kebabs.length, 26, 'the principles index lists 26 principles');
+    assert.equal(PRINCIPLES_KO.length, 26);
+    kebabs.forEach((kebab, index) => {
+      const title = kebab.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase());
+      const link = `docs/principles/${kebab}.md`;
+      assert.ok(readmeEn.includes(`[${title}](${link})`), `README.md links "${title}" to ${link}`);
+      assert.ok(readmeKo.includes(`[${PRINCIPLES_KO[index]}](${link})`), `README.ko.md links "${PRINCIPLES_KO[index]}" to ${link}`);
+    });
+    const subsections = (source) => source.split('\n').filter((line) => line.startsWith('### ')).length;
+    assert.equal(subsections(readmeEn), subsections(readmeKo), 'both READMEs have the same number of ### subsections');
+  });
+
   it('the install string is identical in both READMEs', () => {
     const installLine = (source) => source.match(/^\/plugin marketplace add .*$/m)?.[0];
     assert.ok(installLine(readmeEn), 'EN README has no marketplace add line');

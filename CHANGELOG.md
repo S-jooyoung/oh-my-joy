@@ -9,8 +9,27 @@ History prior to 0.6.0 is preserved in Korean.
 ## [Unreleased]
 
 ### Added
+- Playbook route: `/oh-my-joy:ultragoal` runs a small, safe task (one deliverable, five files or fewer, no sensitive, contract, or external change) through `docs/playbooks/` — bug fix, feature, refactor, investigation — inline, with no ledger and no question; a change that edits files gets one fresh `critic` review from `.omj/review/last-request.md`, `last.diff`, and `last.files` (skipped only when one file changed by two lines or fewer), three failing reviews stop the run, and work that crosses the counted boundary keeps its finished safe changes and goes to `ralplan`.
+- Named principles: 26 principles in `docs/principles/` with an index that `ultragoal` and `ralplan` read when a task starts; both READMEs list them, and a test keeps the two tables in step.
+- Plain five-part reports in `docs/REPORTING.md` — Conclusion, Your move, What changed, Decisions made for you, How it was checked — for the approval screen, the completion and catch-up reports, verify, and ship, with claims marked measured, inferred, or guessed, a check-strength scale, and `not confirmed` for a claim without evidence. Ask for simpler words and the report comes back plainer with every fact kept; ask where a run stands and you get a catch-up.
+- The goal-state helper refuses a fourth failing review of a goal or of the final audit; `resume` with `{scope:"final"}` reopens a capped final audit when the user asks to continue.
+- `/oh-my-joy:verify` reports a third verdict, `not confirmed`, for a declared command that never ran, gives each row its check strength, takes a fixed-viewport capture first, and names a scaled-down full-page capture as an evidence limit.
+- The `critic` opens with a plain-language verdict sentence above its `Verdict:` line and, on the playbook route, grounds acceptance in `.omj/review/last-request.md`; the `implementer` reports each temporary measure with its reason, limit, and removal condition, and waits instead of inventing work.
+- A test that every `--flag` a command's `argument-hint` advertises is handled in that command's body.
+- Eval case `ralplan-approval-card` (the card opens with its conclusion, fits 40 lines above the divider, carries Your move, and uses no retired label); `ultragoal-direct-local` becomes `ultragoal-playbook-bugfix` (a bug fix with a regression test: no approval, no question, no ledger, one critic, a five-part report).
 
 ### Changed
+- `execution-config.mjs --route` returns `resume`, `planned`, `plan`, or `playbook`; the `direct` route is gone, and approval appears only for risky work, two or more deliverables, or six or more files.
+- Plan critique is the self-check plus exactly one `critic` for one pass when a plan has more than two target files, a shape change, or a risk; the architect lens, the second reviewer, and delta passes are removed, and a finding still open shows on the approval card.
+- Reports replace the fixed English labels `Skipped / not checked / risk:`, `Hand-back:`, `Expected execution:`, and `Critique: ready (...)` with the five parts in the user's language; `ultragoal` prints one progress line when a goal finishes instead of at every ledger write, and its `status` gives a catch-up report; the teammate `evidence:` line stays for the hook.
+- `/oh-my-joy:ship` reports in five parts, and its PR body (the repository template, otherwise the five parts as headings) lists one line per check plus where the evidence lives, in 40 lines or fewer.
+- The answer style writes short declarative sentences that lead with what changes for the reader, marks claims measured, inferred, or guessed, restates more simply on request without dropping facts, writes labels in the reader's language, and shows the five parts in a Korean example.
+- `/oh-my-joy:deep-interview` reports each round in one sentence; the score table appears once, in the exit bridge.
+- The goal-state helper drops experiment goals, trials, findings, delivery receipts, and the `pr` init field; a 1.5 ledger that used one of them stops every verb with a message naming it, and `status` on a missing ledger returns `{exists:false}`.
+- The HUD bundle is regenerated from upstream v5.8.6: an effort segment (on by default; `"elements": {"effort": false}` hides it), a per-session stdin cache, a status-line message when the HUD fails to load, an opt-in account segment (off), and on a credential refresh a read of `.claude.json` and two hashed account fields; rerun `/oh-my-joy:setup` to update the installed copy, whose notice now describes these effects.
+- Eval graders follow the new reports: `verify-evidence-mode` (a declared lint command that cannot run is `not confirmed`), `deep-interview-gate` (no per-round table), `ralplan-critique-gate` and `ralplan-single-approval` (at most one critic, a plain ready sentence), `ship-stops-on-red` (five parts), and the graders that read the retired labels.
+- Plugin descriptions describe the playbook route and the one approval for risky or large work instead of "approve once".
+
 
 ### Deprecated
 

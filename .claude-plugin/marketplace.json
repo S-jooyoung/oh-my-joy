@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "omj",
-  "description": "oh-my-joy — AI says it's done; OMJ makes it prove it. One spec-first workflow for Claude Code and Codex with independent critique, one approval, and recorded evidence; Figma-to-code built in",
+  "description": "oh-my-joy — AI says it's done; OMJ makes it prove it. One workflow for Claude Code and Codex: playbooks for small tasks, one critiqued approval for risky or large ones, plain reports with recorded evidence; Figma-to-code built in",
   "owner": {
     "name": "Jooyoung Shin",
     "email": "jooyoung.dev@gmail.com"
@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "oh-my-joy",
-      "description": "AI says it's done. OMJ makes it prove it. One workflow for Claude Code and Codex: interview, plan with an independent critique, approve once, then build, review, and verify with recorded evidence and resume. Figma-to-code built in.",
+      "description": "AI says it's done. OMJ makes it prove it. One workflow for Claude Code and Codex: small tasks run through a checked playbook, risky or large ones get one critiqued plan to approve, and every run ends in a plain report with recorded evidence and resume. Figma-to-code built in.",
       "version": "1.5.0",
       "author": {
         "name": "Jooyoung Shin",

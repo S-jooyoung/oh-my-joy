@@ -8,13 +8,13 @@ English | [한국어](README.ko.md)
 
 > **AI says it's done. OMJ makes it prove it.**
 
-One execution workflow for Claude Code and Codex: small, bounded local changes run directly with verification; substantial or mixed-host tasks use one approved plan and durable proof. Explicit planning stays read-only. Figma-to-code remains a first-class mode.
+One execution workflow for Claude Code and Codex: start every task with `ultragoal`. Small, safe work runs through a playbook and is checked; only risky or larger work stops for one approved plan with durable proof. Every report reads the same way — the conclusion first, then your move. Figma-to-code remains a first-class mode.
 
 ![A real OMJ session: a one-line request for rate-limit middleware becomes a plan that an independent critic revises before approval; one approval then writes the failing tests first, builds the feature, passes an independent review, and closes with recorded proof](docs/assets/demo.gif)
 
 <sub>A real Claude Code session, recorded end to end; only the waits are sped up.</sub>
 
-`No proof, no done` · `independent critique` · `approve once` · `resumable runs` · `Claude Code + Codex` · `Figma built in` · `zero runtime deps`
+`No proof, no done` · `independent critique` · `approve only what is risky or large` · `plain reports` · `resumable runs` · `Claude Code + Codex` · `Figma built in` · `zero runtime deps`
 
 [Quick Start](#quick-start) • [Why](#why) • [How to use OMJ](#how-to-use-omj) • [Recommended workflow](#recommended-workflow) • [Commands](#commands) • [How this plugin evolves](#how-this-plugin-evolves) • [Troubleshooting](#troubleshooting)
 
@@ -40,8 +40,9 @@ Use a native question picker when the host and mode support it. A text-only clie
 # 2. Check dependencies and opt into the extras you want (recommended before first use)
 /oh-my-joy:setup
 
-# 3. Start — ralplan (plan + independent critique loop) writes the plan, critiques it, and stops → approve → the plan runs and records its proof
-/oh-my-joy:ralplan "rate-limit middleware for the public API — 100 req/min per key"
+# 3. Start every task with ultragoal — a small fix runs through a playbook; risky or larger work stops for one plan approval
+/oh-my-joy:ultragoal "formatAmount('1,000') throws TypeError — fix it and add a regression test"
+/oh-my-joy:ultragoal "rate-limit middleware for the public API — 100 req/min per key"
 
 #    …frontend works the same way — add a route and it is checked in a real browser
 /oh-my-joy:ralplan "Search input form — React Hook Form + Zod, mobile-first" /search
@@ -63,8 +64,8 @@ codex plugin add oh-my-joy@omj
 # 2. Start a new Codex thread so the plugin skills are loaded, then run setup
 $oh-my-joy:setup
 
-# 3. Create the native Plan, approve it, and let its completion procedure run
-$oh-my-joy:ralplan "rate-limit middleware for the public API — 100 req/min per key"
+# 3. Start every task with ultragoal; risky or larger work stops for one native Plan approval
+$oh-my-joy:ultragoal "rate-limit middleware for the public API — 100 req/min per key"
 
 # 4. Ship only when review and verification are green
 $oh-my-joy:ship "feat(api): rate limiter"
@@ -85,7 +86,7 @@ OMJ makes "done" something the agent has to prove. The planning entry commands a
 | A plain agent session | With OMJ |
 | --- | --- |
 | "Done" with no test run, or a test weakened until it passes | Done needs the command, its exit code, and a summary; a skipped or loosened check is a blocker |
-| Rebuilds a helper the repository already has, or ships risky logic without a check | The plan ranks reuse before new code (not needed, already in the repository, standard library or platform, installed dependency); a rebuilt helper is an `over-build` finding; logic with a branch, loop, parser, money, security, or a data write names one check that fails when it breaks; every report closes with `Skipped / not checked / risk:` |
+| Rebuilds a helper the repository already has, or ships risky logic without a check | The plan ranks reuse before new code (not needed, already in the repository, standard library or platform, installed dependency); a rebuilt helper is an `over-build` finding; logic with a branch, loop, parser, money, security, or a data write names one check that fails when it breaks; every report says how each claim was checked and what was not |
 | The context that wrote the code reviews it | A `critic` in a fresh context reads the diff from a file |
 | "Looks close" to the design | A real browser capture against the Figma baseline, then a fix loop inside the goal |
 | Drifts from what you agreed | One approved plan; its scope and acceptance criteria are recorded and stay fixed |
@@ -106,16 +107,56 @@ closed    .omj/goals/fix-format-amount/
 
 ## How to use OMJ
 
-**Start with `/oh-my-joy:ultragoal` in Claude or `$oh-my-joy:ultragoal` in Codex. Bounded local tasks run directly with verification; larger tasks go to a plan for approval. Explicit `ralplan` and `deep-interview` keep their planning gates. `ship` remains explicit for new PRs.**
+**Start with `/oh-my-joy:ultragoal` in Claude or `$oh-my-joy:ultragoal` in Codex.** It counts the task first: small, safe work with one result runs through a playbook without a plan, a ledger, or a question; risky or larger work stops once for your approval of one plan. Explicit `ralplan` and `deep-interview` keep their planning gates. `ship` remains explicit for new PRs.
 _A Plan-native workflow that doesn't fight your "almost always in Plan mode" habit._
 
-| Your input | Enter with |
+| Your input | What happens |
 | --- | --- |
-| Small, bounded local change with a known check | `/oh-my-joy:ultragoal` — inspect, implement inline and verify without a mandatory planning round |
-| Fuzzy — no file to name, no criterion you could check | `/oh-my-joy:deep-interview` — short question rounds (independent questions share a round); at the end it automatically hands the requirements to `/oh-my-joy:ralplan` |
-| Concrete — a Figma link, a task in words, file names | `/oh-my-joy:ralplan` — reads the code or the design, builds the plan, critiques it (an independent critic on non-trivial plans) |
+| Small and safe — one result, five files or fewer | `/oh-my-joy:ultragoal` picks a playbook, works inline, runs the checks, gets one fresh `critic` review when files changed (skipped for a change of two lines or fewer in one file), and reports |
+| Risky, two or more results, or six or more files | `/oh-my-joy:ultragoal` hands it to `/oh-my-joy:ralplan`, which plans, critiques, and stops for your one approval |
+| Fuzzy — no file to name, no criterion you could check | `/oh-my-joy:deep-interview` — short question rounds; at the end it automatically hands the requirements to `/oh-my-joy:ralplan` |
+| You want to read the plan first | `/oh-my-joy:ralplan` — reads the code or the design, builds the plan, critiques it, and stops at the approval screen |
 
-Both end the same way: a `## Critique` section, the execution lane, the completion procedure. Pick the wrong one and it points you to the other.
+### Playbooks
+
+A playbook is a short procedure for one kind of small task. Each lists its steps with a check per step, the [principles](#named-principles) to read, when to ask for a review, and what the report must say.
+
+| Playbook | When it applies |
+| --- | --- |
+| [Bug fix](docs/playbooks/bug-fix.md) | something behaves wrongly: reproduce it, trace it to the origin, fix it there, rerun the same check |
+| [Feature](docs/playbooks/feature.md) | a small new behavior; also the default for any file-editing task that fits no other playbook |
+| [Refactor](docs/playbooks/refactor.md) | the structure changes and the behavior stays the same |
+| [Investigation](docs/playbooks/investigation.md) | a question about how or why, with no change; also the default when nothing is edited |
+
+When a playbook's work edits files, one `critic` reads the change in a fresh context from three files under `.omj/review/`; the bug-fix, feature, and refactor playbooks skip the review only when one file changed by two lines or fewer. After three failing reviews the run stops and reports both positions. If the work turns out risky or bigger than counted, the finished safe changes stay and the rest goes to `ralplan`.
+
+### When you get an approval screen
+
+`ultragoal` counts facts instead of guessing: you see one approval screen when the work touches authentication, money, data deletion or migration, concurrency, a public contract, or an external write; when it has two or more separate results; or when it changes six or more files. Everything else runs without one.
+
+### Reports in five parts
+
+Every OMJ report — the approval screen, the completion report, a verify result, a ship summary — has the same five parts, in your language: the conclusion, your move, what changed, decisions made for you, and how it was checked (with how strong each check is). Hashes and argument lists stay in the evidence; one line says where it is. The rules are in [docs/REPORTING.md](docs/REPORTING.md).
+
+```text
+Done: the signup form now rejects an email address without a domain.
+
+Your move: nothing. Merge when you are ready.
+
+What changed:
+- Typing "ana@": refused by the server with a generic error → refused on the form with "Enter a full email address".
+
+Decisions made for you:
+- The check lives in the form only, because the server already validates on save. To undo it, delete validateEmail in SignupForm.tsx.
+
+How it was checked:
+- Ran in the real app: submitted "ana@" and "ana@example.com" (measured).
+- Ran the tests: the form tests pass, including a new one that failed before the fix (measured).
+
+Evidence: the run's evidence folder under .omj/goals/signup-email/.
+```
+
+Ask "say it more simply" and the same report comes back in plainer words with every fact and number kept. Ask "where are we now?" during a run and you get a catch-up: one to three sentences, each item as done, failed, in progress, or blocked, then what you have to decide.
 
 | Surface | What it is |
 | --- | --- |
@@ -123,9 +164,9 @@ Both end the same way: a `## Critique` section, the execution lane, the completi
 | Planned work: you type | `/oh-my-joy:deep-interview` (only when fuzzy) → `/oh-my-joy:ralplan` → approve → `/oh-my-joy:ultragoal` |
 | Inside planned ultragoal | per goal: the helper runs the check and a fresh `critic` reads the diff from a file; a route gets `/oh-my-joy:verify` browser mode → a fix loop inside the goal; two or more disjoint goals run as implementer teammates when Agent Teams are on — because the plan you approved says so |
 | Occasional tools | `/oh-my-joy:setup` (dependencies, scaffolding) |
-| Internal, never typed | `critic` (architect + critic lenses, fresh context), `implementer`, `design-qa` |
+| Internal, never typed | `critic` (one reading in a fresh context), `implementer`, `design-qa` |
 
-The planned-work situations below cover larger tasks. Each is the exact sequence you type; every spec critiques itself before you see it, and everything between approval and ship happens on its own because the approved plan says so.
+The planned-work situations below cover larger tasks, or tasks where you want the plan first. Each is the exact sequence you type; every spec critiques itself before you see it, and everything between approval and ship happens on its own because the approved plan says so.
 
 **1. One Figma screen**
 
@@ -176,10 +217,10 @@ The planned-work situations below cover larger tasks. Each is the exact sequence
 **6. A visual defect**
 
 ```
-/oh-my-joy:ultragoal "banner z-index too low on /pricing"   edit → verify
+/oh-my-joy:ultragoal "banner z-index too low on /pricing"   bug-fix playbook → check → report
 ```
 
-**7. A bug**
+**7. A bug you want planned first**
 
 ```
 /oh-my-joy:ralplan "formatAmount('1,000') throws TypeError: Cannot read properties of undefined (reading 'toFixed')"
@@ -196,7 +237,7 @@ Every command also works on its own — a re-check (`/oh-my-joy:verify /checkout
 
 First time here? Run `/oh-my-joy:setup` once — it checks the optional dependencies, offers the Agent Teams flag and the OMJ answer style, and scaffolds `.omj/fe-context.md`.
 
-1. **Enter** — `/oh-my-joy:ralplan <figma-url | task> [route]` for anything concrete (Figma, frontend text, or general text); `/oh-my-joy:deep-interview` when the goal itself is still fuzzy. Both author a spec, critique it against the real code (decision record, simulated tasks, a ready verdict), record the execution lane and the completion procedure, and stop.
+1. **Enter** — `/oh-my-joy:ralplan <figma-url | task> [route]` for anything concrete (Figma, frontend text, or general text); `/oh-my-joy:deep-interview` when the goal itself is still fuzzy. Both author a spec, critique it against the real code (decision record, simulated tasks, and one `critic` reading when the plan has more than two files, a shape change, or a risk), record the execution lane and the completion procedure, and stop at an approval card in five parts.
 2. **Approve the plan** (ExitPlanMode) — implementation starts only here, on the lane the spec recorded. The plan records its recommended native execution lane without a separate lane approval.
 3. **Ultragoal runs** — `/oh-my-joy:ultragoal` records the approved plan, then implements on the native lane (no questions asked; blockers are classified and reported), then an independent `critic` review (the diff against the rubric and the spec's acceptance criteria), then `/oh-my-joy:verify` (a route in a real browser, or the verification commands with exit codes), then a fix loop for frontend defects, then a report with evidence.
 4. **Ship** — `/oh-my-joy:ship "<title>"` first stops the session's finished agents (a teammate still working stops it before verification), then re-runs the verification commands, commits with your conventions, pushes, and opens the PR with the evidence attached. Pass `--base develop` (or answer its one question) on teams that merge into `develop`. This step is never automatic.
@@ -206,7 +247,7 @@ First time here? Run `/oh-my-joy:setup` once — it checks the optional dependen
 | Stage | Gate | What it checks |
 | --- | --- | --- |
 | `/oh-my-joy:deep-interview` | clarity — only when the goal is fuzzy; concrete input starts at the next row | ambiguity at or below the threshold, with a floor the score cannot dip under; ends by automatically handing the requirements to `ralplan` |
-| `/oh-my-joy:ralplan` | feasibility | the critique: a self-check (decision record, simulated tasks against the real files), then independent `critic` readings sized to the plan (none for two or fewer files, one for three to five, two for larger, breaking, or risky plans), a ready verdict |
+| `/oh-my-joy:ralplan` | feasibility | the critique: a self-check (decision record, simulated tasks against the real files), then one `critic` reading, once, when the plan has more than two files, a shape change, or a risk; a finding still open shows on the approval card |
 | approval (ExitPlanMode) | consent | you read the spec and its critique; nothing has run |
 | `/oh-my-joy:ultragoal` | durable completion | native goal continuation plus per-goal verification, independent review (a 🔴 means another look; 🟡 changes land after the goals and the final review covers them), and recorded resume checkpoints |
 | `/oh-my-joy:verify` | evidence by kind | test report · command replay · browser capture, each with an exit code |
@@ -224,7 +265,7 @@ flowchart TD
 
 Durable execution requires Node.js 20+ and a Git worktree. For a new folder, the plan must explicitly include local Git initialization before ultragoal can create its records.
 
-The user enters once and approves the final plan once. The plan chooses inline or native parallel execution; native goal support supplies continuation where exposed. OMJ does not require a second goal command, clear unrelated goals, or bypass a host permission prompt. Without a callable goal surface, the same-session loop and file-based resume remain available; background continuation is not promised.
+The user enters once and approves only risky or larger work, once. The plan chooses inline or native parallel execution; native goal support supplies continuation where exposed. OMJ does not require a second goal command, clear unrelated goals, or bypass a host permission prompt. Without a callable goal surface, the same-session loop and file-based resume remain available; background continuation is not promised.
 
 `/oh-my-joy:ultragoal resume <slug>` (also `--resume <slug>`) continues an approved run in the same checkout, including after switching between Claude Code and Codex. `/oh-my-joy:ultragoal status <slug>` inspects it. The approved plan and acceptance criteria stay fixed; a materially different scope returns to planning. A new checkout needs a new run; copying state does not transfer authority.
 
@@ -270,7 +311,7 @@ Say verify reports a defect — the submit button clips its label at 360px. The 
 
     /oh-my-joy:ship "feat: search form"
 
-`ship` re-runs the verification commands, commits with your project's conventions, pushes, and opens the PR with the evidence table in its body.
+`ship` re-runs the verification commands, commits with your project's conventions, pushes, and opens the PR with one line per check in its body.
 
 ---
 
@@ -278,25 +319,25 @@ Say verify reports a defect — the submit button clips its label at 360px. The 
 
 | Command | Tier | What it does | When to use | Example |
 | --- | --- | --- | --- | --- |
-| **`/oh-my-joy:ultragoal`** | task or approved plan | Execute bounded local work directly with verification; route substantial work to planning. For approved work, execute the plan, record goal evidence, review, verify, and resume; `resume <slug>` and `status <slug>`. A new check's failing run counts only when it fails for the violation the plan names. A passing goal review moves straight to the next goal; a final check that already passed on the same code can be recorded with `reuse:true` instead of running again, and every check `verify` runs returns its last output lines. Reviews are `critic` readings handed the diff as a file, spawned in the same turn as the goal's check; paid checks run once inside their goal and are not part of the final proof; with Agent Teams on, two or more disjoint goals run as implementer teammates on the shared task list. Between approval and the report it asks no question: a choice the plan left open takes the option it would mark Recommended and is recorded as an assumption; it prints one line in your language at each ledger transition, and the report closes each goal with `Skipped / not checked / risk:` and names any follow-up with its resume path. | Local task, approved work or an interrupted run | `/oh-my-joy:ultragoal resume checkout` |
-| **`/oh-my-joy:ralplan`** | you | Read the input (Figma link with a section walk for large frames, frontend text, or general text), author the implementation spec (Plan), critique it against the real code (`## Critique`: decision record, simulated tasks, ready verdict; independent `critic` readings in fresh contexts sized to the plan: none for two or fewer files, one for three to five, two for larger, breaking, or risky plans), record the execution lane and the completion procedure, then stop (read-only). Also takes an interview's requirements from the session as input. Infers the verify route when omitted; sends text with no verifiable target to the interview. A risky plan also names how the shipped change can fail, a new check must be shown failing before it passes, and an early-exit interview's `Residual gaps` become assumptions on the approval screen. Target files carry a reuse ladder (not needed → already in the repository → standard library or platform → installed dependency → the minimum new code; a new dependency is a decision row), risky new logic gets one check that fails when it breaks, a `Hand-back:` line lists only what the session cannot do itself, and an unclosed ledger from an earlier run is announced once with its `resume <slug>` | The starting point for every concrete task | `/oh-my-joy:ralplan https://figma.com/design/abc?node-id=1-2 /settings/profile` |
+| **`/oh-my-joy:ultragoal`** | task or approved plan | Run small, safe work through a playbook with a check and, when files change, one fresh review; route risky or larger work to planning. For approved work, execute the plan, record goal evidence, review, verify, and resume; `resume <slug>` and `status <slug>`. A new check's failing run counts only when it fails for the violation the plan names. A passing goal review moves straight to the next goal; a final check that already passed on the same code can be recorded with `reuse:true` instead of running again, and every check `verify` runs returns its last output lines. Reviews are `critic` readings handed the diff as a file, spawned in the same turn as the goal's check; paid checks run once inside their goal and are not part of the final proof; with Agent Teams on, two or more disjoint goals run as implementer teammates on the shared task list. Between approval and the report it asks no question: a choice the plan left open takes the option it would mark Recommended and is recorded as an assumption; it prints one progress line in your language when a goal finishes, and the report comes in five parts, with any follow-up and its resume path under your move. `status <slug>` gives a short catch-up. | Local task, approved work or an interrupted run | `/oh-my-joy:ultragoal resume checkout` |
+| **`/oh-my-joy:ralplan`** | you | Read the input (Figma link with a section walk for large frames, frontend text, or general text), author the implementation spec (Plan), critique it against the real code (`## Critique`: decision record, simulated tasks; one `critic` reading in a fresh context, once, when the plan has more than two files, a shape change, or a risk), present it as an approval card in five parts, record the execution lane and the completion procedure, then stop (read-only). Also takes an interview's requirements from the session as input. Infers the verify route when omitted; sends text with no verifiable target to the interview. A risky plan also names how the shipped change can fail, a new check must be shown failing before it passes, and an early-exit interview's `Residual gaps` become assumptions on the approval screen. Target files carry a reuse ladder (not needed → already in the repository → standard library or platform → installed dependency → the minimum new code; a new dependency is a decision row), risky new logic gets one check that fails when it breaks, the card's your-move part lists only what the session cannot do itself, and an unclosed ledger from an earlier run is announced once with its `resume <slug>` | The starting point for every concrete task | `/oh-my-joy:ralplan https://figma.com/design/abc?node-id=1-2 /settings/profile` |
 | **`/oh-my-joy:deep-interview`** | you | Socratic interview in short question rounds (up to three independent questions at once) that turns a vague idea into a spec (native Plan) gated by a weighted ambiguity score (`--threshold N`%, default 20) — topology lock, weakest-dimension targeting, ontology tracking, an ambiguity floor, restate/closure double gate (read-only); ends with an exit bridge — automatically hand the requirements to `ralplan`; unresolved research prerequisites stay explicit. Asks only when the answer would change the requirements, otherwise records an assumption; an early exit or the round cap hands the open gaps to `ralplan` as `Residual gaps`. Exits immediately on already-concrete input and routes Figma links to `ralplan` | When the goal itself is still fuzzy | `/oh-my-joy:deep-interview "internal knowledge base — still fuzzy"` |
-| **`/oh-my-joy:ship`** | you | Stop the session's finished teammates (`ListAgents` → `TaskStop`; peer sessions untouched, and a teammate still working stops the run), run the verification commands (every one must exit 0, and a test suite that ran zero tests counts as failing), commit on a branch with your conventions and language, push, and open the PR with the evidence table in its body (your PR template when the repo has one). `--base <ref>` picks the PR base; otherwise ship reuses an unambiguous established base and asks only when the target remains unclear. Never commits on a shared branch (`main`, `develop`, …) or a detached HEAD: with changes it branches off first, a clean detached HEAD with commits ahead ships them on a new branch, and on a clean `develop` it opens the promotion PR. Pre-approves only git/gh/typecheck — test runners go through the permission prompt on purpose | The last step, always typed by you | `/oh-my-joy:ship "feat(checkout): summary panel"` |
-| **`/oh-my-joy:verify`** | the plan | Prove the work. With a route: open it in a real browser (playwright-cli, MCP fallback) and check it against the Figma baseline (`.omj/baselines/`), always asserting the page actually reached the route. With no design reference — or with `--design` — it also audits the rendered design at desktop, tablet, and mobile against the visual rubric (hierarchy, states, contrast, overflow, template tells) and reports only. Without a route: run the project's verification commands and record `command · exit code · summary` with the evidence kind; a test command that ran zero tests fails even with exit 0. `--base <url>` sets the dev server, `--design` forces the audit | The plan runs it after review; also the barrier after teammates finish | `/oh-my-joy:verify /settings/profile` · `/oh-my-joy:verify /pricing --design` · `/oh-my-joy:verify` |
+| **`/oh-my-joy:ship`** | you | Stop the session's finished teammates (`ListAgents` → `TaskStop`; peer sessions untouched, and a teammate still working stops the run), run the verification commands (every one must exit 0, and a test suite that ran zero tests counts as failing), commit on a branch with your conventions and language, push, and open the PR with one line per check and where the evidence lives, 40 lines at most (your PR template when the repo has one, otherwise the five report parts). `--base <ref>` picks the PR base; otherwise ship reuses an unambiguous established base and asks only when the target remains unclear. Never commits on a shared branch (`main`, `develop`, …) or a detached HEAD: with changes it branches off first, a clean detached HEAD with commits ahead ships them on a new branch, and on a clean `develop` it opens the promotion PR. Pre-approves only git/gh/typecheck — test runners go through the permission prompt on purpose | The last step, always typed by you | `/oh-my-joy:ship "feat(checkout): summary panel"` |
+| **`/oh-my-joy:verify`** | the plan | Prove the work. With a route: open it in a real browser (playwright-cli, MCP fallback) and check it against the Figma baseline (`.omj/baselines/`), always asserting the page actually reached the route. With no design reference — or with `--design` — it also audits the rendered design at desktop, tablet, and mobile against the visual rubric (hierarchy, states, contrast, overflow, template tells) and reports only. Without a route: run the project's verification commands and record `command · exit code · summary` with the evidence kind and check strength; a test command that ran zero tests fails even with exit 0, and a command that never ran is `not confirmed`. A scaled-down full-page capture is reported as an evidence limit. `--base <url>` sets the dev server, `--design` forces the audit | The plan runs it after review; also the barrier after teammates finish | `/oh-my-joy:verify /settings/profile` · `/oh-my-joy:verify /pricing --design` · `/oh-my-joy:verify` |
 | **`/oh-my-joy:setup`** | occasional | Dependency doctor + one multi-select install for anything missing + scaffolding: `.omj/fe-context.md` (adopts existing rule docs via `contextDocs:`, scaffolds `verifyCommands:` from package.json as comments), opt-in token-guard hooks, the opt-in team evidence gate hook and helper bookkeeping allowlist (Claude only), host-native status indicators, available native agents, and the OMJ answer style; offers a GitHub star at the end (never blocks) | Before first use — `ralplan` suggests it once when no setup trace exists | `/oh-my-joy:setup` · `--check` (report only) |
 
-> **Read-only and execution.** `deep-interview` has no write tools or shell pre-approvals. `ralplan` reads code and design without modifying source. `ultragoal` runs only after approval. Verification is executed and its actual exit code is recorded; tool permission settings remain under the host's control. Each workflow's canonical contract is in `commands/<name>.md`.
+> **Read-only and execution.** `deep-interview` has no write tools or shell pre-approvals. `ralplan` reads code and design without modifying source. `ultragoal` runs planned work only after approval, and small, safe work through a playbook without one. Verification is executed and its actual exit code is recorded; tool permission settings remain under the host's control. Each workflow's canonical contract is in `commands/<name>.md`.
 
 >
 > **Auto-trigger.** The command descriptions match the most frequent real-world patterns, so the agent can route without you typing the slash command: pasting a Figma Dev Mode link ("implement this design…") routes to `/oh-my-joy:ralplan`.
 
 ### Bundled agents, answer style, and opt-in extras
 
-- **`critic`** (agent) — a read-only reviewer that `ralplan` spawns sized to the plan (one critic-lens instance for three to five files, or two instances — architect lens and critic lens — for larger, shape-changing, or risky plans) and `ultragoal` spawns for each goal and the final review, in a fresh context that did not write the material. Returns a verdict and findings, edits nothing; declares exactly `Read`, `Grep`, `Glob` (pinned by tests). Evidence it cannot produce without running code goes on a `Declined to judge` line instead of a guess. Never typed.
-- **`implementer`** (agent) — implements an **approved OMJ spec** through a 5-step loop (Clarify → Context → Plan → Generate → Evaluate) in frontend mode (uSpec, Figma, a route) or general mode, as the inline-lane executor and as the teammate type for every Dispatch row: one instance per row, editing only that row's files, asking nothing mid-run, building the rung the plan recorded (no option, wrapper, or abstraction the plan did not name), classifying blockers, and reporting completion with evidence and a closing `Skipped / not checked / risk:` line. The inline lead follows the same contract. Refuses spec-less input (no plan-gate bypass).
+- **`critic`** (agent) — a read-only reviewer that `ralplan` spawns once for a plan with more than two files, a shape change, or a risk, and that `ultragoal` spawns for each goal, the final review, and a playbook change, in a fresh context that did not write the material. Returns a plain-language verdict and findings, edits nothing; declares exactly `Read`, `Grep`, `Glob` (pinned by tests). Evidence it cannot produce without running code goes on a `Declined to judge` line instead of a guess. Never typed.
+- **`implementer`** (agent) — implements an **approved OMJ spec** through a 5-step loop (Clarify → Context → Plan → Generate → Evaluate) in frontend mode (uSpec, Figma, a route) or general mode, as the inline-lane executor and as the teammate type for every Dispatch row: one instance per row, editing only that row's files, asking nothing mid-run, building the rung the plan recorded (no option, wrapper, or abstraction the plan did not name), classifying blockers, and reporting completion with evidence, what it did not check, and each temporary measure with its reason, limit, and removal condition; with no goal assigned it waits instead of inventing work. The inline lead follows the same contract. Refuses spec-less input (no plan-gate bypass).
 - **`design-qa`** (agent) — a mechanical gate that only **checks**: typecheck, lint, hardcoded tokens, Figma fidelity, a11y basics, plus Story/i18n checks only when declared in fe-context. Declares no write tools (pinned by tests).
 - **Cross-host review** (opt-in) — with `crossReview: preferred` in `.omj/fe-context.md`, every `ultragoal` goal and final review runs read-only on the other host: Codex reviews what Claude wrote, and Claude reviews what Codex wrote. The reviewer writes its own output file, the ledger records its hash, and a 🔴 goes through the usual fix, re-verify, re-review loop. It sends the plan and the diff to a second provider and costs a second call per review, so setup asks before turning it on. When the other host cannot run — a quota that ran out, say — the in-session reviewer continues and the reason is recorded in the ledger and the report; when the host you are working in runs out, the other one resumes the same ledger. The same document covers handed plans, where a worker session executes a plan you approved once in a lead session: [`docs/CROSS-HOST.md`](docs/CROSS-HOST.md).
-- **OMJ answer style** (`output-styles/oh-my-joy.md`, opt-in) — natural answers in your language, learner-friendly explanations, the smallest complete change (reuse before new code, one check for risky logic, a closing `Skipped / not checked / risk:` line on answers that report code) even when no command is typed, and automatic approved handoffs; Korean writing rules are adapted from [fluent-korean](https://github.com/snflkd/fluent-korean) and credited in [`NOTICE.md`](NOTICE.md). Claude Code selects it in setup or **Output style** in `/config`. Codex setup copies the same body into `.omj/answer-style.md` and links it from the effective project `AGENTS.md` or `AGENTS.override.md`, preserving existing instructions. Start a new session after selection.
+- **OMJ answer style** (`output-styles/oh-my-joy.md`, opt-in) — natural answers in your language, learner-friendly explanations, short plain sentences that lead with what changes for you, claims marked measured, inferred, or guessed, the five report parts, the smallest complete change (reuse before new code, one check for risky logic) even when no command is typed, and automatic approved handoffs; Korean writing rules are adapted from [fluent-korean](https://github.com/snflkd/fluent-korean) and credited in [`NOTICE.md`](NOTICE.md). Claude Code selects it in setup or **Output style** in `/config`. Codex setup copies the same body into `.omj/answer-style.md` and links it from the effective project `AGENTS.md` or `AGENTS.override.md`, preserving existing instructions. Start a new session after selection.
 - **Token-guard hooks** — `check-design-tokens.mjs` warns about hardcoded colors; `check-story-exists.mjs` warns about missing Stories. Setup copies selected checks into `.claude/hooks/` or `.codex/hooks/`; Codex also gets a command-payload adapter and `.codex/hooks.json`. Hooks require project declarations and native host trust. They remain advisory and fail-open, with no plugin-wide auto-firing. Unknown shell edits are outside the Codex adapter’s coverage.
 - **OMJ HUD statusline** — Claude Code copy-installs `hud/` into `~/.claude/omj-hud/` and registers `statusLine` on selection. Both hosts apply the selected status line user-globally; custom replacements require selection. Codex CLI uses native `tui.status_line` for model/reasoning, branch, context remaining, and five-hour/weekly limits. Codex App has no custom HUD slot. When the usage endpoint answers 403, the Claude HUD sends a one-token model request about every 90 seconds that counts against your usage; `"omcHud": {"elements": {"rateLimits": false}}` in `~/.claude/settings.json` turns it off. Attribution is in [`NOTICE.md`](NOTICE.md); host-specific settings are in [`hud/README.md`](hud/README.md).
 
@@ -321,7 +362,8 @@ Missing ones never crash — OMJ **skips + guides** instead.
 
 - `.omj/goals/<slug>/` — approved brief, versioned goals, append-only event ledger, and verification artifacts written by ultragoal. Keep these local; do not commit command output.
 - `.omj/fe-context.md` — your project's declarations (acceptance axes, token path, verify setup, `verifyCommands`). **Meant to be committed.**
-- `.omj/baselines/` — capture baselines. Gitignore this directory and `.omj/goals/`; ignoring `.omj/` wholesale would also lose the committed fe-context.
+- `.omj/review/` — the request, diff, and new-file list a playbook hands its reviewer (`last-request.md`, `last.diff`, `last.files`); the next run overwrites them. Gitignore it.
+- `.omj/baselines/` — capture baselines. Gitignore this directory, `.omj/review/`, and `.omj/goals/`; ignoring `.omj/` wholesale would also lose the committed fe-context.
 - Selected hook copies in `.claude/hooks/` or `.codex/hooks/`, plus host-specific registration — only when selected in setup.
 - `.claude/hooks/task-completed-evidence.mjs` with its `hooks.TaskCompleted` registration and `teamEvidenceGate: true` in fe-context — only when selected in setup; it keeps an ultragoal teammate task open until a passing `evidence:` line is attached.
 - `permissions.allow` rules for the `goal-state.mjs` bookkeeping verbs in `.claude/settings.local.json` (user-local, never the shared file, because the installed plugin path lives under your home), and the Agent Teams flag recorded in `~/.claude/.omj-setup.json` — each only when you opt in.
@@ -350,14 +392,47 @@ The reasoning behind each decision — problem → decision → rationale → ou
 
 ## Principles · Figma 2-track
 
-- **Plan-native primers, critique before consent**: `/oh-my-joy:ralplan` and `/oh-my-joy:deep-interview` are read-only — they draft a spec, critique it against the real code (`## Critique`), record the lane and the completion procedure, and stop; implementation starts only after you approve.
+- **Plan-native primers, critique before consent**: `/oh-my-joy:ralplan` and `/oh-my-joy:deep-interview` are read-only — they draft a spec, critique it against the real code (`## Critique`), record the lane and the completion procedure, and stop; planned implementation starts only after you approve.
 - **Evidence rule**: "done" means a command, its exit code, a summary, and the evidence kind — recorded by `verify` (evidence mode), `ship`, and agent-team teammates. Verification commands are never pre-approved.
 - **Execution asks nothing**: between approval and the report the session asks no questions; a blocker is `resolvable` (three approaches first) or `human-only` (stop, say what you must do), and every assumption made where the plan was silent is listed in the report.
 - **Spec format**: uSpec sections + FF 4-criteria + a11y + Figma fidelity ([`figma-fidelity.md`](skills/frontend-fundamentals/references/figma-fidelity.md)) for frontend, plus a Design direction from the visual rubric ([`visual-design.md`](skills/frontend-fundamentals/references/visual-design.md)) for a new screen without Figma; goal / constraints / acceptance criteria / verification commands for everything else.
 - **Figma 2-track**: (A) app-screen design→code = official Dev Mode MCP, walked section by section on large frames; (B) design-system spec/tokens = figma-console-mcp + uSpec (v1.2+).
 - **Borrow methodology, not surface**: externally maintained knowledge is referenced (vercel skills — `npx skills add/update`); OMJ bundles only what it owns (FF skill, 3 agents, hook templates, the answer style, the evals); methodologies from other projects are absorbed as credited rewrites, and declined ideas are recorded with their reasons.
 
-The "why" behind each decision lives in **[docs/PRINCIPLES.md](docs/PRINCIPLES.md)**.
+### Named principles
+
+OMJ works by 26 short principles. `ultragoal` and `ralplan` read [the index](docs/principles/INDEX.md) when a task starts, open a principle's detail file before applying it, and name each principle that changed a decision in the report.
+
+| Group | Principle | When it applies |
+| --- | --- | --- |
+| Build less | [Smallest complete change](docs/principles/smallest-complete-change.md) | When a request adds behavior |
+| Build less | [Subtract before you add](docs/principles/subtract-before-you-add.md) | When a change would add a flag, branch, file, or step |
+| Build less | [Shape before logic](docs/principles/shape-before-logic.md) | When new code stores, passes, or returns data |
+| Build less | [Redesign over patching](docs/principles/redesign-over-patching.md) | When the same spot needs its second or third fix |
+| Build less | [Question the premise](docs/principles/question-the-premise.md) | When a request rests on an assumption you can check |
+| Build less | [Reader first](docs/principles/reader-first.md) | When writing code, a document, or a report |
+| Build less | [User outcome first](docs/principles/user-outcome-first.md) | When judging whether work is done |
+| Build less | [Try it instead of asking](docs/principles/try-it-instead-of-asking.md) | When a cheap, safe run can settle a question |
+| Build less | [Build the tool](docs/principles/build-the-tool.md) | When the same manual step comes up a third time |
+| Structure | [One owner per rule](docs/principles/one-owner-per-rule.md) | When a rule or fact would appear in more than one place |
+| Structure | [Check at the boundary](docs/principles/check-at-the-boundary.md) | When data enters from a user, a file, the network, or another process |
+| Structure | [Make wrong states impossible](docs/principles/make-wrong-states-impossible.md) | When two fields or flags must agree |
+| Structure | [Safe to retry](docs/principles/safe-to-retry.md) | When an operation can be interrupted or run twice |
+| Structure | [Migrate then delete](docs/principles/migrate-then-delete.md) | When a new path replaces an old one |
+| Structure | [Separate before sharing](docs/principles/separate-before-sharing.md) | When several workers or modules would touch the same thing |
+| Proof | [Prove it works](docs/principles/prove-it-works.md) | When you are about to say that something works |
+| Proof | [Fix the origin](docs/principles/fix-the-origin.md) | When a wrong value or behavior shows up |
+| Proof | [Small verifiable steps](docs/principles/small-verifiable-steps.md) | When a change has several parts |
+| Proof | [Test behavior](docs/principles/test-behavior.md) | When writing or changing a test |
+| Proof | [See it fail first](docs/principles/see-it-fail-first.md) | When adding a test, a guard, or any other check |
+| Proof | [Explain the number](docs/principles/explain-the-number.md) | When a report contains a number |
+| Proof | [Say how sure](docs/principles/say-how-sure.md) | When reporting a claim |
+| Working together | [Guard the context](docs/principles/guard-the-context.md) | When a task needs broad reading or produces long output |
+| Working together | [Proceed then report](docs/principles/proceed-then-report.md) | When the request is silent on a choice you can make safely |
+| Working together | [Fresh eyes review](docs/principles/fresh-eyes-review.md) | When finished work needs a review |
+| Working together | [Lessons into checks](docs/principles/lessons-into-checks.md) | When a mistake happens or a correction arrives |
+
+The "why" behind each design decision lives in **[docs/PRINCIPLES.md](docs/PRINCIPLES.md)**.
 
 ---
 
@@ -382,7 +457,7 @@ Command bodies are prompts, so "a small wording change" is a behavior change. OM
 - **Codex says skill descriptions were shortened** — Codex loads every skill's name and description before selecting a full `SKILL.md`, so a large combined catalog can exceed its initial-list budget. Start a fresh thread after updating OMJ. If the warning persists, diagnose the enabled source, installed cache, native `skills/list`, and the CLI or App session separately; then disable only selected nonessential external skills or compare a confirmed-low catalog budget. See the [Codex skill-catalog diagnosis](docs/CODEX-SETUP.md#diagnose-a-shortened-skill-catalog) and the [official skill loading model](https://developers.openai.com/codex/skills/).
 - **Figma not connected / no permission** — `This figma file could not be accessed` is handled gracefully. Open the Figma desktop app, put the target file in the active tab, and retry. Variable/node access requires edit permission — duplicate viewer-shared files and use the copy's URL.
 - **Baseline comparison not happening** — Figma asset URLs expire after ~7 days; re-run `/oh-my-joy:ralplan` to refresh the spec's baseline provenance. Cross-session comparison relies on the PNGs in `.omj/baselines/` (gitignore recommended); the PNG is first created only when `/oh-my-joy:verify` runs in the same session as `ralplan`.
-- **`/oh-my-joy:ralplan` asked me a question before showing the plan** — the critique gate found items still open after two revisions (a target that does not exist, a criterion nobody can check). Answer once and the spec folds it in; after approval nothing asks.
+- **`/oh-my-joy:ralplan` asked me a question before showing the plan** — the critic found a decision only you can make (a target that does not exist, a criterion nobody can check). Answer once and the spec folds it in; after approval nothing asks.
 - **The session decided something I did not expect after approval** — by design it asks nothing between approval and the report. Every such decision is listed under assumptions in the report, and a blocker only you can clear (credentials, an external approval) stops the run and says so.
 - **`/oh-my-joy:deep-interview` ended immediately** — that's the suitability gate, not a failure: the input was already concrete (use `/oh-my-joy:ralplan`), or it carried a Figma URL that routes to `ralplan`.
 - **Suspect a stale install?** Every release records the tagged tree's content hash in its GitHub Release notes, and CI re-verifies the tag against that hash. Recompute a local copy's hash with `node scripts/generate-inventory.mjs --dir <plugin cache dir>`.
@@ -401,6 +476,8 @@ Command bodies are prompts, so "a small wording change" is a behavior change. OM
 > | `spec` | `/oh-my-joy:ralplan` |
 > | `review` | runs inside `/oh-my-joy:ultragoal`; for a standalone diff review, use the host's built-in review |
 > | `fix` | describe the defect to `/oh-my-joy:ultragoal` |
+>
+> Also in 2.0: small, safe tasks run through a playbook instead of the direct route; plan critique uses one `critic` reading and no architect lens; reports drop the fixed `Skipped / not checked / risk:`, `Hand-back:`, `Expected execution:`, and `Critique: ready` labels for the five report parts; `crossReview: required` resolves to `preferred` with a warning; and experiment goals, PR review delivery, and external runtime adapters are gone. A 1.5 ledger that used a removed feature stops with a message naming it.
 >
 > **Upgrading from v0.8?** v0.9.0 keeps every command and adds a critique gate and execution rules:
 >
