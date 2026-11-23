@@ -35,7 +35,7 @@ function makeSandbox({ runs = 3 } = {}) {
   mkdirSync(path.join(root, 'evals', 'fixtures'), { recursive: true });
   writeFileSync(
     path.join(root, 'evals', 'sample-case', 'prompt.md'),
-    `---\nname: sample-case\nruns: ${runs}\nmax_turns: 4\nallowed_tools: [Read]\n---\n/oh-my-joy:spec "sample"\n`,
+    `---\nname: sample-case\nruns: ${runs}\nmax_turns: 4\nallowed_tools: [Read]\n---\n/oh-my-joy:ralplan "sample"\n`,
   );
   writeFileSync(path.join(caseDir, 'ready.md'), '---\ntype: regex\npattern: "Critique: ready"\nmatch: contains\ntarget: last_message\n---\n');
   writeFileSync(path.join(caseDir, 'reads.md'), '---\ntype: tool_used\ntool: Read\nmin: 1\n---\n');
@@ -175,7 +175,7 @@ describe('eval-runner: run consistency', () => {
 describe('eval-runner: native case format', () => {
   it('rejects a prompt.md key the native format does not accept', () => {
     const sandbox = makeSandbox({ runs: 1 });
-    writeFileSync(path.join(sandbox.evalDir, 'sample-case', 'prompt.md'), '---\nname: sample-case\nscaffold_script: cp -R x .\n---\n/oh-my-joy:spec "sample"\n');
+    writeFileSync(path.join(sandbox.evalDir, 'sample-case', 'prompt.md'), '---\nname: sample-case\nscaffold_script: cp -R x .\n---\n/oh-my-joy:ralplan "sample"\n');
     const { status, stderr } = runRunner(sandbox, ['--max-cost-usd', '10']);
     assert.notEqual(status, 0);
     assert.match(stderr, /unknown frontmatter key "scaffold_script"/);
@@ -196,7 +196,7 @@ describe('eval-runner: native case format', () => {
     const sandbox = makeSandbox({ runs: 1 });
     writeFileSync(
       path.join(sandbox.evalDir, 'sample-case', 'prompt.md'),
-      '---\nname: sample-case\nallowed_tools: [Read]\nappend_system_prompt: |\n  Rule one: keep colons.\n\n  - a dash line stays text\nruns: 1\n---\n/oh-my-joy:spec "sample"\n',
+      '---\nname: sample-case\nallowed_tools: [Read]\nappend_system_prompt: |\n  Rule one: keep colons.\n\n  - a dash line stays text\nruns: 1\n---\n/oh-my-joy:ralplan "sample"\n',
     );
     const { status } = runRunner(sandbox, ['--max-cost-usd', '10']);
     assert.equal(status, 0);
@@ -232,7 +232,7 @@ describe('eval-runner: native case format', () => {
 describe('eval-runner: fallback matches native tool and trace rules', () => {
   it('withholds tools the case does not allow and keeps personal configuration out', () => {
     const sandbox = makeSandbox({ runs: 1 });
-    writeFileSync(path.join(sandbox.evalDir, 'sample-case', 'prompt.md'), '---\nname: sample-case\nallowed_tools: [Read, "Bash(git diff:*)", "Bash(git rev-parse:*)"]\n---\n/oh-my-joy:review\n');
+    writeFileSync(path.join(sandbox.evalDir, 'sample-case', 'prompt.md'), '---\nname: sample-case\nallowed_tools: [Read, "Bash(git diff:*)", "Bash(git rev-parse:*)"]\n---\n/oh-my-joy:verify\n');
     runRunner(sandbox, ['--max-cost-usd', '10']);
     const argv = JSON.parse(readFileSync(path.join(sandbox.stateDir, 'argv-1.json'), 'utf8'));
     const tools = argv.slice(argv.indexOf('--tools') + 1, argv.indexOf('--setting-sources'));
@@ -266,7 +266,7 @@ describe('eval-runner: fallback matches native tool and trace rules', () => {
 
   it('passes an empty --tools list when a case allows no tools', () => {
     const sandbox = makeSandbox({ runs: 1 });
-    writeFileSync(path.join(sandbox.evalDir, 'sample-case', 'prompt.md'), '---\nname: sample-case\n---\n/oh-my-joy:spec "sample"\n');
+    writeFileSync(path.join(sandbox.evalDir, 'sample-case', 'prompt.md'), '---\nname: sample-case\n---\n/oh-my-joy:ralplan "sample"\n');
     runRunner(sandbox, ['--max-cost-usd', '10']);
     const argv = JSON.parse(readFileSync(path.join(sandbox.stateDir, 'argv-1.json'), 'utf8'));
     assert.deepEqual(argv.slice(argv.indexOf('--tools'), argv.indexOf('--tools') + 3), ['--tools', '', '--setting-sources']);
@@ -294,7 +294,7 @@ describe('eval-runner: native delegation', () => {
 
   function addCase(sandbox, name, frontmatter) {
     mkdirSync(path.join(sandbox.evalDir, name, 'graders'), { recursive: true });
-    writeFileSync(path.join(sandbox.evalDir, name, 'prompt.md'), `---\nname: ${name}\n${frontmatter}\n---\n/oh-my-joy:review\n`);
+    writeFileSync(path.join(sandbox.evalDir, name, 'prompt.md'), `---\nname: ${name}\n${frontmatter}\n---\n/oh-my-joy:verify\n`);
   }
 
   const valuesAfter = (argv, flag) => {
@@ -376,7 +376,7 @@ describe('eval-runner: native delegation', () => {
 
   it('passes -j for multi-run cases, honours --no-scaffold and --ablation, and leaves fallback-only cases out', () => {
     const sandbox = makeSandbox({ runs: 3 });
-    addCase(sandbox, 'needs-no-agent', 'tags: [review, fallback-only]\nallowed_tools: [Read]');
+    addCase(sandbox, 'needs-no-agent', 'tags: [verify, fallback-only]\nallowed_tools: [Read]');
     const { status, stderr, runs } = runNativeRunner(sandbox, ['--no-scaffold', '--ablation', 'with-without']);
     assert.equal(status, 0);
     assert.deepEqual(Object.keys(runs), ['sample-case']);

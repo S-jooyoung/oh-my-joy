@@ -4,26 +4,32 @@ OMJ keeps one execution entry: `/oh-my-joy:ultragoal` in Claude and `$oh-my-joy:
 
 ## Route before editing
 
-Run the installed `scripts/execution-config.mjs --resolve` with a JSON object of explicit task configuration overrides on stdin (use `{}` when none). Read the effective values, their sources, and warnings. Read [runtime adapters](RUNTIME-ADAPTERS.md) before dispatch. A leader preference is not proof of a host switch.
+Run the installed `scripts/execution-config.mjs --resolve` with a JSON object of explicit task configuration overrides on stdin (use `{}` when none). Read the effective values, their sources, and warnings, and repeat each warning in the report's `Your move`: a `required` cross-host declaration now resolves to `preferred` with a warning, and the user should see that the review got weaker rather than discover it later.
 
-Run `scripts/execution-config.mjs --route` with observed facts on stdin. A read-only host mode remains read-only even when the route is direct: present the bounded work through its approval surface instead of attempting edits. Set a fact to true only after inspection establishes it:
+Read [the principles index](principles/INDEX.md) when the run starts. Then run `scripts/execution-config.mjs --route` with observed facts on stdin. A read-only host mode remains read-only on every route: present the work through its approval surface instead of attempting edits. Set a fact only after inspection establishes it; an omitted fact is not true.
 
 - `resume`: resuming a named existing ledger; preserve its original completion contract.
 - `approvedPlan`: a plan already approved by the user; execute it without another gate.
 - `explicitPlanning`: the user explicitly requested an interview or plan; preserve that gate.
-- Direct-route facts: `clearGoal`, `boundedLocalChange`, `knownVerification`, `singleHost`, `noPublicContractChange`, `noSensitiveChange`, `noExternalWrite`.
+- `clearGoal`, `noSensitiveChange`, `noPublicContractChange`, `noExternalWrite`: booleans. Sensitive changes include authentication, authorization, money, destructive data operations, migrations and concurrency control.
+- `deliverables`: how many separate results the user asked for, as an integer.
+- `targetFiles`: how many files the work will change or create, tests included, as an integer.
 
-All seven direct-route facts must be true. Sensitive changes include authentication, authorization, money, destructive data operations, migrations and concurrency control. Uncertain scope, changed public interfaces/dependencies, or mixed-host implementation goes to planning. A raw request to merge or publish never becomes local-write authority. The helper returns `resume`, `planned`, `direct`, or `plan`; an omitted fact is not true.
+The helper returns `resume`, `planned`, `plan`, or `playbook`. It returns `playbook` only when all four booleans are true, `deliverables` is 1, and `targetFiles` is 5 or fewer, so approval appears exactly when the work is risky, has two or more deliverables, or touches six or more files. A raw request to merge or publish never becomes local-write authority.
 
-## Direct route
+## Playbook route
 
-The lead states the bounded scope and check, reads the affected code, implements inline, and verifies observable behavior. It does not create a durable ledger, spawn workers or require an independent review by default. Use the implementer's context, minimal-change, diagnostic and reporting rules inline; this is not an unapproved teammate dispatch. Report changed files, command/exit/result, and `Skipped / not checked / risk:`. Do not claim durable completion or background continuation.
+Pick the playbook type — bug fix, feature, refactor, or investigation — and read `docs/playbooks/<type>.md` beside this document, then the principle detail files it lists that apply. When no type fits, work that edits files is `feature` and anything else is `investigation`. The lead runs the playbook inline: it creates no ledger, asks no question, spawns no implementer, and follows the implementer's context, minimal-change, diagnostic, and reporting rules itself.
 
-If the task crosses the stated boundary, retain the completed safe changes, stop additional edits, and hand the expanded scope to ralplan. Never revert unrelated work or treat the earlier request as approval of the expansion. If the local check fails, diagnose and fix within scope; an unresolved check means incomplete, not done.
+Review exactly as the playbook's `Review` section says, handing the reviewer the files it names under `.omj/review/`; the verdict and each 🟡, shortened to at most three lines, appear only in the report's How it was checked, not in a section of their own. Fix every 🔴 and get a new review in a fresh context. After three failing reviews, stop and report both positions instead of a fourth round, because no helper counts reviews on this route.
+
+If the work crosses the boundary the route counted — it turns out risky, grows a second deliverable, or needs a sixth file — keep the changes already finished safely, revert nothing, stop editing, and hand the rest to `ralplan`. The earlier request never approved the expansion, and undoing finished work would throw away what the user can still use. If the local check fails, diagnose and fix within scope; an unresolved check means incomplete, not done.
+
+Report in the five parts of [REPORTING.md](REPORTING.md) — Conclusion, Your move, What changed, Decisions made for you, How it was checked — stating each check in one line with its check strength. Do not claim durable completion or background continuation.
 
 ## Planned route
 
-Use the existing ralplan approval and ultragoal evidence loop. Review requirements in an existing ledger are immutable; no direct-route setting weakens them. Existing `spec` is still the planning alias. No extra command or automatic hook is needed.
+Use the existing ralplan approval and ultragoal evidence loop. Review requirements in an existing ledger are immutable; no playbook rule weakens them. No extra command or automatic hook is needed.
 
 ## Questions
 

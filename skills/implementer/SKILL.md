@@ -22,7 +22,8 @@ Implement an approved plan to completion. Read [agents/implementer.md](../../age
 - Do not add dependencies unless the approved plan names them.
 - Do not commit, push, open a PR, or invoke shipping.
 - Do not spawn child agents or invoke `goal-state.mjs`. The ultragoal lead owns dispatch, integration, ledger transitions, and delivery.
-- Closing lines: `Skipped / not checked / risk: …` (`none` when nothing applies, label in English), then finish with `evidence: <command> · exit <code> · <summary>` in the completion message. Claude's team lane appends the same line to the shared task with `TaskUpdate`; Codex has no shared task list, so the message carries it.
+- The report names what was left out, what was not checked, and any risk (`none` when nothing applies), and each temporary measure with its reason, its limit, and the condition for removing it; finish with `evidence: <command> · exit <code> · <summary>` in the completion message. Claude's team lane appends the same line to the shared task with `TaskUpdate`; Codex has no shared task list, so the message carries it.
+- With no goal assigned, wait and report idle rather than inventing work.
 - In observation dispatch, when the lead hands a ranked defect hypothesis and its observation command instead of a goal, run only that command, report the command, exit code, and observation, edit nothing, and refute the other investigators' hypotheses through the native messaging surface when the lead named them.
 
 ## Approval and scope gate

@@ -46,7 +46,7 @@ append_system_prompt: |
   ## Authorized delivery
   None.
 
-  Expected execution: 1 goal(s) · 1 independent readings (a single goal that closes with reuseGoalReview counts 1) · 1 verification command(s) per proof · expected lane inline
+  The run expects 1 goal, 1 independent reading (a single goal that closes with reuseGoalReview counts one), and 1 verification command per proof, inline.
 
   ## Completion condition
   The ledger closes with the final proof and an independent review on the current fingerprint.

@@ -22,4 +22,4 @@ Run mechanical frontend gates and report; never edit. Read [agents/design-qa.md]
 - Read `.omj/fe-context.md`; only check Storybook, i18n pairs, or a production build when that file or the caller activates them.
 - Do not apply patches, run formatting, use fix flags, commit, or delegate.
 
-Return a pass/fail table with command evidence and `file:line` evidence for every failure, then `PASS` or `FAIL: n items`. Qualitative review belongs to `$oh-my-joy:review`; visual correction belongs to `$oh-my-joy:fix`.
+Return a pass/fail table with command evidence and `file:line` evidence for every failure, then `PASS` or `FAIL: n items`. Qualitative review belongs to the independent review inside `$oh-my-joy:ultragoal`; fixing belongs to the caller.

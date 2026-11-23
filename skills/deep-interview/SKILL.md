@@ -30,6 +30,7 @@ Requirements are not an implementation plan. `ralplan` always owns planning and 
 
 - If repository tools are unavailable, continue as a greenfield interview and label repository context as unverified.
 - If the session cannot invoke or read the planner, print the exact `$oh-my-joy:ralplan` invocation.
+- Each round reports one sentence (ambiguity, what is open); the score table appears once, in the exit bridge.
 - An early exit after round 3 or the round-20 cap goes through the exit bridge with the restated goal and a Residual gaps row naming each open gap, rather than extending the interview; an explicit stop ends without a handoff.
 
 Use `$oh-my-joy:deep-interview <idea> [--threshold N]`. Empty input prints usage and stops.

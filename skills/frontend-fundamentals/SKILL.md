@@ -29,8 +29,8 @@ Additional areas:
 - Boundaries (Server/Client, errors, testability) → [references/boundaries.md](references/boundaries.md) — where `'use client'` sits decides the bundle and the render model together
 - Bundle and debugging → [references/bundling-debug.md](references/bundling-debug.md)
 - Project acceptance axes and verification commands (mechanism) → [references/fe-acceptance.md](references/fe-acceptance.md) — reflects the axes a project declares in `.omj/fe-context.md` into specs; the plugin forces no particular axis. Also the source of truth for the token-system detection order.
-- Figma fidelity (universal design→code rules) → [references/figma-fidelity.md](references/figma-fidelity.md) — keep original text, no invented variants, no fixed px (`w-full` plus parent padding), no hardcoded tokens. `/oh-my-joy:ralplan` prescribes; `/oh-my-joy:review` and `design-qa` verify.
-- Visual design (screens without a design reference) → [references/visual-design.md](references/visual-design.md) — a closed list of template tells, objective visual defects, judgment items, and the plan's Design direction. `/oh-my-joy:ralplan` prescribes; `/oh-my-joy:review` checks the code and `/oh-my-joy:verify` audits the rendered screen.
+- Figma fidelity (universal design→code rules) → [references/figma-fidelity.md](references/figma-fidelity.md) — keep original text, no invented variants, no fixed px (`w-full` plus parent padding), no hardcoded tokens. `/oh-my-joy:ralplan` prescribes; `design-qa` verifies.
+- Visual design (screens without a design reference) → [references/visual-design.md](references/visual-design.md) — a closed list of template tells, objective visual defects, judgment items, and the plan's Design direction. `/oh-my-joy:ralplan` prescribes; the independent review inside `/oh-my-joy:ultragoal` checks the code and `/oh-my-joy:verify` audits the rendered screen.
 
 ## Quick checklist (smell → remedy)
 
@@ -64,4 +64,4 @@ The principles are not a license to add layers: do not abstract simple logic, do
 
 ## Companion commands
 
-`/oh-my-joy:ralplan` (and its `spec` compatibility alias) prescribes with this rubric at authoring time; `/oh-my-joy:review` verifies the diff against it afterwards (frontend files get the four criteria + a11y + Figma fidelity + vercel + Next.js; other files get correctness, simplicity, consistency, and test coverage). Same source of truth, two stages; the visual rubric is prescribed by `ralplan` and checked by `review` (code) and `verify` (render).
+`/oh-my-joy:ralplan` prescribes with this rubric at authoring time. The visual rubric is prescribed by `ralplan` and checked by the ultragoal review (code) and `verify` (render).

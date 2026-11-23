@@ -20,14 +20,13 @@ import {
   parseFrontmatter,
 } from './helpers/repo.mjs';
 
-const CLAUDE_ALWAYS_ON_BUDGET_TOKENS = 1700;
-const CODEX_ALWAYS_ON_BUDGET_TOKENS = 600;
+const CLAUDE_ALWAYS_ON_BUDGET_TOKENS = 1141;
+const CODEX_ALWAYS_ON_BUDGET_TOKENS = 350;
 const MAINTAINER_BUDGET_TOKENS = 120;
-const COMPACT_SKILLS = new Set(['critic', 'design-qa', 'implementer', 'spec']);
+const COMPACT_SKILLS = new Set(['critic', 'design-qa', 'implementer']);
 const PLUGIN_SKILLS = [
-  'critic', 'deep-interview', 'design-qa', 'fix', 'frontend-fundamentals',
-  'implementer', 'ralplan', 'review', 'setup', 'ship', 'spec', 'sync',
-  'ultragoal', 'verify',
+  'critic', 'deep-interview', 'design-qa', 'frontend-fundamentals',
+  'implementer', 'ralplan', 'setup', 'ship', 'ultragoal', 'verify',
 ];
 
 const allSkills = listTrackedFiles('skills/*/SKILL.md');
@@ -96,14 +95,14 @@ describe('Always-on token budget', () => {
   });
 
   it('rejects one oversized description despite a passing aggregate', () => {
-    const rows = [measure('fixture/SKILL.md', { name: 'review', description: 'x'.repeat(181) })];
+    const rows = [measure('fixture/SKILL.md', { name: 'verify', description: 'x'.repeat(181) })];
     assertWithinBudget(rows, CODEX_ALWAYS_ON_BUDGET_TOKENS);
     assert.throws(() => assertDescriptions(rows), /exceeds 180 characters/);
-    assert.throws(() => assertDescriptions([measure('fixture/SKILL.md', { name: 'spec', description: 'x'.repeat(121) })]), /exceeds 120 characters/);
+    assert.throws(() => assertDescriptions([measure('fixture/SKILL.md', { name: 'critic', description: 'x'.repeat(121) })]), /exceeds 120 characters/);
   });
 
   it('rejects an empty description or an omitted required skill', () => {
-    assert.throws(() => assertDescriptions([measure('fixture/SKILL.md', { name: 'review', description: '  ' })]), /description is empty/);
+    assert.throws(() => assertDescriptions([measure('fixture/SKILL.md', { name: 'verify', description: '  ' })]), /description is empty/);
     assert.throws(() => assertInventory(readRows(codexSurfaces).filter((row) => row.name !== 'ship'), PLUGIN_SKILLS), /skill inventory changed/);
   });
 

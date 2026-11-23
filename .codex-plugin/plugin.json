@@ -1,7 +1,7 @@
 {
   "name": "oh-my-joy",
   "version": "1.5.0",
-  "description": "AI says it's done. OMJ makes it prove it. One workflow for Claude Code and Codex: interview, plan with an independent critique, approve once, then build, review, and verify with recorded evidence and resume. Figma-to-code built in.",
+  "description": "AI says it's done. OMJ makes it prove it. One workflow for Claude Code and Codex: small tasks run through a checked playbook, risky or large ones get one critiqued plan to approve, and every run ends in a plain report with recorded evidence and resume. Figma-to-code built in.",
   "author": {
     "name": "Jooyoung Shin",
     "email": "jooyoung.dev@gmail.com"
@@ -23,7 +23,7 @@
   "interface": {
     "displayName": "oh-my-joy",
     "shortDescription": "No proof, no done: critiqued plans and evidence-backed execution.",
-    "longDescription": "Interview a fuzzy idea, plan with an independent critique, approve once, then execute with per-goal review, verification evidence (command and exit code), and resume. Includes Figma-to-code with real browser checks and existing PR review delivery.",
+    "longDescription": "Run small tasks through checked playbooks; interview a fuzzy idea or plan risky and large work with an independent critique and one approval; execute with review, verification evidence (command and exit code), plain five-part reports, and resume. Includes Figma-to-code with real browser checks.",
     "developerName": "Jooyoung Shin",
     "category": "Developer Tools",
     "capabilities": [
@@ -35,7 +35,7 @@
     "defaultPrompt": [
       "Turn this concrete coding task into an implementation plan with $oh-my-joy:ralplan.",
       "Clarify this fuzzy product idea with $oh-my-joy:deep-interview.",
-      "Review my current diff without changing it with $oh-my-joy:review."
+      "Run this small, bounded change and verify it with $oh-my-joy:ultragoal."
     ]
   }
 }

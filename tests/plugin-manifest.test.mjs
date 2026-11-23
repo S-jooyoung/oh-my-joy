@@ -29,22 +29,21 @@ const marketplace = readJson('.claude-plugin', 'marketplace.json');
  * permission tiers.
  *
  * ZERO_BASH: no shell execution path at all (no write tools, no Task/Agent, and
- *   zero Bash tokens). `spec` must have no write path that bypasses the
- *   plan-gate (PRINCIPLES ①③); `deep-interview` is a primer that only produces
- *   a native Plan.
+ *   zero Bash tokens). `deep-interview` is a primer that only produces a
+ *   native Plan.
  * REPORT_ONLY: never modifies **source** but uses scoped Bash for observation
- *   and reporting — `review` (reads git diffs), `verify` (launches a browser,
+ *   and reporting — `ralplan` (reads the code it plans), `verify` (launches a browser,
  *   captures, or runs the project's verification commands; curl includes
  *   `.omj/baselines/` download writes, so it is "source-untouched" rather than
  *   write-free, with the write scope enforced by the body). Bare Bash is already
  *   blocked by the all-commands check, so only write tools are asserted here.
  */
-const ZERO_BASH_COMMANDS = new Set(['spec.md', 'deep-interview.md']);
-const REPORT_ONLY_COMMANDS = new Set(['ralplan.md', 'review.md', 'verify.md']);
+const ZERO_BASH_COMMANDS = new Set(['deep-interview.md']);
+const REPORT_ONLY_COMMANDS = new Set(['ralplan.md', 'verify.md']);
 const READ_ONLY_COMMANDS = new Set([...ZERO_BASH_COMMANDS, ...REPORT_ONLY_COMMANDS]);
 // Commands that may spawn a subagent — only the read-only `critic`; the pins
 // below tie the declaration to that agent and that agent to read-only tools.
-const AGENT_SPAWNING_COMMANDS = new Set(['ralplan.md', 'review.md']);
+const AGENT_SPAWNING_COMMANDS = new Set(['ralplan.md']);
 const CRITIC_TOOLS = 'Read, Grep, Glob';
 
 /**
@@ -192,6 +191,15 @@ describe('commands/*.md frontmatter', () => {
         assert.ok(fm.description?.length > 0);
       });
 
+      // An option the hint advertises but the body never mentions is a flag the
+      // command silently ignores, so the user who types it gets no behavior.
+      it('every --flag in argument-hint is handled in the body', () => {
+        const flags = [...String(fm['argument-hint'] ?? '').matchAll(/--[a-z][a-z0-9-]*/g)].map((m) => m[0]);
+        const commandBody = readRepoFile('commands', file).replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
+        const missing = flags.filter((flag) => !new RegExp(`${flag}(?![a-z0-9-])`).test(commandBody));
+        assert.deepEqual(missing, [], `${file}: argument-hint advertises ${missing.join(', ')} but the body never handles it`);
+      });
+
       it('declares allowed-tools', () => {
         assert.ok(fm['allowed-tools']?.length > 0, `${file} has no allowed-tools declaration`);
         // Written as a YAML list, the doesNotMatch checks below die with an
@@ -259,7 +267,7 @@ describe('commands/*.md frontmatter', () => {
       }
 
       if (AGENT_SPAWNING_COMMANDS.has(file)) {
-        // Independence comes from a fresh context, so spec and review may spawn
+        // Independence comes from a fresh context, so ralplan may spawn
         // the critic — and only the critic. The body names it, and the agent's
         // own frontmatter (pinned below) carries no write tool.
         it('agent-spawning commands declare Agent and name the critic in the body', () => {
