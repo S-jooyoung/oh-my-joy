@@ -31,6 +31,7 @@ History prior to 0.6.0 is preserved in Korean.
 - The answer style shows, in a Korean example, a term defined in a clause where it first appears.
 - The `/oh-my-joy:ship` description no longer names the removed standalone review.
 - The `ralplan-approval-card` length grader counts the card's lines with a regex instead of an LLM judge.
+- The `deep-interview-gate` round-table grader reads the session trace: the gate speaks before the handoff, and the last message is the plan `ralplan` wrote.
 - The `ralplan-approval-card` label grader refuses the four retired labels anywhere and `Completion condition:` only inside the card, since the draft still ends with a completion condition below the divider; a test pins both graders' patterns.
 - The bug-fix playbook's report names a test that went from failing to passing by its own name, not only by the command that ran it.
 - Roadmap notes for `/oh-my-joy:push` and `/oh-my-joy:ds-spec` say planned, not shipped, in place of the stale `v1.2+` marker.

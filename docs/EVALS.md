@@ -280,6 +280,8 @@ Second follow-up round, fallback runner (about $1.3):
 - `ultragoal-playbook-bugfix`: `2026-11-23T07-49-12-304Z` 1.00, the first run in which `report-five-parts` passed, after the bug-fix playbook asked for a test to be named by its own name and not only by the command that ran it.
 - `style-korean-answer`, three runs a side: `2026-11-23T07-50-31-319Z` 1.00, 0.67, 0.67 (mean 0.78, fail), then `2026-11-23T07-53-52-673Z` 0.67, 1.00, 1.00 (mean 0.89, pass) after the style gained an example of defining a term where it first appears. Every miss was the fluency judge naming undefined terms. Three runs a side is too few to call the difference settled; the case stays a pass rate.
 
+Release gate, fallback runner, the three changed bodies without a 2.0 run (about $1.4): `ship-stops-on-red` 1.00 and `setup-check-bare-project` 1.00 at `2026-11-23T08-29-12-546Z`. `deep-interview-gate` scored 0.67 in that run: `no-round-table`, new in 2.0 and never run, judged the interview's words before the handoff from the last message, which is the plan `ralplan` wrote. With `focus: trace` it scored 1.00 at `2026-11-23T08-32-42-398Z`; the two graders the case had before 2.0 passed both times.
+
 The wait line (`docs/REPORTING.md`, Progress lines) has no eval case: it shows only while a session waits on a review or a long command, which a single-prompt run cannot observe, so `tests/library.test.mjs` pins the rule instead.
 
 ## Adaptive representative checks
