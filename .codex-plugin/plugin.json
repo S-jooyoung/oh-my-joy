@@ -1,6 +1,6 @@
 {
   "name": "oh-my-joy",
-  "version": "1.5.0",
+  "version": "2.0.0",
   "description": "AI says it's done. OMJ makes it prove it. One workflow for Claude Code and Codex: small tasks run through a checked playbook, risky or large ones get one critiqued plan to approve, and every run ends in a plain report with recorded evidence and resume. Figma-to-code built in.",
   "author": {
     "name": "Jooyoung Shin",
