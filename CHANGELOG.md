@@ -9,6 +9,20 @@ History prior to 0.6.0 is preserved in Korean.
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [2.0.0] - 2026-11-23
+
+### Added
 - Playbook route: `/oh-my-joy:ultragoal` runs a small, safe task (one deliverable, five files or fewer, no sensitive, contract, or external change) through `docs/playbooks/` — bug fix, feature, refactor, investigation — inline, with no ledger and no question; a change that edits files gets one fresh `critic` review from `.omj/review/last-request.md`, `last.diff`, and `last.files` (skipped only when one file changed by two lines or fewer), three failing reviews stop the run, and work that crosses the counted boundary keeps its finished safe changes and goes to `ralplan`.
 - Named principles: 26 principles in `docs/principles/` with an index that `ultragoal` and `ralplan` read when a task starts; both READMEs list them, and a test keeps the two tables in step.
 - Plain five-part reports in `docs/REPORTING.md` — Conclusion, Your move, What changed, Decisions made for you, How it was checked — for the approval screen, the completion and catch-up reports, verify, and ship, with each check named by its test name or command, claims marked measured, inferred, or guessed, a check-strength scale, and `not confirmed` for a claim without evidence. Ask for simpler words and the report comes back plainer with every fact kept; ask where a run stands and you get a catch-up.
@@ -911,7 +925,8 @@ History prior to 0.6.0 is preserved in Korean.
 
 > 앞으로 모든 기능 추가/변경 시 이 파일에 항목을 추가합니다.
 
-[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/S-jooyoung/oh-my-joy/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.5.0...v2.0.0
 [1.5.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/S-jooyoung/oh-my-joy/compare/v1.2.1...v1.3.0
