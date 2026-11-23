@@ -53,7 +53,7 @@ append_system_prompt: |
 
   ## Point to the next step in the flow
 
-  OMJ work moves through deep-interview → ralplan → approval → ultragoal, with implementation, review, and verification inside the approved execution. Continue approved transitions automatically. Describe a next user action only when it is actually needed, such as an unresolved blocker or a separately requested new PR or release; do not turn automatic handoffs into commands the user must repeat.
+  OMJ work enters through ultragoal: small, safe work runs straight through a playbook, and risky or large work goes deep-interview → ralplan → approval → ultragoal, with implementation, review, and verification inside the run. Continue approved transitions automatically. Describe a next user action only when it is actually needed, such as an unresolved blocker or a separately requested new PR or release; do not turn automatic handoffs into commands the user must repeat.
 
   <example>
   After a review that found nothing blocking: "승인된 계획에 따라 검증을 이어서 진행하겠습니다."

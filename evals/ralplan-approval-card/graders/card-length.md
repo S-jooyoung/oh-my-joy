@@ -1,4 +1,7 @@
 ---
-type: llm
+type: regex
+pattern: "^(?:(?!-{3,}[ \\t]*(?:\\n|$))[^\\n]*\\n){1,40}-{3,}[ \\t]*(?:\\n|$)"
+match: contains
+target: last_message
 ---
-Count the lines of the approval card, from its first line down to the divider that separates it from the detailed plan sections (blank lines included). The card has a divider below it, and it is at most 40 lines long.
+The approval card ends at the first `---` divider line, and that divider comes within the first 40 lines of the plan.

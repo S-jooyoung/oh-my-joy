@@ -384,7 +384,7 @@ describe('Command list consistency', () => {
     // minor release, written slashless so the exists-check above stays clean.
     const RETIRED = ['ff-review', 'ralplan', 'goal-loop'];
     // v0.9.0 renamed the figma-implementer agent to implementer; the same
-    // grace rule keeps the old agent name visible for one minor release.
+    // grace rule keeps the old agent name visible in the migration table.
     const RETIRED_AGENTS = ['figma-implementer'];
     for (const [label, source] of [['EN', readmeEn], ['KO', readmeKo]]) {
       for (const name of [...RETIRED, ...RETIRED_AGENTS]) {

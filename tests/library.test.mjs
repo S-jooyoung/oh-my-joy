@@ -180,6 +180,12 @@ describe('reporting rules', () => {
     assert.deepEqual(levels.map((m) => Number(m[1])), CHECK_STRENGTH.map((_, i) => i + 1));
     assert.ok(source.includes('`not confirmed`'), 'REPORTING.md lacks `not confirmed`');
   });
+
+  it('REPORTING.md defines the progress line and the wait line before a long wait', () => {
+    const lines = section(readExisting(reportingPath), 'Progress lines');
+    assert.match(lines, /<done>\/<total> done/, 'the per-goal progress line is missing');
+    assert.match(lines, /wait line/, 'the wait line is missing');
+  });
 });
 
 describe('library files are documents, not skills or commands', () => {

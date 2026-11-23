@@ -1,5 +1,5 @@
 ---
-description: Ship the finished work — run the project's verification commands (every one must exit 0), commit on a branch with the project's conventions and language, push, and open the PR with the evidence attached. Uses an explicit or unambiguous established base and asks only when multiple genuine candidates remain; never commits directly on a shared branch. The last step of every OMJ flow; review and verify are yours to run first (run outside Plan mode). Canonical invocation is /oh-my-joy:ship
+description: Ship the finished work — run the project's verification commands (every one must exit 0), commit on a branch with the project's conventions and language, push, and open the PR with the evidence attached. Uses an explicit or unambiguous established base and asks only when multiple genuine candidates remain; never commits directly on a shared branch. The last step of every OMJ flow; verification is yours to run first (run outside Plan mode). Canonical invocation is /oh-my-joy:ship
 argument-hint: "[\"PR title\"] [--base <ref>]"
 allowed-tools: Read, Grep, Glob, AskUserQuestion, ListAgents, TaskStop, Bash(git status:*), Bash(git diff:*), Bash(git rev-parse:*), Bash(git branch:*), Bash(git checkout -b:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git log:*), Bash(gh auth status:*), Bash(gh pr create:*), Bash(npx tsc:*)
 ---

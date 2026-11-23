@@ -27,6 +27,8 @@ Write the parts in this order. The English names are the canonical names for aut
 - Explain a term in one phrase the first time it appears.
 - Labels are in the user's language too; no fixed English labels.
 - One name for one thing, every time.
+- The reader has not seen your tool calls or the files you opened; the report stands on its own.
+- A label coined during the work — a goal ID, a slug, a revision number — is explained or left out.
 
 ## What stays out of the body
 
@@ -45,9 +47,11 @@ Check strength, strongest first:
 
 A claim with no evidence file is `not confirmed`. Use no word stronger than the evidence: "works" needs one of the first two strengths, and a claim that rests on reading the code is inferred.
 
-## Progress line
+## Progress lines
 
 When a goal finishes, print one line: `<done>/<total> done: <goal>. Next: <goal>`.
+
+Before a wait that can last minutes — an independent review, an eval run, a long command — print one wait line: what is running and what comes after it.
 
 ## Citing principles
 

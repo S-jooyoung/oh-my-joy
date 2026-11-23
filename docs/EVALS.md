@@ -269,6 +269,13 @@ Fallback runner, `--runs 1`, the six cases the 2.0 plan named; results under `ev
 
 In all three playbook runs the route held (no approval screen, no question, no ledger, one critic); the one grader that stayed at 0, `report-five-parts`, accepted the order in the last two runs and asked for the regression test to be named inside How it was checked.
 
+Prompt-audit follow-up, fallback runner, four runs (about $1.1 in all):
+
+- `ralplan-approval-card`: `2026-11-23T07-06-41-450Z` 0.75, then `2026-11-23T07-11-24-095Z` 1.00. The length grader, now a regex, passed both times. The first run failed `no-fixed-labels` because the executor detail below the divider carried a `Completion condition:` line. The second run was graded while that grader was briefly narrowed to the card; the narrowing was reverted as outside the approved change, and the second run's plan holds none of the five labels, so it passes the committed grader as well. Open: `commands/ralplan.md` asks every draft to end with a completion condition while this grader forbids the label anywhere in the plan, so the case passes or fails on how a run happens to format that line.
+- `style-korean-answer`: 0.67 in both runs (`2026-11-23T07-08-46-108Z`, `2026-11-23T07-12-39-911Z`), below the 0.8 threshold; the run before this change scored 1.00. The fluency judge named undefined terms each time (token bucket, API Gateway, Map, socket, proxy; then Redis, X-Forwarded-For, Express, API gateway), and the other two graders passed. The edit under test was the flow sentence; two runs cannot tell whether it or the judge's documented variance caused the miss, and the second run was a repeat without a fix. Open, not passed.
+
+The wait line (`docs/REPORTING.md`, Progress lines) has no eval case: it shows only while a session waits on a review or a long command, which a single-prompt run cannot observe, so `tests/library.test.mjs` pins the rule instead.
+
 ## Adaptive representative checks
 
 `ultragoal-playbook-bugfix` covers a small bug fix on the playbook route: no approval screen, no question, no ledger, one `critic` review, and a five-part report. `ultragoal-requires-plan` now uses authentication and migration work, which requires planning. Configuration/routing/capacity tests are local and dependency-free. Live Claude/Codex picker checks are separate observed evidence, not inferred from these cases. Run only changed behavioral cases; no full benchmark is required.

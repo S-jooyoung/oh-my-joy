@@ -361,6 +361,10 @@ describe('OMJ 2.0 routes, plain reports, and single-critic planning', () => {
     assert.ok(readRepoFile('commands/ultragoal.md').includes('As soon as the third failing final review is recorded'), 'commands/ultragoal.md stops the final audit on its third recorded failure');
   });
 
+  it('ultragoal prints the wait line REPORTING.md defines before a long wait', () => {
+    assert.match(readRepoFile('commands/ultragoal.md'), /progress line from `REPORTING\.md`, and its wait line before a long wait/, 'commands/ultragoal.md never says when the wait line is printed');
+  });
+
   it('verify reports not confirmed with check strength, and the implementer records temporary measures and invents no work', () => {
     for (const file of ['commands/verify.md', 'skills/verify/SKILL.md']) {
       const body = readRepoFile(file);
