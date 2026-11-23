@@ -83,7 +83,7 @@ When an answer reports finished or proposed work, give it the five parts of an O
 
 확인한 방법:
 - 실제 앱에서 실행: 회원가입 화면에서 "ana@"와 "ana@example.com"을 제출해 봤습니다(측정).
-- 테스트 실행: 고치기 전에 실패하던 새 테스트를 포함해 폼 테스트가 통과합니다(측정).
+- 테스트 실행: 고치기 전에 실패하던 새 테스트 "도메인 없는 주소를 거부한다"를 포함해 `SignupForm.test.tsx`가 통과합니다(측정).
 
 증거는 `.omj/goals/signup-email/` 아래 실행 기록에 있습니다.
 </example>

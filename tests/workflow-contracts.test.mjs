@@ -348,14 +348,17 @@ describe('OMJ 2.0 routes, plain reports, and single-critic planning', () => {
     }
   });
 
-  it('ultragoal prints progress per finished goal, handles a refused review, and reopens a capped final audit', () => {
+  it('ultragoal prints progress per finished goal, stops on the third recorded failing review, and reopens a capped final audit', () => {
     for (const file of ['commands/ultragoal.md', 'skills/ultragoal/SKILL.md']) {
       const body = readRepoFile(file);
       assert.ok(body.includes('When a goal completes, print the progress line'), `${file} prints one line per finished goal`);
-      assert.ok(body.includes('When the helper refuses to record a review'), `${file} handles the helper's review cap`);
+      assert.ok(body.includes("As soon as a goal's third failing review"), `${file} blocks the goal the moment its third failing review is recorded`);
+      assert.ok(body.includes('refuses a fourth review only as a safety net'), `${file} keeps the helper refusal as a safety net, not the stop condition`);
+      assert.doesNotMatch(body, /When the helper refuses to record a review/, `${file} still waits for the helper refusal before stopping`);
       assert.match(body, /`resume` with `\{expectedRevision,scope:"final"\}`/, `${file} reopens a capped final audit`);
     }
     assert.doesNotMatch(readRepoFile('commands/ultragoal.md'), /At each ledger transition/);
+    assert.ok(readRepoFile('commands/ultragoal.md').includes('As soon as the third failing final review is recorded'), 'commands/ultragoal.md stops the final audit on its third recorded failure');
   });
 
   it('verify reports not confirmed with check strength, and the implementer records temporary measures and invents no work', () => {

@@ -10,7 +10,7 @@ Write the parts in this order. The English names are the canonical names for aut
 2. **Your move** — what the user has to decide or do next, or that nothing is needed.
 3. **What changed** — each change as before → after, in terms the user recognizes: a behavior, a screen, a file.
 4. **Decisions made for you** — each choice made where the request was silent, with its reason and how to undo it. A temporary measure also states its reason, its limit, and the condition for removing it.
-5. **How it was checked** — what ran, what it showed, and how strong that check is (below). End with one line that says where the evidence lives.
+5. **How it was checked** — each check that ran, named by its test name or command, what it showed, and how strong that check is (below). End with one line that says where the evidence lives.
 
 ## Screens
 
@@ -72,7 +72,7 @@ Decisions made for you:
 
 How it was checked:
 - Ran in the real app: submitted "ana@" and "ana@example.com" on the signup page (measured).
-- Ran the tests: the form tests pass, including a new one that failed before the fix (measured).
+- Ran the tests: `SignupForm.test.tsx` passes, including the new test "rejects an address without a domain", which failed before the fix (measured).
 
 Evidence: the run's evidence folder under `.omj/goals/signup-email/`.
 </example>

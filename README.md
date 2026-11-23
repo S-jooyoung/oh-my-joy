@@ -151,7 +151,7 @@ Decisions made for you:
 
 How it was checked:
 - Ran in the real app: submitted "ana@" and "ana@example.com" (measured).
-- Ran the tests: the form tests pass, including a new one that failed before the fix (measured).
+- Ran the tests: `SignupForm.test.tsx` passes, including the new test "rejects an address without a domain", which failed before the fix (measured).
 
 Evidence: the run's evidence folder under .omj/goals/signup-email/.
 ```
