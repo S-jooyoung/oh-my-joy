@@ -1,10 +1,15 @@
 /**
- * Behavior tests for hud/omj-hud-cache.sh — the cached statusLine wrapper.
+ * Behavior tests for hud/omj-hud-cache.sh — the cached statusLine wrapper — and for the
+ * loader and vendored bundle behind it.
  *
  * The wrapper's render lock, temp files, and sweep decide whether a frame shows the
  * latest render. These tests pin ownership by the live render shell, the lock age
  * ceiling, the kept stderr log, and that a sweep never removes a running render's
  * output. Each runs under `sh` and, when installed, `dash` (CI's `sh`).
+ *
+ * The loader tests run `node hud/omj-hud.mjs` in a sandbox (temporary HOME and
+ * CLAUDE_CONFIG_DIR, `rateLimits: false`, no inherited credentials) and pin the effort
+ * segment, the per-session stdin cache, and the status line a failed bundle load prints.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -166,3 +171,88 @@ for (const shell of SHELLS) {
     });
   });
 }
+
+const LOADER = path.join(REPO_ROOT, 'hud', 'omj-hud.mjs');
+
+/** A sandbox where the bundle reads no real credentials, settings, or network quota. */
+function makeLoaderSandbox() {
+  const root = mkdtempSync(path.join(tmpdir(), 'omj-hud-loader-'));
+  const dirs = { home: path.join(root, 'home'), config: path.join(root, 'config'), project: path.join(root, 'project') };
+  Object.values(dirs).forEach((dir) => mkdirSync(dir, { recursive: true }));
+  writeFileSync(path.join(dirs.config, 'settings.json'), JSON.stringify({ omcHud: { elements: { rateLimits: false } } }));
+  spawnSync('git', ['init', '-q'], { cwd: dirs.project });
+
+  function render(input, loader = LOADER) {
+    const env = {
+      PATH: `${path.dirname(process.execPath)}${path.delimiter}${process.env.PATH}`,
+      HOME: dirs.home,
+      CLAUDE_CONFIG_DIR: dirs.config,
+    };
+    const result = spawnSync(process.execPath, [loader], {
+      cwd: dirs.project,
+      env,
+      input: JSON.stringify({ cwd: dirs.project, model: { id: 'claude-test', display_name: 'Test' }, ...input }),
+      encoding: 'utf8',
+      timeout: 20_000,
+    });
+    return { code: result.status, stdout: result.stdout.replace(/\x1b\[[0-9;]*m/g, ''), stderr: result.stderr };
+  }
+
+  return { root, dirs, render, cleanup: () => rmSync(root, { recursive: true, force: true }) };
+}
+
+describe('hud loader and bundle', () => {
+  it('shows the effort level from statusLine stdin and nothing without it', () => {
+    const box = makeLoaderSandbox();
+    try {
+      const withEffort = box.render({ session_id: 'e1', effort: { level: 'high' } });
+      assert.equal(withEffort.code, 0, withEffort.stderr);
+      assert.match(withEffort.stdout, /effort:high/);
+
+      const withoutEffort = box.render({ session_id: 'e2' });
+      assert.equal(withoutEffort.code, 0, withoutEffort.stderr);
+      assert.ok(withoutEffort.stdout.trim().length > 0, 'the HUD should still render a line');
+      assert.doesNotMatch(withoutEffort.stdout, /effort:/);
+    } finally {
+      box.cleanup();
+    }
+  });
+
+  it("keeps each session's stdin cache under its own session directory", () => {
+    const box = makeLoaderSandbox();
+    try {
+      for (const id of ['sa', 'sb']) assert.equal(box.render({ session_id: id, effort: { level: id } }).code, 0);
+
+      const stateDir = path.join(box.dirs.project, '.omc', 'state');
+      for (const id of ['sa', 'sb']) {
+        const cached = readIfExists(path.join(stateDir, 'sessions', id, 'hud-stdin-cache.json'));
+        assert.ok(cached, `session ${id} should have its own stdin cache`);
+        assert.equal(JSON.parse(cached).effort.level, id);
+      }
+      assert.equal(existsSync(path.join(stateDir, 'hud-stdin-cache.json')), false, 'a session id should not write the shared flat cache');
+    } finally {
+      box.cleanup();
+    }
+  });
+
+  it('prints a short load failure on the status line when the bundle cannot load', () => {
+    const box = makeLoaderSandbox();
+    try {
+      const copy = path.join(box.root, 'hud');
+      mkdirSync(path.join(copy, 'vendor', 'hud'), { recursive: true });
+      writeFileSync(path.join(copy, 'omj-hud.mjs'), readFileSync(LOADER));
+      writeFileSync(path.join(copy, 'vendor', 'hud', 'index.js'), `throw new Error("bundle broke:\\n   ${'x'.repeat(120)}");\n`);
+
+      const failed = box.render({ session_id: 'f1' }, path.join(copy, 'omj-hud.mjs'));
+
+      assert.equal(failed.code, 0);
+      const lines = failed.stdout.trim().split('\n');
+      assert.equal(lines.length, 1, failed.stdout);
+      assert.match(lines[0], /^\[OMJ HUD\] HUD failed to load: bundle broke: x+\.\.\.$/);
+      assert.ok(lines[0].length <= '[OMJ HUD] HUD failed to load: '.length + 100, lines[0]);
+      assert.match(failed.stderr, /\[OMJ HUD Error\] bundle broke:/);
+    } finally {
+      box.cleanup();
+    }
+  });
+});

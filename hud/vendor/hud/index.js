@@ -1,10 +1,25 @@
 #!/usr/bin/env node
 
-// v5.6.2/dist/hud/stdin.js
-import { existsSync as existsSync2, readFileSync as readFileSync2, statSync as statSync2, writeFileSync as writeFileSync2, mkdirSync as mkdirSync2 } from "fs";
-import { dirname as dirname2, join as join3 } from "path";
+// v5.8.6/dist/utils/windows-search.js
+var VARIABLE = "NoDefaultCurrentDirectoryInExePath";
+function isVariable(key) {
+  return key.toUpperCase() === VARIABLE.toUpperCase();
+}
+function hardenWindowsExeSearch() {
+  if (process.platform !== "win32")
+    return;
+  for (const key of Object.keys(process.env)) {
+    if (isVariable(key))
+      delete process.env[key];
+  }
+  process.env[VARIABLE] = "1";
+}
 
-// v5.6.2/dist/lib/worktree-paths.js
+// v5.8.6/dist/hud/stdin.js
+import { existsSync as existsSync2, readFileSync as readFileSync2, statSync as statSync2, writeFileSync as writeFileSync2, mkdirSync as mkdirSync2, utimesSync } from "fs";
+import { dirname as dirname2 } from "path";
+
+// v5.8.6/dist/lib/worktree-paths.js
 import { createHash } from "crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { execFileSync } from "child_process";
@@ -13,7 +28,7 @@ import { homedir as homedir2, tmpdir } from "os";
 import { resolve, normalize as normalize2, relative, sep as sep2, join as join2, isAbsolute, basename, dirname } from "path";
 import { pathToFileURL } from "url";
 
-// v5.6.2/dist/utils/config-dir.js
+// v5.8.6/dist/utils/config-dir.js
 import { join, normalize, parse, sep } from "path";
 import { homedir } from "os";
 function stripTrailingSep(p) {
@@ -43,12 +58,12 @@ function getUpdateCheckCachePath() {
   return join(getOmcConfigDir(), "update-check.json");
 }
 
-// v5.6.2/dist/utils/encode-project-path.js
+// v5.8.6/dist/utils/encode-project-path.js
 function encodeProjectPath(projectPath) {
   return projectPath.replace(/[^a-zA-Z0-9]/g, "-");
 }
 
-// v5.6.2/dist/lib/worktree-paths.js
+// v5.8.6/dist/lib/worktree-paths.js
 var WORKSPACE_MARKER = ".omc-workspace";
 var OmcPaths = {
   ROOT: ".omc",
@@ -1018,9 +1033,13 @@ function resolveSessionStatePath(stateName, sessionId, worktreeRoot) {
   const normalizedName = stateName.endsWith("-state") ? stateName : `${stateName}-state`;
   return resolveOmcPath(`state/sessions/${sessionId}/${normalizedName}.json`, worktreeRoot);
 }
-function resolveSessionStatePaths(stateName, sessionId, worktreeRoot, _opts) {
+function resolveSessionStatePaths(stateName, sessionId, worktreeRoot, opts) {
   const normalizedName = stateName.endsWith("-state") ? stateName : `${stateName}-state`;
-  const legacy = resolveStatePath(stateName, worktreeRoot);
+  const fileName = opts?.fileName ?? `${normalizedName}.json`;
+  if (opts?.fileName !== void 0 && (fileName.trim() !== fileName || !/^[A-Za-z0-9][A-Za-z0-9_-]*\.json$/.test(fileName))) {
+    throw new Error(`Invalid session state filename: ${fileName}`);
+  }
+  const legacy = opts?.fileName ? resolveOmcPath(`state/${fileName}`, worktreeRoot) : resolveStatePath(stateName, worktreeRoot);
   if (!sessionId) {
     return {
       sessionScoped: "",
@@ -1030,7 +1049,7 @@ function resolveSessionStatePaths(stateName, sessionId, worktreeRoot, _opts) {
     };
   }
   validateSessionId(sessionId);
-  const sessionScoped = resolveOmcPath(`state/sessions/${sessionId}/${normalizedName}.json`, worktreeRoot);
+  const sessionScoped = resolveOmcPath(`state/sessions/${sessionId}/${fileName}`, worktreeRoot);
   const effectiveRead = existsSync(sessionScoped) ? sessionScoped : legacy;
   return {
     sessionScoped,
@@ -1223,7 +1242,7 @@ function validateWorkingDirectory(workingDirectory) {
     } catch {
       throw new Error(`workingDirectory '${workingDirectory}' does not exist or is not accessible.`);
     }
-    if (providedRootReal !== trustedRootReal) {
+    if (!sameCanonicalPath(providedRootReal, trustedRootReal)) {
       console.error("[worktree] workingDirectory resolved to different git worktree root, using trusted root", {
         workingDirectory: resolved,
         providedRoot: providedRootReal,
@@ -1280,42 +1299,71 @@ var ForeignWorkingDirectoryError = class extends Error {
   }
 };
 
-// v5.6.2/dist/hud/stdin.js
+// v5.8.6/dist/hud/stdin.js
 var TRANSIENT_CONTEXT_PERCENT_TOLERANCE = 3;
 var SESSION_ID_ENV_VARS = ["CLAUDE_SESSION_ID", "CLAUDECODE_SESSION_ID"];
+var HUD_STDIN_CACHE_STATE_NAME = "hud-stdin-cache";
+var HUD_STDIN_CACHE_FILE_NAME = "hud-stdin-cache.json";
 function normalizeCandidate(value) {
   if (!value)
     return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
-function getStdinCachePath() {
-  const root = getWorktreeRoot() || process.cwd();
+function getStdinCachePaths(stdin, root = getWorktreeRoot() || process.cwd()) {
   for (const envVar of SESSION_ID_ENV_VARS) {
     const candidate = normalizeCandidate(process.env[envVar]);
     if (!candidate)
       continue;
     try {
-      return join3(getSessionStateDir(candidate, root), "hud-stdin-cache.json");
+      return resolveSessionStatePaths(HUD_STDIN_CACHE_STATE_NAME, candidate, root, {
+        fileName: HUD_STDIN_CACHE_FILE_NAME
+      });
     } catch {
     }
   }
-  return resolveOmcPath("state/hud-stdin-cache.json", root);
+  const stdinSessionId = stdin ? normalizeCandidate(stdin.session_id) : null;
+  if (stdinSessionId) {
+    try {
+      return resolveSessionStatePaths(HUD_STDIN_CACHE_STATE_NAME, stdinSessionId, root, {
+        fileName: HUD_STDIN_CACHE_FILE_NAME
+      });
+    } catch {
+    }
+  }
+  return resolveSessionStatePaths(HUD_STDIN_CACHE_STATE_NAME, void 0, root, {
+    fileName: HUD_STDIN_CACHE_FILE_NAME
+  });
 }
 function writeStdinCache(stdin) {
   try {
-    const cachePath = getStdinCachePath();
+    const cachePath = getStdinCachePaths(stdin).effectiveWrite;
     const cacheDir = dirname2(cachePath);
     if (!existsSync2(cacheDir)) {
       mkdirSync2(cacheDir, { recursive: true });
     }
-    writeFileSync2(cachePath, JSON.stringify(stdin));
+    const newContent = JSON.stringify(stdin);
+    if (existsSync2(cachePath)) {
+      try {
+        const existingContent = readFileSync2(cachePath, "utf-8");
+        if (existingContent === newContent) {
+          const now = /* @__PURE__ */ new Date();
+          try {
+            utimesSync(cachePath, now, now);
+            return;
+          } catch {
+          }
+        }
+      } catch {
+      }
+    }
+    writeFileSync2(cachePath, newContent);
   } catch {
   }
 }
 function readStdinCache() {
   const root = getWorktreeRoot() || process.cwd();
-  const scopedPath = getStdinCachePath();
+  const paths = getStdinCachePaths(void 0, root);
   const tryRead = (p) => {
     try {
       if (!existsSync2(p))
@@ -1325,11 +1373,10 @@ function readStdinCache() {
       return null;
     }
   };
-  const legacyPath = resolveOmcPath("state/hud-stdin-cache.json", root);
-  if (scopedPath !== legacyPath) {
-    return tryRead(scopedPath);
+  if (paths.sessionScoped) {
+    return tryRead(paths.sessionScoped);
   }
-  return readMostRecentCache(root, legacyPath);
+  return readMostRecentCache(root, paths.legacy);
 }
 function parseCachedStdin(raw) {
   const parsed = JSON.parse(raw);
@@ -1354,7 +1401,9 @@ function readMostRecentCache(root, legacyPath) {
   for (const sid of sessionIds) {
     let candidate;
     try {
-      candidate = join3(getSessionStateDir(sid, root), "hud-stdin-cache.json");
+      candidate = resolveSessionStatePaths(HUD_STDIN_CACHE_STATE_NAME, sid, root, {
+        fileName: HUD_STDIN_CACHE_FILE_NAME
+      }).sessionScoped;
     } catch {
       continue;
     }
@@ -1518,17 +1567,20 @@ function getModelId(stdin) {
   const modelId = stdin.model?.id?.trim();
   return modelId || null;
 }
+function getEffortLevel(stdin) {
+  return stdin.effort?.level?.trim() || null;
+}
 function getModelName(stdin) {
   const displayName = stdin.model?.display_name?.trim();
   return displayName || getModelId(stdin);
 }
 
-// v5.6.2/dist/hud/transcript.js
+// v5.8.6/dist/hud/transcript.js
 import { createReadStream, existsSync as existsSync3, statSync as statSync3, openSync as openSync2, readSync as readSync2, closeSync as closeSync2 } from "fs";
 import { createInterface } from "readline";
 import { basename as basename2 } from "path";
 
-// v5.6.2/dist/hud/agent-kind.js
+// v5.8.6/dist/hud/agent-kind.js
 var WRAPPER_TAGS = [
   { tag: "task-notification", kind: "subagent" },
   { tag: "teammate-message", kind: "teammate" },
@@ -1587,7 +1639,7 @@ function parseIncomingAgentWrapper(content, sessionId) {
   }
 }
 
-// v5.6.2/dist/hud/transcript.js
+// v5.8.6/dist/hud/transcript.js
 var MAX_TAIL_BYTES = 4 * 1024 * 1024;
 var MAX_AGENT_MAP_SIZE = 100;
 var PERMISSION_TOOLS = [
@@ -1600,6 +1652,16 @@ var PERMISSION_TOOLS = [
 ];
 var PERMISSION_THRESHOLD_MS = 3e3;
 var pendingPermissionMap = /* @__PURE__ */ new Map();
+var taskToolStates = /* @__PURE__ */ new WeakMap();
+function getTaskToolState(latestTodos) {
+  let state = taskToolStates.get(latestTodos);
+  if (!state) {
+    state = { pendingCreates: /* @__PURE__ */ new Map(), byId: /* @__PURE__ */ new Map() };
+    taskToolStates.set(latestTodos, state);
+  }
+  return state;
+}
+var TASK_STATUSES = /* @__PURE__ */ new Set(["pending", "in_progress", "completed"]);
 var THINKING_PART_TYPES = ["thinking", "reasoning"];
 var THINKING_RECENCY_MS = 3e4;
 var transcriptCache = /* @__PURE__ */ new Map();
@@ -1775,6 +1837,16 @@ function readTailLines(filePath, fileSize, maxBytes) {
   }
   return lines;
 }
+function extractTaskIdFromTaskCreateResult(content) {
+  let text = "";
+  if (typeof content === "string") {
+    text = content;
+  } else if (Array.isArray(content)) {
+    text = content.map((b) => typeof b?.text === "string" ? b.text : "").join("\n");
+  }
+  const match = /Task #([^\s:]+) created/.exec(text);
+  return match ? match[1] : null;
+}
 function extractBackgroundAgentId(content) {
   const text = typeof content === "string" ? content : content.find((c) => c.type === "text")?.text || "";
   const match = text.match(/agentId:\s*([a-zA-Z0-9]+)/);
@@ -1915,11 +1987,42 @@ function processEntry(entry, agentMap, latestTodos, result, maxAgentMapSize = 50
         const input = block.input;
         if (input?.todos && Array.isArray(input.todos)) {
           latestTodos.length = 0;
+          taskToolStates.get(latestTodos)?.byId.clear();
           latestTodos.push(...input.todos.map((t) => ({
             content: t.content,
             status: t.status,
             activeForm: t.activeForm
           })));
+        }
+      } else if (block.name === "TaskCreate" || block.name === "proxy_TaskCreate") {
+        const input = block.input;
+        if (block.id && typeof input?.subject === "string" && input.subject) {
+          getTaskToolState(latestTodos).pendingCreates.set(block.id, {
+            content: input.subject,
+            status: "pending",
+            ...input.activeForm ? { activeForm: input.activeForm } : {}
+          });
+        }
+      } else if (block.name === "TaskUpdate" || block.name === "proxy_TaskUpdate") {
+        const input = block.input;
+        const taskId = input?.taskId == null ? "" : String(input.taskId);
+        const state = getTaskToolState(latestTodos);
+        const item = taskId ? state.byId.get(taskId) : void 0;
+        if (input && item) {
+          if (input.status === "deleted") {
+            const idx = latestTodos.indexOf(item);
+            if (idx >= 0)
+              latestTodos.splice(idx, 1);
+            state.byId.delete(taskId);
+          } else {
+            if (input.status && TASK_STATUSES.has(input.status)) {
+              item.status = input.status;
+            }
+            if (typeof input.subject === "string" && input.subject)
+              item.content = input.subject;
+            if (typeof input.activeForm === "string" && input.activeForm)
+              item.activeForm = input.activeForm;
+          }
         }
       } else if (block.name === "Skill" || block.name === "proxy_Skill") {
         result.skillCallCount++;
@@ -1942,6 +2045,20 @@ function processEntry(entry, agentMap, latestTodos, result, maxAgentMapSize = 50
     }
     if (block.type === "tool_result" && block.tool_use_id) {
       pendingPermissionMap.delete(block.tool_use_id);
+      const taskState = taskToolStates.get(latestTodos);
+      const pendingTask = taskState?.pendingCreates.get(block.tool_use_id);
+      if (taskState && pendingTask) {
+        taskState.pendingCreates.delete(block.tool_use_id);
+        const taskId = block.is_error || !block.content ? null : extractTaskIdFromTaskCreateResult(block.content);
+        if (taskId) {
+          const previous = taskState.byId.get(taskId);
+          const prevIdx = previous ? latestTodos.indexOf(previous) : -1;
+          if (prevIdx >= 0)
+            latestTodos.splice(prevIdx, 1);
+          taskState.byId.set(taskId, pendingTask);
+          latestTodos.push(pendingTask);
+        }
+      }
       const agent = agentMap.get(block.tool_use_id);
       if (agent) {
         const blockContent = block.content;
@@ -2003,11 +2120,11 @@ function getNumericUsageValue(value) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-// v5.6.2/dist/hud/state.js
+// v5.8.6/dist/hud/state.js
 import { existsSync as existsSync6, readFileSync as readFileSync6, mkdirSync as mkdirSync5, unlinkSync as unlinkSync4 } from "fs";
-import { join as join6 } from "path";
+import { join as join5 } from "path";
 
-// v5.6.2/dist/lib/atomic-write.js
+// v5.8.6/dist/lib/atomic-write.js
 import * as fsSync from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
@@ -2213,18 +2330,18 @@ function atomicWriteJsonSync(filePath, data, hooks, operations) {
 }
 var ATOMIC_BATCH_MAX_CONTENT_BYTES = 1024 * 1024;
 
-// v5.6.2/dist/hud/mission-board.js
-import { copyFileSync, existsSync as existsSync5, mkdirSync as mkdirSync4, readFileSync as readFileSync5, readdirSync as readdirSync2, renameSync as renameSync2 } from "node:fs";
-import { join as join5 } from "node:path";
+// v5.8.6/dist/hud/mission-board.js
+import { copyFileSync, existsSync as existsSync5, mkdirSync as mkdirSync4, readFileSync as readFileSync5, readdirSync as readdirSync2, renameSync as renameSync2, statSync as statSync5 } from "node:fs";
+import { join as join4 } from "node:path";
 
-// v5.6.2/dist/lib/file-lock.js
+// v5.8.6/dist/lib/file-lock.js
 import { openSync as openSync4, closeSync as closeSync4, unlinkSync as unlinkSync3, writeSync as writeSync2, readFileSync as readFileSync4, statSync as statSync4, constants as fsConstants } from "fs";
 import * as path2 from "path";
 
-// v5.6.2/dist/platform/index.js
+// v5.8.6/dist/platform/index.js
 import { readFileSync as readFileSync3 } from "fs";
 
-// v5.6.2/dist/platform/process-utils.js
+// v5.8.6/dist/platform/process-utils.js
 import { execFileSync as execFileSync2, execFile, spawnSync } from "child_process";
 import { promisify } from "util";
 var execFileAsync = promisify(execFile);
@@ -2242,7 +2359,7 @@ function isProcessAlive(pid) {
   }
 }
 
-// v5.6.2/dist/platform/index.js
+// v5.8.6/dist/platform/index.js
 var PLATFORM = process.platform;
 function isWSL() {
   if (process.env.WSLENV !== void 0) {
@@ -2256,7 +2373,7 @@ function isWSL() {
   }
 }
 
-// v5.6.2/dist/lib/file-lock.js
+// v5.8.6/dist/lib/file-lock.js
 var DEFAULT_STALE_LOCK_MS = 3e4;
 var DEFAULT_RETRY_DELAY_MS = 50;
 function isLockStale(lockPath, staleLockMs) {
@@ -2379,7 +2496,7 @@ function withFileLockSync(lockPath, fn, opts) {
   }
 }
 function sleep(ms) {
-  return new Promise((resolve6) => setTimeout(resolve6, ms));
+  return new Promise((resolve9) => setTimeout(resolve9, ms));
 }
 async function acquireFileLock(lockPath, opts) {
   const staleLockMs = opts?.staleLockMs ?? DEFAULT_STALE_LOCK_MS;
@@ -2412,7 +2529,7 @@ async function withFileLock(lockPath, fn, opts) {
   }
 }
 
-// v5.6.2/dist/utils/string-width.js
+// v5.8.6/dist/utils/string-width.js
 function isCJKCharacter(codePoint) {
   return (
     // CJK Unified Ideographs (Chinese characters)
@@ -2472,7 +2589,7 @@ function stringWidth(str) {
   return width;
 }
 function stripAnsi(str) {
-  return str.replace(/\x1b\[[0-9;]*[a-zA-Z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, "");
+  return str.replace(/\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, "");
 }
 function truncateToWidth(str, maxWidth, suffix = "...") {
   if (!str || maxWidth <= 0)
@@ -2490,7 +2607,7 @@ function truncateToWidth(str, maxWidth, suffix = "...") {
 function truncateToWidthNoSuffix(str, maxWidth) {
   let width = 0;
   let result = "";
-  for (const char of str) {
+  for (const char of stripAnsi(str)) {
     const charWidth = getCharWidth(char);
     if (width + charWidth > maxWidth)
       break;
@@ -2500,7 +2617,7 @@ function truncateToWidthNoSuffix(str, maxWidth) {
   return result;
 }
 
-// v5.6.2/dist/team/worker-canonicalization.js
+// v5.8.6/dist/team/worker-canonicalization.js
 function hasText(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
@@ -2591,7 +2708,7 @@ function canonicalizeWorkers(workers) {
   };
 }
 
-// v5.6.2/dist/hud/mission-board.js
+// v5.8.6/dist/hud/mission-board.js
 var DEFAULT_CONFIG = {
   enabled: false,
   maxMissions: 2,
@@ -2642,7 +2759,7 @@ function maybeMigrateLegacy(paths) {
     return;
   const sentinel = paths.sessionScoped + ".migrating";
   try {
-    const sessionDir = join5(paths.sessionScoped, "..");
+    const sessionDir = join4(paths.sessionScoped, "..");
     if (!existsSync5(sessionDir)) {
       mkdirSync4(sessionDir, { recursive: true });
     }
@@ -2658,7 +2775,7 @@ function maybeMigrateLegacy(paths) {
 function writeState(directory, state, sessionId) {
   const paths = resolveSessionStatePaths("mission-state", sessionId, directory);
   const writePath = paths.effectiveWrite;
-  const stateDir = join5(writePath, "..");
+  const stateDir = join4(writePath, "..");
   if (!existsSync5(stateDir)) {
     mkdirSync4(stateDir, { recursive: true });
   }
@@ -2724,7 +2841,7 @@ function deriveWorkerStatus(workerStatus, task) {
   return "waiting";
 }
 function collectTeamMission(teamRoot, teamName, config) {
-  const teamConfig = readJsonSafe(join5(teamRoot, "config.json"));
+  const teamConfig = readJsonSafe(join4(teamRoot, "config.json"));
   if (!teamConfig)
     return null;
   const workers = canonicalizeWorkers((Array.isArray(teamConfig.workers) ? teamConfig.workers : []).map((worker, index) => ({
@@ -2733,8 +2850,8 @@ function collectTeamMission(teamRoot, teamName, config) {
     role: worker.role ?? "worker",
     assigned_tasks: Array.isArray(worker.assigned_tasks) ? worker.assigned_tasks : []
   }))).workers;
-  const tasksDir = join5(teamRoot, "tasks");
-  const tasks = existsSync5(tasksDir) ? readdirSync2(tasksDir).filter((entry) => /^(?:task-)?\d+\.json$/i.test(entry)).map((entry) => readJsonSafe(join5(tasksDir, entry))).filter((task) => Boolean(task?.id)) : [];
+  const tasksDir = join4(teamRoot, "tasks");
+  const tasks = existsSync5(tasksDir) ? readdirSync2(tasksDir).filter((entry) => /^(?:task-)?\d+\.json$/i.test(entry)).map((entry) => readJsonSafe(join4(tasksDir, entry))).filter((task) => Boolean(task?.id)) : [];
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const taskCounts = {
     total: tasks.length,
@@ -2745,7 +2862,7 @@ function collectTeamMission(teamRoot, teamName, config) {
     failed: tasks.filter((task) => task.status === "failed").length
   };
   const timeline = [];
-  for (const event of readJsonLinesSafe(join5(teamRoot, "events.jsonl"))) {
+  for (const event of readJsonLinesSafe(join4(teamRoot, "events.jsonl"))) {
     if (!event.created_at || !event.type)
       continue;
     if (event.type === "task_completed" || event.type === "task_failed") {
@@ -2772,7 +2889,7 @@ function collectTeamMission(teamRoot, teamName, config) {
     const workerName = worker.name?.trim();
     if (!workerName)
       continue;
-    const mailbox = readJsonSafe(join5(teamRoot, "mailbox", `${workerName}.json`));
+    const mailbox = readJsonSafe(join4(teamRoot, "mailbox", `${workerName}.json`));
     for (const message of mailbox?.messages ?? []) {
       if (!message.created_at || !message.body)
         continue;
@@ -2789,8 +2906,8 @@ function collectTeamMission(teamRoot, teamName, config) {
   timeline.sort((left, right) => parseTime(left.at) - parseTime(right.at));
   const agents = workers.slice(0, config.maxAgentsPerMission).map((worker) => {
     const workerName = worker.name?.trim() || "worker";
-    const workerStatus = readJsonSafe(join5(teamRoot, "workers", workerName, "status.json"));
-    const heartbeat = readJsonSafe(join5(teamRoot, "workers", workerName, "heartbeat.json"));
+    const workerStatus = readJsonSafe(join4(teamRoot, "workers", workerName, "status.json"));
+    const heartbeat = readJsonSafe(join4(teamRoot, "workers", workerName, "heartbeat.json"));
     const ownedTasks = tasks.filter((task) => task.owner === workerName);
     const currentTask = (workerStatus?.current_task_id ? taskById.get(workerStatus.current_task_id) : void 0) || ownedTasks.find((task) => task.status === "in_progress") || ownedTasks.find((task) => task.status === "blocked") || (worker.assigned_tasks || []).map((taskId) => taskById.get(taskId)).find(Boolean) || void 0;
     const completedTask = [...ownedTasks].filter((task) => task.status === "completed" || task.status === "failed").sort((left, right) => parseTime(right.completed_at) - parseTime(left.completed_at))[0];
@@ -2840,12 +2957,15 @@ function mergeMissions(previous, teamMissions, config) {
     return parseTime(right.updatedAt) - parseTime(left.updatedAt);
   }).slice(0, config.maxMissions);
 }
+function collectTeamMissions(directory, config) {
+  const teamsRoot = join4(getOmcRoot(directory), "state", "team");
+  return existsSync5(teamsRoot) ? readdirSync2(teamsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => collectTeamMission(join4(teamsRoot, entry.name), entry.name, config)).filter((mission) => Boolean(mission)) : [];
+}
 function refreshMissionBoardState(directory, rawConfig = DEFAULT_CONFIG, sessionId) {
   const effectiveSessionId = sessionId ?? getProcessSessionId();
   const config = resolveConfig(rawConfig);
   const previous = readMissionBoardState(directory, effectiveSessionId);
-  const teamsRoot = join5(getOmcRoot(directory), "state", "team");
-  const teamMissions = existsSync5(teamsRoot) ? readdirSync2(teamsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => collectTeamMission(join5(teamsRoot, entry.name), entry.name, config)).filter((mission) => Boolean(mission)) : [];
+  const teamMissions = collectTeamMissions(directory, config);
   const state = {
     updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
     missions: mergeMissions(previous, teamMissions, config)
@@ -2882,7 +3002,7 @@ function renderMissionBoard(state, rawConfig = DEFAULT_CONFIG) {
   return lines;
 }
 
-// v5.6.2/dist/hud/types.js
+// v5.8.6/dist/hud/types.js
 var DEFAULT_HUD_LABELS = {
   context: "ctx",
   tokens: "tok",
@@ -2942,10 +3062,11 @@ function resolveHudLabels(locale, labels) {
   };
 }
 var DEFAULT_ELEMENT_ORDER = {
-  line1: ["hostname", "cwd", "gitRepo", "gitBranch", "gitStatus", "apiKeySource", "profile"],
+  line1: ["hostname", "cwd", "gitRepo", "gitBranch", "gitStatus", "apiKeySource", "account", "profile"],
   main: [
     "omcLabel",
     "model",
+    "effort",
     "claudeLabel",
     "enterpriseCost",
     "rateLimits",
@@ -2991,6 +3112,8 @@ var DEFAULT_HUD_CONFIG = {
     // Show only when Claude Code statusline stdin provides a model
     modelFormat: "versioned",
     // Preserve model version by default
+    effort: true,
+    // Show effort level when Claude Code statusline stdin provides one
     omcLabel: true,
     updateNotification: true,
     // Preserve existing update prompt behavior by default
@@ -3016,6 +3139,8 @@ var DEFAULT_HUD_CONFIG = {
     // Text format for backward compatibility
     apiKeySource: false,
     // Disabled by default
+    account: false,
+    // Opt-in to avoid exposing email on screen shares/streams
     hostname: false,
     profile: true,
     // Show profile name when CLAUDE_CONFIG_DIR is set
@@ -3066,6 +3191,7 @@ var PRESET_CONFIGS = {
     gitInfoPosition: "above",
     model: true,
     modelFormat: "versioned",
+    effort: true,
     omcLabel: true,
     updateNotification: true,
     rateLimits: true,
@@ -3084,6 +3210,7 @@ var PRESET_CONFIGS = {
     thinking: false,
     thinkingFormat: "text",
     apiKeySource: false,
+    account: false,
     hostname: false,
     profile: true,
     missionBoard: false,
@@ -3109,6 +3236,7 @@ var PRESET_CONFIGS = {
     gitInfoPosition: "above",
     model: true,
     modelFormat: "versioned",
+    effort: true,
     omcLabel: true,
     updateNotification: true,
     rateLimits: true,
@@ -3127,6 +3255,7 @@ var PRESET_CONFIGS = {
     thinking: true,
     thinkingFormat: "text",
     apiKeySource: false,
+    account: false,
     hostname: false,
     profile: true,
     missionBoard: false,
@@ -3153,6 +3282,7 @@ var PRESET_CONFIGS = {
     gitInfoPosition: "above",
     model: true,
     modelFormat: "versioned",
+    effort: true,
     omcLabel: true,
     updateNotification: true,
     rateLimits: true,
@@ -3171,6 +3301,7 @@ var PRESET_CONFIGS = {
     thinking: true,
     thinkingFormat: "text",
     apiKeySource: true,
+    account: false,
     hostname: false,
     profile: true,
     missionBoard: false,
@@ -3197,6 +3328,7 @@ var PRESET_CONFIGS = {
     gitInfoPosition: "above",
     model: true,
     modelFormat: "versioned",
+    effort: true,
     omcLabel: true,
     updateNotification: true,
     rateLimits: false,
@@ -3215,6 +3347,7 @@ var PRESET_CONFIGS = {
     thinking: true,
     thinkingFormat: "text",
     apiKeySource: false,
+    account: false,
     hostname: false,
     profile: true,
     missionBoard: false,
@@ -3240,6 +3373,7 @@ var PRESET_CONFIGS = {
     gitInfoPosition: "above",
     model: true,
     modelFormat: "versioned",
+    effort: true,
     omcLabel: true,
     updateNotification: true,
     rateLimits: true,
@@ -3258,6 +3392,7 @@ var PRESET_CONFIGS = {
     thinking: true,
     thinkingFormat: "text",
     apiKeySource: true,
+    account: false,
     hostname: false,
     profile: true,
     missionBoard: false,
@@ -3276,7 +3411,7 @@ var PRESET_CONFIGS = {
   }
 };
 
-// v5.6.2/dist/hud/background-cleanup.js
+// v5.8.6/dist/hud/background-cleanup.js
 var STALE_TASK_THRESHOLD_MS = 30 * 60 * 1e3;
 function getTaskStartMs(task) {
   const raw = task.startedAt ?? task.startTime;
@@ -3322,7 +3457,8 @@ async function cleanupStaleBackgroundTasks(thresholdMs = STALE_TASK_THRESHOLD_MS
   });
   if (state.backgroundTasks.length > 20) {
     const running = state.backgroundTasks.filter((t) => t.status === "running");
-    const nonRunning = state.backgroundTasks.filter((t) => t.status !== "running").slice(-Math.max(0, 20 - running.length));
+    const historyCapacity = Math.max(0, 20 - running.length);
+    const nonRunning = historyCapacity === 0 ? [] : state.backgroundTasks.filter((t) => t.status !== "running").slice(-historyCapacity);
     state.backgroundTasks = [...running, ...nonRunning];
   }
   const removedCount = originalCount - state.backgroundTasks.length;
@@ -3369,15 +3505,15 @@ async function markOrphanedTasksAsStale(directory, sessionId) {
   return marked;
 }
 
-// v5.6.2/dist/hud/state.js
+// v5.8.6/dist/hud/state.js
 function getLocalStateFilePath(directory) {
   const baseDir = validateWorkingDirectory(directory);
-  const omcStateDir = join6(getOmcRoot(baseDir), "state");
-  return join6(omcStateDir, "hud-state.json");
+  const omcStateDir = join5(getOmcRoot(baseDir), "state");
+  return join5(omcStateDir, "hud-state.json");
 }
 function getLegacyRootStateFilePath(directory) {
   const baseDir = validateWorkingDirectory(directory);
-  return join6(getOmcRoot(baseDir), "hud-state.json");
+  return join5(getOmcRoot(baseDir), "hud-state.json");
 }
 function getStateFilePath(directory, sessionId) {
   const baseDir = validateWorkingDirectory(directory);
@@ -3387,10 +3523,10 @@ function getStateFilePath(directory, sessionId) {
   return getLocalStateFilePath(baseDir);
 }
 function getSettingsFilePath() {
-  return join6(getClaudeConfigDir(), "settings.json");
+  return join5(getClaudeConfigDir(), "settings.json");
 }
 function getConfigFilePath() {
-  return join6(getClaudeConfigDir(), ".omc", "hud-config.json");
+  return join5(getClaudeConfigDir(), ".omc", "hud-config.json");
 }
 function readJsonFile(filePath) {
   if (!existsSync6(filePath)) {
@@ -3431,7 +3567,7 @@ function mergeMissionBoardConfig(primary, secondary) {
 }
 function ensureStateDir(directory) {
   const baseDir = validateWorkingDirectory(directory);
-  const omcStateDir = join6(getOmcRoot(baseDir), "state");
+  const omcStateDir = join5(getOmcRoot(baseDir), "state");
   if (!existsSync6(omcStateDir)) {
     mkdirSync5(omcStateDir, { recursive: true });
   }
@@ -3593,17 +3729,17 @@ async function initializeHUDState(directory, sessionId) {
   }
 }
 
-// v5.6.2/dist/hud/omc-state.js
-import { existsSync as existsSync7, readFileSync as readFileSync7, statSync as statSync5, readdirSync as readdirSync3 } from "fs";
-import { join as join9 } from "path";
+// v5.8.6/dist/hud/omc-state.js
+import { existsSync as existsSync8, readFileSync as readFileSync8, statSync as statSync6, readdirSync as readdirSync3 } from "fs";
+import { join as join8 } from "path";
 
-// v5.6.2/dist/hooks/autopilot/named-workflow-resume-validator.js
-import { basename as basename4, join as join8, parse as parse2, relative as relative2, resolve as resolve2, sep as sep3 } from "path";
+// v5.8.6/dist/hooks/autopilot/named-workflow-resume-validator.js
+import { basename as basename5, join as join7, parse as parse3, relative as relative2, resolve as resolve3, sep as sep3 } from "path";
 
-// v5.6.2/dist/hooks/autopilot/pipeline.js
-import { createHash as createHash2 } from "crypto";
+// v5.8.6/dist/hooks/autopilot/pipeline.js
+import { createHash as createHash3 } from "crypto";
 
-// v5.6.2/dist/lib/mode-state-io.js
+// v5.8.6/dist/lib/mode-state-io.js
 import { createRequire } from "module";
 var require2 = createRequire(import.meta.url || (typeof __filename === "string" ? __filename : process.cwd() + "/"));
 var SQLITE_NATIVE_BINDING = "better_sqlite3.node";
@@ -3629,7 +3765,7 @@ try {
   sqliteBindingLoadError = nativeBindingDiagnostic(errorMessage(error));
 }
 
-// v5.6.2/dist/shared/types.js
+// v5.8.6/dist/shared/types.js
 var CANONICAL_TEAM_ROLES = [
   "orchestrator",
   "planner",
@@ -3670,17 +3806,77 @@ var KNOWN_AGENT_NAMES = [
   "documentSpecialist"
 ];
 
-// v5.6.2/dist/utils/paths.js
-import { join as join7, dirname as dirname5 } from "path";
-var PLUGIN_ROOT_REQUIREMENTS = [
-  join7("hooks", "hooks.json"),
-  join7("scripts", "run.cjs"),
-  "scripts"
-];
+// v5.8.6/dist/utils/semver-compare.js
+function parseVersion(version) {
+  const withoutBuild = version.replace(/^v/, "").split("+", 1)[0];
+  const hyphen = withoutBuild.indexOf("-");
+  const coreText = hyphen === -1 ? withoutBuild : withoutBuild.slice(0, hyphen);
+  const prereleaseText = hyphen === -1 ? "" : withoutBuild.slice(hyphen + 1);
+  const parts = coreText.split(".").map((part) => {
+    const match = part.match(/^(\d+)/);
+    return match ? match[1] : "0";
+  });
+  return {
+    core: [parts[0] ?? "0", parts[1] ?? "0", parts[2] ?? "0"],
+    prerelease: prereleaseText === "" ? [] : prereleaseText.split(".")
+  };
+}
+function comparePrereleaseIdentifier(a, b) {
+  const aNumeric = /^\d+$/.test(a);
+  const bNumeric = /^\d+$/.test(b);
+  if (aNumeric && bNumeric) {
+    const aDigits = a.replace(/^0+(?=\d)/, "");
+    const bDigits = b.replace(/^0+(?=\d)/, "");
+    if (aDigits.length !== bDigits.length) {
+      return aDigits.length < bDigits.length ? -1 : 1;
+    }
+    return aDigits < bDigits ? -1 : aDigits > bDigits ? 1 : 0;
+  }
+  if (aNumeric)
+    return -1;
+  if (bNumeric)
+    return 1;
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+function comparePrerelease(a, b) {
+  if (a.length === 0 && b.length === 0)
+    return 0;
+  if (a.length === 0)
+    return 1;
+  if (b.length === 0)
+    return -1;
+  for (let i = 0; i < Math.min(a.length, b.length); i += 1) {
+    const delta = comparePrereleaseIdentifier(a[i], b[i]);
+    if (delta !== 0)
+      return delta < 0 ? -1 : 1;
+  }
+  return a.length === b.length ? 0 : a.length < b.length ? -1 : 1;
+}
+function compareVersions(a, b) {
+  const parsedA = parseVersion(a);
+  const parsedB = parseVersion(b);
+  for (let i = 0; i < 3; i += 1) {
+    const delta = comparePrereleaseIdentifier(parsedA.core[i], parsedB.core[i]);
+    if (delta !== 0)
+      return delta < 0 ? -1 : 1;
+  }
+  return comparePrerelease(parsedA.prerelease, parsedB.prerelease);
+}
+
+// v5.8.6/dist/utils/plugin-cache-validation.js
+import { basename as basename4, dirname as dirname5, isAbsolute as isAbsolute2, join as join6, parse as parse2, resolve as resolve2 } from "path";
+var PLUGIN_ROOT_REQUIREMENTS = [join6("hooks", "hooks.json"), join6("scripts", "run.cjs"), "scripts"];
+
+// v5.8.6/dist/utils/paths.js
 var OCCUPIED_CODES = new Set(process.platform === "win32" ? ["EEXIST", "ENOTEMPTY", "ENOTDIR", "EISDIR", "EPERM", "EACCES"] : ["EEXIST", "ENOTEMPTY", "ENOTDIR", "EISDIR"]);
 var STALE_THRESHOLD_MS = 10 * 60 * 1e3;
 
-// v5.6.2/dist/utils/ssrf-guard.js
+// v5.8.6/scripts/lib/utf8-bom.mjs
+function stripLeadingUtf8Bom(content) {
+  return content.startsWith("\uFEFF") ? content.slice(1) : content;
+}
+
+// v5.8.6/dist/utils/ssrf-guard.js
 var BLOCKED_HOST_PATTERNS = [
   // Exact matches
   /^localhost$/i,
@@ -3698,10 +3894,14 @@ var BLOCKED_HOST_PATTERNS = [
   // Multicast, reserved
   /^\[?::1\]?$/,
   // IPv6 loopback
-  /^\[?fc00:/i,
-  // IPv6 unique local
-  /^\[?fe80:/i,
-  // IPv6 link-local
+  /^\[?f[cd][0-9a-f]{2}:/i,
+  // IPv6 unique local FC00::/7 (RFC 4193)
+  /^\[?fe[89ab][0-9a-f]:/i,
+  // IPv6 link-local FE80::/10 (RFC 4291)
+  /^\[?::\]?$/,
+  // IPv6 unspecified
+  /^\[?ff[0-9a-f]{2}:/i,
+  // IPv6 multicast FF00::/8
   /^\[?::ffff:/i,
   // IPv6-mapped IPv4 (all private ranges accessible via this prefix)
   /^\[?0{0,4}:{0,2}ffff:/i
@@ -3785,7 +3985,7 @@ function validateAnthropicBaseUrl(urlString) {
   return { allowed: true };
 }
 
-// v5.6.2/dist/config/models.js
+// v5.8.6/dist/config/models.js
 var TIER_ENV_KEYS = {
   LOW: [
     "OMC_MODEL_LOW",
@@ -3855,7 +4055,7 @@ function getDefaultTierModels() {
   };
 }
 
-// v5.6.2/dist/config/loader.js
+// v5.8.6/dist/config/loader.js
 function buildDefaultConfig() {
   const defaultTierModels = getDefaultTierModels();
   return {
@@ -4021,11 +4221,222 @@ var DEFAULT_CONFIG2 = buildDefaultConfig();
 var CANONICAL_TEAM_ROLE_SET = new Set(CANONICAL_TEAM_ROLES);
 var KNOWN_AGENT_NAME_SET = new Set(KNOWN_AGENT_NAMES);
 
-// v5.6.2/dist/hooks/ralph/stale-prd.js
+// v5.8.6/dist/hooks/ralph/prd.js
+import { createHash as createHash2 } from "crypto";
+import { existsSync as existsSync7, readFileSync as readFileSync7 } from "fs";
+var REPO_QUALITY_CLASSES = ["prototype", "production", "library"];
+var MAX_FEEDBACK_COMMANDS = 20;
+function normalizeCriterionAmendment(candidate) {
+  if (!candidate || typeof candidate !== "object") {
+    return null;
+  }
+  const amendment = candidate;
+  const kind = amendment.kind;
+  const original = amendment.original;
+  const reason = amendment.reason;
+  const evidence = amendment.evidence;
+  const authority = amendment.authority;
+  const timestamp2 = amendment.timestamp;
+  const replacement = amendment.replacement;
+  if (kind !== "replaced" && kind !== "superseded" || typeof original !== "string" || original.trim() === "" || typeof reason !== "string" || reason.trim() === "" || typeof evidence !== "string" || evidence.trim() === "" || typeof authority !== "string" || authority.trim() === "" || typeof timestamp2 !== "string" || timestamp2.trim() === "" || kind === "replaced" && (typeof replacement !== "string" || replacement.trim() === "") || kind === "superseded" && replacement !== void 0) {
+    return null;
+  }
+  return {
+    kind,
+    original,
+    replacement: kind === "replaced" ? replacement : void 0,
+    reason,
+    evidence,
+    authority,
+    timestamp: timestamp2
+  };
+}
+function normalizeCriterionAmendments(candidate, acceptanceCriteria) {
+  if (candidate === void 0) {
+    return void 0;
+  }
+  if (!Array.isArray(candidate)) {
+    return null;
+  }
+  if (candidate.length === 0) {
+    return void 0;
+  }
+  const amendments = candidate.map(normalizeCriterionAmendment);
+  if (amendments.some((amendment) => amendment === null)) {
+    return null;
+  }
+  const originals = /* @__PURE__ */ new Set();
+  const active = new Set(acceptanceCriteria);
+  for (const amendment of amendments) {
+    if (originals.has(amendment.original) || active.has(amendment.original)) {
+      return null;
+    }
+    originals.add(amendment.original);
+  }
+  return amendments;
+}
+function normalizeStory(candidate) {
+  if (!candidate || typeof candidate !== "object") {
+    return null;
+  }
+  const story = candidate;
+  if (typeof story.id !== "string" || typeof story.title !== "string" || typeof story.description !== "string" || !Array.isArray(story.acceptanceCriteria) || !story.acceptanceCriteria.every((criterion) => typeof criterion === "string") || typeof story.priority !== "number" || !Number.isFinite(story.priority) || typeof story.passes !== "boolean") {
+    return null;
+  }
+  const acceptanceCriteria = [...story.acceptanceCriteria];
+  const criterionAmendments = normalizeCriterionAmendments(story.criterionAmendments, acceptanceCriteria);
+  if (criterionAmendments === null) {
+    return null;
+  }
+  const governingCriteriaRevision = getGoverningCriteriaRevision(acceptanceCriteria, criterionAmendments);
+  const completionCriteriaRevision = typeof story.completionCriteriaRevision === "string" ? story.completionCriteriaRevision : void 0;
+  const passes = story.passes === true && completionCriteriaRevision === governingCriteriaRevision;
+  const architectVerificationCriteriaRevision = typeof story.architectVerificationCriteriaRevision === "string" ? story.architectVerificationCriteriaRevision : void 0;
+  const architectVerified = passes && story.architectVerified === true && architectVerificationCriteriaRevision === governingCriteriaRevision;
+  return {
+    id: story.id,
+    title: story.title,
+    description: story.description,
+    acceptanceCriteria,
+    criterionAmendments,
+    priority: story.priority,
+    governingCriteriaRevision,
+    completionCriteriaRevision: passes ? completionCriteriaRevision : void 0,
+    architectVerificationCriteriaRevision: architectVerified ? architectVerificationCriteriaRevision : void 0,
+    passes,
+    architectVerified,
+    notes: typeof story.notes === "string" ? story.notes : void 0
+  };
+}
+function getGoverningCriteriaRevision(acceptanceCriteria, criterionAmendments) {
+  return `sha256:${createHash2("sha256").update(JSON.stringify({ acceptanceCriteria, criterionAmendments: criterionAmendments ?? [] })).digest("hex")}`;
+}
+function normalizePrd(candidate) {
+  if (!candidate || typeof candidate !== "object") {
+    return null;
+  }
+  const prd = candidate;
+  if (typeof prd.project !== "string" || typeof prd.branchName !== "string" || typeof prd.description !== "string" || !Array.isArray(prd.userStories)) {
+    return null;
+  }
+  const userStories = prd.userStories.map(normalizeStory);
+  if (userStories.some((story) => story === null)) {
+    return null;
+  }
+  const reconciliation = normalizeReconciliation(prd.reconciliation);
+  const repoQualityClass = normalizeRepoQualityClass(prd.repoQualityClass);
+  const feedbackCommands = normalizeFeedbackCommands(prd.feedbackCommands);
+  return {
+    project: prd.project,
+    branchName: prd.branchName,
+    description: prd.description,
+    userStories,
+    ...reconciliation ? { reconciliation } : {},
+    ...repoQualityClass ? { repoQualityClass } : {},
+    ...feedbackCommands ? { feedbackCommands } : {}
+  };
+}
+function normalizeRepoQualityClass(candidate) {
+  return typeof candidate === "string" && REPO_QUALITY_CLASSES.includes(candidate) ? candidate : void 0;
+}
+function normalizeFeedbackCommands(candidate) {
+  if (!Array.isArray(candidate)) {
+    return void 0;
+  }
+  const commands = candidate.filter((entry) => typeof entry === "string" && entry.trim().length > 0).slice(0, MAX_FEEDBACK_COMMANDS);
+  return commands.length > 0 ? commands : void 0;
+}
+function normalizeReconciliation(candidate) {
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+    return void 0;
+  }
+  const raw = candidate;
+  const config = {};
+  if (typeof raw.staleAfterMs === "number" && Number.isFinite(raw.staleAfterMs) && raw.staleAfterMs > 0) {
+    config.staleAfterMs = raw.staleAfterMs;
+  }
+  if (typeof raw.autoReconcile === "boolean") {
+    config.autoReconcile = raw.autoReconcile;
+  }
+  if (raw.observableChecks && typeof raw.observableChecks === "object" && !Array.isArray(raw.observableChecks)) {
+    const checksByStory = raw.observableChecks;
+    const observableChecks = {};
+    for (const [storyId, checks] of Object.entries(checksByStory)) {
+      if (!Array.isArray(checks)) {
+        continue;
+      }
+      const normalizedChecks = checks.map((c) => normalizeObservableCheck(c)).filter((c) => c !== null);
+      if (normalizedChecks.length > 0) {
+        observableChecks[storyId] = normalizedChecks;
+      }
+    }
+    if (Object.keys(observableChecks).length > 0) {
+      config.observableChecks = observableChecks;
+    }
+  }
+  return Object.keys(config).length > 0 ? config : void 0;
+}
+function normalizeObservableCheck(candidate) {
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+    return null;
+  }
+  const raw = candidate;
+  const type = raw.type;
+  if (type !== "fileExists" && type !== "fileContains" && type !== "gitGrep") {
+    return null;
+  }
+  const check = { type };
+  if (typeof raw.path === "string" && raw.path.length > 0) {
+    check.path = raw.path;
+  }
+  if (typeof raw.ref === "string" && raw.ref.length > 0) {
+    check.ref = raw.ref;
+  }
+  if (typeof raw.pattern === "string" && raw.pattern.length > 0) {
+    check.pattern = raw.pattern;
+  }
+  if (typeof raw.description === "string" && raw.description.length > 0) {
+    check.description = raw.description;
+  }
+  return check;
+}
+function readPrdFromPath(prdPath) {
+  try {
+    const content = stripLeadingUtf8Bom(readFileSync7(prdPath, "utf-8"));
+    const parsed = JSON.parse(content);
+    const normalized = normalizePrd(parsed);
+    if (!normalized) {
+      return { error: `Invalid PRD structure in ${prdPath}.` };
+    }
+    return { prd: normalized };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { error: `Failed to read ${prdPath}: ${message}` };
+  }
+}
+function isStoryComplete(story) {
+  return story.passes && story.architectVerified === true;
+}
+function getPrdStatus(prd) {
+  const stories = prd.userStories;
+  const pending = stories.filter((s) => !isStoryComplete(s));
+  const fullyCompleted = stories.filter(isStoryComplete);
+  const sortedPending = [...pending].sort((a, b) => a.priority - b.priority);
+  return {
+    total: stories.length,
+    completed: fullyCompleted.length,
+    pending: pending.length,
+    allComplete: pending.length === 0,
+    nextStory: sortedPending[0] || null,
+    incompleteIds: pending.map((s) => s.id)
+  };
+}
+
+// v5.8.6/dist/hooks/ralph/stale-prd.js
 var DEFAULT_STALE_PRD_AFTER_MS = 2 * 60 * 60 * 1e3;
 var GIT_MAX_BUFFER = 1024 * 1024;
 
-// v5.6.2/dist/lib/mode-names.js
+// v5.8.6/dist/lib/mode-names.js
 var MODE_NAMES = {
   AUTOPILOT: "autopilot",
   AUTORESEARCH: "autoresearch",
@@ -4033,7 +4444,6 @@ var MODE_NAMES = {
   RALPH: "ralph",
   RALPLAN: "ralplan",
   DEEP_INTERVIEW: "deep-interview",
-  MERGE_READINESS: "merge-readiness",
   SELF_IMPROVE: "self-improve"
 };
 var ALL_MODE_NAMES = [
@@ -4043,7 +4453,6 @@ var ALL_MODE_NAMES = [
   MODE_NAMES.RALPH,
   MODE_NAMES.RALPLAN,
   MODE_NAMES.DEEP_INTERVIEW,
-  MODE_NAMES.MERGE_READINESS,
   MODE_NAMES.SELF_IMPROVE
 ];
 var MODE_STATE_FILE_MAP = {
@@ -4053,7 +4462,6 @@ var MODE_STATE_FILE_MAP = {
   [MODE_NAMES.RALPH]: "ralph-state.json",
   [MODE_NAMES.RALPLAN]: "ralplan-state.json",
   [MODE_NAMES.DEEP_INTERVIEW]: "deep-interview-state.json",
-  [MODE_NAMES.MERGE_READINESS]: "merge-readiness-state.json",
   [MODE_NAMES.SELF_IMPROVE]: "self-improve-state.json"
 };
 var SESSION_END_MODE_STATE_FILES = [
@@ -4072,11 +4480,10 @@ var SESSION_METRICS_MODE_FILES = [
   { file: MODE_STATE_FILE_MAP[MODE_NAMES.RALPH], mode: MODE_NAMES.RALPH },
   { file: MODE_STATE_FILE_MAP[MODE_NAMES.RALPLAN], mode: MODE_NAMES.RALPLAN },
   { file: MODE_STATE_FILE_MAP[MODE_NAMES.DEEP_INTERVIEW], mode: MODE_NAMES.DEEP_INTERVIEW },
-  { file: MODE_STATE_FILE_MAP[MODE_NAMES.MERGE_READINESS], mode: MODE_NAMES.MERGE_READINESS },
   { file: MODE_STATE_FILE_MAP[MODE_NAMES.SELF_IMPROVE], mode: MODE_NAMES.SELF_IMPROVE }
 ];
 
-// v5.6.2/dist/hooks/mode-registry/index.js
+// v5.8.6/dist/hooks/mode-registry/index.js
 var MODE_CONFIGS = {
   [MODE_NAMES.AUTOPILOT]: {
     name: "Autopilot",
@@ -4107,11 +4514,6 @@ var MODE_CONFIGS = {
     stateFile: MODE_STATE_FILE_MAP[MODE_NAMES.DEEP_INTERVIEW],
     activeProperty: "active"
   },
-  [MODE_NAMES.MERGE_READINESS]: {
-    name: "Merge Readiness",
-    stateFile: MODE_STATE_FILE_MAP[MODE_NAMES.MERGE_READINESS],
-    activeProperty: "active"
-  },
   [MODE_NAMES.SELF_IMPROVE]: {
     name: "Self Improve",
     stateFile: MODE_STATE_FILE_MAP[MODE_NAMES.SELF_IMPROVE],
@@ -4121,7 +4523,7 @@ var MODE_CONFIGS = {
 var EXCLUSIVE_MODES = [MODE_NAMES.AUTOPILOT, MODE_NAMES.AUTORESEARCH];
 var WORKFLOW_SLOT_TOMBSTONE_TTL_MS = 24 * 60 * 60 * 1e3;
 
-// v5.6.2/dist/hooks/autopilot/pipeline.js
+// v5.8.6/dist/hooks/autopilot/pipeline.js
 var WORKFLOW_STAGE_SEQUENCES = [
   ["ralplan", "execution"],
   ["ralplan", "execution", "ralph"],
@@ -4139,7 +4541,6 @@ var RESERVED_WORKFLOW_NAMES = /* @__PURE__ */ new Set([
   "qa",
   "autoresearch",
   "ultraqa",
-  "merge-readiness",
   "self-improve",
   "ultrawork",
   "ultragoal",
@@ -4212,7 +4613,7 @@ function createWorkflowDescriptor(workflowName, profile) {
     workflowName,
     profileVersion: 1,
     stages: normalized.stages,
-    profileHash: createHash2("sha256").update(canonical).digest("hex")
+    profileHash: createHash3("sha256").update(canonical).digest("hex")
   };
 }
 function verifyWorkflowDescriptor(descriptor) {
@@ -4236,7 +4637,7 @@ function verifyWorkflowDescriptor(descriptor) {
   return expected !== null && expected.profileHash === record.profileHash;
 }
 
-// v5.6.2/dist/hooks/autopilot/named-workflow-resume-validator.js
+// v5.8.6/dist/hooks/autopilot/named-workflow-resume-validator.js
 var NAMED_SIGNALS = {
   ralplan: "PIPELINE_RALPLAN_COMPLETE",
   execution: "PIPELINE_EXECUTION_COMPLETE",
@@ -4277,7 +4678,7 @@ function validBoundaryShape(value, sessionId) {
     "sessionId",
     "byteOffset",
     "fileIdentity"
-  ]) || typeof sessionId !== "string" || value.sessionId !== sessionId || typeof value.transcriptRoot !== "string" || resolve2(value.transcriptRoot) !== value.transcriptRoot || typeof value.transcriptPath !== "string" || resolve2(value.transcriptPath) !== value.transcriptPath || basename4(value.transcriptPath) !== `${sessionId}.jsonl` || value.transcriptBasename !== `${sessionId}.jsonl` || !safeInteger(value.byteOffset) || !validFileIdentity(value.fileIdentity) || value.fileIdentity.size !== value.byteOffset)
+  ]) || typeof sessionId !== "string" || value.sessionId !== sessionId || typeof value.transcriptRoot !== "string" || resolve3(value.transcriptRoot) !== value.transcriptRoot || typeof value.transcriptPath !== "string" || resolve3(value.transcriptPath) !== value.transcriptPath || basename5(value.transcriptPath) !== `${sessionId}.jsonl` || value.transcriptBasename !== `${sessionId}.jsonl` || !safeInteger(value.byteOffset) || !validFileIdentity(value.fileIdentity) || value.fileIdentity.size !== value.byteOffset)
     return false;
   const relativePath = relative2(value.transcriptRoot, value.transcriptPath);
   return relativePath.length > 0 && relativePath !== ".." && !relativePath.startsWith(`..${sep3}`);
@@ -4334,11 +4735,11 @@ function validateNamedWorkflowStateStructure(state, sessionId) {
   return { tracking, task };
 }
 
-// v5.6.2/dist/hud/omc-state.js
+// v5.8.6/dist/hud/omc-state.js
 var MAX_STATE_AGE_MS = 2 * 60 * 60 * 1e3;
 function isStateFileStale(filePath) {
   try {
-    const stat = statSync5(filePath);
+    const stat = statSync6(filePath);
     const age = Date.now() - stat.mtimeMs;
     return age > MAX_STATE_AGE_MS;
   } catch {
@@ -4348,22 +4749,22 @@ function isStateFileStale(filePath) {
 function resolveStatePath2(directory, filename, sessionId) {
   const omcRoot = getOmcRoot(directory);
   if (sessionId) {
-    const sessionPath = join9(omcRoot, "state", "sessions", sessionId, filename);
-    return existsSync7(sessionPath) ? sessionPath : null;
+    const sessionPath = join8(omcRoot, "state", "sessions", sessionId, filename);
+    return existsSync8(sessionPath) ? sessionPath : null;
   }
   let bestPath = null;
   let bestMtime = 0;
-  const sessionsDir = join9(omcRoot, "state", "sessions");
-  if (existsSync7(sessionsDir)) {
+  const sessionsDir = join8(omcRoot, "state", "sessions");
+  if (existsSync8(sessionsDir)) {
     try {
       const entries = readdirSync3(sessionsDir, { withFileTypes: true });
       for (const entry of entries) {
         if (!entry.isDirectory())
           continue;
-        const sessionFile = join9(sessionsDir, entry.name, filename);
-        if (existsSync7(sessionFile)) {
+        const sessionFile = join8(sessionsDir, entry.name, filename);
+        if (existsSync8(sessionFile)) {
           try {
-            const mtime = statSync5(sessionFile).mtimeMs;
+            const mtime = statSync6(sessionFile).mtimeMs;
             if (mtime > bestMtime) {
               bestMtime = mtime;
               bestPath = sessionFile;
@@ -4375,10 +4776,10 @@ function resolveStatePath2(directory, filename, sessionId) {
     } catch {
     }
   }
-  const newPath = join9(omcRoot, "state", filename);
-  if (existsSync7(newPath)) {
+  const newPath = join8(omcRoot, "state", filename);
+  if (existsSync8(newPath)) {
     try {
-      const mtime = statSync5(newPath).mtimeMs;
+      const mtime = statSync6(newPath).mtimeMs;
       if (mtime > bestMtime) {
         bestMtime = mtime;
         bestPath = newPath;
@@ -4388,10 +4789,10 @@ function resolveStatePath2(directory, filename, sessionId) {
         bestPath = newPath;
     }
   }
-  const legacyPath = join9(omcRoot, filename);
-  if (existsSync7(legacyPath)) {
+  const legacyPath = join8(omcRoot, filename);
+  if (existsSync8(legacyPath)) {
     try {
-      const mtime = statSync5(legacyPath).mtimeMs;
+      const mtime = statSync6(legacyPath).mtimeMs;
       if (mtime > bestMtime) {
         bestPath = legacyPath;
       }
@@ -4411,7 +4812,7 @@ function readRalphStateForHud(directory, sessionId) {
     return null;
   }
   try {
-    const content = readFileSync7(stateFile, "utf-8");
+    const content = readFileSync8(stateFile, "utf-8");
     const state = JSON.parse(content);
     if (!state.active) {
       return null;
@@ -4428,23 +4829,33 @@ function readRalphStateForHud(directory, sessionId) {
   }
 }
 function readPrdStateForHud(directory) {
-  let prdPath = join9(directory, "prd.json");
-  if (!existsSync7(prdPath)) {
-    prdPath = join9(getOmcRoot(directory), "prd.json");
-    if (!existsSync7(prdPath)) {
+  let prdPath = join8(directory, "prd.json");
+  if (!existsSync8(prdPath)) {
+    prdPath = join8(getOmcRoot(directory), "prd.json");
+    if (!existsSync8(prdPath)) {
       return null;
     }
   }
+  const strict = readPrdFromPath(prdPath);
+  if (strict.prd) {
+    const status = getPrdStatus(strict.prd);
+    return {
+      currentStoryId: status.nextStory?.id ?? null,
+      completed: status.completed,
+      total: status.total
+    };
+  }
   try {
-    const content = readFileSync7(prdPath, "utf-8");
+    const content = readFileSync8(prdPath, "utf-8");
     const prd = JSON.parse(content);
     if (!prd.userStories || !Array.isArray(prd.userStories)) {
       return null;
     }
     const stories = prd.userStories;
-    const completed = stories.filter((s) => s.passes).length;
+    const isComplete = (story) => story.passes === true && story.architectVerified !== false;
+    const completed = stories.filter(isComplete).length;
     const total = stories.length;
-    const incomplete = stories.filter((s) => !s.passes).sort((a, b) => a.priority - b.priority);
+    const incomplete = stories.filter((s) => !isComplete(s)).sort((a, b) => a.priority - b.priority);
     return {
       currentStoryId: incomplete[0]?.id || null,
       completed,
@@ -4489,7 +4900,7 @@ function readAutopilotStateForHud(directory, sessionId) {
     return null;
   }
   try {
-    const content = readFileSync7(stateFile, "utf-8");
+    const content = readFileSync8(stateFile, "utf-8");
     const state = JSON.parse(content);
     if (!state.active) {
       return null;
@@ -4513,11 +4924,11 @@ function readAutopilotStateForHud(directory, sessionId) {
   }
 }
 
-// v5.6.2/dist/hud/usage-api.js
-import { existsSync as existsSync8, readFileSync as readFileSync8, writeFileSync as writeFileSync3, renameSync as renameSync3, unlinkSync as unlinkSync5, mkdirSync as mkdirSync6 } from "fs";
-import { join as join10, dirname as dirname6 } from "path";
+// v5.8.6/dist/hud/usage-api.js
+import { existsSync as existsSync9, readFileSync as readFileSync9, writeFileSync as writeFileSync3, renameSync as renameSync3, unlinkSync as unlinkSync5, mkdirSync as mkdirSync6 } from "fs";
+import { join as join9, dirname as dirname6 } from "path";
 import { execFileSync as execFileSync3 } from "child_process";
-import { createHash as createHash3 } from "crypto";
+import { createHash as createHash4 } from "crypto";
 import { userInfo } from "os";
 import https from "https";
 var CACHE_TTL_FAILURE_MS = 15 * 1e3;
@@ -4528,7 +4939,11 @@ var MAX_STALE_DATA_MS = 15 * 60 * 1e3;
 var TOKEN_REFRESH_URL_HOSTNAME = "platform.claude.com";
 var USAGE_CACHE_LOCK_OPTS = { staleLockMs: API_TIMEOUT_MS + 5e3 };
 var TOKEN_REFRESH_URL_PATH = "/v1/oauth/token";
+var OMJ_USAGE_PROFILE_ID_FIELD = "omcUsageProfileId";
+var OMJ_USAGE_PROFILE_TOKEN_HASH_FIELD = "omcUsageProfileTokenHash";
 var DEFAULT_OAUTH_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
+var storedCredentialCache;
+var storedCredentialLookupGeneration = 0;
 function isEnterpriseUsageContext(options) {
   if (!options)
     return true;
@@ -4569,25 +4984,25 @@ function isKimiHost(urlString) {
 var KIMI_USAGE_HOSTNAMES = /* @__PURE__ */ new Set(["api.kimi.com", "kimi.com"]);
 var KIMI_USAGE_PATH = "/coding/v1/usages";
 function getLegacyCachePath() {
-  return join10(getClaudeConfigDir(), "plugins", "oh-my-claudecode", ".usage-cache.json");
+  return join9(getClaudeConfigDir(), "plugins", "oh-my-claudecode", ".usage-cache.json");
 }
 function getCachePath(source) {
-  return join10(getClaudeConfigDir(), "plugins", "oh-my-claudecode", `.usage-cache-${source}.json`);
+  return join9(getClaudeConfigDir(), "plugins", "oh-my-claudecode", `.usage-cache-${source}.json`);
 }
 function migrateLegacyCache(source) {
   try {
     const legacyPath = getLegacyCachePath();
-    if (!existsSync8(legacyPath))
+    if (!existsSync9(legacyPath))
       return;
-    if (existsSync8(getCachePath(source)))
+    if (existsSync9(getCachePath(source)))
       return;
-    const content = readFileSync8(legacyPath, "utf-8");
+    const content = readFileSync9(legacyPath, "utf-8");
     const cache = JSON.parse(content);
     if (cache.source !== source)
       return;
     const newPath = getCachePath(source);
     const cacheDir = dirname6(newPath);
-    if (!existsSync8(cacheDir)) {
+    if (!existsSync9(cacheDir)) {
       mkdirSync6(cacheDir, { recursive: true });
     }
     writeFileSync3(newPath, content);
@@ -4597,9 +5012,9 @@ function migrateLegacyCache(source) {
 function readCache(source) {
   try {
     const cachePath = getCachePath(source);
-    if (!existsSync8(cachePath))
+    if (!existsSync9(cachePath))
       return null;
-    const content = readFileSync8(cachePath, "utf-8");
+    const content = readFileSync9(cachePath, "utf-8");
     const cache = JSON.parse(content);
     if (cache.data) {
       if (cache.data.fiveHourResetsAt) {
@@ -4639,7 +5054,7 @@ function writeCache(opts) {
   try {
     const cachePath = getCachePath(opts.source);
     const cacheDir = dirname6(cachePath);
-    if (!existsSync8(cacheDir)) {
+    if (!existsSync9(cacheDir)) {
       mkdirSync6(cacheDir, { recursive: true });
     }
     const cache = {
@@ -4711,11 +5126,99 @@ function clearRateLimitBackoff(cache, rateLimitIdentity) {
   delete backoffs[rateLimitIdentity ?? "anonymous"];
   return Object.keys(backoffs).length > 0 ? backoffs : void 0;
 }
-function getCredentialCacheIdentity(accessToken) {
-  return createHash3("sha256").update(accessToken).digest("hex");
+function hashCredentialIdentity(identity) {
+  return createHash4("sha256").update(identity).digest("hex");
+}
+function getOAuthAccountProfileIdentity(credentials) {
+  const nestedAccount = credentials.oauthAccount;
+  const account = typeof nestedAccount === "object" && nestedAccount !== null && !Array.isArray(nestedAccount) ? nestedAccount : {};
+  const firstString = (...values) => {
+    for (const value of values) {
+      if (typeof value === "string" && value.trim())
+        return value.trim();
+    }
+    return void 0;
+  };
+  const credentialUuid = firstString(credentials.accountUuid, credentials.accountUUID, account.accountUuid, account.accountUUID, account.uuid);
+  if (credentialUuid) {
+    return hashCredentialIdentity(JSON.stringify(["oauth-account-uuid", credentialUuid.toLowerCase()]));
+  }
+  const credentialAccountId = firstString(credentials.accountId, credentials.userId, credentials.userID, account.accountId, account.userId, account.userID);
+  const credentialEmail = firstString(credentials.emailAddress, credentials.email, account.emailAddress, account.email);
+  let claudeJsonAccount = {};
+  const configDir = getClaudeConfigDir();
+  const claudeJsonPaths = /* @__PURE__ */ new Set([
+    join9(configDir, ".claude.json"),
+    join9(dirname6(configDir), ".claude.json")
+  ]);
+  for (const claudeJsonPath of claudeJsonPaths) {
+    let parsed;
+    try {
+      if (!existsSync9(claudeJsonPath))
+        continue;
+      parsed = JSON.parse(readFileSync9(claudeJsonPath, "utf-8"));
+    } catch {
+      return null;
+    }
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
+      return null;
+    const accountMetadata = parsed.oauthAccount;
+    if (accountMetadata == null)
+      continue;
+    if (typeof accountMetadata === "object" && !Array.isArray(accountMetadata)) {
+      const candidate = accountMetadata;
+      if (firstString(candidate.accountUuid, candidate.accountUUID, candidate.uuid, candidate.accountId, candidate.userId, candidate.userID, candidate.emailAddress, candidate.email)) {
+        claudeJsonAccount = candidate;
+        break;
+      }
+    } else {
+      return null;
+    }
+  }
+  const accountUuid = firstString(claudeJsonAccount.accountUuid, claudeJsonAccount.accountUUID, claudeJsonAccount.uuid);
+  const claudeJsonAccountId = firstString(claudeJsonAccount.accountId, claudeJsonAccount.userId, claudeJsonAccount.userID);
+  const claudeJsonEmail = firstString(claudeJsonAccount.emailAddress, claudeJsonAccount.email);
+  if (accountUuid) {
+    if (credentialAccountId)
+      return null;
+    if (credentialEmail && (!claudeJsonEmail || credentialEmail.toLowerCase() !== claudeJsonEmail.toLowerCase())) {
+      return null;
+    }
+    return hashCredentialIdentity(JSON.stringify(["oauth-account-uuid", accountUuid.toLowerCase()]));
+  }
+  if (claudeJsonAccountId && credentialAccountId) {
+    if (claudeJsonAccountId !== credentialAccountId)
+      return null;
+    return hashCredentialIdentity(JSON.stringify(["oauth-account", credentialAccountId]));
+  }
+  if (claudeJsonAccountId && credentialEmail || credentialAccountId && claudeJsonEmail) {
+    return null;
+  }
+  const accountId = credentialAccountId ?? claudeJsonAccountId;
+  if (accountId)
+    return hashCredentialIdentity(JSON.stringify(["oauth-account", accountId]));
+  if (credentialEmail && claudeJsonEmail && credentialEmail.toLowerCase() !== claudeJsonEmail.toLowerCase()) {
+    return null;
+  }
+  const tokenMaterial = firstString(credentials.refreshToken, credentials.accessToken);
+  const tokenHash = tokenMaterial ? hashCredentialIdentity(tokenMaterial) : void 0;
+  const storedProfileIdentity = firstString(credentials[OMJ_USAGE_PROFILE_ID_FIELD]);
+  const storedTokenHash = firstString(credentials[OMJ_USAGE_PROFILE_TOKEN_HASH_FIELD]);
+  if (storedProfileIdentity && tokenHash && storedTokenHash === tokenHash) {
+    return storedProfileIdentity;
+  }
+  const emailAddress = credentialEmail ?? claudeJsonEmail;
+  if (emailAddress) {
+    return hashCredentialIdentity(JSON.stringify(["oauth-email", emailAddress.toLowerCase()]));
+  }
+  return tokenHash ?? null;
 }
 function isCacheForCredential(cache, credentialIdentity) {
-  return cache?.credentialIdentity === credentialIdentity;
+  if (!cache)
+    return false;
+  if (credentialIdentity !== void 0)
+    return cache.credentialIdentity === credentialIdentity;
+  return cache.credentialIdentity === void 0 && cache.data === null;
 }
 function isCacheValid(cache, pollIntervalMs, rateLimitIdentity) {
   if (cache.source === "anthropic") {
@@ -4799,13 +5302,20 @@ function createRateLimitedCacheEntry(source, data, pollIntervalMs, previousCount
 function getKeychainServiceName() {
   const configDir = process.env.CLAUDE_CONFIG_DIR;
   if (configDir) {
-    const hash = createHash3("sha256").update(configDir).digest("hex").slice(0, 8);
+    const hash = createHash4("sha256").update(configDir).digest("hex").slice(0, 8);
     return `Claude Code-credentials-${hash}`;
   }
   return "Claude Code-credentials";
 }
 function isCredentialExpired(creds) {
   return creds.expiresAt != null && creds.expiresAt <= Date.now();
+}
+function isMissingKeychainItem(error) {
+  if (typeof error !== "object" || error === null)
+    return false;
+  const details = error;
+  return /the specified item could not be found in the keychain/i.test(`${String(details.message ?? "")}
+${String(details.stderr ?? "")}`);
 }
 function readKeychainCredential(serviceName, account) {
   try {
@@ -4816,27 +5326,33 @@ function readKeychainCredential(serviceName, account) {
       stdio: ["pipe", "pipe", "pipe"]
     }).trim();
     if (!result)
-      return null;
+      return { status: "unavailable" };
     const parsed = JSON.parse(result);
     const creds = parsed.claudeAiOauth || parsed;
     if (!creds.accessToken)
-      return null;
+      return { status: "unavailable" };
+    const profileIdentity = getOAuthAccountProfileIdentity(creds);
     return {
-      accessToken: creds.accessToken,
-      expiresAt: creds.expiresAt,
-      refreshToken: creds.refreshToken,
-      source: "keychain",
-      keychainAccount: account ?? null,
-      subscriptionType: creds.subscriptionType,
-      rateLimitTier: creds.rateLimitTier
+      status: "found",
+      credentials: {
+        accessToken: creds.accessToken,
+        expiresAt: creds.expiresAt,
+        refreshToken: creds.refreshToken,
+        profileIdentity: profileIdentity ?? void 0,
+        profileIdentityUnavailable: profileIdentity === null,
+        source: "keychain",
+        keychainAccount: account ?? null,
+        subscriptionType: creds.subscriptionType,
+        rateLimitTier: creds.rateLimitTier
+      }
     };
-  } catch {
-    return null;
+  } catch (error) {
+    return isMissingKeychainItem(error) ? { status: "missing" } : { status: "unavailable" };
   }
 }
 function readKeychainCredentials() {
   if (process.platform !== "darwin")
-    return null;
+    return { status: "missing" };
   const serviceName = getKeychainServiceName();
   const candidateAccounts = [];
   try {
@@ -4849,29 +5365,40 @@ function readKeychainCredentials() {
   candidateAccounts.push(void 0);
   let expiredFallback = null;
   for (const account of candidateAccounts) {
-    const creds = readKeychainCredential(serviceName, account);
-    if (!creds)
+    const result = readKeychainCredential(serviceName, account);
+    if (result.status === "unavailable") {
+      if (expiredFallback)
+        return { status: "found", credentials: expiredFallback };
+      return result;
+    }
+    if (result.status === "missing")
       continue;
+    const creds = result.credentials;
     if (!isCredentialExpired(creds)) {
-      return creds;
+      return result;
     }
     expiredFallback ??= creds;
   }
-  return expiredFallback;
+  if (expiredFallback)
+    return { status: "found", credentials: expiredFallback };
+  return { status: "missing" };
 }
 function readFileCredentials() {
   try {
-    const credPath = join10(getClaudeConfigDir(), ".credentials.json");
-    if (!existsSync8(credPath))
+    const credPath = join9(getClaudeConfigDir(), ".credentials.json");
+    if (!existsSync9(credPath))
       return null;
-    const content = readFileSync8(credPath, "utf-8");
+    const content = readFileSync9(credPath, "utf-8");
     const parsed = JSON.parse(content);
     const creds = parsed.claudeAiOauth || parsed;
     if (creds.accessToken) {
+      const profileIdentity = getOAuthAccountProfileIdentity(creds);
       return {
         accessToken: creds.accessToken,
         expiresAt: creds.expiresAt,
         refreshToken: creds.refreshToken,
+        profileIdentity: profileIdentity ?? void 0,
+        profileIdentityUnavailable: profileIdentity === null,
         source: "file",
         subscriptionType: creds.subscriptionType,
         rateLimitTier: creds.rateLimitTier
@@ -4881,15 +5408,65 @@ function readFileCredentials() {
   }
   return null;
 }
-function getCredentials() {
-  const envToken = process.env.CLAUDE_CODE_OAUTH_TOKEN?.trim();
+function getStoredCredentialCacheKey() {
+  return JSON.stringify([process.env.CLAUDE_CONFIG_DIR ?? null, getClaudeConfigDir()]);
+}
+function getStoredCredentials(refresh = false) {
+  const configKey = getStoredCredentialCacheKey();
+  if (!refresh && storedCredentialCache?.configKey === configKey && Date.now() - storedCredentialCache.checkedAt < getUsagePollIntervalMs() + CACHE_TTL_FAILURE_MS) {
+    return storedCredentialCache.credentials;
+  }
+  const keychainLookup = readKeychainCredentials();
+  let credentials = null;
+  if (keychainLookup.status === "found") {
+    credentials = keychainLookup.credentials;
+  } else if (keychainLookup.status === "missing") {
+    credentials = readFileCredentials();
+  }
+  storedCredentialCache = { configKey, checkedAt: Date.now(), credentials };
+  storedCredentialLookupGeneration++;
+  return credentials;
+}
+function rememberStoredCredentials(credentials) {
+  storedCredentialCache = {
+    configKey: getStoredCredentialCacheKey(),
+    checkedAt: Date.now(),
+    credentials
+  };
+}
+function getCredentials(includeDirectOAuthToken = true, refreshStoredCredentials = false) {
+  const envToken = includeDirectOAuthToken ? process.env.CLAUDE_CODE_OAUTH_TOKEN?.trim() : void 0;
   if (envToken) {
     return { accessToken: envToken, source: "env" };
   }
-  const keychainCreds = readKeychainCredentials();
-  if (keychainCreds)
-    return keychainCreds;
-  return readFileCredentials();
+  return getStoredCredentials(refreshStoredCredentials);
+}
+function resolveUsageProfile(includeEnvironmentCredentials = true, refreshStoredCredentials = false) {
+  const baseUrl = includeEnvironmentCredentials ? process.env.ANTHROPIC_BASE_URL : void 0;
+  const authToken = includeEnvironmentCredentials ? process.env.ANTHROPIC_AUTH_TOKEN : void 0;
+  const isMinimax = baseUrl != null && isMinimaxHost(baseUrl);
+  const isKimi = baseUrl != null && isKimiHost(baseUrl);
+  const isZai = baseUrl != null && isZaiHost(baseUrl);
+  const minimaxApiKey = includeEnvironmentCredentials ? process.env.MINIMAX_API_KEY || authToken : void 0;
+  const kimiApiKey = includeEnvironmentCredentials ? process.env.KIMI_API_KEY || process.env.ANTHROPIC_API_KEY || authToken : void 0;
+  const currentSource = isMinimax ? "minimax" : isKimi ? "kimi" : isZai && authToken ? "zai" : "anthropic";
+  const previousLookupGeneration = storedCredentialLookupGeneration;
+  const credentials = currentSource === "anthropic" ? getCredentials(includeEnvironmentCredentials, refreshStoredCredentials) : null;
+  const providerCredential = currentSource === "minimax" ? minimaxApiKey : currentSource === "kimi" ? kimiApiKey : currentSource === "zai" ? authToken : void 0;
+  const credentialIdentity = credentials ? credentials.profileIdentityUnavailable ? void 0 : hashCredentialIdentity(JSON.stringify([
+    currentSource,
+    baseUrl ?? null,
+    credentials.profileIdentity ?? hashCredentialIdentity(credentials.refreshToken ?? credentials.accessToken)
+  ])) : providerCredential ? hashCredentialIdentity(JSON.stringify([currentSource, baseUrl ?? null, providerCredential])) : void 0;
+  return {
+    currentSource,
+    authToken,
+    minimaxApiKey,
+    kimiApiKey,
+    credentials,
+    credentialIdentity,
+    storedCredentialsRead: storedCredentialLookupGeneration !== previousLookupGeneration
+  };
 }
 function getSubscriptionInfo() {
   try {
@@ -4908,7 +5485,7 @@ function validateCredentials(creds) {
   return !isCredentialExpired(creds);
 }
 function refreshAccessToken(refreshToken) {
-  return new Promise((resolve6) => {
+  return new Promise((resolve9) => {
     const clientId = process.env.CLAUDE_CODE_OAUTH_CLIENT_ID || DEFAULT_OAUTH_CLIENT_ID;
     const body = new URLSearchParams({
       grant_type: "refresh_token",
@@ -4934,7 +5511,7 @@ function refreshAccessToken(refreshToken) {
           try {
             const parsed = JSON.parse(data);
             if (parsed.access_token) {
-              resolve6({
+              resolve9({
                 accessToken: parsed.access_token,
                 refreshToken: parsed.refresh_token || refreshToken,
                 expiresAt: parsed.expires_in ? Date.now() + parsed.expires_in * 1e3 : parsed.expires_at
@@ -4947,13 +5524,13 @@ function refreshAccessToken(refreshToken) {
         if (process.env.OMC_DEBUG) {
           console.error(`[usage-api] Token refresh failed: HTTP ${res.statusCode}`);
         }
-        resolve6(null);
+        resolve9(null);
       });
     });
-    req.on("error", () => resolve6(null));
+    req.on("error", () => resolve9(null));
     req.on("timeout", () => {
       req.destroy();
-      resolve6(null);
+      resolve9(null);
     });
     req.end(body);
   });
@@ -4968,7 +5545,7 @@ function buildUserAgent(clientVersion) {
 }
 function fetchUsageFromApi(accessToken, clientVersion) {
   const userAgent = buildUserAgent(clientVersion);
-  return new Promise((resolve6) => {
+  return new Promise((resolve9) => {
     const req = https.request({
       hostname: "api.anthropic.com",
       path: "/api/oauth/usage",
@@ -4988,26 +5565,26 @@ function fetchUsageFromApi(accessToken, clientVersion) {
       res.on("end", () => {
         if (res.statusCode === 200) {
           try {
-            resolve6({ data: JSON.parse(data) });
+            resolve9({ data: JSON.parse(data) });
           } catch {
-            resolve6({ data: null });
+            resolve9({ data: null });
           }
         } else if (res.statusCode === 429) {
           if (process.env.OMC_DEBUG) {
             console.error(`[usage-api] Anthropic API returned 429 (rate limited)`);
           }
-          resolve6({ data: null, rateLimited: true });
+          resolve9({ data: null, rateLimited: true });
         } else if (res.statusCode === 403) {
-          fetchUsageViaRateLimitHeaders(accessToken, clientVersion).then(resolve6);
+          fetchUsageViaRateLimitHeaders(accessToken, clientVersion).then(resolve9);
         } else {
-          resolve6({ data: null });
+          resolve9({ data: null });
         }
       });
     });
-    req.on("error", () => resolve6({ data: null }));
+    req.on("error", () => resolve9({ data: null }));
     req.on("timeout", () => {
       req.destroy();
-      resolve6({ data: null });
+      resolve9({ data: null });
     });
     req.end();
   });
@@ -5054,7 +5631,7 @@ function fetchUsageViaRateLimitHeaders(accessToken, clientVersion) {
     max_tokens: 1,
     messages: [{ role: "user", content: "." }]
   });
-  return new Promise((resolve6) => {
+  return new Promise((resolve9) => {
     const req = https.request({
       hostname: "api.anthropic.com",
       path: "/v1/messages",
@@ -5073,33 +5650,33 @@ function fetchUsageViaRateLimitHeaders(accessToken, clientVersion) {
       });
       res.on("end", () => {
         if (res.statusCode === 200) {
-          resolve6({ data: rateLimitHeadersToUsage(res.headers) });
+          resolve9({ data: rateLimitHeadersToUsage(res.headers) });
         } else {
-          resolve6({ data: null, rateLimited: res.statusCode === 429 });
+          resolve9({ data: null, rateLimited: res.statusCode === 429 });
         }
       });
     });
-    req.on("error", () => resolve6({ data: null }));
+    req.on("error", () => resolve9({ data: null }));
     req.on("timeout", () => {
       req.destroy();
-      resolve6({ data: null });
+      resolve9({ data: null });
     });
     req.write(body);
     req.end();
   });
 }
 function fetchUsageFromZai() {
-  return new Promise((resolve6) => {
+  return new Promise((resolve9) => {
     const baseUrl = process.env.ANTHROPIC_BASE_URL;
     const authToken = process.env.ANTHROPIC_AUTH_TOKEN;
     if (!baseUrl || !authToken) {
-      resolve6({ data: null });
+      resolve9({ data: null });
       return;
     }
     const validation = validateAnthropicBaseUrl(baseUrl);
     if (!validation.allowed) {
       console.error(`[SSRF Guard] Blocking usage API call: ${validation.reason}`);
-      resolve6({ data: null });
+      resolve9({ data: null });
       return;
     }
     try {
@@ -5125,28 +5702,28 @@ function fetchUsageFromZai() {
         res.on("end", () => {
           if (res.statusCode === 200) {
             try {
-              resolve6({ data: JSON.parse(data) });
+              resolve9({ data: JSON.parse(data) });
             } catch {
-              resolve6({ data: null });
+              resolve9({ data: null });
             }
           } else if (res.statusCode === 429) {
             if (process.env.OMC_DEBUG) {
               console.error(`[usage-api] z.ai API returned 429 (rate limited)`);
             }
-            resolve6({ data: null, rateLimited: true });
+            resolve9({ data: null, rateLimited: true });
           } else {
-            resolve6({ data: null });
+            resolve9({ data: null });
           }
         });
       });
-      req.on("error", () => resolve6({ data: null }));
+      req.on("error", () => resolve9({ data: null }));
       req.on("timeout", () => {
         req.destroy();
-        resolve6({ data: null });
+        resolve9({ data: null });
       });
       req.end();
     } catch {
-      resolve6({ data: null });
+      resolve9({ data: null });
     }
   });
 }
@@ -5170,17 +5747,9 @@ function writeKeychainCredentials(creds) {
     }
     if (existing.claudeAiOauth && typeof existing.claudeAiOauth === "object") {
       const inner = existing.claudeAiOauth;
-      inner.accessToken = creds.accessToken;
-      if (creds.expiresAt != null)
-        inner.expiresAt = creds.expiresAt;
-      if (creds.refreshToken)
-        inner.refreshToken = creds.refreshToken;
+      updateStoredOAuthCredentialFields(inner, creds);
     } else {
-      existing.accessToken = creds.accessToken;
-      if (creds.expiresAt != null)
-        existing.expiresAt = creds.expiresAt;
-      if (creds.refreshToken)
-        existing.refreshToken = creds.refreshToken;
+      updateStoredOAuthCredentialFields(existing, creds);
     }
     const newJson = JSON.stringify(existing);
     const writeArgs = account ? ["add-generic-password", "-s", serviceName, "-a", account, "-w", newJson, "-U"] : ["add-generic-password", "-s", serviceName, "-w", newJson, "-U"];
@@ -5195,6 +5764,17 @@ function writeKeychainCredentials(creds) {
     }
   }
 }
+function updateStoredOAuthCredentialFields(record, creds) {
+  record.accessToken = creds.accessToken;
+  if (creds.expiresAt != null)
+    record.expiresAt = creds.expiresAt;
+  if (creds.refreshToken)
+    record.refreshToken = creds.refreshToken;
+  if (creds.profileIdentity) {
+    record[OMJ_USAGE_PROFILE_ID_FIELD] = creds.profileIdentity;
+    record[OMJ_USAGE_PROFILE_TOKEN_HASH_FIELD] = hashCredentialIdentity(creds.refreshToken ?? creds.accessToken);
+  }
+}
 function writeBackCredentials(creds) {
   if (creds.source === "keychain") {
     writeKeychainCredentials(creds);
@@ -5203,27 +5783,15 @@ function writeBackCredentials(creds) {
   if (creds.source === "env")
     return;
   try {
-    const credPath = join10(getClaudeConfigDir(), ".credentials.json");
-    if (!existsSync8(credPath))
+    const credPath = join9(getClaudeConfigDir(), ".credentials.json");
+    if (!existsSync9(credPath))
       return;
-    const content = readFileSync8(credPath, "utf-8");
+    const content = readFileSync9(credPath, "utf-8");
     const parsed = JSON.parse(content);
     if (parsed.claudeAiOauth) {
-      parsed.claudeAiOauth.accessToken = creds.accessToken;
-      if (creds.expiresAt != null) {
-        parsed.claudeAiOauth.expiresAt = creds.expiresAt;
-      }
-      if (creds.refreshToken) {
-        parsed.claudeAiOauth.refreshToken = creds.refreshToken;
-      }
+      updateStoredOAuthCredentialFields(parsed.claudeAiOauth, creds);
     } else {
-      parsed.accessToken = creds.accessToken;
-      if (creds.expiresAt != null) {
-        parsed.expiresAt = creds.expiresAt;
-      }
-      if (creds.refreshToken) {
-        parsed.refreshToken = creds.refreshToken;
-      }
+      updateStoredOAuthCredentialFields(parsed, creds);
     }
     const tmpPath = `${credPath}.tmp.${process.pid}`;
     try {
@@ -5231,7 +5799,7 @@ function writeBackCredentials(creds) {
       renameSync3(tmpPath, credPath);
     } catch (writeErr) {
       try {
-        if (existsSync8(tmpPath)) {
+        if (existsSync9(tmpPath)) {
           unlinkSync5(tmpPath);
         }
       } catch {
@@ -5439,16 +6007,16 @@ function parseZaiResponse(response) {
   return result;
 }
 function fetchUsageFromMinimax(apiKey) {
-  return new Promise((resolve6) => {
+  return new Promise((resolve9) => {
     const baseUrl = process.env.ANTHROPIC_BASE_URL;
     if (!baseUrl) {
-      resolve6({ data: null });
+      resolve9({ data: null });
       return;
     }
     const validation = validateAnthropicBaseUrl(baseUrl);
     if (!validation.allowed) {
       console.error(`[SSRF Guard] Blocking usage API call: ${validation.reason}`);
-      resolve6({ data: null });
+      resolve9({ data: null });
       return;
     }
     try {
@@ -5473,28 +6041,28 @@ function fetchUsageFromMinimax(apiKey) {
         res.on("end", () => {
           if (res.statusCode === 200) {
             try {
-              resolve6({ data: JSON.parse(data) });
+              resolve9({ data: JSON.parse(data) });
             } catch {
-              resolve6({ data: null });
+              resolve9({ data: null });
             }
           } else if (res.statusCode === 429) {
             if (process.env.OMC_DEBUG) {
               console.error(`[usage-api] MiniMax API returned 429 (rate limited)`);
             }
-            resolve6({ data: null, rateLimited: true });
+            resolve9({ data: null, rateLimited: true });
           } else {
-            resolve6({ data: null });
+            resolve9({ data: null });
           }
         });
       });
-      req.on("error", () => resolve6({ data: null }));
+      req.on("error", () => resolve9({ data: null }));
       req.on("timeout", () => {
         req.destroy();
-        resolve6({ data: null });
+        resolve9({ data: null });
       });
       req.end();
     } catch {
-      resolve6({ data: null });
+      resolve9({ data: null });
     }
   });
 }
@@ -5536,16 +6104,16 @@ function parseMinimaxResponse(response) {
   };
 }
 function fetchUsageFromKimi(apiKey) {
-  return new Promise((resolve6) => {
+  return new Promise((resolve9) => {
     const baseUrl = process.env.ANTHROPIC_BASE_URL;
     if (!baseUrl) {
-      resolve6({ data: null });
+      resolve9({ data: null });
       return;
     }
     const validation = validateAnthropicBaseUrl(baseUrl);
     if (!validation.allowed) {
       console.error(`[SSRF Guard] Blocking usage API call: ${validation.reason}`);
-      resolve6({ data: null });
+      resolve9({ data: null });
       return;
     }
     try {
@@ -5554,7 +6122,7 @@ function fetchUsageFromKimi(apiKey) {
         if (process.env.OMC_DEBUG) {
           console.error(`[usage-api] Refusing to send Kimi credentials to non-canonical host '${hostname2}'`);
         }
-        resolve6({ data: null });
+        resolve9({ data: null });
         return;
       }
       const req = https.request({
@@ -5568,36 +6136,36 @@ function fetchUsageFromKimi(apiKey) {
         timeout: API_TIMEOUT_MS
       }, (res) => {
         let data = "";
-        res.on("error", () => resolve6({ data: null }));
-        res.on("aborted", () => resolve6({ data: null }));
+        res.on("error", () => resolve9({ data: null }));
+        res.on("aborted", () => resolve9({ data: null }));
         res.on("data", (chunk) => {
           data += chunk;
         });
         res.on("end", () => {
           if (res.statusCode === 200) {
             try {
-              resolve6({ data: JSON.parse(data) });
+              resolve9({ data: JSON.parse(data) });
             } catch {
-              resolve6({ data: null });
+              resolve9({ data: null });
             }
           } else if (res.statusCode === 429) {
             if (process.env.OMC_DEBUG) {
               console.error(`[usage-api] Kimi API returned 429 (rate limited)`);
             }
-            resolve6({ data: null, rateLimited: true });
+            resolve9({ data: null, rateLimited: true });
           } else {
-            resolve6({ data: null });
+            resolve9({ data: null });
           }
         });
       });
-      req.on("error", () => resolve6({ data: null }));
+      req.on("error", () => resolve9({ data: null }));
       req.on("timeout", () => {
         req.destroy();
-        resolve6({ data: null });
+        resolve9({ data: null });
       });
       req.end();
     } catch {
-      resolve6({ data: null });
+      resolve9({ data: null });
     }
   });
 }
@@ -5765,24 +6333,52 @@ async function fetchAndCacheUsage(opts) {
   });
   return { rateLimits: usage };
 }
-async function getUsage(opts) {
+function getWarmAnthropicUsageCache(pollIntervalMs, rateLimitIdentity) {
   const baseUrl = process.env.ANTHROPIC_BASE_URL;
-  const authToken = process.env.ANTHROPIC_AUTH_TOKEN;
-  const isMinimax = baseUrl != null && isMinimaxHost(baseUrl);
-  const isKimi = baseUrl != null && isKimiHost(baseUrl);
-  const isZai = baseUrl != null && isZaiHost(baseUrl);
-  const minimaxApiKey = process.env.MINIMAX_API_KEY || authToken;
-  const kimiApiKey = process.env.KIMI_API_KEY || process.env.ANTHROPIC_API_KEY || authToken;
-  const currentSource = isMinimax ? "minimax" : isKimi ? "kimi" : isZai && authToken ? "zai" : "anthropic";
-  const envToken = process.env.CLAUDE_CODE_OAUTH_TOKEN?.trim();
-  const credentialIdentity = currentSource === "anthropic" && envToken ? getCredentialCacheIdentity(envToken) : void 0;
+  if (process.env.CLAUDE_CODE_OAUTH_TOKEN?.trim() || process.env.ANTHROPIC_AUTH_TOKEN?.trim() || process.env.MINIMAX_API_KEY?.trim() || process.env.KIMI_API_KEY?.trim() || process.env.ANTHROPIC_API_KEY?.trim() || baseUrl != null && (isMinimaxHost(baseUrl) || isKimiHost(baseUrl) || isZaiHost(baseUrl))) {
+    return void 0;
+  }
+  const profileIdentity = getOAuthAccountProfileIdentity({});
+  if (!profileIdentity)
+    return void 0;
+  const credentialIdentity = hashCredentialIdentity(JSON.stringify([
+    "anthropic",
+    baseUrl ?? null,
+    profileIdentity
+  ]));
+  migrateLegacyCache("anthropic");
+  const cache = readCache("anthropic");
+  const hasCacheOutcome = !!cache?.data || cache?.error === true || getRateLimitBackoff(cache, rateLimitIdentity) !== null;
+  if (!cache || !hasCacheOutcome || cache.source !== "anthropic" || !isCacheForCredential(cache, credentialIdentity) || !isCacheValid(cache, pollIntervalMs, rateLimitIdentity)) {
+    return void 0;
+  }
+  return getCachedUsageResult(cache, rateLimitIdentity);
+}
+async function getUsage(opts) {
   const pollIntervalMs = getUsagePollIntervalMs();
-  const rateLimitIdentity = currentSource === "anthropic" ? buildUserAgent(opts?.clientVersion) ?? "anonymous" : void 0;
+  const anthropicRateLimitIdentity = buildUserAgent(opts?.clientVersion) ?? "anonymous";
+  const warmCachedUsage = opts?.skipWarmCache ? void 0 : getWarmAnthropicUsageCache(pollIntervalMs, anthropicRateLimitIdentity);
+  if (warmCachedUsage)
+    return warmCachedUsage;
+  let profile = resolveUsageProfile();
+  const { currentSource, authToken, minimaxApiKey, kimiApiKey } = profile;
+  let credentials = profile.credentials;
+  let credentialIdentity = profile.credentialIdentity;
+  const rateLimitIdentity = currentSource === "anthropic" ? anthropicRateLimitIdentity : void 0;
   migrateLegacyCache(currentSource);
   const initialCache = readCache(currentSource);
-  const initialMatchingCache = isCacheForCredential(initialCache, credentialIdentity) ? initialCache : null;
+  let initialMatchingCache = isCacheForCredential(initialCache, credentialIdentity) ? initialCache : null;
   if (initialMatchingCache && isCacheValid(initialMatchingCache, pollIntervalMs, rateLimitIdentity) && initialMatchingCache.source === currentSource) {
     return getCachedUsageResult(initialMatchingCache, rateLimitIdentity);
+  }
+  if (currentSource === "anthropic" && credentials?.source !== "env" && !profile.storedCredentialsRead) {
+    profile = resolveUsageProfile(true, true);
+    credentials = profile.credentials;
+    credentialIdentity = profile.credentialIdentity;
+    initialMatchingCache = isCacheForCredential(initialCache, credentialIdentity) ? initialCache : null;
+    if (initialMatchingCache && isCacheValid(initialMatchingCache, pollIntervalMs, rateLimitIdentity) && initialMatchingCache.source === currentSource) {
+      return getCachedUsageResult(initialMatchingCache, rateLimitIdentity);
+    }
   }
   try {
     return await withFileLock(lockPathFor(getCachePath(currentSource)), async () => {
@@ -5791,9 +6387,9 @@ async function getUsage(opts) {
       if (matchingCache && isCacheValid(matchingCache, pollIntervalMs, rateLimitIdentity) && matchingCache.source === currentSource) {
         return getCachedUsageResult(matchingCache, rateLimitIdentity);
       }
-      if (isMinimax) {
+      if (currentSource === "minimax") {
         if (!minimaxApiKey) {
-          writeCache({ data: null, error: true, source: "minimax", errorReason: "no_credentials" });
+          writeCache({ data: null, error: true, source: "minimax", errorReason: "no_credentials", credentialIdentity });
           return { rateLimits: null, error: "no_credentials" };
         }
         return fetchAndCacheUsage({
@@ -5801,12 +6397,13 @@ async function getUsage(opts) {
           fetchFn: () => fetchUsageFromMinimax(minimaxApiKey),
           parseFn: parseMinimaxResponse,
           cache: matchingCache,
-          pollIntervalMs
+          pollIntervalMs,
+          credentialIdentity
         });
       }
-      if (isKimi) {
+      if (currentSource === "kimi") {
         if (!kimiApiKey) {
-          writeCache({ data: null, error: true, source: "kimi", errorReason: "no_credentials" });
+          writeCache({ data: null, error: true, source: "kimi", errorReason: "no_credentials", credentialIdentity });
           return { rateLimits: null, error: "no_credentials" };
         }
         return fetchAndCacheUsage({
@@ -5814,26 +6411,34 @@ async function getUsage(opts) {
           fetchFn: () => fetchUsageFromKimi(kimiApiKey),
           parseFn: parseKimiResponse,
           cache: matchingCache,
-          pollIntervalMs
+          pollIntervalMs,
+          credentialIdentity
         });
       }
-      if (isZai && authToken) {
+      if (currentSource === "zai" && authToken) {
         return fetchAndCacheUsage({
           source: "zai",
           fetchFn: () => fetchUsageFromZai(),
           parseFn: parseZaiResponse,
           cache: matchingCache,
-          pollIntervalMs
+          pollIntervalMs,
+          credentialIdentity
         });
       }
-      let creds = getCredentials();
+      let creds = credentials;
       if (creds) {
         if (!validateCredentials(creds)) {
           if (creds.refreshToken) {
             const refreshed = await refreshAccessToken(creds.refreshToken);
             if (refreshed) {
-              creds = { ...creds, ...refreshed };
+              creds = {
+                ...creds,
+                ...refreshed,
+                profileIdentity: creds.profileIdentity ?? hashCredentialIdentity(creds.refreshToken ?? creds.accessToken)
+              };
               writeBackCredentials(creds);
+              if (creds.source !== "env")
+                rememberStoredCredentials(creds);
             } else {
               writeCache({
                 data: null,
@@ -5891,32 +6496,33 @@ async function getUsage(opts) {
   }
 }
 
-// v5.6.2/dist/hud/custom-rate-provider.js
+// v5.8.6/dist/hud/custom-rate-provider.js
 import { spawn } from "child_process";
-import { existsSync as existsSync9, readFileSync as readFileSync9, writeFileSync as writeFileSync4, mkdirSync as mkdirSync7 } from "fs";
-import { join as join11, dirname as dirname7 } from "path";
+import { createHash as createHash5 } from "node:crypto";
+import { existsSync as existsSync10, readFileSync as readFileSync10, writeFileSync as writeFileSync4, mkdirSync as mkdirSync7 } from "fs";
+import { join as join10, dirname as dirname7 } from "path";
 var CACHE_TTL_MS = 3e4;
 var DEFAULT_TIMEOUT_MS = 800;
 function getCachePath2() {
-  return join11(getClaudeConfigDir(), "plugins", "oh-my-claudecode", ".custom-rate-cache.json");
+  return join10(getClaudeConfigDir(), "plugins", "oh-my-claudecode", ".custom-rate-cache.json");
 }
 function readCache2() {
   try {
     const p = getCachePath2();
-    if (!existsSync9(p))
+    if (!existsSync10(p))
       return null;
-    return JSON.parse(readFileSync9(p, "utf-8"));
+    return JSON.parse(readFileSync10(p, "utf-8"));
   } catch {
     return null;
   }
 }
-function writeCache2(buckets) {
+function writeCache2(buckets, identity) {
   try {
     const p = getCachePath2();
     const dir = dirname7(p);
-    if (!existsSync9(dir))
+    if (!existsSync10(dir))
       mkdirSync7(dir, { recursive: true });
-    const cache = { timestamp: Date.now(), buckets };
+    const cache = { timestamp: Date.now(), buckets, identity };
     writeFileSync4(p, JSON.stringify(cache, null, 2));
   } catch {
   }
@@ -5925,7 +6531,7 @@ function isCacheValid2(cache) {
   return Date.now() - cache.timestamp < CACHE_TTL_MS;
 }
 function spawnWithTimeout(cmd, timeoutMs) {
-  return new Promise((resolve6, reject) => {
+  return new Promise((resolve9, reject) => {
     const [executable, ...args] = Array.isArray(cmd) ? cmd : ["sh", "-c", cmd];
     const child = spawn(executable, args, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -5943,6 +6549,8 @@ function spawnWithTimeout(cmd, timeoutMs) {
       } catch {
       }
     };
+    child.stderr.on("data", () => {
+    });
     let stdout = "";
     child.stdout.on("data", (chunk) => {
       stdout += chunk.toString();
@@ -5963,7 +6571,7 @@ function spawnWithTimeout(cmd, timeoutMs) {
         clearTimeout(escalationTimer);
       if (!timedOut) {
         if (code === 0) {
-          resolve6(stdout);
+          resolve9(stdout);
         } else {
           reject(new Error(`Command exited with code ${code}`));
         }
@@ -6007,7 +6615,12 @@ function parseOutput(raw, periods) {
   return buckets;
 }
 async function executeCustomProvider(config) {
-  const cache = readCache2();
+  const identity = createHash5("sha256").update(JSON.stringify({
+    command: config.command,
+    periods: [...new Set(config.periods ?? [])].sort()
+  })).digest("hex");
+  const storedCache = readCache2();
+  const cache = storedCache?.identity === identity ? storedCache : null;
   if (cache && isCacheValid2(cache)) {
     return { buckets: cache.buckets, stale: false };
   }
@@ -6023,7 +6636,7 @@ async function executeCustomProvider(config) {
         return { buckets: cache.buckets, stale: true };
       return { buckets: [], stale: false, error: "invalid output" };
     }
-    writeCache2(buckets);
+    writeCache2(buckets, identity);
     return { buckets, stale: false };
   } catch (err) {
     if (process.env.OMC_DEBUG) {
@@ -6035,7 +6648,7 @@ async function executeCustomProvider(config) {
   }
 }
 
-// v5.6.2/dist/hud/colors.js
+// v5.8.6/dist/hud/colors.js
 var RESET = "\x1B[0m";
 var DIM = "\x1B[2m";
 var BOLD = "\x1B[1m";
@@ -6055,6 +6668,9 @@ function red(text) {
 }
 function cyan(text) {
   return `${CYAN}${text}${RESET}`;
+}
+function magenta(text) {
+  return `${MAGENTA}${text}${RESET}`;
 }
 function dim(text) {
   return `${DIM}${text}${RESET}`;
@@ -6083,18 +6699,18 @@ function getDurationColor(durationMs) {
   return GREEN;
 }
 
-// v5.6.2/dist/lib/version.js
-import { readFileSync as readFileSync10, existsSync as existsSync10, lstatSync as lstatSync3, realpathSync as realpathSync2 } from "fs";
-import { join as join12, dirname as dirname8 } from "path";
+// v5.8.6/dist/lib/version.js
+import { readFileSync as readFileSync11, existsSync as existsSync11, lstatSync as lstatSync3, realpathSync as realpathSync2 } from "fs";
+import { join as join11, dirname as dirname8 } from "path";
 import { fileURLToPath } from "url";
 function getRuntimePackageVersion() {
   try {
     const __filename2 = fileURLToPath(import.meta.url);
     const __dirname2 = dirname8(__filename2);
     for (let i = 0; i < 5; i++) {
-      const candidate = join12(__dirname2, ...Array(i + 1).fill(".."), "package.json");
+      const candidate = join11(__dirname2, ...Array(i + 1).fill(".."), "package.json");
       try {
-        const pkg = JSON.parse(readFileSync10(candidate, "utf-8"));
+        const pkg = JSON.parse(readFileSync11(candidate, "utf-8"));
         if (pkg.name && pkg.version) {
           return pkg.version;
         }
@@ -6120,17 +6736,17 @@ function isRuntimePackageLocal() {
     const __dirname2 = dirname8(__filename2);
     let pkgRoot = null;
     for (let i = 0; i < 5; i++) {
-      const candidate = join12(__dirname2, ...Array(i + 1).fill(".."));
-      if (existsSync10(join12(candidate, "package.json"))) {
+      const candidate = join11(__dirname2, ...Array(i + 1).fill(".."));
+      if (existsSync11(join11(candidate, "package.json"))) {
         pkgRoot = candidate;
         break;
       }
     }
     if (!pkgRoot)
       return false;
-    if (existsSync10(join12(pkgRoot, ".git")))
+    if (existsSync11(join11(pkgRoot, ".git")))
       return true;
-    if (existsSync10(join12(pkgRoot, "src")))
+    if (existsSync11(join11(pkgRoot, "src")))
       return true;
     try {
       const real = realpathSync2(pkgRoot);
@@ -6156,7 +6772,7 @@ function isRuntimePackageLocal() {
   return false;
 }
 
-// v5.6.2/dist/hud/elements/ralph.js
+// v5.8.6/dist/hud/elements/ralph.js
 var RED2 = "\x1B[31m";
 var YELLOW2 = "\x1B[33m";
 var GREEN2 = "\x1B[32m";
@@ -6178,7 +6794,7 @@ function renderRalph(state, thresholds, labels = DEFAULT_HUD_LABELS) {
   return `${labels.ralph}:${color}${iteration}/${maxIterations}${RESET}`;
 }
 
-// v5.6.2/dist/features/agent-addressability/index.js
+// v5.8.6/dist/features/agent-addressability/index.js
 var SHORT_ID_LENGTH = 7;
 function shortId(id, length = SHORT_ID_LENGTH) {
   if (!id)
@@ -6186,7 +6802,7 @@ function shortId(id, length = SHORT_ID_LENGTH) {
   return id.length <= length ? id : id.slice(0, length);
 }
 
-// v5.6.2/dist/hud/elements/agents.js
+// v5.8.6/dist/hud/elements/agents.js
 var CYAN2 = "\x1B[36m";
 var AGENT_TYPE_CODES = {
   // ============================================================
@@ -6601,7 +7217,7 @@ function renderAgentsByFormat(agents, format) {
   }
 }
 
-// v5.6.2/dist/hud/elements/todos.js
+// v5.8.6/dist/hud/elements/todos.js
 var GREEN3 = "\x1B[32m";
 var YELLOW3 = "\x1B[33m";
 var CYAN3 = "\x1B[36m";
@@ -6631,7 +7247,7 @@ function renderTodosWithCurrent(todos) {
   return result;
 }
 
-// v5.6.2/dist/hud/elements/skills.js
+// v5.8.6/dist/hud/elements/skills.js
 var MAGENTA2 = "\x1B[35m";
 var BRIGHT_MAGENTA = "\x1B[95m";
 function truncate(str, maxWidth) {
@@ -6673,7 +7289,7 @@ function renderLastSkill(lastSkill) {
   return cyan(`skill:${displayName}${argsDisplay}`);
 }
 
-// v5.6.2/dist/hud/elements/context.js
+// v5.8.6/dist/hud/elements/context.js
 var GREEN4 = "\x1B[32m";
 var YELLOW4 = "\x1B[33m";
 var RED3 = "\x1B[31m";
@@ -6757,7 +7373,7 @@ function renderContextWithBar(percent, thresholds, barWidth = 10, displayScope, 
   return `${labels.context}:[${bar}]${color}${safePercent}%${suffix}${RESET}`;
 }
 
-// v5.6.2/dist/hud/elements/background.js
+// v5.8.6/dist/hud/elements/background.js
 var CYAN4 = "\x1B[36m";
 var GREEN5 = "\x1B[32m";
 var YELLOW5 = "\x1B[33m";
@@ -6778,7 +7394,7 @@ function renderBackground(tasks, labels = DEFAULT_HUD_LABELS) {
   return `${labels.background}:${color}${running}/${MAX_CONCURRENT}${RESET}`;
 }
 
-// v5.6.2/dist/hud/elements/prd.js
+// v5.8.6/dist/hud/elements/prd.js
 var CYAN5 = "\x1B[36m";
 var GREEN6 = "\x1B[32m";
 function renderPrd(state) {
@@ -6795,7 +7411,7 @@ function renderPrd(state) {
   return null;
 }
 
-// v5.6.2/dist/hud/elements/limits.js
+// v5.8.6/dist/hud/elements/limits.js
 var GREEN7 = "\x1B[32m";
 var YELLOW6 = "\x1B[33m";
 var RED4 = "\x1B[31m";
@@ -7032,14 +7648,14 @@ function renderCustomBuckets(result, thresholdPercent = 85) {
   return parts.join(" ");
 }
 
-// v5.6.2/dist/hud/elements/permission.js
+// v5.8.6/dist/hud/elements/permission.js
 function renderPermission(pending) {
   if (!pending)
     return null;
   return `${yellow("APPROVE?")} ${dim(pending.toolName.toLowerCase())}:${pending.targetSummary}`;
 }
 
-// v5.6.2/dist/hud/elements/thinking.js
+// v5.8.6/dist/hud/elements/thinking.js
 var CYAN6 = "\x1B[36m";
 function renderThinking(state, format = "text", labels = DEFAULT_HUD_LABELS) {
   if (!state?.active)
@@ -7058,7 +7674,7 @@ function renderThinking(state, format = "text", labels = DEFAULT_HUD_LABELS) {
   }
 }
 
-// v5.6.2/dist/hud/elements/session.js
+// v5.8.6/dist/hud/elements/session.js
 function renderSession(session) {
   if (!session)
     return null;
@@ -7066,16 +7682,16 @@ function renderSession(session) {
   return `session:${colorize(`${session.durationMinutes}m`)}`;
 }
 
-// v5.6.2/dist/cli/utils/formatting.js
+// v5.8.6/dist/cli/utils/formatting.js
 function formatTokenCount(tokens) {
   if (tokens < 1e3)
     return `${tokens}`;
-  if (tokens < 1e6)
+  if (tokens < 999950)
     return `${(tokens / 1e3).toFixed(1)}k`;
   return `${(tokens / 1e6).toFixed(2)}M`;
 }
 
-// v5.6.2/dist/hud/elements/token-usage.js
+// v5.8.6/dist/hud/elements/token-usage.js
 function renderTokenUsage(usage, sessionTotalTokens, labels = DEFAULT_HUD_LABELS) {
   if (!usage)
     return null;
@@ -7094,7 +7710,7 @@ function renderTokenUsage(usage, sessionTotalTokens, labels = DEFAULT_HUD_LABELS
   return parts.join(" ");
 }
 
-// v5.6.2/dist/hud/elements/enterprise-cost.js
+// v5.8.6/dist/hud/elements/enterprise-cost.js
 var GREEN8 = "\x1B[32m";
 var YELLOW7 = "\x1B[33m";
 var RED5 = "\x1B[31m";
@@ -7134,7 +7750,7 @@ function renderEnterpriseCost(limits, stale) {
   return `${DIM5}spent:${RESET}${prefix}${spentStr}/${prefix}${limitStr} ${color}(${rounded}%)${RESET}${staleMarker}`;
 }
 
-// v5.6.2/dist/hud/elements/prompt-time.js
+// v5.8.6/dist/hud/elements/prompt-time.js
 function formatElapsed(ms) {
   const totalSeconds = Math.floor(ms / 1e3);
   if (totalSeconds < 60)
@@ -7160,7 +7776,7 @@ function renderPromptTime(promptTime, now) {
   return `${dim("prompt:")}${hours}:${minutes}:${seconds}`;
 }
 
-// v5.6.2/dist/hud/elements/autopilot.js
+// v5.8.6/dist/hud/elements/autopilot.js
 var CYAN7 = "\x1B[36m";
 var GREEN9 = "\x1B[32m";
 var YELLOW8 = "\x1B[33m";
@@ -7229,18 +7845,23 @@ function renderAutopilot(state, _thresholds) {
   return output;
 }
 
-// v5.6.2/dist/hud/elements/cwd.js
+// v5.8.6/dist/hud/elements/cwd.js
 import { homedir as homedir3 } from "node:os";
-import { basename as basename5, dirname as dirname9 } from "node:path";
+import { basename as basename6, dirname as dirname9, resolve as resolve4, sep as sep4 } from "node:path";
+import { pathToFileURL as pathToFileURL2 } from "node:url";
 function osc8Link(url, text) {
   return `\x1B]8;;${url}\x1B\\${text}\x1B]8;;\x1B\\`;
 }
 function pathToFileUrl(absPath) {
-  const normalized = absPath.replace(/\\/g, "/");
-  if (/^[A-Za-z]:\//.test(normalized)) {
-    return `file:///${normalized}`;
+  if (process.platform !== "win32" && /^[A-Za-z]:[\\/]/.test(absPath)) {
+    const segments = absPath.replace(/\\/g, "/").split("/");
+    return `file:///${segments.map((segment, index) => index === 0 ? segment : encodeURIComponent(segment)).join("/")}`;
   }
-  return `file://${normalized}`;
+  const normalized = resolve4(absPath);
+  if (normalized.endsWith(sep4))
+    return pathToFileURL2(normalized).href;
+  const url = pathToFileURL2(`${normalized}${sep4}`).href;
+  return url.slice(0, -1);
 }
 function renderCwd(cwd, format = "relative", useHyperlinks = false) {
   if (!cwd)
@@ -7263,15 +7884,16 @@ function renderCwd(cwd, format = "relative", useHyperlinks = false) {
       displayPath = cwd;
       break;
     case "folder": {
-      const parent = basename5(dirname9(cwd));
-      const folder = basename5(cwd);
+      const parent = basename6(dirname9(cwd));
+      const folder = basename6(cwd);
       displayPath = parent ? `${parent}/${folder}` : folder;
       break;
     }
     default:
       displayPath = cwd;
   }
-  const rendered = `${dim(displayPath)}`;
+  const safeDisplayPath = displayPath.replace(/[\x00-\x1f\x7f-\x9f]/g, (character) => `\\x${character.charCodeAt(0).toString(16).padStart(2, "0")}`);
+  const rendered = `${dim(safeDisplayPath)}`;
   if (useHyperlinks) {
     const url = pathToFileUrl(cwd);
     return osc8Link(url, rendered);
@@ -7279,7 +7901,7 @@ function renderCwd(cwd, format = "relative", useHyperlinks = false) {
   return rendered;
 }
 
-// v5.6.2/dist/hud/elements/hostname.js
+// v5.8.6/dist/hud/elements/hostname.js
 import { hostname } from "node:os";
 function renderHostname() {
   const full = hostname();
@@ -7291,10 +7913,209 @@ function renderHostname() {
   return cyan(`host:${short}`);
 }
 
-// v5.6.2/dist/hud/elements/git.js
+// v5.8.6/dist/hud/elements/account.js
+import { closeSync as closeSync5, constants as constants2, fstatSync as fstatSync2, lstatSync as lstatSync4, mkdirSync as mkdirSync8, openSync as openSync5, readFileSync as readFileSync12, writeFileSync as writeFileSync5 } from "fs";
+import { join as join12 } from "path";
+import { homedir as homedir4 } from "os";
+function validateEmail(value) {
+  if (typeof value !== "string") {
+    return { valid: false };
+  }
+  if (value.length === 0 || value.length > 320) {
+    return { valid: false };
+  }
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+    if (code <= 31) {
+      return { valid: false };
+    }
+    if (code >= 128 && code <= 159) {
+      return { valid: false };
+    }
+    if (code >= 8206 && code <= 8207 || code >= 8234 && code <= 8238 || code >= 8294 && code <= 8297) {
+      return { valid: false };
+    }
+    if (code === 32 || code === 9 || code === 10 || code === 13 || code === 11 || code === 12) {
+      return { valid: false };
+    }
+    if (code < 33 || code > 126) {
+      return { valid: false };
+    }
+  }
+  if (!value.includes("@") || value.indexOf("@") !== value.lastIndexOf("@")) {
+    return { valid: false };
+  }
+  const [local, domain] = value.split("@", 2);
+  if (!local || !domain || !domain.includes(".")) {
+    return { valid: false };
+  }
+  if (!/^[a-z0-9.-]+$/i.test(domain)) {
+    return { valid: false };
+  }
+  return { valid: true, email: value };
+}
+function truncateEmailMiddle(email, maxChars = 64) {
+  if (email.length <= maxChars) {
+    return email;
+  }
+  const ellipsis = "...";
+  const availableChars = maxChars - ellipsis.length;
+  const startChars = Math.floor(availableChars / 2);
+  const endChars = availableChars - startChars;
+  return `${email.slice(0, startChars)}${ellipsis}${email.slice(-endChars)}`;
+}
+function metadataFromStats(stats) {
+  return {
+    mtimeMs: stats.mtimeMs,
+    size: stats.size,
+    ino: stats.ino,
+    isFile: stats.isFile()
+  };
+}
+function getFileMetadata(filePath) {
+  try {
+    return metadataFromStats(lstatSync4(filePath));
+  } catch (error) {
+    const code = error.code;
+    if (code === "ENOENT" || code === "ENOTDIR") {
+      return null;
+    }
+    throw error;
+  }
+}
+function bestEffortFileMetadata(filePath) {
+  try {
+    return getFileMetadata(filePath);
+  } catch {
+    return null;
+  }
+}
+function readEmailFromClaudeJson(filePath) {
+  const flags = constants2.O_RDONLY | (constants2.O_NOFOLLOW ?? 0) | (constants2.O_NONBLOCK ?? 0);
+  let fd;
+  try {
+    fd = openSync5(filePath, flags);
+  } catch {
+    return { email: null, metadata: bestEffortFileMetadata(filePath) };
+  }
+  try {
+    const metadata = metadataFromStats(fstatSync2(fd));
+    if (!metadata.isFile || metadata.size > 5 * 1024 * 1024) {
+      return { email: null, metadata };
+    }
+    try {
+      const content = readFileSync12(fd, "utf-8");
+      const parsed = JSON.parse(content);
+      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+        return { email: null, metadata };
+      }
+      const account = parsed.oauthAccount;
+      if (typeof account !== "object" || account === null || Array.isArray(account)) {
+        return { email: null, metadata };
+      }
+      const email = account.emailAddress;
+      const validation = validateEmail(email);
+      return { email: validation.valid ? validation.email ?? null : null, metadata };
+    } catch {
+      return { email: null, metadata };
+    }
+  } catch {
+    return { email: null, metadata: bestEffortFileMetadata(filePath) };
+  } finally {
+    try {
+      closeSync5(fd);
+    } catch {
+    }
+  }
+}
+function metadataEquals(a, b) {
+  if (a === null || b === null)
+    return a === b;
+  return a.mtimeMs === b.mtimeMs && a.size === b.size && a.ino === b.ino && a.isFile === b.isFile;
+}
+function isAccountFileMetadata(value) {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return false;
+  const m = value;
+  return [m.mtimeMs, m.size, m.ino].every((item) => typeof item === "number" && Number.isFinite(item)) && typeof m.isFile === "boolean";
+}
+function isCachedAccountData(value) {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return false;
+  const cached = value;
+  return (cached.email === null || typeof cached.email === "string") && Array.isArray(cached.sources) && cached.sources.every((source) => {
+    if (typeof source !== "object" || source === null)
+      return false;
+    const { path: path3, metadata } = source;
+    return typeof path3 === "string" && (metadata === null || isAccountFileMetadata(metadata));
+  });
+}
+function getCachedAccountEmail() {
+  const cacheDir = getOmcConfigDir();
+  const cacheFile = join12(cacheDir, "hud-account-cache.json");
+  const configJsonPath = join12(getClaudeConfigDir(), ".claude.json");
+  const fallbackPath = join12(homedir4(), ".claude.json");
+  const candidatePaths = fallbackPath === configJsonPath ? [configJsonPath] : [configJsonPath, fallbackPath];
+  let cacheable = true;
+  const sources = candidatePaths.map((path3) => {
+    try {
+      return { path: path3, metadata: getFileMetadata(path3) };
+    } catch {
+      cacheable = false;
+      return { path: path3, metadata: null };
+    }
+  });
+  try {
+    const cache = cacheable ? JSON.parse(readFileSync12(cacheFile, "utf-8")) : {};
+    const cached = cache.account;
+    if (isCachedAccountData(cached) && cached.sources.length === sources.length && cached.sources.every((entry, i) => entry.path === sources[i].path && metadataEquals(entry.metadata, sources[i].metadata)) && (cached.email === null || validateEmail(cached.email).valid)) {
+      return cached.email;
+    }
+  } catch {
+  }
+  let email = null;
+  for (const path3 of candidatePaths) {
+    email = readEmailFromClaudeJson(path3).email;
+    if (email)
+      break;
+  }
+  if (!cacheable)
+    return email;
+  try {
+    mkdirSync8(cacheDir, { recursive: true });
+    writeFileSync5(cacheFile, JSON.stringify({ account: { sources, email } }));
+  } catch {
+  }
+  return email;
+}
+function renderAccount() {
+  if (process.env.ANTHROPIC_API_KEY) {
+    return null;
+  }
+  let email;
+  try {
+    email = getCachedAccountEmail();
+  } catch {
+    return null;
+  }
+  if (!email) {
+    return null;
+  }
+  const truncated = truncateEmailMiddle(email, 64);
+  return cyan(`acct:${truncated}`);
+}
+
+// v5.8.6/dist/hud/elements/git.js
 import { execFileSync as execFileSync4 } from "node:child_process";
 import { realpathSync as realpathSync3 } from "node:fs";
-import { resolve as resolve3, basename as basename6 } from "node:path";
+import { resolve as resolve5, basename as basename7 } from "node:path";
+
+// v5.8.6/dist/utils/url.js
+function stripTrailingSlashes(value) {
+  return value.replace(/\/+$/, "");
+}
+
+// v5.8.6/dist/hud/elements/git.js
 var CACHE_TTL_MS2 = 3e4;
 var repoCache = /* @__PURE__ */ new Map();
 var branchCache = /* @__PURE__ */ new Map();
@@ -7310,7 +8131,7 @@ function git(args, cwd) {
   }).trim();
 }
 function getGitRepoName(cwd) {
-  const key = cwd ? resolve3(cwd) : process.cwd();
+  const key = cwd ? resolve5(cwd) : process.cwd();
   const cached = repoCache.get(key);
   if (cached && Date.now() < cached.expiresAt) {
     return cached.value;
@@ -7321,7 +8142,8 @@ function getGitRepoName(cwd) {
     if (!url) {
       result = null;
     } else {
-      const match = url.match(/\/([^/]+?)(?:\.git)?$/) || url.match(/:([^/]+?)(?:\.git)?$/);
+      const normalizedUrl = stripTrailingSlashes(url);
+      const match = normalizedUrl.match(/\/([^/]+?)(?:\.git)?$/) || normalizedUrl.match(/:([^/]+?)(?:\.git)?$/);
       result = match ? match[1].replace(/\.git$/, "") : null;
     }
   } catch {
@@ -7331,7 +8153,7 @@ function getGitRepoName(cwd) {
   return result;
 }
 function getGitBranch(cwd) {
-  const key = cwd ? resolve3(cwd) : process.cwd();
+  const key = cwd ? resolve5(cwd) : process.cwd();
   const cached = branchCache.get(key);
   if (cached && Date.now() < cached.expiresAt) {
     return cached.value;
@@ -7347,7 +8169,7 @@ function getGitBranch(cwd) {
   return result;
 }
 function getWorktreeInfo(cwd) {
-  const key = cwd ? resolve3(cwd) : process.cwd();
+  const key = cwd ? resolve5(cwd) : process.cwd();
   const cached = worktreeCache.get(key);
   if (cached && Date.now() < cached.expiresAt) {
     return cached.value;
@@ -7356,8 +8178,8 @@ function getWorktreeInfo(cwd) {
   try {
     const gitDir = git(["rev-parse", "--git-dir"], cwd);
     const gitCommonDir = git(["rev-parse", "--git-common-dir"], cwd);
-    let resolvedGitDir = resolve3(key, gitDir);
-    let resolvedCommonDir = resolve3(key, gitCommonDir);
+    let resolvedGitDir = resolve5(key, gitDir);
+    let resolvedCommonDir = resolve5(key, gitCommonDir);
     try {
       resolvedGitDir = realpathSync3(resolvedGitDir);
     } catch {
@@ -7367,7 +8189,7 @@ function getWorktreeInfo(cwd) {
     } catch {
     }
     if (resolvedGitDir !== resolvedCommonDir) {
-      result = { isWorktree: true, worktreeName: basename6(resolvedGitDir) };
+      result = { isWorktree: true, worktreeName: basename7(resolvedGitDir) };
     }
   } catch {
   }
@@ -7391,7 +8213,7 @@ function renderGitBranch(cwd) {
   return `${dim("branch:")}${cyan(branch)}`;
 }
 function getGitStatusCounts(cwd) {
-  const key = cwd ? resolve3(cwd) : process.cwd();
+  const key = cwd ? resolve5(cwd) : process.cwd();
   const cached = statusCache.get(key);
   if (cached && Date.now() < cached.expiresAt) {
     return cached.value;
@@ -7454,10 +8276,10 @@ function renderGitStatus(cwd, labels = DEFAULT_HUD_LABELS) {
   return parts.join(" ");
 }
 
-// v5.6.2/dist/hud/elements/multi-repo.js
+// v5.8.6/dist/hud/elements/multi-repo.js
 import { execFileSync as execFileSync5 } from "node:child_process";
-import { existsSync as existsSync11, readdirSync as readdirSync4, statSync as statSync6 } from "node:fs";
-import { basename as basename7, join as join13, resolve as resolve4 } from "node:path";
+import { existsSync as existsSync12, readdirSync as readdirSync4, statSync as statSync7 } from "node:fs";
+import { basename as basename8, join as join13, resolve as resolve6 } from "node:path";
 var ACTIVITY_WINDOW_MS = 5 * 60 * 1e3;
 var SESSION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 var CACHE_TTL_MS3 = 3e4;
@@ -7477,11 +8299,11 @@ function isGitRepo(dir) {
   }
 }
 function looksLikeRepo(entryPath) {
-  return existsSync11(join13(entryPath, ".git"));
+  return existsSync12(join13(entryPath, ".git"));
 }
 function countActiveSessions(cwd) {
   const sessionsDir = join13(getOmcRoot(cwd), "state", "sessions");
-  if (!existsSync11(sessionsDir))
+  if (!existsSync12(sessionsDir))
     return 0;
   const now = Date.now();
   let active = 0;
@@ -7495,12 +8317,12 @@ function countActiveSessions(cwd) {
       const dirPath = join13(sessionsDir, entry.name);
       let fresh = false;
       try {
-        if (now - statSync6(dirPath).mtimeMs < ACTIVITY_WINDOW_MS) {
+        if (now - statSync7(dirPath).mtimeMs < ACTIVITY_WINDOW_MS) {
           fresh = true;
         } else {
           for (const f of readdirSync4(dirPath)) {
             try {
-              if (now - statSync6(join13(dirPath, f)).mtimeMs < ACTIVITY_WINDOW_MS) {
+              if (now - statSync7(join13(dirPath, f)).mtimeMs < ACTIVITY_WINDOW_MS) {
                 fresh = true;
                 break;
               }
@@ -7519,7 +8341,7 @@ function countActiveSessions(cwd) {
   return active;
 }
 function detectMultiRepo(cwd) {
-  const key = cwd ? resolve4(cwd) : process.cwd();
+  const key = cwd ? resolve6(cwd) : process.cwd();
   const cached = multiRepoCache.get(key);
   if (cached && Date.now() < cached.expiresAt) {
     return cached.value;
@@ -7547,12 +8369,12 @@ function detectMultiRepo(cwd) {
       multiRepoCache.set(key, { value: null, expiresAt: Date.now() + CACHE_TTL_MS3 });
       return null;
     }
-    const hasMarker = existsSync11(join13(key, ".omc-workspace"));
+    const hasMarker = existsSync12(join13(key, ".omc-workspace"));
     const activeSessions = hasMarker ? countActiveSessions(key) : 0;
     result = {
       isMultiRepo: true,
       hasMarker,
-      parentName: basename7(key),
+      parentName: basename8(key),
       subrepoCount,
       activeSessions
     };
@@ -7573,7 +8395,7 @@ function renderMultiRepo(cwd) {
   return `${dim("mr:")}${cyan(info.parentName)} ${dim("repos:")}${cyan(String(info.subrepoCount))}` + sessionsPart;
 }
 
-// v5.6.2/dist/hud/elements/model.js
+// v5.8.6/dist/hud/elements/model.js
 function extractVersion(modelId) {
   const idMatch = modelId.match(/(?:opus|sonnet|haiku)-(\d+)-(\d+)/i);
   if (idMatch) {
@@ -7622,14 +8444,34 @@ function renderModel(modelId, format = "versioned", labels = DEFAULT_HUD_LABELS)
   return cyan(`${labels.model}: ${name}`);
 }
 
-// v5.6.2/dist/hud/elements/api-key-source.js
-import { existsSync as existsSync12, readFileSync as readFileSync11 } from "fs";
+// v5.8.6/dist/hud/elements/effort.js
+function renderEffort(level) {
+  if (!level)
+    return null;
+  const label = `effort:${level}`;
+  switch (level) {
+    case "low":
+      return dim(label);
+    case "high":
+      return yellow(label);
+    case "xhigh":
+      return magenta(label);
+    case "max":
+      return bold(magenta(label));
+    case "medium":
+    default:
+      return cyan(label);
+  }
+}
+
+// v5.8.6/dist/hud/elements/api-key-source.js
+import { existsSync as existsSync13, readFileSync as readFileSync13 } from "fs";
 import { join as join14 } from "path";
 function settingsFileHasApiKey(filePath) {
   try {
-    if (!existsSync12(filePath))
+    if (!existsSync13(filePath))
       return false;
-    const content = readFileSync11(filePath, "utf-8");
+    const content = readFileSync13(filePath, "utf-8");
     const settings = JSON.parse(content);
     const env = settings?.env;
     if (typeof env !== "object" || env === null)
@@ -7658,7 +8500,7 @@ function renderApiKeySource(source) {
   return `${dim("key:")}${cyan(source)}`;
 }
 
-// v5.6.2/dist/hud/elements/call-counts.js
+// v5.8.6/dist/hud/elements/call-counts.js
 function shouldUseAscii(format = "auto") {
   if (format === "ascii")
     return true;
@@ -7689,7 +8531,7 @@ function renderCallCounts(toolCalls, agentInvocations, skillUsages, format = "au
   return parts.length > 0 ? parts.join(" ") : null;
 }
 
-// v5.6.2/dist/hud/elements/context-warning.js
+// v5.8.6/dist/hud/elements/context-warning.js
 var YELLOW9 = "\x1B[33m";
 var RED7 = "\x1B[31m";
 var BOLD2 = "\x1B[1m";
@@ -7715,7 +8557,7 @@ function renderPayloadLimitWarning(payloadEstimate) {
   return `${color}${BOLD2}[${icon}] ${payloadEstimate.label} - ${action}${RESET}`;
 }
 
-// v5.6.2/dist/hud/elements/update-hint.js
+// v5.8.6/dist/hud/elements/update-hint.js
 var YELLOW10 = "\x1B[33m";
 var BOLD3 = "\x1B[1m";
 function renderUpdateHints(input) {
@@ -7730,21 +8572,21 @@ function renderUpdateHints(input) {
   return lines;
 }
 
-// v5.6.2/dist/hud/elements/session-summary.js
+// v5.8.6/dist/hud/elements/session-summary.js
 function renderSessionSummary(summaryState) {
   if (!summaryState?.summary)
     return null;
   return dim("summary:") + summaryState.summary;
 }
 
-// v5.6.2/dist/hud/elements/last-tool.js
+// v5.8.6/dist/hud/elements/last-tool.js
 function renderLastTool(lastToolName) {
   if (!lastToolName)
     return null;
   return `${dim("tool:")}${lastToolName}`;
 }
 
-// v5.6.2/dist/hud/render.js
+// v5.8.6/dist/hud/render.js
 var ANSI_REGEX = /\x1b\[[0-9;]*[a-zA-Z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/;
 var PLAIN_SEPARATOR = " | ";
 var DIM_SEPARATOR = dim(PLAIN_SEPARATOR);
@@ -7891,6 +8733,11 @@ async function render(context, config) {
     if (modelElement)
       rendered.set("model", modelElement);
   }
+  if (enabledElements.effort) {
+    const effortElement = renderEffort(context.effortLevel);
+    if (effortElement)
+      rendered.set("effort", effortElement);
+  }
   if (enabledElements.updateNotification !== false && context.claudeCodeUpdateAvailable) {
     const versionTag = context.claudeCodeVersion ? `#${context.claudeCodeVersion}` : "";
     rendered.set("claudeLabel", bold(`[Claude${versionTag}] -> ${context.claudeCodeUpdateAvailable} claude update`));
@@ -7899,6 +8746,11 @@ async function render(context, config) {
     const keySource = renderApiKeySource(context.apiKeySource);
     if (keySource)
       rendered.set("apiKeySource", keySource);
+  }
+  if (enabledElements.account) {
+    const accountElement = renderAccount();
+    if (accountElement)
+      rendered.set("account", accountElement);
   }
   if (enabledElements.profile && context.profileName) {
     rendered.set("profile", bold(`profile:${context.profileName}`));
@@ -8131,7 +8983,7 @@ async function render(context, config) {
   return finalLines.join("\n");
 }
 
-// v5.6.2/dist/hud/sanitize.js
+// v5.8.6/dist/hud/sanitize.js
 var CSI_NON_SGR_REGEX = /\x1b\[\??[0-9;]*[A-LN-Za-ln-z]/g;
 var OSC_REGEX = /\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g;
 var SIMPLE_ESC_REGEX = /\x1b[^[\]]/g;
@@ -8150,13 +9002,14 @@ function sanitizeOutput(output) {
   return sanitized;
 }
 
-// v5.6.2/dist/hud/payload-estimate.js
-import { closeSync as closeSync5, existsSync as existsSync13, openSync as openSync5, readSync as readSync3, statSync as statSync7 } from "fs";
+// v5.8.6/dist/hud/payload-estimate.js
+import { closeSync as closeSync6, existsSync as existsSync14, openSync as openSync6, readSync as readSync3, statSync as statSync8 } from "fs";
 var ANTHROPIC_REQUEST_PAYLOAD_LIMIT_BYTES = 32e6;
 var PAYLOAD_WARNING_BYTES = 22e6;
 var PAYLOAD_CRITICAL_BYTES = 26e6;
 var COMPACT_BOUNDARY_MARKER = "compact_boundary";
 var COMPACT_BOUNDARY_MARKER_BYTES = Buffer.from(COMPACT_BOUNDARY_MARKER);
+var LOCAL_API_REQUEST_PREFIX = Buffer.from('{"type":"api-request');
 var SCAN_CHUNK_BYTES = 64 * 1024;
 var MAX_BOUNDARY_LINE_BYTES = 256 * 1024;
 function toPressure(bytes) {
@@ -8254,7 +9107,7 @@ function readLineContainingOffset(fd, size, offset) {
 function findLastCompactBoundaryEndOffset(transcriptPath, size) {
   if (size <= 0)
     return null;
-  const fd = openSync5(transcriptPath, "r");
+  const fd = openSync6(transcriptPath, "r");
   try {
     let end = size;
     const buffer = Buffer.allocUnsafe(Math.min(SCAN_CHUNK_BYTES, size));
@@ -8277,19 +9130,58 @@ function findLastCompactBoundaryEndOffset(transcriptPath, size) {
       end = start + COMPACT_BOUNDARY_MARKER_BYTES.length - 1;
     }
   } finally {
-    closeSync5(fd);
+    closeSync6(fd);
   }
   return null;
 }
+function countLocalApiRequestRecordBytes(transcriptPath, start, end) {
+  if (end <= start)
+    return 0;
+  const fd = openSync6(transcriptPath, "r");
+  try {
+    const chunk = Buffer.allocUnsafe(SCAN_CHUNK_BYTES);
+    const prefix = Buffer.allocUnsafe(LOCAL_API_REQUEST_PREFIX.length);
+    let excludedBytes = 0;
+    let lineStart = start;
+    const countLine = (lineEndExclusive) => {
+      const lineLength = lineEndExclusive - lineStart;
+      if (lineLength >= prefix.length) {
+        const bytesRead = readSync3(fd, prefix, 0, prefix.length, lineStart);
+        if (bytesRead === prefix.length && prefix.equals(LOCAL_API_REQUEST_PREFIX)) {
+          excludedBytes += lineLength;
+        }
+      }
+      lineStart = lineEndExclusive;
+    };
+    let position = start;
+    while (position < end) {
+      const length = Math.min(SCAN_CHUNK_BYTES, end - position);
+      readSync3(fd, chunk, 0, length, position);
+      const view = chunk.subarray(0, length);
+      let newline = view.indexOf(10);
+      while (newline !== -1) {
+        countLine(position + newline + 1);
+        newline = view.indexOf(10, newline + 1);
+      }
+      position += length;
+    }
+    if (lineStart < end)
+      countLine(end);
+    return excludedBytes;
+  } finally {
+    closeSync6(fd);
+  }
+}
 function estimateTranscriptPayloadBytes(transcriptPath, size) {
   const boundaryEndOffset = findLastCompactBoundaryEndOffset(transcriptPath, size);
-  return boundaryEndOffset === null ? size : Math.max(0, size - boundaryEndOffset);
+  const start = boundaryEndOffset ?? 0;
+  return Math.max(0, size - start - countLocalApiRequestRecordBytes(transcriptPath, start, size));
 }
 function estimatePayloadFromTranscriptPath(transcriptPath) {
-  if (!transcriptPath || !existsSync13(transcriptPath))
+  if (!transcriptPath || !existsSync14(transcriptPath))
     return null;
   try {
-    const stat = statSync7(transcriptPath);
+    const stat = statSync8(transcriptPath);
     if (!stat.isFile())
       return null;
     return createPayloadEstimate(estimateTranscriptPayloadBytes(transcriptPath, stat.size));
@@ -8298,17 +9190,17 @@ function estimatePayloadFromTranscriptPath(transcriptPath) {
   }
 }
 
-// v5.6.2/dist/features/auto-update.js
-import { join as join18, dirname as dirname12 } from "path";
+// v5.8.6/dist/features/auto-update.js
+import { join as join18, dirname as dirname12, resolve as resolve8 } from "path";
 
-// v5.6.2/dist/installer/index.js
-import { join as join17, dirname as dirname11, resolve as resolve5, isAbsolute as isAbsolute2, basename as basename9, relative as relative3, sep as sep4 } from "path";
+// v5.8.6/dist/installer/index.js
+import { join as join17, dirname as dirname11, resolve as resolve7, isAbsolute as isAbsolute3, basename as basename10, relative as relative3, sep as sep5 } from "path";
 
-// v5.6.2/dist/installer/hooks.js
+// v5.8.6/dist/installer/hooks.js
 import { join as join15, dirname as dirname10 } from "path";
-import { readFileSync as readFileSync12, existsSync as existsSync14 } from "fs";
+import { readFileSync as readFileSync14, existsSync as existsSync15 } from "fs";
 import { fileURLToPath as fileURLToPath2 } from "url";
-import { homedir as homedir4 } from "os";
+import { homedir as homedir5 } from "os";
 function getPackageDir() {
   if (typeof __dirname !== "undefined") {
     return join15(__dirname, "..");
@@ -8323,10 +9215,10 @@ function getPackageDir() {
 }
 function loadTemplate(filename) {
   const templatePath = join15(getPackageDir(), "templates", "hooks", filename);
-  if (!existsSync14(templatePath)) {
+  if (!existsSync15(templatePath)) {
     return "";
   }
-  return readFileSync12(templatePath, "utf-8");
+  return readFileSync14(templatePath, "utf-8");
 }
 function isWindows() {
   return process.platform === "win32";
@@ -8335,7 +9227,7 @@ function normalizePath(value) {
   return value.replace(/\\/g, "/").replace(/\/+$/, "");
 }
 function isDefaultClaudeConfigDir() {
-  return normalizePath(getClaudeConfigDir()) === normalizePath(join15(homedir4(), ".claude"));
+  return normalizePath(getClaudeConfigDir()) === normalizePath(join15(homedir5(), ".claude"));
 }
 function quoteCommandPath(path3) {
   return `"${path3.replace(/"/g, '\\"')}"`;
@@ -8443,19 +9335,19 @@ var HOOKS_SETTINGS_CONFIG_NODE = {
   }
 };
 
-// v5.6.2/dist/lib/paths.js
+// v5.8.6/dist/lib/paths.js
 var OMC_PLUGIN_MARKETPLACE_SLUG = "omc";
 var OMC_PLUGIN_PACKAGE_NAME = "oh-my-claudecode";
 var OMC_PLUGIN_CACHE_REL = `plugins/cache/${OMC_PLUGIN_MARKETPLACE_SLUG}/${OMC_PLUGIN_PACKAGE_NAME}`;
 var OMC_PLUGIN_MARKETPLACE_REL = `plugins/marketplaces/${OMC_PLUGIN_MARKETPLACE_SLUG}`;
 var OMC_CONFIG_FILE_REL = ".omc-config.json";
 
-// v5.6.2/dist/utils/user-skill-compat.js
-import { basename as basename8, join as join16 } from "path";
+// v5.8.6/dist/utils/user-skill-compat.js
+import { basename as basename9, join as join16 } from "path";
 var CLAUDE_SKILLS_DIR = join16(getClaudeConfigDir(), "skills");
 var OMC_LEARNED_DIR = join16(CLAUDE_SKILLS_DIR, "omc-learned");
 
-// v5.6.2/dist/installer/claude-md-transaction.js
+// v5.8.6/dist/installer/claude-md-transaction.js
 var CLAUDE_MD_IMPORT_START = "<!-- OMC:IMPORT:START -->";
 var CLAUDE_MD_IMPORT_END = "<!-- OMC:IMPORT:END -->";
 var CLAUDE_MD_IMPORT_BLOCK = `${CLAUDE_MD_IMPORT_START}
@@ -8463,7 +9355,7 @@ var CLAUDE_MD_IMPORT_BLOCK = `${CLAUDE_MD_IMPORT_START}
 ${CLAUDE_MD_IMPORT_END}
 `;
 
-// v5.6.2/dist/installer/historical-agent-ownership.js
+// v5.8.6/dist/installer/historical-agent-ownership.js
 var HISTORICAL_AGENT_OWNERSHIP = [
   { filename: "analyst.md", byteLength: 3539, sha256: "7508ad221b63a4195449a1d21fb82f79bc1bb1b18cc27cdbf9687050c738c645", gitBlob: "f5a6e73195c81488e10fdc2b0fdc0a61207e223f", firstReleaseTag: "v4.0.0", lastReleaseTag: "v4.0.10" },
   { filename: "analyst.md", byteLength: 4832, sha256: "2971ca1421c128b2ca6f569807860594f79da22ecb6cd1829cb678e8f362d631", gitBlob: "4332a1d2c65ae0f1a22ed6c72f57fa2ee8fe3c21", firstReleaseTag: "v4.1.0", lastReleaseTag: "v4.1.10" },
@@ -8668,13 +9560,28 @@ var HISTORICAL_AGENT_OWNERSHIP = [
   { filename: "writer.md", byteLength: 4386, sha256: "ccbf8dc3957f1c633c95c5b99a0e74237ed1a393c562474cc3443c62abbc47c0", gitBlob: "f50c4ca484cc51d903a1079b0476a895f1400cac", firstReleaseTag: "v4.13.3", lastReleaseTag: "v4.15.7" }
 ];
 
-// v5.6.2/dist/config/builtin-skill-entitlements.json
+// v5.8.6/dist/config/builtin-skill-entitlements.json
 var builtin_skill_entitlements_default = {
   schemaVersion: 1,
   skininthegamebrosOnlySkills: []
 };
 
-// v5.6.2/dist/installer/index.js
+// v5.8.6/scripts/lib/hook-command-normalizer.mjs
+var ROOT = String.raw`(?:\$\{CLAUDE_PLUGIN_ROOT\}|\$CLAUDE_PLUGIN_ROOT)`;
+var legacyFindNodePattern = new RegExp(
+  String.raw`^sh "${ROOT}\/scripts\/find-node\.sh" "${ROOT}\/scripts\/([^"\s]+)"?(.*)$`
+);
+var currentFindNodePattern = new RegExp(
+  String.raw`^(?:"\/bin\/sh"|sh) "${ROOT}"\/scripts\/find-node\.sh "${ROOT}"\/scripts\/run\.cjs "${ROOT}"\/scripts\/([^"\s]+)"?(.*)$`
+);
+var directRunCjsPattern = new RegExp(
+  String.raw`^node\s+"${ROOT}"\/scripts\/run\.cjs\s+"${ROOT}"\/scripts\/([^"\s]+)"?(.*)$`
+);
+var absoluteNodeRunCjsPattern = new RegExp(
+  String.raw`^"([^"]*\/node|[A-Za-z]:\\[^"]*\\node(?:\.exe)?)"\s+"${ROOT}"\/scripts\/run\.cjs\s+"${ROOT}"\/scripts\/([^"\s]+)"?(.*)$`
+);
+
+// v5.8.6/dist/installer/index.js
 var CLAUDE_CONFIG_DIR = getClaudeConfigDir();
 var AGENTS_DIR = join17(CLAUDE_CONFIG_DIR, "agents");
 var COMMANDS_DIR = join17(CLAUDE_CONFIG_DIR, "commands");
@@ -8703,7 +9610,7 @@ for (const record of HISTORICAL_AGENT_OWNERSHIP) {
   HISTORICAL_AGENT_HASHES_BY_FILENAME.set(record.filename, hashes);
 }
 
-// v5.6.2/dist/features/auto-update.js
+// v5.8.6/dist/features/auto-update.js
 var REPO_OWNER = "Yeachan-Heo";
 var REPO_NAME = "oh-my-claudecode";
 var GITHUB_API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}`;
@@ -8711,30 +9618,18 @@ var GITHUB_RAW_URL = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAM
 var CLAUDE_CONFIG_DIR2 = getClaudeConfigDir();
 var VERSION_FILE2 = join18(CLAUDE_CONFIG_DIR2, ".omc-version.json");
 var CONFIG_FILE = join18(CLAUDE_CONFIG_DIR2, OMC_CONFIG_FILE_REL);
-function compareVersions(a, b) {
-  const cleanA = a.replace(/^v/, "");
-  const cleanB = b.replace(/^v/, "");
-  const partsA = cleanA.split(".").map((n) => parseInt(n, 10) || 0);
-  const partsB = cleanB.split(".").map((n) => parseInt(n, 10) || 0);
-  const maxLength = Math.max(partsA.length, partsB.length);
-  for (let i = 0; i < maxLength; i++) {
-    const numA = partsA[i] || 0;
-    const numB = partsB[i] || 0;
-    if (numA < numB)
-      return -1;
-    if (numA > numB)
-      return 1;
-  }
-  return 0;
+function compareVersions2(a, b) {
+  return compareVersions(a, b);
 }
 var SILENT_UPDATE_STATE_FILE = join18(CLAUDE_CONFIG_DIR2, ".omc-silent-update.json");
 
-// v5.6.2/dist/hud/index.js
-import { writeFileSync as writeFileSync5, mkdirSync as mkdirSync8, existsSync as existsSync15, readFileSync as readFileSync13 } from "fs";
+// v5.8.6/dist/hud/index.js
+import { writeFileSync as writeFileSync6, mkdirSync as mkdirSync9, existsSync as existsSync16, readFileSync as readFileSync15 } from "fs";
 import { access, readFile } from "fs/promises";
-import { join as join19, basename as basename10, dirname as dirname13 } from "path";
+import { join as join19, basename as basename11, dirname as dirname13 } from "path";
 import { spawn as spawn2 } from "child_process";
 import { fileURLToPath as fileURLToPath3 } from "url";
+hardenWindowsExeSearch();
 function extractSessionIdFromPath(transcriptPath) {
   if (!transcriptPath)
     return null;
@@ -8768,10 +9663,10 @@ function mergeStdinRateLimits(stdinRateLimits, usageResult) {
 }
 function readSessionSummary(stateDir, sessionId) {
   const statePath = join19(stateDir, `session-summary-${sessionId}.json`);
-  if (!existsSync15(statePath))
+  if (!existsSync16(statePath))
     return null;
   try {
-    return JSON.parse(readFileSync13(statePath, "utf-8"));
+    return JSON.parse(readFileSync15(statePath, "utf-8"));
   } catch {
     return null;
   }
@@ -8801,7 +9696,7 @@ function spawnSessionSummaryScript(transcriptPath, stateDir, sessionId) {
   lastSummarySpawnTimestamp = now;
   const thisDir = dirname13(fileURLToPath3(import.meta.url));
   const scriptPath = join19(thisDir, "..", "..", "scripts", "session-summary.mjs");
-  if (!existsSync15(scriptPath)) {
+  if (!existsSync16(scriptPath)) {
     if (process.env.OMC_DEBUG) {
       console.error("[HUD] session-summary script not found:", scriptPath);
     }
@@ -8837,10 +9732,10 @@ function showDiagnostic() {
   const configDir = getClaudeConfigDir();
   const hudScript = join19(configDir, "omj-hud", "omj-hud.mjs");
   const settingsFile = join19(configDir, "settings.json");
-  const hudExists = existsSync15(hudScript);
+  const hudExists = existsSync16(hudScript);
   let statusLineOk = false;
   try {
-    const settings = JSON.parse(readFileSync13(settingsFile, "utf-8"));
+    const settings = JSON.parse(readFileSync15(settingsFile, "utf-8"));
     const sl = settings.statusLine;
     if (sl && typeof sl === "object" && typeof sl.command === "string") {
       statusLineOk = sl.command.includes("omj-hud");
@@ -8940,13 +9835,13 @@ async function mainImpl(watchMode = false, skipInit = false) {
       await access(updateCacheFile);
       const content = await readFile(updateCacheFile, "utf-8");
       const cached = JSON.parse(content);
-      if (cached?.latestVersion && omcVersion && compareVersions(omcVersion, cached.latestVersion) < 0) {
+      if (cached?.latestVersion && omcVersion && compareVersions2(omcVersion, cached.latestVersion) < 0) {
         updateAvailable = cached.latestVersion;
       }
       if (cached?.source === "npm" || cached?.source === "marketplace") {
         omcUpdateSource = cached.source;
       }
-      if (cached?.claudeCodeLatestVersion && claudeCodeVersion && compareVersions(claudeCodeVersion, cached.claudeCodeLatestVersion) < 0) {
+      if (cached?.claudeCodeLatestVersion && claudeCodeVersion && compareVersions2(claudeCodeVersion, cached.claudeCodeLatestVersion) < 0) {
         claudeCodeUpdateAvailable = cached.claudeCodeLatestVersion;
       }
     } catch (error) {
@@ -8965,7 +9860,7 @@ async function mainImpl(watchMode = false, skipInit = false) {
       }
     }
     const missionBoardEnabled = config.missionBoard?.enabled ?? config.elements.missionBoard ?? false;
-    const missionBoard = missionBoardEnabled ? await refreshMissionBoardState(cwd, config.missionBoard) : null;
+    const missionBoard = missionBoardEnabled ? await refreshMissionBoardState(cwd, config.missionBoard, currentSessionId ?? void 0) : null;
     const contextPercent = getContextPercent(stdin);
     const payloadEstimate = estimatePayloadFromTranscriptPath(resolvedTranscriptPath);
     const subscriptionInfo = (() => {
@@ -8980,6 +9875,7 @@ async function mainImpl(watchMode = false, skipInit = false) {
       contextDisplayScope: currentSessionId ?? cwd,
       modelName: getModelName(stdin),
       modelId: getModelId(stdin),
+      effortLevel: getEffortLevel(stdin),
       ralph,
       ultrawork: null,
       prd,
@@ -9010,7 +9906,7 @@ async function mainImpl(watchMode = false, skipInit = false) {
       apiKeyMode: detectApiKeySource(cwd) !== null,
       subscriptionType: subscriptionInfo.subscriptionType,
       rateLimitTier: subscriptionInfo.rateLimitTier,
-      profileName: process.env.CLAUDE_CONFIG_DIR ? basename10(process.env.CLAUDE_CONFIG_DIR).replace(/^\./, "") : null,
+      profileName: process.env.CLAUDE_CONFIG_DIR ? basename11(process.env.CLAUDE_CONFIG_DIR).replace(/^\./, "") : null,
       sessionSummary,
       lastToolName: transcriptData.lastToolName,
       payloadEstimate
@@ -9022,9 +9918,9 @@ async function mainImpl(watchMode = false, skipInit = false) {
     if (config.contextLimitWarning.autoCompact && context.contextPercent >= config.contextLimitWarning.threshold) {
       try {
         const omcStateDir = join19(getOmcRoot(cwd), "state");
-        mkdirSync8(omcStateDir, { recursive: true });
+        mkdirSync9(omcStateDir, { recursive: true });
         const triggerFile = join19(omcStateDir, "compact-requested.json");
-        writeFileSync5(triggerFile, JSON.stringify({
+        writeFileSync6(triggerFile, JSON.stringify({
           requestedAt: (/* @__PURE__ */ new Date()).toISOString(),
           contextPercent: context.contextPercent,
           threshold: config.contextLimitWarning.threshold
