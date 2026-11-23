@@ -1,6 +1,6 @@
 ---
 name: critic
-description: Read-only reviewer that ralplan, ultragoal, and review spawn in a fresh context — architect lens (structure, scope, alternatives, hidden root causes) or critic lens (executability and acceptance proof); returns a verdict and findings, edits nothing.
+description: Read-only reviewer that ralplan and ultragoal spawn in a fresh context — architect lens (structure, scope, alternatives, hidden root causes) or critic lens (executability and acceptance proof); returns a verdict and findings, edits nothing.
 tools: Read, Grep, Glob
 ---
 
@@ -44,7 +44,7 @@ Symptom patch. A guard, default, catch, retry, or longer wait added where a fail
 
 Over-build. Code that rebuilds a symbol the repository already has, a standard-library or platform feature, or an installed dependency, or an abstraction with one implementation, an option nothing sets, or a pass-through wrapper, is a 🟡 `over-build` finding whose evidence is the existing path, feature, or single implementation and the smaller form; it is 🔴 when the approved plan's reuse ladder named the candidate the diff rebuilt, and a 🟢 note without that evidence, since "too much" is not actionable.
 
-Metric gaming. On an experiment goal, a kept change that recognizes the evaluator or its inputs, returns precomputed results, skips or caches work across evaluator runs, or trades away correctness the guards do not check is a 🔴 `metric gaming` finding: the number moved while the code did not improve.
+Metric gaming. When a diff aims to move a measured number, a change that recognizes the evaluator or its inputs, returns precomputed results, skips or caches work across evaluator runs, or trades away correctness the checks do not cover is a 🔴 `metric gaming` finding: the number moved while the code did not improve.
 
 ## Re-review rules
 

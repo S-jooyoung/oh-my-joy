@@ -15,8 +15,17 @@ History prior to 0.6.0 is preserved in Korean.
 ### Deprecated
 
 ### Removed
+- `/oh-my-joy:sync` and its Codex adapter, with the `sync-*` eval cases. Token sync remains in 1.5.x; the README migration table points there.
+- The `/oh-my-joy:spec` compatibility alias and its Codex adapter; use `/oh-my-joy:ralplan`. The five `spec-*` eval cases are renamed to `ralplan-*` and invoke ralplan.
+- `/oh-my-joy:review` and its Codex adapter, with the `review-*` and `fake-done-*` eval cases and their fixtures. Review runs inside `/oh-my-joy:ultragoal`; a standalone diff review uses the host's built-in review.
+- `/oh-my-joy:fix` and its Codex adapter, with `fix-commit-stops-on-failed-recheck`. A goal with a verification route fixes each 🔴 inside the goal and recaptures the same viewport, stopping after three failed attempts on one defect; outside a plan, describe the defect to `/oh-my-joy:ultragoal`.
+- Experiment goals: `docs/EXPERIMENT-GOALS.md`, the `experiment` kind and `trial` references in ralplan and ultragoal, and `ralplan-experiment-plan`.
+- Existing-PR review delivery: `docs/PR-DELIVERY.md`, ralplan's PR track, and ultragoal's `finding` and `delivery` steps. Push, new PRs, and merge stay outside ultragoal; `/oh-my-joy:ship` opens a new PR.
+- External runtime adapters: `docs/RUNTIME-ADAPTERS.md`, and the `leader`, `workers`, and `runtime` configuration keys, which setup no longer asks for and which are now reported as warnings.
+- `crossReview: required`, with `ultragoal-cross-review-blocks`; `preferred` and handed plans remain.
 
 ### Fixed
+- `npm run validate-plugin` no longer reads the `Provides:` inventory that newer Claude CLIs print after the warnings as validation warnings, so the real repository passes again.
 
 ### Security
 

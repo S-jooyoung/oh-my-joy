@@ -24,12 +24,10 @@ body:
     attributes:
       label: Which surface
       options:
-        - /oh-my-joy:spec
+        - /oh-my-joy:ralplan
+        - /oh-my-joy:ultragoal
         - /oh-my-joy:verify
-        - /oh-my-joy:fix
-        - /oh-my-joy:sync
         - /oh-my-joy:setup
-        - /oh-my-joy:review
         - /oh-my-joy:ship
         - /oh-my-joy:deep-interview
         - The oh-my-joy output style
@@ -63,7 +61,7 @@ body:
     attributes:
       label: Steps to reproduce
       placeholder: |
-        1. Run `/oh-my-joy:spec <figma-url>`
+        1. Run `/oh-my-joy:ralplan <figma-url>`
         2. Approve the plan
         3. ...
     validations:

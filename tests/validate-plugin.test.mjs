@@ -53,15 +53,15 @@ const VALID_CODEX_PLUGIN = {
   skills: './skills/',
 };
 
-const WORKFLOW_SKILLS = ['deep-interview', 'spec', 'ralplan', 'ultragoal', 'review', 'verify', 'fix', 'sync', 'setup', 'ship'];
+const WORKFLOW_SKILLS = ['deep-interview', 'ralplan', 'ultragoal', 'verify', 'setup', 'ship'];
 const ROLE_SKILLS = ['critic', 'implementer', 'design-qa'];
 
 function validSkill(name) {
   let body = 'Follow the provider-neutral workflow contract.\n';
-  if (['deep-interview', 'spec', 'ralplan'].includes(name)) {
+  if (['deep-interview', 'ralplan'].includes(name)) {
     body += 'This workflow is read-only and must not modify repository source files.\n';
   }
-  if (['review', 'verify'].includes(name)) {
+  if (name === 'verify') {
     body += 'This workflow is report-only and must not modify repository source files.\n';
   }
   if (name === 'ship') {
@@ -270,7 +270,7 @@ describe('validate-plugin: component violations', () => {
   });
 
   it('rejects a missing expected Codex workflow skill', () => {
-    assertRejects((t) => { delete t.codexSkills.fix; }, /expected exactly/);
+    assertRejects((t) => { delete t.codexSkills.ship; }, /expected exactly/);
   });
 
   it('rejects an unexpected Codex skill', () => {
@@ -292,7 +292,7 @@ describe('validate-plugin: component violations', () => {
   ]) {
     it(`rejects the Claude-only runtime token ${token}`, () => {
       assertRejects(
-        (t) => { t.codexSkills.fix = validSkill('fix') + `\nInvoke ${token}.\n`; },
+        (t) => { t.codexSkills.setup = validSkill('setup') + `\nInvoke ${token}.\n`; },
         /Claude-only runtime token/,
       );
     });
@@ -349,7 +349,7 @@ describe('validate-plugin: host invocation boundaries', () => {
 });
 
 describe('validate-plugin: Codex safety boundaries', () => {
-  for (const name of ['spec', 'ralplan', 'deep-interview']) {
+  for (const name of ['ralplan', 'deep-interview']) {
     it(`rejects ${name} without a non-mutating source boundary`, () => {
       assertRejects(
         (t) => { t.codexSkills[name] = validSkill(name).replace(/This workflow[^\n]+\n/, 'Inspect the project.\n'); },
@@ -358,7 +358,7 @@ describe('validate-plugin: Codex safety boundaries', () => {
     });
   }
 
-  for (const name of ['review', 'verify']) {
+  for (const name of ['verify']) {
     it(`rejects ${name} without its report-only boundary`, () => {
       assertRejects(
         (t) => { t.codexSkills[name] = validSkill(name).replace('report-only', 'observational'); },
@@ -422,13 +422,14 @@ function runValidatorWithCli(root, pluginOutput) {
   }
 }
 
-const cliOutput = (validationWarnings) => [
+const cliOutput = (validationWarnings, provides = []) => [
   'Validating plugin manifest: .claude-plugin/plugin.json',
   '',
   `⚠ Found ${validationWarnings.length} warning(s):`,
   '',
   ...validationWarnings.map((w) => `  ❯ ${w}`),
   '',
+  ...(provides.length > 0 ? ['Provides:', '', ...provides.map((p) => `  ❯ ${p}`), ''] : []),
   'Plugin directory checks for /fixture. The plugin directory is the catalog that plugins are submitted to.',
   '',
   '⚠ Found 1 plugin directory warning:',
@@ -454,6 +455,17 @@ describe('validate-plugin: CLI layer', () => {
       assert.equal(code, 0, output);
       assert.match(output, /! plugin directory check \(plugin\.json\): .*ICON_MISSING/);
       assert.doesNotMatch(output, /also holds a marketplace manifest/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('does not read the Provides inventory as warnings', () => {
+    const root = makeFixture();
+    try {
+      const { code, output } = runValidatorWithCli(root, cliOutput([accepted], ['skills: fixture-plugin:ship', 'commands: fixture-plugin:ship']));
+      assert.equal(code, 0, output);
+      assert.doesNotMatch(output, /✗ claude plugin validate \(plugin\.json\): (skills|commands): fixture-plugin:ship/);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

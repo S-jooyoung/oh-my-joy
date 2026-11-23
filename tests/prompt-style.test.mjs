@@ -109,32 +109,24 @@ describe('Prompt style (commands · agents · skills · output styles)', () => {
 // ceiling raises it in the same change and records the raise in the CHANGELOG.
 const BODY_BUDGET_TOKENS = {
   'commands/deep-interview.md': 2153,
-  'commands/fix.md': 1279,
-  'commands/ralplan.md': 5239,
-  'commands/review.md': 4250,
-  'commands/setup.md': 3850,
+  'commands/ralplan.md': 4814,
+  'commands/setup.md': 3787,
   'commands/ship.md': 2336,
-  'commands/spec.md': 231,
-  'commands/sync.md': 2446,
-  'commands/ultragoal.md': 5731,
-  'commands/verify.md': 3312,
+  'commands/ultragoal.md': 5344,
+  'commands/verify.md': 3292,
   'agents/critic.md': 3225,
-  'agents/design-qa.md': 529,
+  'agents/design-qa.md': 518,
   'agents/implementer.md': 1568,
   'skills/critic/SKILL.md': 1780,
   'skills/deep-interview/SKILL.md': 678,
   'skills/design-qa/SKILL.md': 387,
-  'skills/fix/SKILL.md': 477,
-  'skills/frontend-fundamentals/SKILL.md': 1437,
+  'skills/frontend-fundamentals/SKILL.md': 1368,
   'skills/implementer/SKILL.md': 888,
-  'skills/ralplan/SKILL.md': 2042,
-  'skills/review/SKILL.md': 1839,
+  'skills/ralplan/SKILL.md': 1930,
   'skills/setup/SKILL.md': 898,
   'skills/ship/SKILL.md': 569,
-  'skills/spec/SKILL.md': 131,
-  'skills/sync/SKILL.md': 565,
-  'skills/ultragoal/SKILL.md': 2768,
-  'skills/verify/SKILL.md': 1196,
+  'skills/ultragoal/SKILL.md': 2654,
+  'skills/verify/SKILL.md': 1195,
 };
 
 const bodyTargets = [
@@ -154,7 +146,7 @@ function assertBodyBudget(file, source, budgets = BODY_BUDGET_TOKENS) {
 
 describe('Body budget (commands · agents · skills)', () => {
   it('enumeration covers every per-invocation body — never silently empty', () => {
-    assert.ok(bodyTargets.length >= 20, `only ${bodyTargets.length} bodies enumerated`);
+    assert.ok(bodyTargets.length >= 19, `only ${bodyTargets.length} bodies enumerated`);
   });
 
   for (const file of bodyTargets) {

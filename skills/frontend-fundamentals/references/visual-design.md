@@ -1,6 +1,6 @@
 # Visual design — the rubric for screens without a design reference
 
-**Principle**: when no designer drew the screen, the model is the designer, and its defaults are the problem. A generated screen tends to reach for the same handful of patterns, so the rubric names those patterns as a closed list and asks for decisions in their place. `/oh-my-joy:ralplan` prescribes the decisions in a plan's Design direction, `/oh-my-joy:review` checks the code a diff adds, and `/oh-my-joy:verify` audits the rendered screen — one source of truth, three stages.
+**Principle**: when no designer drew the screen, the model is the designer, and its defaults are the problem. A generated screen tends to reach for the same handful of patterns, so the rubric names those patterns as a closed list and asks for decisions in their place. `/oh-my-joy:ralplan` prescribes the decisions in a plan's Design direction, the independent review inside `/oh-my-joy:ultragoal` checks the code a diff adds, and `/oh-my-joy:verify` audits the rendered screen — one source of truth, three stages.
 
 ## Scope
 
@@ -10,7 +10,7 @@ The rubric applies to a screen no Figma design governs. With a Figma design, `fi
 
 Three sources can choose an element on purpose: the Figma design, the document the project declares as `designDocPath` in `.omj/fe-context.md`, and the approved plan's Design direction. A listed tell that one of them chose is not a finding; report it as a 🟢 note naming the source. This is how a tell is defined, so the design document settles a fact the definition relies on (did the project choose this element?) — it never switches off another review rule.
 
-A design document a diff edits counts by its base wording, the text before the edit; a design document the diff adds settles nothing, because a change cannot choose its own exemption. `/oh-my-joy:review` judges that base wording; `/oh-my-joy:verify` has no diff and reads the working-tree document.
+A design document a diff edits counts by its base wording, the text before the edit; a design document the diff adds settles nothing, because a change cannot choose its own exemption. The independent review inside `/oh-my-joy:ultragoal` judges that base wording; `/oh-my-joy:verify` has no diff and reads the working-tree document.
 
 ## Template tells
 
@@ -37,7 +37,7 @@ A generic feel that matches no listed tell is a 🟡 judgment finding, never a �
 
 A listed tell is a 🔴 `template tell` finding when it sits inside the audit scope and no design source chose it. The audit scope is the new route or section an approved plan's Design direction covers (a plan without a Figma design, present in the session), or the whole page when `/oh-my-joy:verify` runs with `--design`.
 
-A listed tell outside the audit scope is a 🟡 `template tell` finding and not a fix-loop target: a standalone review or verify cannot tell whether a designer or a brand chose it, and code the plan never touched is not this change's defect. The finding adds one line — declare a deliberate choice in `designDocPath` — so the next run reads it as chosen.
+A listed tell outside the audit scope is a 🟡 `template tell` finding and not a fix-loop target: a standalone verify run cannot tell whether a designer or a brand chose it, and code the plan never touched is not this change's defect. The finding adds one line — declare a deliberate choice in `designDocPath` — so the next run reads it as chosen.
 
 ## Objective defects
 
@@ -73,4 +73,4 @@ A plan without a Figma design that creates a new route or page, or a new full-wi
 4. States — a table `State | What the user sees | How to check` with loading, empty, error, and success rows. How to check names a component test, a `verifySetup` mock, or a browser capture, so every row can be proved.
 5. Tell check — T1–T12 each with its one-line definition, marked avoided or with the source that chose it. Writing the definitions into the plan lets a reviewer that cannot read this file still judge the check.
 
-Each States row becomes its own acceptance criterion that names its state, and one Tell check row becomes a criterion too: "none of the tells listed in this Design direction appears on <scope>, except those marked with their chosen source". Its How to check is a `/oh-my-joy:review` report with no 🔴 `template tell` and the browser capture of the `/oh-my-joy:verify` design audit.
+Each States row becomes its own acceptance criterion that names its state, and one Tell check row becomes a criterion too: "none of the tells listed in this Design direction appears on <scope>, except those marked with their chosen source". Its How to check is the independent review inside `/oh-my-joy:ultragoal` with no 🔴 `template tell` and the browser capture of the `/oh-my-joy:verify` design audit.

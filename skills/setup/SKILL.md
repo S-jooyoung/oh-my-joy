@@ -34,4 +34,4 @@ Two Claude-only items are skipped with guidance rather than imitated: the team e
 
 In Codex App, use the same skills, project instructions, and supported hook paths. A terminal footer is CLI-only; do not claim it renders in the App. Optional GitHub support follows the common explicit star choice described in the setup contract and never blocks setup.
 
-Report present, missing, configured-but-unverified, and changed items with evidence. Start concrete work with `$oh-my-joy:ultragoal`; explicitly requested plans use `$oh-my-joy:ralplan`, and use `$oh-my-joy:deep-interview` for unclear requirements. `$oh-my-joy:spec` remains a compatibility alias.
+Report present, missing, configured-but-unverified, and changed items with evidence. Start concrete work with `$oh-my-joy:ultragoal`; explicitly requested plans use `$oh-my-joy:ralplan`, and use `$oh-my-joy:deep-interview` for unclear requirements.

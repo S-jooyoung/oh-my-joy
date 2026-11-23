@@ -71,9 +71,9 @@ playwright-cli -s=omj screenshot    # visuals
 
 ### Design audit
 
-The audit judges a screen no designer drew against the visual rubric. It runs when the comparison reference resolves to none, or on any route when `--design` is given, and only after the reached-route check, because auditing the wrong screen is the same silent failure as comparing it. It is this command's own step: `/oh-my-joy:fix` reuses the capture procedure above but not this audit.
+The audit judges a screen no designer drew against the visual rubric. It runs when the comparison reference resolves to none, or on any route when `--design` is given, and only after the reached-route check, because auditing the wrong screen is the same silent failure as comparing it.
 
-1. Read the rubric `skills/frontend-fundamentals/references/visual-design.md` (runtime path `${CLAUDE_PLUGIN_ROOT}/skills/frontend-fundamentals/references/visual-design.md`), its `a11y.md` sibling for the contrast and target thresholds, and the declared `designDocPath` as it stands in the working tree. This command has no diff, so judging an edited design document by its base wording belongs to `/oh-my-joy:review`.
+1. Read the rubric `skills/frontend-fundamentals/references/visual-design.md` (runtime path `${CLAUDE_PLUGIN_ROOT}/skills/frontend-fundamentals/references/visual-design.md`), its `a11y.md` sibling for the contrast and target thresholds, and the declared `designDocPath` as it stands in the working tree. This command has no diff, so judging an edited design document by its base wording belongs to the independent review inside `/oh-my-joy:ultragoal`.
 2. Record the current viewport with `playwright-cli -s=omj eval "() => [innerWidth, innerHeight]"` so the session can be restored.
 3. Capture three viewports in order — desktop 1440×900, tablet 768×1024, mobile 375×812 — each with `playwright-cli -s=omj resize <w> <h>` followed by `screenshot` (with the MCP fallback, its resize and screenshot tools). A width declared in the `acceptance` list of `.omj/fe-context.md` (for example 360px) replaces the nearest default width. Audit captures are not saved as a baseline: `.omj/baselines/` holds only the design reference, and a saved capture would make the next run believe a reference exists.
 4. At each viewport, measure the objective items with `playwright-cli -s=omj eval` (with the MCP fallback, its evaluate tool): horizontal overflow (`document.documentElement.scrollWidth > innerWidth`), the contrast of primary text and controls against the first opaque ancestor background, and the bounding boxes of interactive elements. Judge the render tells and the judgment items from the screenshots and the snapshot.
@@ -85,7 +85,7 @@ Finish every run with `playwright-cli -s=omj close` (with the MCP fallback, clos
 
 ### Output
 
-Group differences by severity (🔴 🟡 🟢) as `element and position + observed difference + recommended fix`, prioritizing accessibility (alt, labels, touch targets) and token deviations (raw hex, per `figma-fidelity.md`). Design audit findings read `viewport + element + observed + tell ID or criterion + recommended fix`, with the evidence kind `browser capture`. Suggest the next step: `/oh-my-joy:fix <route> "<complaint>"` for a visual defect (a `template tell` outside the audit scope is reported, not handed to fix), `/oh-my-joy:ship` when clean.
+Group differences by severity (🔴 🟡 🟢) as `element and position + observed difference + recommended fix`, prioritizing accessibility (alt, labels, touch targets) and token deviations (raw hex, per `figma-fidelity.md`). Design audit findings read `viewport + element + observed + tell ID or criterion + recommended fix`, with the evidence kind `browser capture`. Suggest the next step: describe a visual defect to `/oh-my-joy:ultragoal` (a `template tell` outside the audit scope is reported, not handed to it), `/oh-my-joy:ship` when clean.
 
 ## Usage
 

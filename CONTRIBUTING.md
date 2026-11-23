@@ -58,7 +58,7 @@ When you add or change a feature, put all three of the following in **the same c
 
 ## Adding a new command
 
-- File: `commands/<name>.md`. Naming has one axis — every command uses an unprefixed kebab-case basename (`spec`, `verify`, `review`, …); an `omj`-prefixed basename is blocked by tests (the plugin-name namespace already brands the command, so an in-name prefix would double it). In docs, commands are always written as the canonical `/oh-my-joy:<name>` invocation (bare notation is blocked by tests).
+- File: `commands/<name>.md`. Naming has one axis — every command uses an unprefixed kebab-case basename (`ralplan`, `verify`, `ship`, …); an `omj`-prefixed basename is blocked by tests (the plugin-name namespace already brands the command, so an in-name prefix would double it). In docs, commands are always written as the canonical `/oh-my-joy:<name>` invocation (bare notation is blocked by tests).
 - frontmatter: `description`, `argument-hint`, `allowed-tools` (**least privilege** — if read-only, do not include `Write`/`Edit`/`Bash`).
 - The SoT for behavior is that file's body. Other docs only summarize/link and never redefine thresholds or rules.
 - Add it to the README (EN/KO) command tables — tests fail if it is missing.

@@ -2,7 +2,7 @@
 
 One directory per case in the native `claude plugin eval` format: `prompt.md` (frontmatter + the prompt), `case.yaml` (`context.scaffold_script`), `scaffold.sh`, and `graders/*.md` (one grader each). Fixture workspaces live in `fixtures/`; each `scaffold.sh` copies one into the run's workspace, finding `fixtures/` relative to its own path.
 
-Run everything with `npm run eval`, one case with `npm run eval -- --case "review-*"`. The runner prefers native `claude plugin eval` and falls back to `scripts/eval-runner.mjs` when the native command reports early access. The loop, the case format, and the grader types are documented in [`docs/EVALS.md`](../docs/EVALS.md).
+Run everything with `npm run eval`, one case with `npm run eval -- --case "ralplan-*"`. The runner prefers native `claude plugin eval` and falls back to `scripts/eval-runner.mjs` when the native command reports early access. The loop, the case format, and the grader types are documented in [`docs/EVALS.md`](../docs/EVALS.md).
 
 Results are written under `results/` (gitignored).
 
@@ -24,20 +24,10 @@ npm run eval -- --native --tag ff --judge-model sonnet --max-cost-usd 12        
 - The display-only graders are unscored only under ablation. An explicit `--ablation none` counts `display-fired` toward the score, so leave the flag out (the tag selects with-without) or pass `--ablation with-without`.
 - Guards are judged by the with-arm `Skill` call count (`no-ff-skill`), not by the case score: an `arm: both` never-called grader is scored in both arms.
 
-## The `fake-done-*` cases — a plain merge-readiness question under ablation
+## The `setup-*` cases
 
-Four cases reuse the review fixtures (weakened tests, a gamed benchmark, a symptom patch, blind spots) but send a plain request — "my agent says it's done; is it ready to merge?" — and grade with rubrics that use no OMJ labels, so both arms are judged on the same words. `display-review-fired` is display only and shows whether the request reached `/oh-my-joy:review`. The 2026-10-20 baseline is in [`docs/EVALS.md`](../docs/EVALS.md#the-fake-done-baseline--2026-10-20).
+The command had no case before. Slash-command cases (`setup-check-readonly`, `setup-check-bare-project`, `setup-help`) run with `--ablation none`, because the without-plugin arm has no such command to run. The natural-language guard (`setup-neg-install-question`) carries the `ablation` tag and checks that a plain question does not start the workflow.
 
-```bash
-npm run eval -- --native --tag fake-done --judge-model sonnet --runs 1 --max-cost-usd 5 --run-cost-estimate 1   # about $1.70
-```
-
-## The `setup-*` and `sync-*` cases
-
-Both commands had no case before. Slash-command cases (`setup-check-readonly`, `setup-check-bare-project`, `setup-help`, `sync-check-no-figma`, `sync-push-no-figma`) run with `--ablation none`, because the without-plugin arm has no such command to run. The two natural-language guards (`setup-neg-install-question`, `sync-neg-token-question`) carry the `ablation` tag and check that a plain question does not start the workflow.
-
-- OMJ declares no MCP server, so `evals/mocks/` cannot stand in for Figma: mocks replace servers the plugin itself ships. The `sync` cases therefore cover only the path where Figma is unreachable — no fabricated drift report, no claimed push, no edits to the store.
-- `commands/sync.md` spells out the unconnected-Figma stop in `sync`, `check`, and `push`, so the `check` and `push` rubrics require the desktop-app and active-tab guidance. The duplicate hint is welcome but optional, because these cases fail on a missing connection, not on view-only permission.
 - `setup --check` probes the operator's real `PATH`, so machine-dependent rows (playwright, Figma, Context7, the opt-in items) are graded for presence of the row, never for a particular status. Only the rows the fixture fixes are pinned: `.omj/fe-context.md` and `src/tokens/colors.css` in `fe-form`, their absence in `node-service`.
 - The install guard gets no Bash on purpose: a native Bash grant is coarse, and a how-do-I-install question should not be able to run an installer.
 - When piloting a new case, pass `--run-cost-estimate 0.4` (or so); the default reservation of $2 per run and arm refuses to start cheap cases under a small `--max-cost-usd`.
@@ -63,5 +53,4 @@ The runs that built and tuned these suites, from 2026-09-19 to 2026-09-20, on a 
 
 - Budget: $20.12 of $25 spent, counting one $0.02 judge probe; every run except the two bare ones was capped at the smaller of its step's ceiling and what was left.
 - The description change moved `display-fired` from 0/18 to 17/18 with both guards at 0/6; Δ stayed about zero. The comparison table and its reading are in [`docs/EVALS.md`](../docs/EVALS.md#the-frontend-fundamentals-trigger--2026-09-20).
-- `sync-check-no-figma` first failed its rubric 3/3 when the answer, after saying Figma could not be read, went on to list the store's tokens; the body now says to report nothing further, and the rerun passed. `sync-push-no-figma` passed on the first run.
 - `weight: 0` does not load (`graders.N.weight: Number must be greater than 0`, CLI 2.1.278), and `--case __none__` stops before grader validation, so it cannot catch that. `--max-cost-usd 0` validates every case at $0.
