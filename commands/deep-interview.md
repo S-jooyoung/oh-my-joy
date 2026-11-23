@@ -58,7 +58,7 @@ When both gates pass, or after an early exit or the round cap with its `Residual
 
 Requirements are not yet a plan. The interview knows what to build and why; `ralplan` grounds target files, reuse candidates, verification, design detail, and independent critique. Invoke `/oh-my-joy:ralplan` through `Skill` immediately with the requirements in session context. There is no final route question and no small-work direct-plan exception: one canonical planner means one approval surface. If skill invocation is unavailable, continue by reading `commands/ralplan.md` in the current context; only when neither path exists print the exact `/oh-my-joy:ralplan` invocation.
 
-Frontend, Figma, general engineering, and PR review requirements all use this same handoff. If the user wants the requirements saved, make that an explicit goal in the plan rather than writing during the interview.
+Frontend, Figma, and general engineering requirements all use this same handoff. If the user wants the requirements saved, make that an explicit goal in the plan rather than writing during the interview.
 
 ## Usage
 

@@ -68,6 +68,9 @@ const ACCEPTED_WARNINGS = ['CLAUDE.md at the plugin root is not loaded as projec
 const DIRECTORY_SECTION = /^Plugin directory checks for /m;
 const DIRECTORY_ABOUT = /^About these checks:/m;
 
+/** Newer CLIs list what the plugin provides after the warnings, with the same marker. */
+const PROVIDES_SECTION = /^Provides:/m;
+
 // ---------------------------------------------------------------------------
 // Layer 1 — the official CLI
 // ---------------------------------------------------------------------------
@@ -87,7 +90,9 @@ function runCli(manifestPath) {
   }
 
   const split = output.search(DIRECTORY_SECTION);
-  const validation = split === -1 ? output : output.slice(0, split);
+  const head = split === -1 ? output : output.slice(0, split);
+  const provides = head.search(PROVIDES_SECTION);
+  const validation = provides === -1 ? head : head.slice(0, provides);
   const directory = split === -1 ? '' : output.slice(split).split(DIRECTORY_ABOUT)[0];
   for (const m of directory.matchAll(/❯\s+(.+)/g)) {
     advisories.push(`plugin directory check (${path.basename(manifestPath)}): ${m[1].trim()}`);
@@ -163,8 +168,8 @@ const CODEX_PLUGIN_FIELDS = new Set([
 ]);
 
 const EXPECTED_CODEX_ADAPTERS = [
-  'critic', 'deep-interview', 'design-qa', 'fix', 'implementer', 'ralplan', 'review',
-  'setup', 'ship', 'spec', 'sync', 'ultragoal', 'verify',
+  'critic', 'deep-interview', 'design-qa', 'implementer', 'ralplan',
+  'setup', 'ship', 'ultragoal', 'verify',
 ];
 
 // These identifiers belong to Claude's tool/runtime surface. Natural-language
@@ -390,13 +395,13 @@ function checkCodexSkills() {
     }
   }
 
-  for (const name of ['spec', 'ralplan', 'deep-interview']) {
+  for (const name of ['ralplan', 'deep-interview']) {
     const body = sources.get(name);
     if (body && !hasNoMutationBoundary(body)) {
       fail(`skills/${name}/SKILL.md: must explicitly preserve a non-mutating repository/source boundary`);
     }
   }
-  for (const name of ['review', 'verify']) {
+  for (const name of ['verify']) {
     const body = sources.get(name);
     const reportOnly = /\b(?:reports?[- ]only|inspection[- ]only|source[- ]untouched)\b/i.test(completeSources.get(name) ?? '')
       || /\breview and report\s*;\s*never fix\b/i.test(body ?? '');

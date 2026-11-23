@@ -4,7 +4,7 @@ This document is the canonical procedure for two opt-in extensions of `ultragoal
 
 Both extensions serve one arrangement: a lead session plans once and the user approves once, worker sessions execute in their own worktrees, and a different model family reviews what each worker wrote. OMJ owns the contract between those sessions. It does not own the tool that starts them or carries their messages; a session uses whatever peer-session tool it has and follows that tool's own manual.
 
-Shared team preferences resolve through [execution configuration](EXECUTION-CONFIG.md); dispatch capacity and recovery follow [runtime adapters](RUNTIME-ADAPTERS.md). Existing ledgers retain their bound review mode.
+Shared team preferences and dispatch capacity resolve through [execution configuration](EXECUTION-CONFIG.md). Existing ledgers retain their bound review mode.
 
 ## Handed plan
 
@@ -28,14 +28,13 @@ A worker session starts from a plan that the user approved in a lead session. Th
 
 `ultragoal` reviews every goal in a fresh context, which keeps the reviewer from inheriting the author's reasoning. It does not keep the reviewer from sharing the author's blind spots, because both are the same model. With cross-host review on, the reviewer runs on the other host: Codex reviews what Claude wrote, and Claude reviews what Codex wrote.
 
-**When it is on.** Resolve [execution configuration](EXECUTION-CONFIG.md) before creating a ledger, including request, project, personal and legacy fe-context settings. Effective `crossReview: preferred` or `required` enables this policy; `off` means the ordinary in-session review. At `init`, pass `crossReview: {authorHost: "<this host>", mode: "<effective mode>"}`, with `claude` or `codex` as the host name. The declaration is bound to the plan hash, so a ledger keeps the mode it started with until it closes.
+**When it is on.** Resolve [execution configuration](EXECUTION-CONFIG.md) before creating a ledger, including request, project, personal and legacy fe-context settings. Effective `crossReview: preferred` enables this policy; `off` means the ordinary in-session review. At `init`, pass `crossReview: {authorHost: "<this host>", mode: "<effective mode>"}`, with `claude` or `codex` as the host name. The declaration is bound to the plan hash, so a ledger keeps the mode it started with until it closes.
 
 | Mode | Other host can run | Other host cannot run |
 | --- | --- | --- |
 | `preferred` | the other host reviews | the in-session `critic` reviews, and the ledger records why |
-| `required` | the other host reviews | the goal blocks as human-only |
 
-`preferred` suits most projects: work continues on one host when the other is out of quota or not installed, and a teammate without the second CLI is not stopped by a committed declaration. `required` is for work where a same-model reading is not acceptable.
+Work continues on one host when the other is out of quota or not installed, and a teammate without the second CLI is not stopped by a committed declaration.
 
 **Why it is opt-in.** The plan and the diff leave for a second model provider, and every review pass is a second paid call. Neither should happen because a second CLI happens to be installed.
 
@@ -60,17 +59,14 @@ The prompt carries what the in-session reviewer gets and nothing more: the absol
  "output": "reviews/g1-pass1.out.md", "verdict": "fail", "summary": "..."}
 ```
 
-The helper hashes the output file into the ledger and rechecks the hash on every later read. With the declaration on, it accepts a review only when another host wrote it, or, in `preferred` mode, when it carries a `fallbackReason`. The `reviewer` and `summary` strings are the author's words; the output file is the reviewer's.
+The helper hashes the output file into the ledger and rechecks the hash on every later read. With the declaration on, it accepts a review only when another host wrote it, or when it carries a `fallbackReason`. The `reviewer` and `summary` strings are the author's words; the output file is the reviewer's.
 
 **The loop is the ordinary one.** A 🔴 or BLOCK is `fail`: fix it, re-verify, and run the next pass on the other host with the previous findings and the delta. A 🔴 is fixed, not argued away, because the author is the one recording the verdict. A 🟡 keeps its ordinary disposition, accepted or rejected with a reason. Three failing reviews of one goal block it as review not converging.
 
-**When the other host cannot run.** A missing CLI, an expired login, an exhausted quota, a non-zero exit, or an empty output file counts as unavailable after one retry. What happens next depends on the mode, and in neither mode is it silent:
+**When the other host cannot run.** A missing CLI, an expired login, an exhausted quota, a non-zero exit, or an empty output file counts as unavailable after one retry. The fallback is never silent: review with the in-session `critic` exactly as the ordinary review step does, and record the review with `fallbackReason` set to what failed (the command and its error, for example `codex exec exited 1: usage limit reached`) and without `reviewerHost` or `output`. Try the other host again on the next review pass; a quota that ran out on one goal may be back for the next. The completion report lists every review that fell back, with its reason, on its own line, so a reader never takes a same-host reading for a cross-host one.
 
-- `preferred`: review with the in-session `critic` exactly as the ordinary review step does, and record the review with `fallbackReason` set to what failed (the command and its error, for example `codex exec exited 1: usage limit reached`) and without `reviewerHost` or `output`. Try the other host again on the next review pass; a quota that ran out on one goal may be back for the next. The completion report lists every review that fell back, with its reason, on its own line, so a reader never takes a same-host reading for a cross-host one.
-- `required`: record a human-only `block` that names what the user has to do. A user who decides to proceed on one host changes the declaration, which applies to the next plan.
-
-**When the author host runs out.** The ledger is the same on both hosts, so the other host can take over: run `ultragoal resume <slug>` there, in the same worktree. The host that resumes is now the author of what it writes, so it passes `authorHost: "<this host>"` on each `review`, and the helper judges the reviewer against that host. If the first host is still unavailable, its review falls back or blocks by the same mode rule.
+**When the author host runs out.** The ledger is the same on both hosts, so the other host can take over: run `ultragoal resume <slug>` there, in the same worktree. The host that resumes is now the author of what it writes, so it passes `authorHost: "<this host>"` on each `review`, and the helper judges the reviewer against that host. If the first host is still unavailable, its review falls back by the same rule.
 
 **Permissions.** The reviewer call is not pre-approved by any command frontmatter. It goes through the host's ordinary approval, or through an exact-prefix allow rule that setup installs on request.
 
-**What stays same-host.** The plan critique inside `ralplan` runs before approval in a tier with no shell, so it still uses an in-session `critic`. The standalone `review` command can already be run from the other host by invoking it there.
+**What stays same-host.** The plan critique inside `ralplan` runs before approval in a tier with no shell, so it still uses an in-session `critic`.

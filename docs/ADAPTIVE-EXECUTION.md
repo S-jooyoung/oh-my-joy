@@ -4,7 +4,7 @@ OMJ keeps one execution entry: `/oh-my-joy:ultragoal` in Claude and `$oh-my-joy:
 
 ## Route before editing
 
-Run the installed `scripts/execution-config.mjs --resolve` with a JSON object of explicit task configuration overrides on stdin (use `{}` when none). Read the effective values, their sources, and warnings. Read [runtime adapters](RUNTIME-ADAPTERS.md) before dispatch. A leader preference is not proof of a host switch.
+Run the installed `scripts/execution-config.mjs --resolve` with a JSON object of explicit task configuration overrides on stdin (use `{}` when none). Read the effective values, their sources, and warnings.
 
 Run `scripts/execution-config.mjs --route` with observed facts on stdin. A read-only host mode remains read-only even when the route is direct: present the bounded work through its approval surface instead of attempting edits. Set a fact to true only after inspection establishes it:
 
@@ -23,7 +23,7 @@ If the task crosses the stated boundary, retain the completed safe changes, stop
 
 ## Planned route
 
-Use the existing ralplan approval and ultragoal evidence loop. Review requirements in an existing ledger are immutable; no direct-route setting weakens them. Existing `spec` is still the planning alias. No extra command or automatic hook is needed.
+Use the existing ralplan approval and ultragoal evidence loop. Review requirements in an existing ledger are immutable; no direct-route setting weakens them. No extra command or automatic hook is needed.
 
 ## Questions
 

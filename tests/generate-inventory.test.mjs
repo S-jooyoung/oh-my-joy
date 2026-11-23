@@ -21,7 +21,7 @@ const runInventory = (...args) =>
   JSON.parse(execFileSync('node', [repoPath('scripts', 'generate-inventory.mjs'), ...args], { encoding: 'utf8' }));
 
 const FIXTURE = {
-  'commands/spec.md': '# spec\n',
+  'commands/ralplan.md': '# ralplan\n',
   'agents/helper.md': '# helper\n',
   '.claude-plugin/plugin.json': '{"name":"fixture","version":"1.0.0"}\n',
 };
@@ -45,7 +45,7 @@ describe('generate-inventory', () => {
     const project = makeProject(FIXTURE);
     try {
       const before = runInventory('--dir', project.root).sha256;
-      writeFileSync(project.file('commands/spec.md'), '# spec (edited)\n');
+      writeFileSync(project.file('commands/ralplan.md'), '# ralplan (edited)\n');
       const after = runInventory('--dir', project.root).sha256;
       assert.notEqual(before, after);
     } finally {
@@ -88,7 +88,7 @@ describe('generate-inventory', () => {
       execFileSync('git', ['init', '--quiet'], { cwd: project.root, env: gitEnv });
       execFileSync(
         'git',
-        ['add', '-f', '.claude-plugin/plugin.json', 'agents/helper.md', 'commands/spec.md', 'evals/fixtures/fe-form/.omj/fe-context.md'],
+        ['add', '-f', '.claude-plugin/plugin.json', 'agents/helper.md', 'commands/ralplan.md', 'evals/fixtures/fe-form/.omj/fe-context.md'],
         { cwd: project.root, env: gitEnv },
       );
 

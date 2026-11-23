@@ -1,4 +1,0 @@
-schema_version: "1.1"
-name: sync-neg-token-question
-context:
-  scaffold_script: scaffold.sh

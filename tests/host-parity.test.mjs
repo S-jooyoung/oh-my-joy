@@ -24,8 +24,7 @@ describe('Claude/Codex capability parity', () => {
     for (const file of readdirSync(repoPath('commands')).filter(f => f.endsWith('.md'))) {
       const name = file.slice(0, -3);
       const source = readRepoFile('skills', name, 'SKILL.md');
-      const contract = name === 'setup' ? 'docs/CODEX-SETUP.md'
-        : name === 'spec' ? 'commands/ralplan.md' : `commands/${file}`;
+      const contract = name === 'setup' ? 'docs/CODEX-SETUP.md' : `commands/${file}`;
       assert.ok(source.includes(contract), name);
     }
     for (const file of readdirSync(repoPath('agents')).filter(f => f.endsWith('.md'))) {

@@ -382,7 +382,7 @@ describe('Command list consistency', () => {
     // A canonical /oh-my-joy:<name> token is always preceded by whitespace, a
     // backtick, a quote, or line start — never by a path segment. A hit here
     // is the signature of a mechanical rename over-matching a filesystem path
-    // (the observed defect class: cache/omj/ → cache/oh-my-joy:spec/, where
+    // (the observed defect class: cache/omj/ → cache/oh-my-joy:<name>/, where
     // "omj" was the marketplace directory, not a command name).
     const offenders = [];
     for (const file of listMarkdownFiles().filter((f) => f !== 'CHANGELOG.md')) {

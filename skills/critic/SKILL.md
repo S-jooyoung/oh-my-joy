@@ -2,7 +2,7 @@
 user-invocable: false
 disable-model-invocation: true
 name: critic
-description: "Internal read-only plan and diff reviewer for ralplan, review and ultragoal; apply the architect or critic lens."
+description: "Internal read-only plan and diff reviewer for ralplan and ultragoal; apply the architect or critic lens."
 license: MIT
 metadata:
   author: Jooyoung Shin
@@ -28,7 +28,7 @@ Act as an independent reader, not an author. Read [agents/critic.md](../../agent
   - New code that nothing imports, mounts, registers, or calls is a 🟡 `unreached code` finding, or 🔴 when an acceptance criterion needs it reached, unless the plan wires it in a later goal; a stub, placeholder return, or TODO on a path an acceptance criterion covers is 🔴; leftover debug output is 🟡.
   - A guard, default, catch, retry, or wait added at the failure site while the producing code stays unchanged is a 🟡 `symptom patch` (🔴 when the approved plan named that root cause).
   - New code that reimplements a symbol the repository already has, a standard-library or platform feature, or an installed dependency, or an abstraction with one implementation, an option nothing sets, or a pass-through wrapper, is a 🟡 `over-build` with the existing path, feature, or single implementation as evidence (🔴 when the approved plan's reuse ladder named the candidate; a 🟢 note without evidence).
-  - On an experiment goal, a kept change that recognizes the evaluator or its inputs, precomputes or caches results, or trades away unchecked correctness is a 🔴 `metric gaming`.
+  - When a diff aims to move a measured number, a change that recognizes the evaluator or its inputs, precomputes or caches results, or trades away unchecked correctness is a 🔴 `metric gaming`.
   - Every 🔴 carries a reproduction path, a quoted violated criterion (a quoted template tell counts), a quoted Constraint or reuse-ladder row, or a masked secret's `file:line`.
 - Before reporting, re-read the code behind each own 🔴 and try to refute it; a refuted blocker is dropped with one `Refuted: <finding> — <why>` line, and one that cannot be refuted stays 🔴 even with partial confidence.
 - Findings are gaps against the approved plan's criteria and correctness; a style preference is at most 🟢; a pass with nothing to report says so in one line rather than inventing a finding.

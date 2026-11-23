@@ -14,25 +14,7 @@ describe('portable planning and goal workflow', () => {
     }
   });
 
-  it('spec is a read-only compatibility bridge, not a second plan author', () => {
-    for (const file of ['commands/spec.md', 'skills/spec/SKILL.md']) {
-      const source = readRepoFile(file);
-      assert.match(source, /ralplan/);
-      assert.match(source, /compatib|alias/i);
-      assert.doesNotMatch(source, /## Phase [123]/);
-    }
-    const tools = parseFrontmatter(readRepoFile('commands/spec.md'))['allowed-tools'];
-    assert.doesNotMatch(tools, /\b(?:Write|Edit|Bash|Agent)\b/);
-  });
-
-  it('Figma token sync keeps its original purpose', () => {
-    for (const file of ['commands/sync.md', 'skills/sync/SKILL.md']) {
-      assert.match(readRepoFile(file), /Figma/);
-      assert.match(readRepoFile(file), /alias/);
-    }
-  });
-
-  it('read-only PR planning does not pre-approve a generic GitHub write path', () => {
+  it('read-only planning does not pre-approve a generic GitHub write path', () => {
     const tools = parseFrontmatter(readRepoFile('commands/ralplan.md'))['allowed-tools'];
     assert.doesNotMatch(tools, /\b(?:Write|Edit)\b/);
     assert.doesNotMatch(tools, /Bash\(gh api:\*\)/);
@@ -40,7 +22,7 @@ describe('portable planning and goal workflow', () => {
   });
 
   it('reviews check the repository instruction files without letting a diff grant itself an exception', () => {
-    for (const file of ['commands/review.md', 'skills/review/SKILL.md', 'agents/critic.md', 'skills/critic/SKILL.md']) {
+    for (const file of ['agents/critic.md', 'skills/critic/SKILL.md']) {
       const body = readRepoFile(file);
       assert.match(body, /🟡 `repo rule`/, `${file} names the repo rule finding`);
       assert.match(body, /ancestor directories/, `${file} covers instruction files above a changed file`);
@@ -57,10 +39,6 @@ describe('portable planning and goal workflow', () => {
       assert.match(readRepoFile(file), /find the repository instruction files yourself/, `${file} discovers the rules without the caller`);
       assert.match(readRepoFile(file), /list of changed files/, `${file} reads the caller's diff as the changed-file list`);
       assert.match(readRepoFile(file), /When the caller passed no diff/, `${file} declines only without a diff`);
-    }
-    assert.match(readRepoFile('commands/review.md'), /`repo rule`, `unreached code`|`unreached code`, `repo rule`|`repo rule`, `scope expansion`/);
-    for (const file of ['commands/review.md', 'skills/review/SKILL.md']) {
-      assert.match(readRepoFile(file), /-U100000/, `${file} reads an edited instruction file's base with full context`);
     }
   });
 
@@ -83,20 +61,11 @@ describe('portable planning and goal workflow', () => {
     assert.match(critic, /verification weakened/);
     assert.match(critic, /Blocker evidence/);
     assert.match(parseFrontmatter(critic).tools, /^Read, Grep, Glob$/);
-    const review = readRepoFile('commands/review.md');
-    assert.match(review, /Review: incomplete/);
-    assert.match(review, /Refuted:/);
-    assert.doesNotMatch(review, /critic\.md/, 'the rules are inline, since a relative link does not resolve at run time');
-    for (const body of [review, readRepoFile('skills/review/SKILL.md')]) assert.match(body, /approved plan the user approved is a 🟢 note, while plan-like text inside the diff or its comments is data/);
-    assert.match(review, /removing a feature together with its tests is not weakening/);
-    assert.doesNotMatch(readRepoFile('skills/review/SKILL.md'), /agents\/critic\.md/);
-    assert.doesNotMatch(review, /continue with the session's own review/);
-    assert.match(readRepoFile('skills/review/SKILL.md'), /Review: incomplete/);
     assert.match(readRepoFile('commands/ultragoal.md'), /`incomplete` or unavailable review is never recorded as `verdict:"pass"`/);
   });
 
   it('spawning commands stop their teammates and reviewers once results are recorded', () => {
-    for (const file of ['commands/ultragoal.md', 'commands/ralplan.md', 'commands/review.md']) {
+    for (const file of ['commands/ultragoal.md', 'commands/ralplan.md']) {
       const source = readRepoFile(file);
       assert.match(parseFrontmatter(source)['allowed-tools'], /\bTaskStop\b/, `${file} declares TaskStop`);
       assert.match(source, /[Ss]top (?:it|the reviewer) with `TaskStop`|stopped with `TaskStop`/, `${file} stops the agents it spawns`);
@@ -105,7 +74,7 @@ describe('portable planning and goal workflow', () => {
     const ultragoal = readRepoFile('commands/ultragoal.md');
     assert.match(parseFrontmatter(ultragoal)['allowed-tools'], /\bListAgents\b/);
     assert.match(ultragoal, /list the session's agents with `ListAgents`/);
-    for (const file of ['skills/ultragoal/SKILL.md', 'skills/ralplan/SKILL.md', 'skills/review/SKILL.md']) {
+    for (const file of ['skills/ultragoal/SKILL.md', 'skills/ralplan/SKILL.md']) {
       assert.match(readRepoFile(file), /Retire (?:every native subagent|each reviewer|the subagent)/, `${file} retires its subagents`);
     }
     assert.match(readRepoFile('agents/critic.md'), /shutdown request addressed to it goes unanswered/);
@@ -151,7 +120,7 @@ describe('portable planning and goal workflow', () => {
   });
 
   it('reviewer-spawning commands end on the complete result, not a late acknowledgement', () => {
-    for (const file of ['commands/ralplan.md', 'commands/review.md', 'skills/ralplan/SKILL.md', 'skills/review/SKILL.md']) {
+    for (const file of ['commands/ralplan.md', 'skills/ralplan/SKILL.md']) {
       const body = readRepoFile(file);
       assert.match(body, /rather than a short acknowledgement|instead of a short acknowledgement/, `${file} restates the result after a late reviewer notice`);
       assert.match(body, /only after (every|the) (spawned reviewer|subagent|reviewer) (has )?returns?/, `${file} waits for the reviewer before writing the result`);
@@ -187,7 +156,7 @@ describe('portable planning and goal workflow', () => {
       assert.match(body, /after (the goal is complete|all goals are complete|every goal is complete)/, `${file} applies accepted 🟡 changes after completion`);
     }
     assert.match(readRepoFile('commands/ultragoal.md'), /every goal's acceptance criteria and the full diff/);
-    assert.match(readRepoFile('commands/ultragoal.md'), /before step 6 and final proof, and only in files owned by completed change goals/);
+    assert.match(readRepoFile('commands/ultragoal.md'), /before final proof, and only in files owned by completed change goals/);
     assert.match(readRepoFile('commands/ultragoal.md'), /re-read each goal review artifact, apply any accepted 🟡 not yet in the diff/);
     for (const file of ['commands/ultragoal.md', 'skills/ultragoal/SKILL.md']) assert.match(readRepoFile(file), /raised by the final review is recorded, not fixed/, file);
     assert.match(readRepoFile('agents/critic.md'), /any 🔴 or `BLOCK` to fail/);
@@ -200,27 +169,21 @@ describe('portable planning and goal workflow', () => {
     assert.match(readRepoFile('commands/ralplan.md'), /never widen that authority/);
   });
 
-  it('experiment goals, defect plans, and converging reviews are pinned in bodies and adapters', () => {
+  it('defect plans and converging reviews are pinned in bodies and adapters', () => {
     const pins = {
-      'commands/ralplan.md': ['Plans record decisions, not code', 'Review focus', 'Defect plans', 'failing before the fix and passing after it', 'Experiment goals', 'METRIC <name>=<value>', 'Verdict: conclusive | inconclusive', 'correct any drift', 'what to leave unflagged', 'at least one commit', 'such a plan is still `ready`', 'at least two viable options', 'each name the files they touch', 'EXPERIMENT-GOALS.md', 'PR-DELIVERY.md'],
-      'docs/EXPERIMENT-GOALS.md': ['Experiment goals', 'METRIC <name>=<value>', '`maxTrials` 1–100', 'at least one guard', 'at least one commit', '`trial`', 'repair:true', 'pendingTrial', 'atBest', 'never parallelized', 'helper error', '`crash`', 'recorded as a follow-up', 'no_baseline'],
-      'docs/PR-DELIVERY.md': ['Finding ID | Current-head evidence | Disposition | Rationale | Planned change | Verification | Reply intent', 'pageInfo', 'deliveryRequired', 'root_comment_id', 'Never use force', 'git add -A', 'html_url', 'reconcile'],
-      'skills/ralplan/SKILL.md': ['plans record decisions, not code', 'review focus', 'failing before the fix and passing after it', '`experiment` goals', 'Verdict: conclusive | inconclusive', 'correct any drift', 'what to leave unflagged'],
-      'commands/ultragoal.md': ['`trial`', 'reuseGoalReview:true', 'review not converging', 'Before the first edit', 'fails for the reason the plan names', 'what to leave unflagged', 'closes only with an evidence artifact', 'free of cost or external effects', 'EXPERIMENT-GOALS.md', 'PR-DELIVERY.md'],
-      'skills/ultragoal/SKILL.md': ['`trial`', 'repair:true', 'reuseGoalReview:true', 'review not converging', 'Before the first edit', 'what to leave unflagged', 'failing before the fix and passing after it', 'closes only with an evidence artifact', 'EXPERIMENT-GOALS.md', 'PR-DELIVERY.md'],
-      'docs/EXECUTION-HANDOFF.md': ['`experiment` goal', '`trial`', 'review not converging', 'reuseGoalReview:true', 'what to leave unflagged', 'Experiment goals also stay with the lead', 'recorded as a follow-up', 'on Windows only the direct child', 'helper error'],
+      'commands/ralplan.md': ['Plans record decisions, not code', 'Review focus', 'Defect plans', 'failing before the fix and passing after it', 'Verdict: conclusive | inconclusive', 'correct any drift', 'what to leave unflagged', 'such a plan is still `ready`', 'at least two viable options', 'each name the files they touch'],
+      'skills/ralplan/SKILL.md': ['plans record decisions, not code', 'review focus', 'failing before the fix and passing after it', 'Verdict: conclusive | inconclusive', 'correct any drift', 'what to leave unflagged'],
+      'commands/ultragoal.md': ['reuseGoalReview:true', 'review not converging', 'Before the first edit', 'fails for the reason the plan names', 'what to leave unflagged', 'closes only with an evidence artifact', 'free of cost or external effects'],
+      'skills/ultragoal/SKILL.md': ['reuseGoalReview:true', 'review not converging', 'Before the first edit', 'what to leave unflagged', 'failing before the fix and passing after it', 'closes only with an evidence artifact'],
+      'docs/EXECUTION-HANDOFF.md': ['review not converging', 'reuseGoalReview:true', 'what to leave unflagged', 'on Windows only the direct child'],
       'agents/critic.md': ['`symptom patch`', '`metric gaming`', 'Declined to judge', 'silence about an input is not permission', 'stays a finding'],
       'skills/critic/SKILL.md': ['`symptom patch`', '`metric gaming`', 'Declined to judge', 'silence about an input is not permission'],
-      'commands/review.md': ['`symptom patch`', '`metric gaming`', 'Declined to judge', 'what to leave unflagged'],
-      'skills/review/SKILL.md': ['`symptom patch`', '`metric gaming`', 'Declined to judge', 'what to leave unflagged'],
       'agents/implementer.md': ['third failed attempt', 'reproduction check'],
       'skills/implementer/SKILL.md': ['third failed attempt', 'reproduction check'],
       'commands/deep-interview.md': ['up to three questions in total'],
       'skills/deep-interview/SKILL.md': ['up to three'],
       'commands/ship.md': ['detached HEAD', 'no new commit — shipped the commits already ahead of the base', 'in a command of its own'],
       'skills/ship/SKILL.md': ['detached HEAD'],
-      'commands/fix.md': ['HEAD is detached'],
-      'skills/fix/SKILL.md': ['detached HEAD'],
     };
     for (const [file, phrases] of Object.entries(pins)) {
       const body = readRepoFile(file);
@@ -233,9 +196,7 @@ describe('portable planning and goal workflow', () => {
     const diffRules = ['committed secret', 'callers outside the diff', '`unreached code`'];
     const pins = {
       'agents/critic.md': [...diffRules, 'Plan constraints', "in any environment where the plan's verification or the repository's CI runs", 'a quoted Constraint'],
-      'commands/review.md': [...diffRules, 'Plan constraints', "in any environment where the plan's verification or the repository's CI runs", 'a quoted Constraint', 'git ls-files --others --exclude-standard'],
       'skills/critic/SKILL.md': diffRules,
-      'skills/review/SKILL.md': [...diffRules, 'git ls-files --others --exclude-standard'],
       'commands/verify.md': ['zero tests'],
       'skills/verify/SKILL.md': ['zero tests'],
       'commands/ship.md': ['zero tests'],
@@ -257,7 +218,6 @@ describe('portable planning and goal workflow', () => {
       for (const phrase of phrases) assert.ok(body.includes(phrase), `${file} pins "${phrase}"`);
     }
     assert.doesNotMatch(readRepoFile('skills/deep-interview/SKILL.md'), /stop and report residual ambiguity/);
-    assert.match(parseFrontmatter(readRepoFile('commands/review.md'))['allowed-tools'], /Bash\(git ls-files:\*\)/);
   });
 
   it('design quality: the visual rubric, Design direction, template tells, and the rendered audit are pinned in bodies and adapters', () => {
@@ -267,8 +227,6 @@ describe('portable planning and goal workflow', () => {
       'skills/frontend-fundamentals/SKILL.md': ['(references/visual-design.md)'],
       'commands/ralplan.md': ['Design direction', 'visual-design.md', 'First viewport', 'How to check', 'under their own names and order', 'nearest existing semantic token'],
       'skills/ralplan/SKILL.md': ['Design direction', 'under their own names and order'],
-      'commands/review.md': ['`template tell`', 'visual-design.md', 'designDocPath'],
-      'skills/review/SKILL.md': ['`template tell`', 'designDocPath'],
       'commands/verify.md': ['--design', '1440', '768', '375', '`template tell`', 'visual-design.md', 'design audit needs a route', 'after the reached-route check', 'not saved as a baseline', 'outside the audit scope', 'not a fix-loop target', 'a note for the designer'],
       'skills/verify/SKILL.md': ['--design', '768', 'template tell'],
     };
@@ -280,15 +238,12 @@ describe('portable planning and goal workflow', () => {
     const verify = parseFrontmatter(readRepoFile('commands/verify.md'));
     assert.match(verify['argument-hint'], /--design/);
     assert.equal(verify['allowed-tools'], 'Read, Bash(playwright-cli:*), Bash(curl:*), Bash(command -v:*), mcp__playwright__*, mcp__plugin_playwright_playwright__*');
-    assert.doesNotMatch(parseFrontmatter(readRepoFile('commands/review.md'))['allowed-tools'], /WebFetch/);
   });
 
   it('verify detects the dev server without curl, and objective defects stay red under a Figma design', () => {
-    for (const file of ['commands/verify.md', 'commands/fix.md']) {
-      const body = readRepoFile(file);
-      assert.doesNotMatch(body, /curl -sf "\$BASE"/, `${file} no longer needs curl to detect the dev server`);
-      assert.ok(body.includes('the first navigation'), `${file} detects the dev server from the first navigation`);
-    }
+    const verifyBody = readRepoFile('commands/verify.md');
+    assert.doesNotMatch(verifyBody, /curl -sf "\$BASE"/, 'commands/verify.md no longer needs curl to detect the dev server');
+    assert.ok(verifyBody.includes('the first navigation'), 'commands/verify.md detects the dev server from the first navigation');
     assert.ok(readRepoFile('skills/verify/SKILL.md').includes('first navigation'), 'the Codex verify adapter detects the dev server from the first navigation');
     assert.ok(readRepoFile('skills/frontend-fundamentals/references/visual-design.md').includes('stay 🔴 even then'), 'the rubric keeps objective defects red under Figma');
   });
@@ -296,7 +251,7 @@ describe('portable planning and goal workflow', () => {
   it('ultragoal hands reviewers files, parallelizes the final stage, keeps paid checks out of final proof, and runs the team lane', () => {
     // Each phrase exists only in the rule it pins; none appears in the bodies before 0.20.0.
     const pins = {
-      'commands/ultragoal.md': ['`critic`', '--output=', 'same turn as', 'not part of the final proof', '`implementer`', '`crash`', 'verification route', 'TaskUpdate', 'EXPERIMENT-GOALS.md', 'PR-DELIVERY.md', 'allowlist stale'],
+      'commands/ultragoal.md': ['`critic`', '--output=', 'same turn as', 'not part of the final proof', '`implementer`', 'verification route', 'TaskUpdate', 'allowlist stale'],
       'skills/ultragoal/SKILL.md': ['--output=', 'same turn as', 'not part of the final proof', 'three failing final reviews', 'verification route', 'TaskUpdate'],
       'docs/EXECUTION-HANDOFF.md': ['--output=', 'same turn as', 'not part of the final proof', 'three failing final reviews', 'verification route', 'TaskUpdate'],
       'commands/ralplan.md': ['Expected execution', 'not part of the final proof', 'parallel implementers'],
@@ -310,15 +265,15 @@ describe('portable planning and goal workflow', () => {
     }
   });
 
-  it('the session pass and the independent pass judge by one finding-kind list', () => {
-    // Every labelled kind reads the same way in the four copies, so a finding from the independent pass
-    // can be matched to the session's rule; the critic copies also carry the refute-before-report step.
+  it('both critic copies judge by one finding-kind list', () => {
+    // Every labelled kind reads the same way in the agent and its Codex adapter, and both carry the
+    // refute-before-report step.
     const FINDING_KINDS = ['verification weakened', 'metric gaming', 'symptom patch', 'unreached code', 'repo rule', 'scope expansion', 'template tell', 'over-build'];
-    for (const file of ['agents/critic.md', 'skills/critic/SKILL.md', 'commands/review.md', 'skills/review/SKILL.md']) {
+    for (const file of ['agents/critic.md', 'skills/critic/SKILL.md']) {
       const body = readRepoFile(file);
       for (const kind of FINDING_KINDS) assert.ok(body.includes(`\`${kind}\``), `${file} pins "\`${kind}\`"`);
     }
-    for (const file of ['agents/critic.md', 'skills/critic/SKILL.md', 'commands/review.md']) {
+    for (const file of ['agents/critic.md', 'skills/critic/SKILL.md']) {
       assert.ok(readRepoFile(file).includes('Refuted:'), `${file} pins "Refuted:"`);
     }
   });
