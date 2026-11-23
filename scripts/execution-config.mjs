@@ -4,20 +4,32 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 
-const choices = {
-  leader: ['current', 'codex', 'claude'],
-  workers: ['current', 'codex', 'claude', 'mixed'],
-  runtime: ['auto', 'native', 'herdr', 'orca'],
-  crossReview: ['off', 'preferred', 'required'],
-};
-export const DEFAULTS = Object.freeze({ leader: 'current', workers: 'current', maxWorkers: 2, runtime: 'auto', crossReview: 'off', models: {} });
+const CROSS_REVIEW = ['off', 'preferred'];
+const REMOVED_KEYS = ['leader', 'workers', 'runtime'];
+export const DEFAULTS = Object.freeze({ maxWorkers: 2, crossReview: 'off', models: {} });
 
-export function validateConfig(value, source = 'config') {
+function crossReviewValue(value, source, warnings) {
+  if (value === 'required') {
+    warnings.push(`${source}: crossReview required was removed in 2.0; using preferred`);
+    return 'preferred';
+  }
+  if (!CROSS_REVIEW.includes(value)) throw new Error(`${source}: invalid crossReview`);
+  return value;
+}
+
+export function validateConfig(value, source = 'config', warnings = []) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${source}: expected an object`);
+  const config = {};
   for (const [key, item] of Object.entries(value)) {
-    if (Object.hasOwn(choices, key)) {
-      if (!choices[key].includes(item)) throw new Error(`${source}: invalid ${key}`);
-    } else if (key === 'maxWorkers') {
+    if (REMOVED_KEYS.includes(key)) {
+      warnings.push(`${source}: ${key} was removed in 2.0 and is ignored`);
+      continue;
+    }
+    if (key === 'crossReview') {
+      config[key] = crossReviewValue(item, source, warnings);
+      continue;
+    }
+    if (key === 'maxWorkers') {
       if (!Number.isSafeInteger(item) || item < 1) throw new Error(`${source}: maxWorkers must be a positive integer`);
     } else if (key === 'models') {
       if (!item || typeof item !== 'object' || Array.isArray(item)) throw new Error(`${source}: models must be an object`);
@@ -25,8 +37,9 @@ export function validateConfig(value, source = 'config') {
         if (!['codex', 'claude'].includes(host) || typeof model !== 'string' || !model.trim() || /[\r\n\0]/.test(model)) throw new Error(`${source}: invalid model selection`);
       }
     } else throw new Error(`${source}: unknown key ${key}`);
+    config[key] = item;
   }
-  return value;
+  return config;
 }
 
 export function resolveConfig({ personal = {}, project = {}, request = {}, legacyCrossReview } = {}) {
@@ -34,20 +47,18 @@ export function resolveConfig({ personal = {}, project = {}, request = {}, legac
   const sources = Object.fromEntries(Object.keys(effective).map(key => [key, 'default']));
   const warnings = [];
   for (const [source, layer] of [['personal', personal], ['project', project], ['request', request]]) {
-    validateConfig(layer, source);
-    for (const [key, value] of Object.entries(layer)) {
+    for (const [key, value] of Object.entries(validateConfig(layer, source, warnings))) {
       effective[key] = key === 'models' ? { ...effective.models, ...value } : value;
       sources[key] = source;
     }
   }
   if (legacyCrossReview !== undefined) {
-    if (!choices.crossReview.includes(legacyCrossReview)) throw new Error('fe-context: invalid crossReview');
+    const legacy = crossReviewValue(legacyCrossReview, 'fe-context', warnings);
     if (sources.crossReview === 'default' || sources.crossReview === 'personal') {
-      effective.crossReview = legacyCrossReview;
+      effective.crossReview = legacy;
       sources.crossReview = 'fe-context';
-    } else if (effective.crossReview !== legacyCrossReview) {
-      warnings.push(`crossReview conflict: ${sources.crossReview}=${effective.crossReview}, fe-context=${legacyCrossReview}`);
-      if (legacyCrossReview === 'required') throw new Error('fe-context requires crossReview: required; resolve the conflict before execution');
+    } else if (effective.crossReview !== legacy) {
+      warnings.push(`crossReview conflict: ${sources.crossReview}=${effective.crossReview}, fe-context=${legacy}`);
     }
   }
   return { effective, sources, warnings };
@@ -73,8 +84,9 @@ export function executionRoute(facts) {
   if (facts.resume === true) return 'resume';
   if (facts.approvedPlan === true) return 'planned';
   if (facts.explicitPlanning === true) return 'plan';
-  const safe = ['clearGoal', 'boundedLocalChange', 'knownVerification', 'singleHost', 'noPublicContractChange', 'noSensitiveChange', 'noExternalWrite'];
-  return safe.every(key => facts[key] === true) ? 'direct' : 'plan';
+  const safe = ['clearGoal', 'noSensitiveChange', 'noPublicContractChange', 'noExternalWrite'].every(key => facts[key] === true);
+  const small = facts.deliverables === 1 && Number.isInteger(facts.targetFiles) && facts.targetFiles >= 0 && facts.targetFiles <= 5;
+  return safe && small ? 'playbook' : 'plan';
 }
 
 export function dispatchCapacity({ maxWorkers, active, hostLimit = maxWorkers }) {
